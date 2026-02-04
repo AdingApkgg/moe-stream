@@ -356,39 +356,81 @@ export const videoRouter = router({
       return video;
     }),
 
-  // 获取用户自己的视频列表
+  // 获取用户自己的视频列表（分页版）
   getMyVideos: protectedProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(50),
         status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+        sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const videos = await ctx.prisma.video.findMany({
-        where: {
-          uploaderId: ctx.session.user.id,
-          ...(input.status !== "ALL" && { status: input.status as "PUBLISHED" | "PENDING" | "REJECTED" }),
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          tags: {
-            include: { tag: { select: { id: true, name: true, slug: true } } },
+      const { page, limit, status, search, sortBy } = input;
+
+      const where = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: 'insensitive' as const } }),
+      };
+
+      const orderBy = sortBy === "views" 
+        ? { views: 'desc' as const }
+        : sortBy === "likes"
+          ? { createdAt: 'desc' as const } // 先按时间排序，前端再排序
+          : { createdAt: 'desc' as const };
+
+      const [videos, totalCount] = await Promise.all([
+        ctx.prisma.video.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy,
+          include: {
+            tags: {
+              include: { tag: { select: { id: true, name: true, slug: true } } },
+            },
+            _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
           },
-          _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
-        },
+        }),
+        ctx.prisma.video.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return { 
+        videos, 
+        totalCount, 
+        totalPages, 
+        currentPage: page,
+      };
+    }),
+
+  // 获取用户所有视频的 ID（用于全选）
+  getMyVideoIds: protectedProcedure
+    .input(
+      z.object({
+        status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { status, search } = input;
+
+      const where = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: 'insensitive' as const } }),
+      };
+
+      const videos = await ctx.prisma.video.findMany({
+        where,
+        select: { id: true },
       });
 
-      let nextCursor: string | undefined = undefined;
-      if (videos.length > input.limit) {
-        const nextItem = videos.pop();
-        nextCursor = nextItem!.id;
-      }
-
-      return { videos, nextCursor };
+      return videos.map(v => v.id);
     }),
 
   // 获取单个视频用于编辑（无需 PUBLISHED 状态限制）
@@ -1254,159 +1296,5 @@ export const videoRouter = router({
           _count: { select: { likes: true, dislikes: true, favorites: true } },
         },
       });
-    }),
-
-  // 从旧站抓取视频数据
-  fetchFromLegacySite: protectedProcedure
-    .input(z.object({
-      url: z.string().url().optional(),
-      fetchAll: z.boolean().default(false),
-    }))
-    .mutation(async ({ input }) => {
-      const baseUrl = 'https://tv.mikiacg.org';
-      const results: {
-        title: string;
-        description: string;
-        coverUrl: string;
-        videoUrl: string;
-        tags: string[];
-        episodes: { num: number; title: string; videoUrl: string }[];
-        pageUrl: string;
-      }[] = [];
-
-      // 从 HTML 中提取视频信息
-      async function extractFromPage(pageUrl: string) {
-        try {
-          const response = await fetch(pageUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; MikiacgBot/1.0)',
-            },
-          });
-          const html = await response.text();
-
-          // 提取标题
-          const titleMatch = html.match(/<h1[^>]*class="[^"]*joe_detail__title[^"]*"[^>]*>([^<]+)<\/h1>/i)
-            || html.match(/<title>([^<]+)<\/title>/);
-          const title = titleMatch ? titleMatch[1].split(' - ')[0].trim() : '';
-
-          // 提取描述
-          const descMatch = html.match(/<div[^>]*class="[^"]*joe_detail__abstract[^"]*"[^>]*>([^<]+)<\/div>/i)
-            || html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i);
-          const description = descMatch ? descMatch[1].trim() : '';
-
-          // 提取标签
-          const tagMatches = html.matchAll(/<a[^>]*href="[^"]*\/tag\/[^"]*"[^>]*>#?\s*([^<]+)<\/a>/gi);
-          const tags = [...tagMatches].map(m => m[1].trim()).filter(Boolean);
-
-          // 提取封面图 - og:image
-          const ogImageMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
-          const coverUrl = ogImageMatch ? ogImageMatch[1] : '';
-
-          // 提取所有视频 URL (CDN 格式: https://cdn.www.mikiacg.vip/Video/...)
-          const videoMatches = html.matchAll(/["'](https?:\/\/cdn\.mikiacg\.vip\/[^"']+\.mp4)["']/gi);
-          const videoUrls = [...new Set([...videoMatches].map(m => m[1]))];
-
-          // 提取剧集信息
-          const episodes: { num: number; title: string; videoUrl: string }[] = [];
-          
-          // 尝试从 DPlayer 配置中提取剧集列表
-          const dpConfigMatch = html.match(/var\s+dp\s*=\s*new\s+DPlayer\s*\(\s*\{[\s\S]*?video\s*:\s*\{[\s\S]*?\}\s*\}/);
-          if (dpConfigMatch) {
-            // 从配置中提取当前视频 URL
-            const urlMatch = dpConfigMatch[0].match(/url\s*:\s*["']([^"']+)["']/);
-            if (urlMatch && urlMatch[1].includes('.mp4')) {
-              const url = urlMatch[1];
-              const numMatch = url.match(/\/(\d+)\.mp4$/);
-              episodes.push({
-                num: numMatch ? parseInt(numMatch[1]) : 1,
-                title: `第${numMatch ? numMatch[1] : 1}集`,
-                videoUrl: url,
-              });
-            }
-          }
-
-          // 补充从 URL 列表中提取的剧集
-          videoUrls.forEach(url => {
-            const numMatch = url.match(/\/(\d+)\.mp4$/);
-            const num = numMatch ? parseInt(numMatch[1]) : 0;
-            if (num > 0 && !episodes.find(e => e.num === num)) {
-              episodes.push({
-                num,
-                title: `第${num}集`,
-                videoUrl: url,
-              });
-            }
-          });
-
-          // 排序
-          episodes.sort((a, b) => a.num - b.num);
-
-          return {
-            title,
-            description,
-            coverUrl,
-            videoUrl: videoUrls[0] || '',
-            tags: [...new Set(tags)],
-            episodes,
-            pageUrl,
-          };
-        } catch (error) {
-          console.error('抓取失败:', pageUrl, error);
-          return null;
-        }
-      }
-
-      // 获取视频列表页的所有链接
-      async function getVideoLinks(page: number) {
-        const listUrl = page === 1
-          ? `${baseUrl}/index.php/category/Video/`
-          : `${baseUrl}/index.php/category/Video/${page}/`;
-        
-        try {
-          const response = await fetch(listUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; MikiacgBot/1.0)',
-            },
-          });
-          const html = await response.text();
-          
-          // 提取所有文章链接
-          const linkMatches = html.matchAll(/href="([^"]*\/archives\/\d+\.html)"/gi);
-          return [...new Set([...linkMatches].map(m => 
-            m[1].startsWith('http') ? m[1] : baseUrl + m[1]
-          ))];
-        } catch (error) {
-          console.error('获取列表失败:', listUrl, error);
-          return [];
-        }
-      }
-
-      if (input.fetchAll) {
-        // 抓取所有视频
-        const allLinks: string[] = [];
-        for (let page = 1; page <= 3; page++) {
-          const links = await getVideoLinks(page);
-          allLinks.push(...links);
-        }
-        
-        const uniqueLinks = [...new Set(allLinks)];
-        
-        for (const link of uniqueLinks) {
-          const info = await extractFromPage(link);
-          if (info && info.title) {
-            results.push(info);
-          }
-          // 延迟避免请求过快
-          await new Promise(r => setTimeout(r, 200));
-        }
-      } else if (input.url) {
-        // 抓取单个页面
-        const info = await extractFromPage(input.url);
-        if (info && info.title) {
-          results.push(info);
-        }
-      }
-
-      return { videos: results, count: results.length };
     }),
 });

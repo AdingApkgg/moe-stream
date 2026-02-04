@@ -49,9 +49,6 @@ model User {
   commentRepliesTo Comment[]         @relation("CommentReplyTo")
   commentReactions CommentReaction[]
   devices          UserDevice[]
-  guestbooks       Guestbook[]       @relation("GuestbookAuthor")
-  guestbookRepliesTo Guestbook[]     @relation("GuestbookReplyTo")
-  guestbookReactions GuestbookReaction[]
   searchRecords    SearchRecord[]
 
   @@index([email])
@@ -208,10 +205,12 @@ model Video {
 
 // 合集/剧集
 model Series {
-  id          String   @id @default(cuid())
-  title       String
-  description String?  @db.Text
-  coverUrl    String?  // 合集封面
+  id           String   @id @default(cuid())
+  title        String
+  description  String?  @db.Text
+  coverUrl     String?  // 合集封面
+  downloadUrl  String?  // 下载链接
+  downloadNote String?  @db.Text // 下载提示
   
   creatorId   String
   creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
@@ -383,10 +382,16 @@ model PlaylistItem {
 model Comment {
   id            String   @id @default(cuid())
   content       String   @db.Text
-  userId        String
+  userId        String?  // 可选，匿名评论时为 null
   videoId       String
   parentId      String?  // 回复的父评论 ID（顶级评论的 ID）
   replyToUserId String?  // 回复的目标用户 ID（用于 @用户名 显示）
+  
+  // 访客信息（匿名评论时使用）
+  guestName     String?  // 访客昵称
+  guestEmail    String?  // 访客邮箱
+  guestWebsite  String?  // 访客网址
+  
   ipv4Address   String?
   ipv4Location  String?
   ipv6Address   String?
@@ -405,7 +410,7 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User          @relation("CommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  user        User?         @relation("CommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
   video       Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
   parent      Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies     Comment[]     @relation("CommentReplies")
@@ -458,58 +463,6 @@ model CommentReaction {
   @@index([commentId])
 }
 
-// ==================== 留言板 ====================
-
-model Guestbook {
-  id           String   @id @default(cuid())
-  content      String   @db.Text
-  userId       String
-  parentId     String?  // 回复的父留言 ID
-  replyToUserId String? // 回复的目标用户
-  ipv4Address  String?
-  ipv4Location String?
-  ipv6Address  String?
-  ipv6Location String?
-  deviceInfo   Json?
-  userAgent    String?
-  
-  likes    Int @default(0)
-  dislikes Int @default(0)
-  
-  isEdited  Boolean @default(false)
-  isPinned  Boolean @default(false)
-  isDeleted Boolean @default(false)
-  isHidden  Boolean @default(false)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user        User         @relation("GuestbookAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  parent      Guestbook?   @relation("GuestbookReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies     Guestbook[]  @relation("GuestbookReplies")
-  replyToUser User?        @relation("GuestbookReplyTo", fields: [replyToUserId], references: [id], onDelete: SetNull)
-  reactions   GuestbookReaction[]
-
-  @@index([createdAt])
-  @@index([likes])
-  @@index([userId])
-  @@index([parentId])
-}
-
-model GuestbookReaction {
-  id          String   @id @default(cuid())
-  userId      String
-  guestbookId String
-  isLike      Boolean
-  createdAt   DateTime @default(now())
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guestbook Guestbook @relation(fields: [guestbookId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, guestbookId])
-  @@index([guestbookId])
-}
-
 // ==================== 搜索记录 ====================
 
 model SearchRecord {
@@ -546,7 +499,6 @@ model SiteConfig {
   allowRegistration   Boolean @default(true)   // 允许注册
   allowUpload         Boolean @default(true)   // 允许上传
   allowComment        Boolean @default(true)   // 允许评论
-  allowGuestbook      Boolean @default(true)   // 允许留言
   requireEmailVerify  Boolean @default(false)  // 注册需要邮箱验证
   
   // 内容设置

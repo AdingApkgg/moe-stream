@@ -150,7 +150,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push("/comments"))}>
             <MessageSquare className="mr-2 h-4 w-4" />
-            留言板
+            评论动态
           </CommandItem>
         </CommandGroup>
 

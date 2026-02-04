@@ -237,6 +237,8 @@ export const seriesRouter = router({
       title: z.string().min(1).max(100),
       description: z.string().max(2000).optional(),
       coverUrl: z.string().url().optional().or(z.literal("")),
+      downloadUrl: z.string().url().optional().or(z.literal("")),
+      downloadNote: z.string().max(1000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.create({
@@ -244,6 +246,8 @@ export const seriesRouter = router({
           title: input.title,
           description: input.description || null,
           coverUrl: input.coverUrl || null,
+          downloadUrl: input.downloadUrl || null,
+          downloadNote: input.downloadNote || null,
           creatorId: ctx.session.user.id,
         },
       });
@@ -258,6 +262,8 @@ export const seriesRouter = router({
       title: z.string().min(1).max(100).optional(),
       description: z.string().max(2000).optional(),
       coverUrl: z.string().url().optional().or(z.literal("")),
+      downloadUrl: z.string().url().optional().or(z.literal("")),
+      downloadNote: z.string().max(1000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
@@ -278,6 +284,8 @@ export const seriesRouter = router({
           title: input.title,
           description: input.description,
           coverUrl: input.coverUrl || null,
+          downloadUrl: input.downloadUrl || null,
+          downloadNote: input.downloadNote,
         },
       });
     }),

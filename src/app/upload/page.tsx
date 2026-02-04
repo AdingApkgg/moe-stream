@@ -399,24 +399,10 @@ export default function UploadPage() {
 
   // 批量导入相关状态
   const [uploadMode, setUploadMode] = useState<"single" | "batch">("single");
-  const [batchMode, setBatchMode] = useState<"manual" | "legacy">("manual");
   const [batchInput, setBatchInput] = useState("");
   const [parsedBatch, setParsedBatch] = useState<ParsedBatchData | null>(null);
   const [batchImporting, setBatchImporting] = useState(false);
   const [batchResults, setBatchResults] = useState<{ title: string; seriesTitle?: string; id?: string; error?: string }[]>([]);
-  
-  // 旧站导入相关状态
-  const [legacyUrl, setLegacyUrl] = useState("");
-  const [legacyFetching, setLegacyFetching] = useState(false);
-  const [legacyVideos, setLegacyVideos] = useState<{
-    title: string;
-    description: string;
-    coverUrl: string;
-    videoUrl: string;
-    tags: string[];
-    episodes: { num: number; title: string; videoUrl: string }[];
-    pageUrl: string;
-  }[]>([]);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
   
@@ -448,84 +434,6 @@ export default function UploadPage() {
       toast.error("发布失败", { description: error.message });
     },
   });
-
-  // 从旧站抓取数据
-  const fetchLegacyMutation = trpc.video.fetchFromLegacySite.useMutation({
-    onSuccess: (data) => {
-      setLegacyVideos(data.videos);
-      if (data.count > 0) {
-        toast.success(`成功抓取 ${data.count} 个视频合集`);
-      } else {
-        toast.error("未能抓取到任何视频");
-      }
-    },
-    onError: (error) => {
-      toast.error("抓取失败", { description: error.message });
-    },
-  });
-
-  // 从旧站抓取
-  const handleFetchLegacy = async (fetchAll: boolean) => {
-    setLegacyFetching(true);
-    try {
-      await fetchLegacyMutation.mutateAsync({
-        url: fetchAll ? undefined : legacyUrl || undefined,
-        fetchAll,
-      });
-    } finally {
-      setLegacyFetching(false);
-    }
-  };
-
-  // 将旧站数据转换为批量导入格式
-  const convertLegacyToBatch = () => {
-    if (legacyVideos.length === 0) {
-      toast.error("没有可导入的视频");
-      return;
-    }
-
-    // 按作者分组
-    const grouped: Record<string, typeof legacyVideos> = {};
-    legacyVideos.forEach(video => {
-      // 从标题提取作者名（如 【3D】ViciNeko「120帧」-> ViciNeko）
-      const match = video.title.match(/【[^】]+】\s*([^「【\s]+)/);
-      const author = match ? match[1] : '其他';
-      if (!grouped[author]) {
-        grouped[author] = [];
-      }
-      grouped[author].push(video);
-    });
-
-    // 生成批量导入格式（新格式：每行带前缀）
-    let importText = '';
-    Object.entries(grouped).forEach(([author, videos]) => {
-      importText += `合集：${author}\n\n`;
-      videos.forEach(video => {
-        // 如果有多个剧集，为每个剧集生成一条记录
-        if (video.episodes.length > 1) {
-          video.episodes.forEach(ep => {
-            importText += `标题：${video.title} - ${ep.title}\n`;
-            if (video.description) importText += `描述：${video.description}\n`;
-            if (video.coverUrl) importText += `封面：${video.coverUrl}\n`;
-            importText += `视频：${ep.videoUrl}\n`;
-            if (video.tags.length > 0) importText += `标签：${video.tags.join(',')}\n`;
-            importText += '\n';
-          });
-        } else {
-          importText += `标题：${video.title}\n`;
-          if (video.description) importText += `描述：${video.description}\n`;
-          if (video.coverUrl) importText += `封面：${video.coverUrl}\n`;
-          importText += `视频：${video.videoUrl}\n`;
-          if (video.tags.length > 0) importText += `标签：${video.tags.join(',')}\n`;
-          importText += '\n';
-        }
-      });
-    });
-
-    setBatchInput(importText);
-    setBatchMode("manual");
-    toast.success("已转换为批量导入格式，请点击预览解析");
-  };
 
   // 解析批量输入
   const handleParseBatch = () => {
@@ -781,129 +689,7 @@ export default function UploadPage() {
 
         {/* 批量导入模式 */}
         <TabsContent value="batch" className="space-y-6 mt-6">
-          {/* 批量导入子模式选择 */}
-          <Tabs value={batchMode} onValueChange={(v) => setBatchMode(v as "manual" | "legacy")}>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="manual" className="gap-2">
-                <FileText className="h-4 w-4" />
-                手动输入
-              </TabsTrigger>
-              <TabsTrigger value="legacy" className="gap-2">
-                <Download className="h-4 w-4" />
-                从旧站导入
-              </TabsTrigger>
-            </TabsList>
-
-            {/* 从旧站导入 */}
-            <TabsContent value="legacy" className="space-y-4 mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Download className="h-5 w-5" />
-                    从旧站导入
-                  </CardTitle>
-                  <CardDescription>
-                    自动抓取 tv.mikiacg.org 的视频数据
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={legacyUrl}
-                      onChange={(e) => setLegacyUrl(e.target.value)}
-                      placeholder="输入旧站视频页面 URL（可选）"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleFetchLegacy(false)}
-                      disabled={legacyFetching || !legacyUrl.trim()}
-                    >
-                      {legacyFetching ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <Separator className="flex-1" />
-                    <span className="text-xs text-muted-foreground">或</span>
-                    <Separator className="flex-1" />
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => handleFetchLegacy(true)}
-                    disabled={legacyFetching}
-                  >
-                    {legacyFetching ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        正在抓取...
-                      </>
-                    ) : (
-                      <>
-                        <Layers className="h-4 w-4 mr-2" />
-                        一键抓取全部视频
-                      </>
-                    )}
-                  </Button>
-
-                  {legacyVideos.length > 0 && (
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium">
-                          已抓取 {legacyVideos.length} 个视频合集
-                        </span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={convertLegacyToBatch}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          转换并导入
-                        </Button>
-                      </div>
-                      <ScrollArea className="max-h-[300px]">
-                        <div className="space-y-2">
-                          {legacyVideos.map((video, index) => (
-                            <div
-                              key={index}
-                              className="p-3 rounded-lg bg-muted/50 text-sm"
-                            >
-                              <div className="font-medium">{video.title}</div>
-                              <div className="text-muted-foreground text-xs mt-1">
-                                {video.episodes.length > 0 
-                                  ? `${video.episodes.length} 集` 
-                                  : video.videoUrl ? '1 个视频' : '无视频'}
-                              </div>
-                              {video.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {video.tags.slice(0, 5).map((tag, tIndex) => (
-                                    <Badge key={tIndex} variant="outline" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 手动输入 */}
-            <TabsContent value="manual" className="space-y-4 mt-4">
-              <Card>
+          <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5" />
@@ -977,8 +763,6 @@ export default function UploadPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
 
           {/* 解析预览 */}
           {parsedBatch && parsedBatch.totalVideos > 0 && (
@@ -1771,7 +1555,7 @@ export default function UploadPage() {
               </Button>
             </div>
           </div>
-            </form>
+          </form>
           </Form>
         </TabsContent>
       </Tabs>

@@ -5,6 +5,11 @@ import { Prisma } from "@/generated/prisma/client";
 import { getIpLocation } from "@/lib/ip-location";
 import { parseDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 
+// 邮箱格式验证
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// URL格式验证
+const urlRegex = /^https?:\/\/.+/;
+
 // 排序类型
 const SortType = z.enum(["newest", "oldest", "popular"]);
 
@@ -38,6 +43,7 @@ export const commentRouter = router({
               username: true,
               nickname: true,
               avatar: true,
+              role: true,
             },
           },
           video: {
@@ -105,6 +111,7 @@ export const commentRouter = router({
               username: true,
               nickname: true,
               avatar: true,
+              role: true,
             },
           },
           replyToUser: {
@@ -173,6 +180,7 @@ export const commentRouter = router({
               username: true,
               nickname: true,
               avatar: true,
+              role: true,
             },
           },
           replyToUser: {
@@ -223,14 +231,18 @@ export const commentRouter = router({
       return count;
     }),
 
-  // 发表评论
-  create: protectedProcedure
+  // 发表评论（支持登录用户和访客）
+  create: publicProcedure
     .input(
       z.object({
         videoId: z.string(),
         content: z.string().min(1).max(2000),
         parentId: z.string().optional(),
         replyToUserId: z.string().optional(), // 回复的目标用户
+        // 访客信息（匿名评论时需要填写）
+        guestName: z.string().min(1).max(50).optional(),
+        guestEmail: z.string().refine(val => !val || emailRegex.test(val), { message: "邮箱格式不正确" }).optional(),
+        guestWebsite: z.string().refine(val => !val || urlRegex.test(val), { message: "网址格式不正确" }).optional(),
         deviceInfo: z
           .object({
             deviceType: z.string().nullable().optional(),
@@ -252,8 +264,16 @@ export const commentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { videoId, content, parentId, replyToUserId, deviceInfo } = input;
-      const userId = ctx.session.user.id;
+      const { videoId, content, parentId, replyToUserId, guestName, guestEmail, guestWebsite, deviceInfo } = input;
+      const userId = ctx.session?.user?.id;
+      
+      // 如果不是登录用户，必须提供访客昵称
+      if (!userId && !guestName) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "请填写昵称",
+        });
+      }
       
       // 获取 IPv4 和 IPv6 位置
       const [ipv4Location, ipv6Location] = await Promise.all([
@@ -318,10 +338,14 @@ export const commentRouter = router({
       const comment = await ctx.prisma.comment.create({
         data: {
           content,
-          userId,
+          userId: userId || null,
           videoId,
           parentId,
           replyToUserId,
+          // 访客信息（匿名评论时使用）
+          guestName: userId ? null : guestName,
+          guestEmail: userId ? null : guestEmail,
+          guestWebsite: userId ? null : guestWebsite,
           ipv4Address: ctx.ipv4Address,
           ipv4Location,
           ipv6Address: ctx.ipv6Address,
@@ -336,6 +360,7 @@ export const commentRouter = router({
               username: true,
               nickname: true,
               avatar: true,
+              role: true,
             },
           },
           replyToUser: {
@@ -351,55 +376,58 @@ export const commentRouter = router({
         },
       });
 
-      // 更新用户最近位置（优先使用 IPv4，其次 IPv6）
-      const lastIpLocation = ipv4Location || ipv6Location;
-      await ctx.prisma.user.update({
-        where: { id: userId },
-        data: {
-          lastIpLocation: lastIpLocation || undefined,
-        },
-      });
+      // 仅登录用户更新位置和设备历史
+      if (userId) {
+        // 更新用户最近位置（优先使用 IPv4，其次 IPv6）
+        const lastIpLocation = ipv4Location || ipv6Location;
+        await ctx.prisma.user.update({
+          where: { id: userId },
+          data: {
+            lastIpLocation: lastIpLocation || undefined,
+          },
+        });
 
-      // 记录设备历史
-      await ctx.prisma.userDevice.upsert({
-        where: {
-          userId_fingerprint: {
+        // 记录设备历史
+        await ctx.prisma.userDevice.upsert({
+          where: {
+            userId_fingerprint: {
+              userId,
+              fingerprint: normalizedDeviceInfo.fingerprint,
+            },
+          },
+          update: {
+            deviceType: normalizedDeviceInfo.deviceType,
+            os: normalizedDeviceInfo.os,
+            osVersion: normalizedDeviceInfo.osVersion,
+            browser: normalizedDeviceInfo.browser,
+            browserVersion: normalizedDeviceInfo.browserVersion,
+            brand: normalizedDeviceInfo.brand,
+            model: normalizedDeviceInfo.model,
+            userAgent: normalizedDeviceInfo.userAgent,
+            ipv4Address: ctx.ipv4Address,
+            ipv4Location,
+            ipv6Address: ctx.ipv6Address,
+            ipv6Location,
+            lastActiveAt: new Date(),
+          },
+          create: {
             userId,
             fingerprint: normalizedDeviceInfo.fingerprint,
+            deviceType: normalizedDeviceInfo.deviceType,
+            os: normalizedDeviceInfo.os,
+            osVersion: normalizedDeviceInfo.osVersion,
+            browser: normalizedDeviceInfo.browser,
+            browserVersion: normalizedDeviceInfo.browserVersion,
+            brand: normalizedDeviceInfo.brand,
+            model: normalizedDeviceInfo.model,
+            userAgent: normalizedDeviceInfo.userAgent,
+            ipv4Address: ctx.ipv4Address,
+            ipv4Location,
+            ipv6Address: ctx.ipv6Address,
+            ipv6Location,
           },
-        },
-        update: {
-          deviceType: normalizedDeviceInfo.deviceType,
-          os: normalizedDeviceInfo.os,
-          osVersion: normalizedDeviceInfo.osVersion,
-          browser: normalizedDeviceInfo.browser,
-          browserVersion: normalizedDeviceInfo.browserVersion,
-          brand: normalizedDeviceInfo.brand,
-          model: normalizedDeviceInfo.model,
-          userAgent: normalizedDeviceInfo.userAgent,
-          ipv4Address: ctx.ipv4Address,
-          ipv4Location,
-          ipv6Address: ctx.ipv6Address,
-          ipv6Location,
-          lastActiveAt: new Date(),
-        },
-        create: {
-          userId,
-          fingerprint: normalizedDeviceInfo.fingerprint,
-          deviceType: normalizedDeviceInfo.deviceType,
-          os: normalizedDeviceInfo.os,
-          osVersion: normalizedDeviceInfo.osVersion,
-          browser: normalizedDeviceInfo.browser,
-          browserVersion: normalizedDeviceInfo.browserVersion,
-          brand: normalizedDeviceInfo.brand,
-          model: normalizedDeviceInfo.model,
-          userAgent: normalizedDeviceInfo.userAgent,
-          ipv4Address: ctx.ipv4Address,
-          ipv4Location,
-          ipv6Address: ctx.ipv6Address,
-          ipv6Location,
-        },
-      });
+        });
+      }
 
       return {
         ...comment,

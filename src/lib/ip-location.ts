@@ -143,6 +143,14 @@ function formatLocation(location: IpLocation | null): string | null {
  */
 export async function getIpLocation(ip: string | null): Promise<string | null> {
   if (!ip) return null;
+  
+  // 开发环境：私有 IP 使用测试公网 IP
+  if (process.env.NODE_ENV === "development" && isPrivateIp(ip)) {
+    ip = isIPv6(ip) 
+      ? "2400:3200::1" // 阿里 IPv6 DNS（杭州）
+      : "1.1.1.1"; // 南京 IPv4 DNS
+  }
+  
   if (isPrivateIp(ip)) return null;
 
   const cacheKey = `ip-location:${ip}`;

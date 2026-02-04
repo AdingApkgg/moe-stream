@@ -19,7 +19,6 @@ export const siteRouter = router({
       allowRegistration: boolean;
       allowUpload: boolean;
       allowComment: boolean;
-      allowGuestbook: boolean;
       contactEmail: string | null;
       socialLinks: Record<string, string> | null;
       footerText: string | null;
@@ -46,7 +45,6 @@ export const siteRouter = router({
         allowRegistration: true,
         allowUpload: true,
         allowComment: true,
-        allowGuestbook: true,
         contactEmail: true,
         socialLinks: true,
         footerText: true,
@@ -70,7 +68,6 @@ export const siteRouter = router({
           allowRegistration: true,
           allowUpload: true,
           allowComment: true,
-          allowGuestbook: true,
           contactEmail: true,
           socialLinks: true,
           footerText: true,

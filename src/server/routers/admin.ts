@@ -429,12 +429,67 @@ export const adminRouter = router({
     return { total, published, pending, rejected };
   }),
 
-  // 获取所有视频列表（包括待审核）
+  // 获取所有视频列表（分页版）
   listAllVideos: adminProcedure
     .input(
       z.object({
+        page: z.number().min(1).default(1),
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+        sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
+      }
+
+      const { page, limit, status, search, sortBy } = input;
+
+      const where = {
+        ...(status !== "ALL" && { status }),
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+      };
+
+      const orderBy = sortBy === "views" 
+        ? { views: 'desc' as const }
+        : sortBy === "likes"
+          ? { createdAt: 'desc' as const }
+          : { createdAt: 'desc' as const };
+
+      const [videos, totalCount] = await Promise.all([
+        ctx.prisma.video.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy,
+          include: {
+            uploader: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            tags: { include: { tag: true } },
+            _count: { select: { likes: true, favorites: true, comments: true } },
+          },
+        }),
+        ctx.prisma.video.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / limit);
+
+      return { videos, totalCount, totalPages, currentPage: page };
+    }),
+
+  // 获取所有视频 ID（用于全选）
+  getAllVideoIds: adminProcedure
+    .input(
+      z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
       })
@@ -445,35 +500,24 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
       }
 
+      const { status, search } = input;
+
+      const where = {
+        ...(status !== "ALL" && { status }),
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+      };
+
       const videos = await ctx.prisma.video.findMany({
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        where: {
-          ...(input.status !== "ALL" && { status: input.status }),
-          ...(input.search && {
-            OR: [
-              { title: { contains: input.search, mode: "insensitive" } },
-              { description: { contains: input.search, mode: "insensitive" } },
-            ],
-          }),
-        },
-        orderBy: { createdAt: "desc" },
-        include: {
-          uploader: {
-            select: { id: true, username: true, nickname: true, avatar: true },
-          },
-          tags: { include: { tag: true } },
-          _count: { select: { likes: true, favorites: true, comments: true } },
-        },
+        where,
+        select: { id: true },
       });
 
-      let nextCursor: string | undefined = undefined;
-      if (videos.length > input.limit) {
-        const nextItem = videos.pop();
-        nextCursor = nextItem!.id;
-      }
-
-      return { videos, nextCursor };
+      return videos.map(v => v.id);
     }),
 
   // 审核视频
@@ -1143,7 +1187,6 @@ export const adminRouter = router({
       allowRegistration: z.boolean().optional(),
       allowUpload: z.boolean().optional(),
       allowComment: z.boolean().optional(),
-      allowGuestbook: z.boolean().optional(),
       requireEmailVerify: z.boolean().optional(),
       
       // 内容设置

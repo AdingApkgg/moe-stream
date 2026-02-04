@@ -6,10 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, Eye, ArrowLeft, User } from "lucide-react";
+import { Play, Clock, Eye, ArrowLeft, User, Download, AlertCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { getCoverUrl } from "@/lib/cover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "--:--";
@@ -106,6 +107,27 @@ export default function SeriesPage() {
               <span>·</span>
               <span>{totalViews.toLocaleString()} 播放</span>
             </div>
+
+            {/* 下载区域 */}
+            {series.downloadUrl && (
+              <div className="mt-4 p-4 border rounded-lg bg-muted/30 space-y-3">
+                {series.downloadNote && (
+                  <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                    <AlertDescription className="text-sm whitespace-pre-wrap">
+                      {series.downloadNote}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Button asChild className="w-full sm:w-auto">
+                  <a href={series.downloadUrl} target="_blank" rel="noopener noreferrer">
+                    <Download className="h-4 w-4 mr-2" />
+                    下载资源
+                    <ExternalLink className="h-3 w-3 ml-2 opacity-50" />
+                  </a>
+                </Button>
+              </div>
+            )}
           </div>
         </FadeIn>
 

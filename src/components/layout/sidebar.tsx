@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  Layers,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -37,10 +39,12 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
+  { href: "/comments", icon: MessageCircle, label: "评论动态" },
 ];
 
 const userNavItems: NavItem[] = [
   { href: "/my-videos", icon: Video, label: "我的视频", auth: true },
+  { href: "/my-series", icon: Layers, label: "我的合集", auth: true },
   { href: "/favorites", icon: Heart, label: "收藏", auth: true },
   { href: "/history", icon: History, label: "历史", auth: true },
 ];

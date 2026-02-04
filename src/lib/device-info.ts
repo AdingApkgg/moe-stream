@@ -229,7 +229,7 @@ export interface LocationInfo {
 
 /**
  * 规范化客户端提交的设备信息
- * 用于 comment.ts, guestbook.ts, user.ts 等多处重复使用的逻辑
+ * 用于 comment.ts, user.ts 等多处重复使用的逻辑
  */
 export function normalizeDeviceInfo(
   input: ClientDeviceInput | undefined,

@@ -406,6 +406,12 @@ export default function AdminCommentsPage() {
             const isSelected = selectedIds.has(comment.id);
             const isExpanded = expandedIds.has(comment.id);
             const DeviceIcon = getDeviceIcon(deviceInfo?.deviceType);
+            
+            // 判断是否是访客评论
+            const isGuest = !comment.user;
+            const displayName = isGuest
+              ? ((comment as unknown as { guestName?: string }).guestName || "访客")
+              : (comment.user.nickname || comment.user.username);
 
             return (
               <Card
@@ -426,21 +432,28 @@ export default function AdminCommentsPage() {
                     />
 
                     <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarImage src={comment.user.avatar || undefined} />
+                      <AvatarImage src={isGuest ? undefined : (comment.user.avatar || undefined)} />
                       <AvatarFallback>
-                        {(comment.user.nickname || comment.user.username).charAt(0).toUpperCase()}
+                        {displayName.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
                       {/* 用户名和时间 */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          href={`/user/${comment.user.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {comment.user.nickname || comment.user.username}
-                        </Link>
+                        {isGuest ? (
+                          <span className="font-medium text-muted-foreground">
+                            {displayName}
+                            <span className="ml-1 text-xs">(访客)</span>
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/user/${comment.user.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {displayName}
+                          </Link>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {formatRelativeTime(comment.createdAt)}
                         </span>

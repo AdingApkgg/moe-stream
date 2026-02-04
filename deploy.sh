@@ -119,7 +119,7 @@ echo "🔧 生成 Prisma Client..."
 pnpm db:generate
 
 echo "🗄️  同步数据库..."
-pnpm db:push
+pnpm db:push --accept-data-loss
 
 echo "🔨 构建项目..."
 pnpm build

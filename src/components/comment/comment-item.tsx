@@ -33,11 +33,13 @@ import {
   Pin,
   ChevronDown,
   ChevronUp,
-  Globe,
-  Globe2,
+  MapPin,
   Smartphone,
   Monitor,
   Tablet,
+  Chrome,
+  Languages,
+  Clock,
 } from "lucide-react";
 import {
   Tooltip,
@@ -48,12 +50,14 @@ import { formatRelativeTime } from "@/lib/format";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { getAvatarUrlClient } from "@/lib/avatar";
 
 interface CommentUser {
   id: string;
   username: string;
   nickname: string | null;
   avatar?: string | null;
+  role?: "USER" | "ADMIN" | "OWNER";
 }
 
 interface ReplyToUser {
@@ -65,19 +69,23 @@ interface ReplyToUser {
 interface CommentData {
   id: string;
   content: string;
-  userId: string;
+  userId: string | null;
   likes: number;
   dislikes: number;
   isEdited: boolean;
   isPinned: boolean;
   createdAt: Date;
-  user: CommentUser;
+  user: CommentUser | null;
   replyToUser?: ReplyToUser | null;
   userReaction: boolean | null;
   _count?: { replies: number };
   ipv4Location?: string | null;
   ipv6Location?: string | null;
   deviceInfo?: unknown;
+  // 访客信息
+  guestName?: string | null;
+  guestEmail?: string | null;
+  guestWebsite?: string | null;
 }
 
 interface CommentItemProps {
@@ -107,7 +115,7 @@ export function CommentItem({
   const [replyToUser, setReplyToUser] = useState<CommentUser | null>(null);
 
   const utils = trpc.useUtils();
-  const isOwner = session?.user?.id === comment.userId;
+  const isOwner = comment.userId && session?.user?.id === comment.userId;
   const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "OWNER";
   const replyCount = comment._count?.replies ?? 0;
   
@@ -232,27 +240,27 @@ export function CommentItem({
 
   const handleReply = useCallback(() => {
     if (!replyContent.trim()) return;
-    // 确定回复目标用户
-    const targetUserId = replyToUser?.id || comment.user.id;
+    // 确定回复目标用户（访客评论没有 userId）
+    const targetUserId = replyToUser?.id || comment.user?.id;
     createReplyMutation.mutate({
       videoId,
       content: replyContent.trim(),
       parentId: topLevelParentId,
       replyToUserId: targetUserId,
     });
-  }, [replyContent, createReplyMutation, videoId, topLevelParentId, replyToUser, comment.user.id]);
+  }, [replyContent, createReplyMutation, videoId, topLevelParentId, replyToUser, comment.user?.id]);
 
-  // 开始回复（顶级评论或回复的回复）
+  // 开始回复（顶级评论或回复的回复）- 仅登录用户可以回复
   const startReply = useCallback((targetUser?: CommentUser) => {
     if (!session) {
-      toast.error("请先登录");
+      toast.error("登录后才能回复评论");
       return;
     }
-    if (isReply && onReplyToComment) {
-      // 如果是回复，通知父组件处理
+    if (isReply && onReplyToComment && comment.user) {
+      // 如果是回复登录用户的评论，通知父组件处理
       onReplyToComment(comment.user);
     } else {
-      // 顶级评论，在当前组件处理
+      // 顶级评论或访客评论，在当前组件处理
       setReplyToUser(targetUser || null);
       setIsReplying(true);
     }
@@ -263,7 +271,14 @@ export function CommentItem({
     updateMutation.mutate({ id: comment.id, content: editContent.trim() });
   }, [editContent, updateMutation, comment.id]);
 
-  const displayName = comment.user.nickname || comment.user.username;
+  // 判断是否是访客评论
+  const isGuest = !comment.user;
+  const displayName = isGuest 
+    ? (comment.guestName || "访客") 
+    : (comment.user?.nickname || comment.user?.username || "用户");
+  
+  // 访客头像（支持 QQ 邮箱和 WeAvatar）
+  const guestAvatarUrl = getAvatarUrlClient(comment.guestEmail);
   const normalizedDeviceInfo = (() => {
     if (!comment.deviceInfo || typeof comment.deviceInfo !== "object") return null;
     if (Array.isArray(comment.deviceInfo)) return null;
@@ -292,50 +307,95 @@ export function CommentItem({
     }
   })();
 
-  // 设备简要信息（用于显示）
-  const deviceBrief = (() => {
-    if (!normalizedDeviceInfo) return null;
-    const os = [normalizedDeviceInfo.os, normalizedDeviceInfo.osVersion].filter(Boolean).join(" ");
-    const browser = normalizedDeviceInfo.browser || "";
-    return [os, browser].filter(Boolean).join(" · ") || null;
+  // 系统信息
+  const osInfo = (() => {
+    if (!normalizedDeviceInfo?.os) return null;
+    return [normalizedDeviceInfo.os, normalizedDeviceInfo.osVersion].filter(Boolean).join(" ");
   })();
 
-  // 设备完整信息（用于 tooltip）
-  const deviceFullDetails = (() => {
-    if (!normalizedDeviceInfo) return null;
-    const lines = [
-      normalizedDeviceInfo.deviceType && `类型: ${normalizedDeviceInfo.deviceType}`,
-      normalizedDeviceInfo.os && `系统: ${[normalizedDeviceInfo.os, normalizedDeviceInfo.osVersion].filter(Boolean).join(" ")}`,
-      normalizedDeviceInfo.browser && `浏览器: ${[normalizedDeviceInfo.browser, normalizedDeviceInfo.browserVersion].filter(Boolean).join(" ")}`,
-      (normalizedDeviceInfo.brand || normalizedDeviceInfo.model) && `设备: ${[normalizedDeviceInfo.brand, normalizedDeviceInfo.model].filter(Boolean).join(" ")}`,
-      normalizedDeviceInfo.screen && `屏幕: ${normalizedDeviceInfo.screen}`,
-      normalizedDeviceInfo.language && `语言: ${normalizedDeviceInfo.language}`,
-      normalizedDeviceInfo.timezone && `时区: ${normalizedDeviceInfo.timezone}`,
-    ].filter(Boolean);
-    return lines.length > 0 ? lines.join("\n") : null;
+  // 浏览器信息
+  const browserInfo = (() => {
+    if (!normalizedDeviceInfo?.browser) return null;
+    return [normalizedDeviceInfo.browser, normalizedDeviceInfo.browserVersion].filter(Boolean).join(" ");
   })();
+
+  // 语言信息
+  const languageInfo = normalizedDeviceInfo?.language || null;
+
+  // 时区信息
+  const timezoneInfo = normalizedDeviceInfo?.timezone || null;
+
+  // IP 定位（优先 IPv6，其次 IPv4）
+  const locationInfo = comment.ipv6Location || comment.ipv4Location || null;
+  const locationLabel = comment.ipv6Location ? "IPv6" : comment.ipv4Location ? "IPv4" : null;
 
   // 是否有元信息需要显示
-  const hasMetaInfo = comment.ipv4Location || comment.ipv6Location || deviceBrief;
+  const hasMetaInfo = osInfo || browserInfo || languageInfo || timezoneInfo || locationInfo;
 
   return (
     <div className={cn("flex gap-3", isReply && "ml-12")}>
-      <Link href={`/user/${comment.user.id}`}>
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={comment.user.avatar || undefined} />
-          <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-      </Link>
+      {isGuest ? (
+        // 访客头像（可点击网址）
+        comment.guestWebsite ? (
+          <a href={comment.guestWebsite} target="_blank" rel="noopener noreferrer">
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarImage src={guestAvatarUrl} />
+              <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </a>
+        ) : (
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage src={guestAvatarUrl} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+        )
+      ) : (
+        // 登录用户头像
+        <Link href={`/user/${comment.user!.id}`}>
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage src={comment.user!.avatar || undefined} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </Link>
+      )}
 
       <div className="flex-1 min-w-0">
         {/* 用户信息和时间 */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href={`/user/${comment.user.id}`}
-            className="font-medium text-sm hover:underline"
-          >
-            {displayName}
-          </Link>
+          {isGuest ? (
+            // 访客名称（可点击网址）
+            comment.guestWebsite ? (
+              <a
+                href={comment.guestWebsite}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-sm hover:underline"
+              >
+                {displayName}
+              </a>
+            ) : (
+              <span className="font-medium text-sm">{displayName}</span>
+            )
+          ) : (
+            // 登录用户名称
+            <Link
+              href={`/user/${comment.user!.id}`}
+              className="font-medium text-sm hover:underline"
+            >
+              {displayName}
+            </Link>
+          )}
+          {/* 角色标识 */}
+          {comment.user?.role === "OWNER" && (
+            <span className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">
+              站长
+            </span>
+          )}
+          {comment.user?.role === "ADMIN" && (
+            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
+              管理员
+            </span>
+          )}
           {comment.isPinned && (
             <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
               置顶
@@ -349,52 +409,92 @@ export function CommentItem({
           )}
         </div>
 
-        {/* 位置和设备信息 - 单独一行，更紧凑的标签样式 */}
+        {/* 位置和设备信息 - 单独一行，分离显示各项 */}
         {hasMetaInfo && (
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            {/* IPv4 属地 */}
-            {comment.ipv4Location && (
+          <div className="flex items-center gap-1 mt-1 flex-wrap text-[11px] text-muted-foreground">
+            {/* 系统 */}
+            {osInfo && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded cursor-default">
-                    <Globe className="h-3 w-3 text-blue-500" />
-                    <span className="max-w-[100px] truncate">{comment.ipv4Location}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  <p className="font-medium">IPv4 属地</p>
-                  <p className="text-muted-foreground">{comment.ipv4Location}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-
-            {/* IPv6 属地 */}
-            {comment.ipv6Location && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded cursor-default">
-                    <Globe2 className="h-3 w-3 text-purple-500" />
-                    <span className="max-w-[100px] truncate">{comment.ipv6Location}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  <p className="font-medium">IPv6 属地</p>
-                  <p className="text-muted-foreground">{comment.ipv6Location}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-
-            {/* 设备信息 */}
-            {deviceBrief && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded cursor-default">
+                  <span className="inline-flex items-center gap-0.5 cursor-default">
                     <DeviceIcon className="h-3 w-3" />
-                    <span className="max-w-[100px] truncate">{deviceBrief}</span>
+                    <span>{osInfo}</span>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  <pre className="whitespace-pre-wrap font-sans">{deviceFullDetails}</pre>
+                  操作系统
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* 分隔符 */}
+            {osInfo && browserInfo && <span className="text-muted-foreground/50">·</span>}
+
+            {/* 浏览器 */}
+            {browserInfo && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 cursor-default">
+                    <Chrome className="h-3 w-3" />
+                    <span>{browserInfo}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  浏览器
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* 分隔符 */}
+            {(osInfo || browserInfo) && languageInfo && <span className="text-muted-foreground/50">·</span>}
+
+            {/* 语言 */}
+            {languageInfo && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 cursor-default">
+                    <Languages className="h-3 w-3" />
+                    <span>{languageInfo}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  语言
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* 分隔符 */}
+            {(osInfo || browserInfo || languageInfo) && timezoneInfo && <span className="text-muted-foreground/50">·</span>}
+
+            {/* 时区 */}
+            {timezoneInfo && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 cursor-default">
+                    <Clock className="h-3 w-3" />
+                    <span>{timezoneInfo}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  时区
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* 分隔符 */}
+            {(osInfo || browserInfo || languageInfo || timezoneInfo) && locationInfo && <span className="text-muted-foreground/50">·</span>}
+
+            {/* IP 定位 */}
+            {locationInfo && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 cursor-default">
+                    <MapPin className="h-3 w-3" />
+                    <span>{locationInfo}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {locationLabel} 属地
                 </TooltipContent>
               </Tooltip>
             )}

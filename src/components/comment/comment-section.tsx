@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -14,10 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageSquare, ArrowUpDown } from "lucide-react";
+import { MessageSquare, ArrowUpDown, User } from "lucide-react";
 import { toast } from "sonner";
 import { CommentItem } from "./comment-item";
-import Link from "next/link";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useIsMounted } from "@/components/motion";
 
@@ -34,6 +35,11 @@ export function CommentSection({ videoId }: CommentSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMounted = useIsMounted();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  
+  // 访客信息
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestWebsite, setGuestWebsite] = useState("");
 
   const utils = trpc.useUtils();
 
@@ -94,6 +100,13 @@ export function CommentSection({ videoId }: CommentSectionProps) {
 
   const handleSubmit = useCallback(async () => {
     if (!newComment.trim() || isSubmitting) return;
+    
+    // 如果不是登录用户，验证昵称
+    if (!session && !guestName.trim()) {
+      toast.error("请填写昵称");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     // 如果设备信息还没有获取到高精度版本，重新获取一次
@@ -118,8 +131,14 @@ export function CommentSection({ videoId }: CommentSectionProps) {
       videoId, 
       content: newComment.trim(),
       deviceInfo: currentDeviceInfo || undefined,
+      // 访客信息（仅匿名评论时传递）
+      ...(session ? {} : {
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim() || undefined,
+        guestWebsite: guestWebsite.trim() || undefined,
+      }),
     });
-  }, [newComment, isSubmitting, createMutation, videoId, deviceInfo]);
+  }, [newComment, isSubmitting, createMutation, videoId, deviceInfo, session, guestName, guestEmail, guestWebsite]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 
@@ -151,55 +170,100 @@ export function CommentSection({ videoId }: CommentSectionProps) {
       </div>
 
       {/* 评论输入框 */}
-      {session ? (
-        <div className="flex gap-3">
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarImage src={session.user?.image || undefined} />
-            <AvatarFallback>
-              {session.user?.name?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 space-y-2">
-            <Textarea
-              placeholder="添加评论..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px] resize-none"
-              maxLength={2000}
-            />
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted-foreground">
-                {newComment.length}/2000
-              </span>
-              <div className="flex gap-2">
-                {newComment && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setNewComment("")}
-                  >
-                    取消
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  onClick={handleSubmit}
-                  disabled={!newComment.trim() || isSubmitting}
-                >
-                  {isSubmitting ? "发表中..." : "发表评论"}
-                </Button>
+      <div className="flex gap-3">
+        <Avatar className="h-10 w-10 shrink-0">
+          {session ? (
+            <>
+              <AvatarImage src={session.user?.image || undefined} />
+              <AvatarFallback>
+                {session.user?.name?.charAt(0).toUpperCase() || "U"}
+              </AvatarFallback>
+            </>
+          ) : (
+            <>
+              <AvatarFallback>
+                <User className="h-5 w-5" />
+              </AvatarFallback>
+            </>
+          )}
+        </Avatar>
+        <div className="flex-1 space-y-3">
+          {/* 访客信息表单（未登录时显示） */}
+          {!session && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="guest-name" className="text-xs">
+                  昵称 <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="guest-name"
+                  placeholder="必填"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  maxLength={50}
+                  className="h-8"
+                />
               </div>
+              <div className="space-y-1">
+                <Label htmlFor="guest-email" className="text-xs">
+                  邮箱
+                </Label>
+                <Input
+                  id="guest-email"
+                  type="email"
+                  placeholder="可选，用于显示头像"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="guest-website" className="text-xs">
+                  网址
+                </Label>
+                <Input
+                  id="guest-website"
+                  type="url"
+                  placeholder="可选，https://..."
+                  value={guestWebsite}
+                  onChange={(e) => setGuestWebsite(e.target.value)}
+                  className="h-8"
+                />
+              </div>
+            </div>
+          )}
+          <Textarea
+            placeholder="添加评论..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[80px] resize-none"
+            maxLength={2000}
+          />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">
+              {newComment.length}/2000
+            </span>
+            <div className="flex gap-2">
+              {newComment && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setNewComment("")}
+                >
+                  取消
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={!newComment.trim() || isSubmitting || (!session && !guestName.trim())}
+              >
+                {isSubmitting ? "发表中..." : "发表评论"}
+              </Button>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="bg-muted/50 rounded-lg p-4 text-center">
-          <p className="text-muted-foreground mb-2">登录后即可发表评论</p>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/login">登录</Link>
-          </Button>
-        </div>
-      )}
+      </div>
 
       {/* 评论列表 */}
       <div className="space-y-4">

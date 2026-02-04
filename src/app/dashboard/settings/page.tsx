@@ -55,7 +55,6 @@ const configFormSchema = z.object({
   allowRegistration: z.boolean(),
   allowUpload: z.boolean(),
   allowComment: z.boolean(),
-  allowGuestbook: z.boolean(),
   requireEmailVerify: z.boolean(),
   
   // 内容设置
@@ -116,7 +115,6 @@ export default function AdminSettingsPage() {
       allowRegistration: true,
       allowUpload: true,
       allowComment: true,
-      allowGuestbook: true,
       requireEmailVerify: false,
       videosPerPage: 20,
       commentsPerPage: 20,
@@ -143,7 +141,6 @@ export default function AdminSettingsPage() {
         allowRegistration: config.allowRegistration,
         allowUpload: config.allowUpload,
         allowComment: config.allowComment,
-        allowGuestbook: config.allowGuestbook,
         requireEmailVerify: config.requireEmailVerify,
         videosPerPage: config.videosPerPage,
         commentsPerPage: config.commentsPerPage,
@@ -467,22 +464,6 @@ export default function AdminSettingsPage() {
                         <div className="space-y-0.5">
                           <FormLabel>允许评论</FormLabel>
                           <FormDescription>关闭后用户将无法发表评论</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="allowGuestbook"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>允许留言</FormLabel>
-                          <FormDescription>关闭后用户将无法在留言板留言</FormDescription>
                         </div>
                         <FormControl>
                           <Switch checked={field.value} onCheckedChange={field.onChange} />

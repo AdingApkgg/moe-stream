@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,12 +54,17 @@ import {
   MessageSquare,
   Star,
   Edit,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
 import { getCoverUrl } from "@/lib/cover";
 
 type VideoStatus = "PENDING" | "PUBLISHED" | "REJECTED";
+type StatusFilter = "ALL" | VideoStatus;
 
 interface VideoItem {
   id: string;
@@ -85,13 +91,24 @@ interface VideoItem {
 }
 
 export default function AdminVideosPage() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | VideoStatus>("ALL");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const initialPage = parseInt(searchParams.get("page") || "1");
+  const initialStatus = (searchParams.get("status") || "ALL") as StatusFilter;
+  const initialSearch = searchParams.get("q") || "";
+  
+  const [page, setPage] = useState(initialPage);
+  const [search, setSearch] = useState(initialSearch);
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [batchAction, setBatchAction] = useState<"delete" | null>(null);
+  const [selectAllLoading, setSelectAllLoading] = useState(false);
 
+  const limit = 50;
   const utils = trpc.useUtils();
 
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
@@ -99,14 +116,10 @@ export default function AdminVideosPage() {
     enabled: permissions?.scopes.includes("video:moderate"),
   });
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    trpc.admin.listAllVideos.useInfiniteQuery(
-      { limit: 20, search: search || undefined, status: statusFilter },
-      {
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-        enabled: permissions?.scopes.includes("video:moderate"),
-      }
-    );
+  const { data, isLoading, isFetching } = trpc.admin.listAllVideos.useQuery(
+    { page, limit, search: search || undefined, status: statusFilter },
+    { enabled: permissions?.scopes.includes("video:moderate") }
+  );
 
   const moderateMutation = trpc.admin.moderateVideo.useMutation({
     onSuccess: (_, variables) => {
@@ -149,9 +162,38 @@ export default function AdminVideosPage() {
   });
 
   const videos = useMemo(
-    () => (data?.pages.flatMap((page) => page.videos) || []) as unknown as VideoItem[],
-    [data?.pages]
+    () => (data?.videos || []) as unknown as VideoItem[],
+    [data?.videos]
   );
+
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = data?.currentPage ?? 1;
+
+  // 更新 URL
+  const updateUrl = useCallback((params: { page?: number; status?: string; q?: string }) => {
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value && value !== "1" && value !== "ALL" && value !== "") {
+        url.searchParams.set(key, String(value));
+      } else {
+        url.searchParams.delete(key);
+      }
+    });
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
+
+  // 搜索防抖
+  useState(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearch(searchInput);
+        setPage(1);
+        updateUrl({ page: 1, q: searchInput, status: statusFilter });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  });
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -165,13 +207,43 @@ export default function AdminVideosPage() {
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === videos.length) {
-      setSelectedIds(new Set());
+  // 切换当前页全选
+  const togglePageSelect = useCallback(() => {
+    const pageIds = new Set(videos.map((v) => v.id));
+    const allPageSelected = videos.every((v) => selectedIds.has(v.id));
+    
+    if (allPageSelected) {
+      const newSet = new Set(selectedIds);
+      pageIds.forEach((id) => newSet.delete(id));
+      setSelectedIds(newSet);
     } else {
-      setSelectedIds(new Set(videos.map((v) => v.id)));
+      const newSet = new Set(selectedIds);
+      pageIds.forEach((id) => newSet.add(id));
+      setSelectedIds(newSet);
     }
-  }, [videos, selectedIds.size]);
+  }, [videos, selectedIds]);
+
+  // 真全选 - 选择所有视频
+  const selectAll = async () => {
+    setSelectAllLoading(true);
+    try {
+      const result = await utils.admin.getAllVideoIds.fetch({
+        status: statusFilter,
+        search: search || undefined,
+      });
+      setSelectedIds(new Set(result));
+      toast.success(`已选择全部 ${result.length} 个视频`);
+    } catch {
+      toast.error("获取视频列表失败");
+    } finally {
+      setSelectAllLoading(false);
+    }
+  };
+
+  // 取消全选
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -184,6 +256,18 @@ export default function AdminVideosPage() {
       return next;
     });
   }, []);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    updateUrl({ page: newPage, status: statusFilter, q: search });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleStatusChange = (value: StatusFilter) => {
+    setStatusFilter(value);
+    setPage(1);
+    updateUrl({ page: 1, status: value, q: search });
+  };
 
   const getStatusBadge = (status: VideoStatus) => {
     switch (status) {
@@ -201,6 +285,9 @@ export default function AdminVideosPage() {
   const canModerate = permissions?.scopes.includes("video:moderate");
   const canManage = permissions?.scopes.includes("video:manage");
 
+  // 当前页是否全选
+  const isPageAllSelected = videos.length > 0 && videos.every((v) => selectedIds.has(v.id));
+
   if (!canModerate) {
     return (
       <div className="flex items-center justify-center h-[400px] text-muted-foreground">
@@ -216,6 +303,7 @@ export default function AdminVideosPage() {
         <div className="flex items-center gap-2">
           <Video className="h-5 w-5" />
           <h1 className="text-xl font-semibold">视频管理</h1>
+          <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
         </div>
 
         {stats && (
@@ -246,15 +334,20 @@ export default function AdminVideosPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="搜索视频标题或描述..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              // 简单防抖
+              setTimeout(() => {
+                setSearch(e.target.value);
+                setPage(1);
+                updateUrl({ page: 1, q: e.target.value, status: statusFilter });
+              }, 300);
+            }}
             className="pl-10"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
-        >
+        <Select value={statusFilter} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="状态筛选" />
           </SelectTrigger>
@@ -268,79 +361,100 @@ export default function AdminVideosPage() {
       </div>
 
       {/* 批量操作栏 */}
-      {videos.length > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            onClick={toggleSelectAll}
+            onClick={togglePageSelect}
             className="gap-1"
+            title="选择/取消本页"
           >
-            {selectedIds.size === videos.length && videos.length > 0 ? (
+            {isPageAllSelected ? (
               <CheckSquare className="h-4 w-4" />
             ) : (
               <Square className="h-4 w-4" />
             )}
-            {selectedIds.size === videos.length && videos.length > 0 ? "取消全选" : "全选"}
+            本页
           </Button>
-
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={selectAll}
+            disabled={selectAllLoading}
+            className="gap-1"
+            title={`选择所有 ${totalCount} 个视频`}
+          >
+            {selectAllLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ChevronsRight className="h-4 w-4" />
+            )}
+            全选 ({totalCount})
+          </Button>
           {selectedIds.size > 0 && (
-            <>
-              <span className="text-sm text-muted-foreground">
-                已选 {selectedIds.size} 个
-              </span>
-              <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-green-600"
-                  onClick={() =>
-                    batchModerateMutation.mutate({
-                      videoIds: Array.from(selectedIds),
-                      status: "PUBLISHED",
-                    })
-                  }
-                  disabled={batchModerateMutation.isPending}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  批量通过
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-orange-600"
-                  onClick={() =>
-                    batchModerateMutation.mutate({
-                      videoIds: Array.from(selectedIds),
-                      status: "REJECTED",
-                    })
-                  }
-                  disabled={batchModerateMutation.isPending}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  批量拒绝
-                </Button>
-                {canManage && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setBatchAction("delete")}
-                    disabled={batchDeleteMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    批量删除
-                  </Button>
-                )}
-              </div>
-            </>
+            <Button variant="ghost" size="sm" onClick={deselectAll}>
+              取消全选
+            </Button>
           )}
         </div>
-      )}
+
+        {selectedIds.size > 0 && (
+          <>
+            <span className="text-sm text-muted-foreground">
+              已选 {selectedIds.size} 个
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-green-600"
+                onClick={() =>
+                  batchModerateMutation.mutate({
+                    videoIds: Array.from(selectedIds),
+                    status: "PUBLISHED",
+                  })
+                }
+                disabled={batchModerateMutation.isPending}
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                批量通过
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-orange-600"
+                onClick={() =>
+                  batchModerateMutation.mutate({
+                    videoIds: Array.from(selectedIds),
+                    status: "REJECTED",
+                  })
+                }
+                disabled={batchModerateMutation.isPending}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                批量拒绝
+              </Button>
+              {canManage && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBatchAction("delete")}
+                  disabled={batchDeleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  批量删除
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* 视频列表 */}
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 10 }).map((_, i) => (
             <Skeleton key={i} className="h-32 w-full" />
           ))}
         </div>
@@ -351,238 +465,308 @@ export default function AdminVideosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {videos.map((video) => {
-            const isSelected = selectedIds.has(video.id);
-            const isExpanded = expandedIds.has(video.id);
+        <>
+          <div className="space-y-3">
+            {videos.map((video) => {
+              const isSelected = selectedIds.has(video.id);
+              const isExpanded = expandedIds.has(video.id);
 
-            return (
-              <Card
-                key={video.id}
-                className={cn(
-                  "transition-colors",
-                  isSelected && "ring-2 ring-primary"
-                )}
-              >
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleSelect(video.id)}
-                      className="mt-1"
-                    />
-
-                    {/* 封面 */}
-                    <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
-                      <Image
-                        src={getCoverUrl(video.id, video.coverUrl)}
-                        alt={video.title}
-                        fill
-                        className="object-cover"
-                        sizes="160px"
-                        unoptimized
+              return (
+                <Card
+                  key={video.id}
+                  className={cn(
+                    "transition-colors",
+                    isSelected && "ring-2 ring-primary"
+                  )}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelect(video.id)}
+                        className="mt-1"
                       />
-                      {video.duration && (
-                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
-                          {formatDuration(video.duration)}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* 信息 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <Link
-                            href={`/v/${video.id}`}
-                            className="font-medium hover:underline line-clamp-1"
-                          >
-                            {video.title}
-                          </Link>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <Avatar className="h-5 w-5">
-                              <AvatarImage src={video.uploader.avatar || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {(video.uploader.nickname || video.uploader.username).charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <Link href={`/user/${video.uploader.id}`} className="hover:underline">
-                              {video.uploader.nickname || video.uploader.username}
+                      {/* 封面 */}
+                      <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
+                        <Image
+                          src={getCoverUrl(video.id, video.coverUrl)}
+                          alt={video.title}
+                          fill
+                          className="object-cover"
+                          sizes="160px"
+                          unoptimized
+                        />
+                        {video.duration && (
+                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
+                            {formatDuration(video.duration)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 信息 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              href={`/v/${video.id}`}
+                              className="font-medium hover:underline line-clamp-1"
+                            >
+                              {video.title}
                             </Link>
-                            <span>·</span>
-                            <span>{formatRelativeTime(video.createdAt)}</span>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={video.uploader.avatar || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {(video.uploader.nickname || video.uploader.username).charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <Link href={`/user/${video.uploader.id}`} className="hover:underline">
+                                {video.uploader.nickname || video.uploader.username}
+                              </Link>
+                              <span>·</span>
+                              <span>{formatRelativeTime(video.createdAt)}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                              <span className="flex items-center gap-1">
+                                <Eye className="h-3 w-3" />
+                                {video.views}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Heart className="h-3 w-3" />
+                                {video._count.likes}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Star className="h-3 w-3" />
+                                {video._count.favorites}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3" />
+                                {video._count.comments}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              {video.views}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {video._count.likes}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Star className="h-3 w-3" />
-                              {video._count.favorites}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageSquare className="h-3 w-3" />
-                              {video._count.comments}
-                            </span>
-                          </div>
+                          {getStatusBadge(video.status as VideoStatus)}
                         </div>
-                        {getStatusBadge(video.status as VideoStatus)}
-                      </div>
 
-                      {/* 操作按钮 */}
-                      <div className="flex items-center gap-1 mt-2">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/v/${video.id}`} target="_blank">
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            查看
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/v/edit/${video.id}`}>
-                            <Edit className="h-3 w-3 mr-1" />
-                            编辑
-                          </Link>
-                        </Button>
-                        {video.status !== "PUBLISHED" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-green-600"
-                            onClick={() =>
-                              moderateMutation.mutate({
-                                videoId: video.id,
-                                status: "PUBLISHED",
-                              })
-                            }
-                            disabled={moderateMutation.isPending}
-                          >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            通过
+                        {/* 操作按钮 */}
+                        <div className="flex items-center gap-1 mt-2">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/v/${video.id}`} target="_blank">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              查看
+                            </Link>
                           </Button>
-                        )}
-                        {video.status !== "REJECTED" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-orange-600"
-                            onClick={() =>
-                              moderateMutation.mutate({
-                                videoId: video.id,
-                                status: "REJECTED",
-                              })
-                            }
-                            disabled={moderateMutation.isPending}
-                          >
-                            <XCircle className="h-3 w-3 mr-1" />
-                            拒绝
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/v/edit/${video.id}`}>
+                              <Edit className="h-3 w-3 mr-1" />
+                              编辑
+                            </Link>
                           </Button>
-                        )}
-                        {canManage && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => setDeletingId(video.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            删除
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 ml-auto"
-                          onClick={() => toggleExpand(video.id)}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
+                          {video.status !== "PUBLISHED" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600"
+                              onClick={() =>
+                                moderateMutation.mutate({
+                                  videoId: video.id,
+                                  status: "PUBLISHED",
+                                })
+                              }
+                              disabled={moderateMutation.isPending}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              通过
+                            </Button>
                           )}
-                        </Button>
+                          {video.status !== "REJECTED" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-orange-600"
+                              onClick={() =>
+                                moderateMutation.mutate({
+                                  videoId: video.id,
+                                  status: "REJECTED",
+                                })
+                              }
+                              disabled={moderateMutation.isPending}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              拒绝
+                            </Button>
+                          )}
+                          {canManage && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => setDeletingId(video.id)}
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              删除
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 ml-auto"
+                            onClick={() => toggleExpand(video.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* 展开的详细信息 */}
-                  <Collapsible open={isExpanded}>
-                    <CollapsibleContent>
-                      <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-3">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div>
-                            <div className="font-medium text-foreground mb-1">视频 ID</div>
-                            <code className="text-xs bg-muted px-1 py-0.5 rounded">{video.id}</code>
-                          </div>
-                          <div>
-                            <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              创建时间
+                    {/* 展开的详细信息 */}
+                    <Collapsible open={isExpanded}>
+                      <CollapsibleContent>
+                        <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <div className="font-medium text-foreground mb-1">视频 ID</div>
+                              <code className="text-xs bg-muted px-1 py-0.5 rounded">{video.id}</code>
                             </div>
-                            {new Date(video.createdAt).toLocaleString("zh-CN")}
-                          </div>
-                          <div>
-                            <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              时长
+                            <div>
+                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                创建时间
+                              </div>
+                              {new Date(video.createdAt).toLocaleString("zh-CN")}
                             </div>
-                            {video.duration ? formatDuration(video.duration) : "-"}
+                            <div>
+                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                时长
+                              </div>
+                              {video.duration ? formatDuration(video.duration) : "-"}
+                            </div>
+                            <div>
+                              <div className="font-medium text-foreground mb-1">分P数</div>
+                              {video.sources?.length || 1}
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium text-foreground mb-1">分P数</div>
-                            {video.sources?.length || 1}
-                          </div>
+
+                          {video.description && (
+                            <div>
+                              <div className="font-medium text-foreground mb-1">描述</div>
+                              <p className="text-sm whitespace-pre-wrap">{video.description}</p>
+                            </div>
+                          )}
+
+                          {video.tags && video.tags.length > 0 && (
+                            <div>
+                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                <Tag className="h-3 w-3" />
+                                标签
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {video.tags.map((t) => (
+                                  <Badge key={t.tag.id} variant="outline" className="text-xs">
+                                    {t.tag.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-                        {video.description && (
-                          <div>
-                            <div className="font-medium text-foreground mb-1">描述</div>
-                            <p className="text-sm whitespace-pre-wrap">{video.description}</p>
-                          </div>
-                        )}
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t">
+              <div className="text-sm text-muted-foreground">
+                第 {currentPage} 页，共 {totalPages} 页（{totalCount} 个视频）
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1 || isFetching}
+                  title="第一页"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || isFetching}
+                  title="上一页"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {/* 页码按钮 */}
+                <div className="flex items-center gap-1 mx-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={isFetching}
+                        className="w-9 h-9"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
 
-                        {video.tags && video.tags.length > 0 && (
-                          <div>
-                            <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                              <Tag className="h-3 w-3" />
-                              标签
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {video.tags.map((t) => (
-                                <Badge key={t.tag.id} variant="outline" className="text-xs">
-                                  {t.tag.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {hasNextPage && (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                加载更多
-              </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || isFetching}
+                  title="下一页"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages || isFetching}
+                  title="最后一页"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
-        </div>
+
+          {/* 加载中遮罩 */}
+          {isFetching && !isLoading && (
+            <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+        </>
       )}
 
       {/* 删除确认对话框 */}

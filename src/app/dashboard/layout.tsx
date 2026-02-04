@@ -26,7 +26,6 @@ import {
   Menu,
   Sparkles,
   ChevronLeft,
-  Upload,
 } from "lucide-react";
 
 const menuItems = [
@@ -41,12 +40,6 @@ const menuItems = [
     label: "视频管理",
     icon: Video,
     scope: "video:moderate",
-  },
-  {
-    href: "/dashboard/import",
-    label: "批量导入",
-    icon: Upload,
-    scope: "video:manage",
   },
   {
     href: "/dashboard/users",
