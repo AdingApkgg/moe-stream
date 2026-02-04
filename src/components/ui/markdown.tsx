@@ -11,8 +11,7 @@ interface MarkdownProps {
 
 export function Markdown({ content, className }: MarkdownProps) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+    <div
       className={cn(
         "prose prose-sm dark:prose-invert max-w-none",
         "prose-headings:font-semibold prose-headings:tracking-tight",
@@ -29,32 +28,36 @@ export function Markdown({ content, className }: MarkdownProps) {
         "prose-table:border prose-th:bg-muted prose-th:p-2 prose-td:p-2 prose-td:border",
         className
       )}
-      components={{
-        // 自定义链接在新标签页打开
-        a: ({ href, children, ...props }) => (
-          <a
-            href={href}
-            target={href?.startsWith("http") ? "_blank" : undefined}
-            rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
-            {...props}
-          >
-            {children}
-          </a>
-        ),
-        // 自定义图片样式
-        img: ({ src, alt, ...props }) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={alt || ""}
-            className="rounded-lg max-w-full h-auto"
-            loading="lazy"
-            {...props}
-          />
-        ),
-      }}
     >
-      {content}
-    </ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 自定义链接在新标签页打开
+          a: ({ href, children, ...props }) => (
+            <a
+              href={href}
+              target={href?.startsWith("http") ? "_blank" : undefined}
+              rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
+              {...props}
+            >
+              {children}
+            </a>
+          ),
+          // 自定义图片样式
+          img: ({ src, alt, ...props }) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt={alt || ""}
+              className="rounded-lg max-w-full h-auto"
+              loading="lazy"
+              {...props}
+            />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }

@@ -167,7 +167,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const [isBuffering, setIsBuffering] = useState(false);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [isLocked, setIsLocked] = useState(false);
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const [showMobileMenu, _setShowMobileMenu] = useState(false);
+    void _setShowMobileMenu; // TODO: 移动端菜单功能待实现
 
     // 多媒体轨道状态
     const [currentQuality, setCurrentQuality] = useState<QualityLevel | null>(
@@ -186,6 +187,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
     // URL 变化时重置状态
     useEffect(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 需要在 URL 变化时重置播放器状态
       setIsReady(false);
       setHasError(false);
       setPlayed(0);
@@ -224,6 +226,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     }, [isPlaying, showMobileMenu]);
 
     useEffect(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 需要在播放状态变化时控制条显示
       resetControlsTimeout();
       return () => {
         if (controlsTimeoutRef.current) {
@@ -239,6 +242,16 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
       };
       document.addEventListener("fullscreenchange", handleFullscreenChange);
       return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    }, []);
+
+    // 全屏切换
+    const toggleFullscreen = useCallback(() => {
+      if (!containerRef.current) return;
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        containerRef.current.requestFullscreen();
+      }
     }, []);
 
     // 键盘快捷键
@@ -307,17 +320,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showPlayer, duration, getVideoElement]);
-
-    // 全屏切换
-    const toggleFullscreen = useCallback(() => {
-      if (!containerRef.current) return;
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        containerRef.current.requestFullscreen();
-      }
-    }, []);
+    }, [showPlayer, duration, getVideoElement, toggleFullscreen]);
 
     // 画中画
     const togglePiP = useCallback(async () => {
