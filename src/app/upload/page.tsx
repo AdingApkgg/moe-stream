@@ -77,6 +77,8 @@ interface ParsedVideo {
 
 interface ParsedSeries {
   seriesTitle: string;
+  description?: string;
+  coverUrl?: string;
   videos: ParsedVideo[];
 }
 
@@ -90,27 +92,19 @@ interface ParsedBatchData {
  * 
  * 格式（每行一个字段，用前缀标识）：
  * 
- * 合集：作者名
+ * 作者：作者名（同时充当合集分组，也可用"合集："代替）
+ * 封面：封面URL（可选，合集级共享）
+ * 标签：标签1,标签2（可选，合集级共享）
+ * 描述：描述（可选，合集级共享）
+ * 下载：名称|URL|密码（可选；多个用 ; 分隔）
  * 
  * 标题：视频标题1
- * 描述：视频描述（可选）
- * 封面：封面URL（可选）
  * 视频：视频URL
- * 标签：标签1,标签2,标签3（可选）
- * 作品介绍：作品详细介绍（可选）
- * 作者：原作者（可选）
- * 作者介绍：作者介绍（可选）
- * 关键词：关键词1,关键词2（可选）
- * 下载：名称|URL|密码（可选；多个用 ; 分隔）
- * 公告：info|内容（可选；type 可为 info/success/warning/error）
- * 视频信息：视频格式/码率等说明（可选）
- * 相关：相关视频标题1,相关视频标题2（可选）
  * 
  * 标题：视频标题2
  * 视频：视频URL
- * 标签：标签1,标签2
  * 
- * 合集：另一个作者
+ * 作者：另一个作者
  * 
  * 标题：视频标题3
  * ...
@@ -123,6 +117,11 @@ function parseBatchInput(input: string): ParsedBatchData {
   let currentSeriesExtra: VideoExtraInfo = {};
   let currentVideoExtra: VideoExtraInfo = {};
   let lastField: { target: "series" | "video"; key: string } | null = null;
+
+  // 合集级共享字段（描述/封面/标签不在 extraInfo 内，单独追踪）
+  let seriesDescription = "";
+  let seriesCoverUrl = "";
+  let seriesTags: string[] = [];
 
   // 解析带前缀的行
   const parseField = (line: string): { key: string; value: string } | null => {
@@ -218,7 +217,7 @@ function parseBatchInput(input: string): ParsedBatchData {
     return hasContent ? result : undefined;
   };
 
-  // 保存当前视频
+  // 保存当前视频（从合集级继承共享字段）
   const saveCurrentVideo = () => {
     if (currentVideo.title && currentVideo.videoUrl) {
       if (!currentSeries) {
@@ -227,10 +226,10 @@ function parseBatchInput(input: string): ParsedBatchData {
       const mergedExtra = mergeExtraInfo(currentSeriesExtra, currentVideoExtra);
       currentSeries.videos.push({
         title: currentVideo.title || '',
-        description: currentVideo.description || '',
-        coverUrl: currentVideo.coverUrl || '',
+        description: currentVideo.description || seriesDescription || '',
+        coverUrl: currentVideo.coverUrl || seriesCoverUrl || '',
         videoUrl: currentVideo.videoUrl || '',
-        tags: currentVideo.tags || [],
+        tags: currentVideo.tags?.length ? currentVideo.tags : [...seriesTags],
         extraInfo: mergedExtra,
       });
     }
@@ -252,10 +251,16 @@ function parseBatchInput(input: string): ParsedBatchData {
       // 多行字段续写
       if (lastField && trimmed !== '') {
         const { target, key } = lastField;
-        if (key === '描述' && target === 'video') {
-          currentVideo.description = currentVideo.description
-            ? `${currentVideo.description}\n${trimmed}`
-            : trimmed;
+        if (key === '描述') {
+          if (target === 'series') {
+            seriesDescription = seriesDescription
+              ? `${seriesDescription}\n${trimmed}`
+              : trimmed;
+          } else {
+            currentVideo.description = currentVideo.description
+              ? `${currentVideo.description}\n${trimmed}`
+              : trimmed;
+          }
           continue;
         }
         if (key === '作品介绍') {
@@ -288,14 +293,20 @@ function parseBatchInput(input: string): ParsedBatchData {
         // 保存之前的视频和合集
         saveCurrentVideo();
         if (currentSeries && currentSeries.videos.length > 0) {
+          // 保存合集级字段到 ParsedSeries
+          if (seriesDescription) currentSeries.description = seriesDescription;
+          if (seriesCoverUrl) currentSeries.coverUrl = seriesCoverUrl;
           series.push(currentSeries);
         }
-        // 开始新合集
+        // 开始新合集，重置合集级共享字段
         currentSeries = {
           seriesTitle: field.value,
           videos: [],
         };
         currentSeriesExtra = {};
+        seriesDescription = "";
+        seriesCoverUrl = "";
+        seriesTags = [];
         break;
       case '标题':
         // 新视频开始前，保存之前的视频
@@ -305,25 +316,62 @@ function parseBatchInput(input: string): ParsedBatchData {
         currentVideo.title = field.value;
         break;
       case '描述':
-        currentVideo.description = field.value;
-        lastField = { target: "video", key: "描述" };
+        if (target === "series") {
+          seriesDescription = field.value;
+          lastField = { target: "series", key: "描述" };
+        } else {
+          currentVideo.description = field.value;
+          lastField = { target: "video", key: "描述" };
+        }
         break;
       case '封面':
-        currentVideo.coverUrl = field.value;
+        if (target === "series") {
+          seriesCoverUrl = field.value;
+        } else {
+          currentVideo.coverUrl = field.value;
+        }
         break;
       case '视频':
         currentVideo.videoUrl = field.value;
         break;
       case '标签':
-        currentVideo.tags = field.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+        if (target === "series") {
+          seriesTags = field.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+        } else {
+          currentVideo.tags = field.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+        }
         break;
       case '作品介绍':
         setExtraField(target, (info) => ({ ...info, intro: field.value }));
         lastField = { target, key: "作品介绍" };
         break;
-      case '作者':
-        setExtraField(target, (info) => ({ ...info, author: field.value }));
+      case '作者': {
+        // 作者可充当合集分隔符：当前无视频标题（合集级）时自动新建合集
+        const isSeriesLevel = !currentVideo.title;
+        if (isSeriesLevel) {
+          if (!currentSeries || currentSeries.videos.length > 0) {
+            // 新建合集
+            saveCurrentVideo();
+            if (currentSeries && currentSeries.videos.length > 0) {
+              if (seriesDescription) currentSeries.description = seriesDescription;
+              if (seriesCoverUrl) currentSeries.coverUrl = seriesCoverUrl;
+              series.push(currentSeries);
+            }
+            currentSeries = { seriesTitle: field.value, videos: [] };
+            currentSeriesExtra = {};
+            seriesDescription = "";
+            seriesCoverUrl = "";
+            seriesTags = [];
+          } else if (!currentSeries.seriesTitle) {
+            // 合集存在但无标题，用作者名作为标题
+            currentSeries.seriesTitle = field.value;
+          }
+          setExtraField("series", (info) => ({ ...info, author: field.value }));
+        } else {
+          setExtraField("video", (info) => ({ ...info, author: field.value }));
+        }
         break;
+      }
       case '作者介绍':
         setExtraField(target, (info) => ({ ...info, authorIntro: field.value }));
         lastField = { target, key: "作者介绍" };
@@ -369,6 +417,8 @@ function parseBatchInput(input: string): ParsedBatchData {
   // 处理最后一个视频和合集
   saveCurrentVideo();
   if (currentSeries && currentSeries.videos.length > 0) {
+    if (seriesDescription) currentSeries.description = seriesDescription;
+    if (seriesCoverUrl) currentSeries.coverUrl = seriesCoverUrl;
     series.push(currentSeries);
   }
 
@@ -435,6 +485,8 @@ export default function UploadPage() {
     },
   });
 
+  const batchCreateMutation = trpc.video.batchCreate.useMutation();
+
   // 解析批量输入
   const handleParseBatch = () => {
     if (!batchInput.trim()) {
@@ -450,7 +502,7 @@ export default function UploadPage() {
     toast.success(`解析成功：${parsed.series.length} 个合集，${parsed.totalVideos} 个视频`);
   };
 
-  // 批量导入
+  // 批量导入 — 按合集分批调用 batchCreate，一次事务完成
   const handleBatchImport = async () => {
     if (!parsedBatch || parsedBatch.totalVideos === 0) {
       toast.error("请先解析内容");
@@ -459,71 +511,52 @@ export default function UploadPage() {
 
     setBatchImporting(true);
     setBatchResults([]);
-    const results: typeof batchResults = [];
+    const allResults: typeof batchResults = [];
 
     try {
-      for (const series of parsedBatch.series) {
-        let seriesId: string | null = null;
+      // 并发提交所有合集（每个合集一次 batchCreate 调用）
+      const promises = parsedBatch.series.map(async (series) => {
+        try {
+          const res = await batchCreateMutation.mutateAsync({
+            seriesTitle: series.seriesTitle || undefined,
+            seriesDescription: series.description || undefined,
+            seriesCoverUrl: series.coverUrl || undefined,
+            videos: series.videos.map((v) => ({
+              title: v.title,
+              description: v.description || undefined,
+              coverUrl: v.coverUrl || "",
+              videoUrl: v.videoUrl,
+              tagNames: v.tags,
+              ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
+            })),
+          });
 
-        // 如果有合集标题，先创建合集
-        if (series.seriesTitle) {
-          try {
-            const newSeries = await createSeriesMutation.mutateAsync({
-              title: series.seriesTitle,
-            });
-            seriesId = newSeries.id;
-          } catch (error) {
-            console.error("创建合集失败:", error);
-          }
+          return res.results.map((r) => ({
+            title: r.title,
+            seriesTitle: series.seriesTitle || undefined,
+            id: r.id,
+            error: r.error,
+          }));
+        } catch (error) {
+          // 整个合集失败，标记所有视频
+          return series.videos.map((v) => ({
+            title: v.title,
+            seriesTitle: series.seriesTitle || undefined,
+            error: error instanceof Error ? error.message : "未知错误",
+          }));
         }
+      });
 
-        // 导入该合集下的所有视频
-        for (let i = 0; i < series.videos.length; i++) {
-          const video = series.videos[i];
-          try {
-            const result = await createMutation.mutateAsync({
-              title: video.title,
-              description: video.description || undefined,
-              coverUrl: video.coverUrl || "",
-              videoUrl: video.videoUrl,
-              tagNames: video.tags,
-              ...(video.extraInfo ? { extraInfo: video.extraInfo } : {}),
-              skipIndexNow: true, // 批量导入时跳过 IndexNow
-            });
-
-            // 如果有合集，添加到合集
-            if (seriesId) {
-              try {
-                await addToSeriesMutation.mutateAsync({
-                  seriesId,
-                  videoId: result.id,
-                  episodeNum: i + 1,
-                });
-              } catch (error) {
-                console.error("添加到合集失败:", error);
-              }
-            }
-
-            results.push({
-              title: video.title,
-              seriesTitle: series.seriesTitle || undefined,
-              id: result.id,
-            });
-          } catch (error) {
-            results.push({
-              title: video.title,
-              seriesTitle: series.seriesTitle || undefined,
-              error: error instanceof Error ? error.message : "未知错误",
-            });
-          }
-        }
+      const batchResults = await Promise.all(promises);
+      for (const batch of batchResults) {
+        allResults.push(...batch);
       }
 
-      const successCount = results.filter(r => r.id).length;
-      const failCount = results.filter(r => r.error).length;
+      const successCount = allResults.filter(r => r.id).length;
+      const failCount = allResults.filter(r => r.error).length;
       toast.success(`导入完成：${successCount} 成功，${failCount} 失败`);
-      setBatchResults(results);
-      refetchSeries(); // 刷新合集列表
+      setBatchResults(allResults);
+      refetchSeries();
     } finally {
       setBatchImporting(false);
     }
@@ -705,36 +738,28 @@ export default function UploadPage() {
                     <Textarea
                       value={batchInput}
                       onChange={(e) => setBatchInput(e.target.value)}
-                      placeholder={`合集：作者名1
+                      placeholder={`作者：作者名1
+封面：https://example.com/cover1.jpg（可选）
+标签：标签1,标签2,标签3（可选）
+描述：作者/合集描述（可选）
+下载：夸克|https://example.com/file1|1234（可选）
 
 标题：视频标题1
-描述：视频描述（可选）
-封面：https://example.com/cover1.jpg（可选）
 视频：https://example.com/video1.mp4
-标签：标签1,标签2,标签3
-作品介绍：更详细的作品介绍（可选）
-作者：原作者（可选）
-作者介绍：作者介绍（可选）
-关键词：关键词1,关键词2（可选）
-下载：夸克|https://example.com/file1|1234; 百度|https://example.com/file2
-公告：warning|本视频含有敏感内容（可选）
-视频信息：AV1格式1080P（可选）
-相关：相关视频标题1,相关视频标题2（可选）
 
 标题：视频标题2
 视频：https://example.com/video2.mp4
+
+作者：作者名2
+封面：https://example.com/cover2.jpg
 标签：标签1,标签2
 
-合集：作者名2
-
 标题：视频标题3
-描述：另一个视频
-视频：https://example.com/video3.mp4
-标签：标签1`}
+视频：https://example.com/video3.mp4`}
                       className="min-h-[300px] font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      格式说明：每行用前缀标识字段（合集:、标题:、描述:、封面:、视频:、标签:、作品介绍:、作者:、作者介绍:、关键词:、下载:、公告:、视频信息:、相关:），支持中英文冒号，视频之间用空行分隔；描述/作品介绍/作者介绍/公告/视频信息支持多行
+                      格式说明：「作者:」开头定义合集分组，后跟封面/标签/描述等共享字段，再逐条列出「标题:」+「视频:」。支持中英文冒号，视频间用空行分隔
                     </p>
                   </div>
 

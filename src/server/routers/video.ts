@@ -618,6 +618,218 @@ export const videoRouter = router({
       return video;
     }),
 
+  // 批量创建视频（含合集，一次事务完成）
+  batchCreate: protectedProcedure
+    .input(
+      z.object({
+        seriesTitle: z.string().max(100).optional(),
+        seriesDescription: z.string().max(5000).optional(),
+        seriesCoverUrl: z.string().url().optional().or(z.literal("")),
+        videos: z.array(z.object({
+          title: z.string().min(1).max(100),
+          description: z.string().max(5000).optional(),
+          coverUrl: z.string().url().optional().or(z.literal("")),
+          videoUrl: z.string().url(),
+          tagNames: z.array(z.string()).optional(),
+          extraInfo: z.object({
+            intro: z.string().optional(),
+            episodes: z.array(z.object({
+              title: z.string(),
+              content: z.string(),
+            })).optional(),
+            author: z.string().optional(),
+            authorIntro: z.string().optional(),
+            keywords: z.array(z.string()).optional(),
+            downloads: z.array(z.object({
+              name: z.string(),
+              url: z.string(),
+              password: z.string().optional(),
+            })).optional(),
+            relatedVideos: z.array(z.string()).optional(),
+            notices: z.array(z.object({
+              type: z.enum(['info', 'success', 'warning', 'error']),
+              content: z.string(),
+            })).optional(),
+          }).optional(),
+        })).min(1).max(200),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 检查投稿权限
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { role: true, canUpload: true },
+      });
+      if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
+      const canUpload = user.role === "ADMIN" || user.role === "OWNER" || user.canUpload;
+      if (!canUpload) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "您暂无投稿权限" });
+      }
+
+      // 1) 批量预处理标签 — 收集所有唯一标签名，一次性 upsert
+      const allTagNames = new Set<string>();
+      for (const v of input.videos) {
+        for (const t of v.tagNames ?? []) allTagNames.add(t);
+      }
+      const tagNameToId = new Map<string, string>();
+      if (allTagNames.size > 0) {
+        // 并行 upsert（标签数量有限，通常 < 20）
+        await Promise.all(
+          [...allTagNames].map(async (tagName) => {
+            const slug = tagName
+              .toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
+            try {
+              const tag = await ctx.prisma.tag.upsert({
+                where: { name: tagName },
+                update: {},
+                create: { name: tagName, slug },
+              });
+              tagNameToId.set(tagName, tag.id);
+            } catch {
+              const existing = await ctx.prisma.tag.findFirst({
+                where: { OR: [{ name: tagName }, { slug }] },
+              });
+              if (existing) tagNameToId.set(tagName, existing.id);
+            }
+          })
+        );
+      }
+
+      // 2) 批量预生成视频 ID — 生成候选 ID 后批量检查冲突
+      const ids: string[] = [];
+      const candidateSet = new Set<string>();
+
+      // 先生成足够多的候选 ID（不重复）
+      const needed = input.videos.length;
+      const candidates: string[] = [];
+      while (candidates.length < needed * 2) {
+        const num = Math.floor(Math.random() * 1000000);
+        const id = num.toString().padStart(6, "0");
+        if (!candidateSet.has(id)) {
+          candidateSet.add(id);
+          candidates.push(id);
+        }
+      }
+
+      // 批量查询哪些已存在
+      const existingRecords = await ctx.prisma.video.findMany({
+        where: { id: { in: candidates } },
+        select: { id: true },
+      });
+      const existingIds = new Set(existingRecords.map(r => r.id));
+
+      // 从候选中挑出不存在的
+      for (const c of candidates) {
+        if (ids.length >= needed) break;
+        if (!existingIds.has(c)) ids.push(c);
+      }
+
+      if (ids.length < needed) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "无法生成足够唯一 ID" });
+      }
+
+      // 3) 事务：创建合集 + 所有视频 + 标签关联 + 剧集关联
+      const results: { title: string; id?: string; error?: string }[] = [];
+
+      const txOps: Prisma.PrismaPromise<unknown>[] = [];
+
+      // 创建合集（如果有标题）
+      let seriesId: string | undefined;
+      if (input.seriesTitle) {
+        const sid = `s_${Date.now().toString(36)}`;
+        seriesId = sid;
+
+        // 从第一个视频的 extraInfo 提取下载链接给合集
+        const firstDl = input.videos[0]?.extraInfo?.downloads?.[0];
+
+        txOps.push(
+          ctx.prisma.series.create({
+            data: {
+              id: sid,
+              title: input.seriesTitle,
+              description: input.seriesDescription || undefined,
+              coverUrl: input.seriesCoverUrl || undefined,
+              downloadUrl: firstDl?.url || undefined,
+              downloadNote: firstDl?.name || undefined,
+              creatorId: ctx.session.user.id,
+            },
+          })
+        );
+      }
+
+      // 创建视频 + 标签关联
+      for (let i = 0; i < input.videos.length; i++) {
+        const v = input.videos[i];
+        const videoId = ids[i];
+        const tagIds = [...new Set((v.tagNames ?? []).map(n => tagNameToId.get(n)).filter(Boolean))] as string[];
+
+        txOps.push(
+          ctx.prisma.video.create({
+            data: {
+              id: videoId,
+              title: v.title,
+              description: v.description,
+              videoUrl: v.videoUrl,
+              status: "PUBLISHED",
+              ...(v.coverUrl ? { coverUrl: v.coverUrl } : {}),
+              ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
+              uploader: { connect: { id: ctx.session.user.id } },
+              ...(tagIds.length > 0
+                ? { tags: { create: tagIds.map((tid) => ({ tag: { connect: { id: tid } } })) } }
+                : {}),
+            },
+          })
+        );
+
+        // 合集关联
+        if (seriesId) {
+          txOps.push(
+            ctx.prisma.seriesEpisode.create({
+              data: {
+                seriesId,
+                videoId,
+                episodeNum: i + 1,
+              },
+            })
+          );
+        }
+
+        results.push({ title: v.title, id: videoId });
+      }
+
+      try {
+        await ctx.prisma.$transaction(txOps);
+      } catch (e) {
+        // 如果事务整体失败，标记所有为错误
+        const msg = e instanceof Error ? e.message : "事务失败";
+        return {
+          success: false,
+          seriesId: undefined as string | undefined,
+          total: input.videos.length,
+          successCount: 0,
+          failCount: input.videos.length,
+          results: results.map(r => ({ ...r, id: undefined, error: msg })),
+        };
+      }
+
+      // 4) 异步入队封面生成（不阻塞响应）
+      for (let i = 0; i < input.videos.length; i++) {
+        const v = input.videos[i];
+        enqueueCoverForVideo(ids[i], v.coverUrl || null).catch(() => {});
+      }
+
+      return {
+        success: true,
+        seriesId,
+        total: input.videos.length,
+        successCount: results.length,
+        failCount: 0,
+        results,
+      };
+    }),
+
   // 更新视频
   update: protectedProcedure
     .input(

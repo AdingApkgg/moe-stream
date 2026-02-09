@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Home,
-  Search,
   Upload,
   Heart,
   User,
+  Compass,
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 
@@ -18,12 +18,14 @@ interface NavItem {
   label: string;
   auth?: boolean;
   loginHref?: string;
+  /** 需要 canUpload 权限才显示 */
+  requireUpload?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
-  { href: "/search", icon: Search, label: "搜索" },
-  { href: "/upload", icon: Upload, label: "上传", auth: true, loginHref: "/login" },
+  { href: "/search", icon: Compass, label: "发现" },
+  { href: "/upload", icon: Upload, label: "投稿", auth: true, loginHref: "/login", requireUpload: true },
   { href: "/favorites", icon: Heart, label: "收藏", auth: true, loginHref: "/login" },
   { href: "/settings", icon: User, label: "我的", auth: true, loginHref: "/login" },
 ];
@@ -32,11 +34,16 @@ export function BottomNav() {
   const pathname = usePathname();
   const { session } = useStableSession();
 
+  const visibleItems = navItems.filter((item) => {
+    // 需要上传权限的项，检查 canUpload
+    if (item.requireUpload && (!session || !session.user?.canUpload)) return false;
+    return true;
+  });
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
-      <div className="flex h-14 items-center justify-around px-2">
-        {navItems.map((item) => {
-          // 对于需要登录的项，未登录时跳转到登录页
+      <div className="flex h-14 items-center justify-around px-1">
+        {visibleItems.map((item) => {
           const href = item.auth && !session ? (item.loginHref || "/login") : item.href;
           const isActive = pathname === item.href || 
             (item.href !== "/" && pathname.startsWith(item.href));
@@ -46,22 +53,26 @@ export function BottomNav() {
               key={item.href}
               href={href}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-[56px]",
-                "active:scale-95 active:bg-accent/50",
+                "relative flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl transition-all min-w-[52px] flex-1 max-w-[72px]",
+                "active:scale-90",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
+              {/* 活跃指示器 */}
+              {isActive && (
+                <span className="absolute -top-0.5 w-5 h-0.5 rounded-full bg-primary" />
+              )}
               <item.icon
                 className={cn(
-                  "h-5 w-5 transition-transform",
-                  isActive && "scale-110"
+                  "h-[22px] w-[22px] transition-all",
+                  isActive ? "stroke-[2.5px]" : "stroke-[1.8px]"
                 )}
               />
               <span className={cn(
-                "text-[10px] font-medium leading-tight",
-                isActive && "font-semibold"
+                "text-[10px] leading-tight transition-all",
+                isActive ? "font-semibold" : "font-medium"
               )}>
                 {item.label}
               </span>

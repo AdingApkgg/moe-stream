@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
-import { ensureCoverAuto, enqueueCoverForVideo } from "@/lib/cover-auto";
+import { enqueueCoverForVideo } from "@/lib/cover-auto";
 
 // 封面存储目录（本地 uploads）
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
@@ -237,8 +237,7 @@ export async function GET(
       });
     }
 
-    // 方案 2: 加入队列异步生成
-    ensureCoverAuto();
+    // 加入队列异步生成（Worker 由 instrumentation.ts 启动）
     await enqueueCoverForVideo(videoId);
 
     return NextResponse.json(

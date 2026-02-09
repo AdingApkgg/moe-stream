@@ -159,11 +159,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         {/* 用户相关 */}
         {session ? (
           <CommandGroup heading="用户">
-            <CommandItem onSelect={() => runCommand(() => router.push("/upload"))}>
-              <Upload className="mr-2 h-4 w-4" />
-              上传视频
-              <CommandShortcut>⌘U</CommandShortcut>
-            </CommandItem>
+            {session.user?.canUpload && (
+              <CommandItem onSelect={() => runCommand(() => router.push("/upload"))}>
+                <Upload className="mr-2 h-4 w-4" />
+                上传视频
+                <CommandShortcut>⌘U</CommandShortcut>
+              </CommandItem>
+            )}
             <CommandItem onSelect={() => runCommand(() => router.push("/my-videos"))}>
               <Video className="mr-2 h-4 w-4" />
               我的视频

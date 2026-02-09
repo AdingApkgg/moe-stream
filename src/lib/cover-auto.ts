@@ -3,24 +3,121 @@ import * as path from "path";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { COVER_CONFIG } from "@/lib/cover-config";
-import { retryGenerateCover } from "@/lib/cover-generator";
+import { generateCoverForVideo } from "@/lib/cover-generator";
 import { addToQueue, processQueue } from "@/lib/cover-queue";
-
-const globalForCoverAuto = globalThis as unknown as {
-  coverAutoStarted?: boolean;
-  coverBackfillTimer?: NodeJS.Timeout;
-};
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 const COVER_DIR = path.join(process.cwd(), UPLOAD_DIR, "cover");
 
-async function ensureCoverDir() {
-  try {
-    await fs.access(COVER_DIR);
-  } catch {
-    await fs.mkdir(COVER_DIR, { recursive: true });
-  }
+function log(msg: string, ...args: unknown[]) {
+  const ts = new Date().toISOString();
+  console.log(`[${ts}][CoverWorker] ${msg}`, ...args);
 }
+
+async function ensureCoverDir() {
+  await fs.mkdir(COVER_DIR, { recursive: true }).catch(() => {});
+}
+
+/**
+ * 检查本地是否已存在封面文件
+ */
+async function findExistingCover(videoId: string): Promise<string | null> {
+  for (const format of COVER_CONFIG.formats) {
+    const filePath = path.join(COVER_DIR, `${videoId}.${format}`);
+    try {
+      const stat = await fs.stat(filePath);
+      if (stat.size > 0) {
+        return `/uploads/cover/${videoId}.${format}`;
+      }
+    } catch {
+      // 文件不存在，继续
+    }
+  }
+  return null;
+}
+
+/**
+ * 处理单个视频的封面生成
+ */
+async function processVideo(videoId: string): Promise<boolean> {
+  log(`处理视频 ${videoId}`);
+  await ensureCoverDir();
+
+  // 先检查文件是否已存在（避免重复生成）
+  const existing = await findExistingCover(videoId);
+  if (existing) {
+    log(`视频 ${videoId} 封面已存在: ${existing}，更新数据库`);
+    try {
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { coverUrl: existing },
+      });
+    } catch (e) {
+      log(`更新数据库失败:`, e);
+    }
+    return true;
+  }
+
+  // 获取视频信息
+  const video = await prisma.video.findUnique({
+    where: { id: videoId },
+    select: { videoUrl: true },
+  });
+
+  if (!video?.videoUrl) {
+    log(`视频 ${videoId} 无 videoUrl，跳过`);
+    return true;
+  }
+
+  log(`视频 ${videoId} URL: ${video.videoUrl.slice(0, 80)}...`);
+
+  // 使用优化后的封面生成流程
+  const coverUrl = await generateCoverForVideo(
+    video.videoUrl,
+    videoId,
+    COVER_DIR,
+    {
+      width: COVER_CONFIG.width,
+      timeoutMs: COVER_CONFIG.timeout,
+      maxRetries: COVER_CONFIG.maxRetries,
+      retryDelayMs: COVER_CONFIG.retryDelay,
+    }
+  );
+
+  if (coverUrl) {
+    try {
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { coverUrl },
+      });
+    } catch (e) {
+      log(`更新数据库失败:`, e);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// ========== Worker 生命周期 ==========
+
+let workerStarted = false;
+
+/**
+ * 启动封面生成 Worker
+ * 由 instrumentation.ts 在服务器启动时调用
+ */
+export function startCoverWorker() {
+  if (workerStarted) return;
+  workerStarted = true;
+
+  log("启动封面生成 worker...");
+  void processQueue(processVideo);
+}
+
+// ========== 补全调度 ==========
+
+let backfillTimer: NodeJS.Timeout | null = null;
 
 async function tryAcquireBackfillLock(): Promise<boolean> {
   const result = await redis.set(
@@ -46,77 +143,37 @@ async function backfillMissingCovers(): Promise<void> {
     take: COVER_CONFIG.backfillBatchSize,
   });
 
-  for (const video of videos) {
-    await addToQueue(video.id);
+  if (videos.length > 0) {
+    log(`补全: 找到 ${videos.length} 个缺少封面的视频`);
+    for (const video of videos) {
+      await addToQueue(video.id);
+    }
   }
 }
 
-async function coverWorker() {
-  console.log("[CoverWorker] 启动封面生成 worker...");
-  await processQueue(async (videoId) => {
-    console.log(`[CoverWorker] 处理视频 ${videoId}`);
-    await ensureCoverDir();
-    const video = await prisma.video.findUnique({
-      where: { id: videoId },
-      select: { videoUrl: true },
-    });
+/**
+ * 启动定时补全调度器
+ * 由 instrumentation.ts 在服务器启动时调用
+ */
+export function startBackfillScheduler() {
+  if (backfillTimer) return;
 
-    if (!video?.videoUrl) {
-      console.log(`[CoverWorker] 视频 ${videoId} 无 videoUrl，跳过`);
-      return true;
-    }
-
-    console.log(`[CoverWorker] 视频 ${videoId} URL: ${video.videoUrl.slice(0, 80)}...`);
-
-    for (const format of COVER_CONFIG.formats) {
-      const coverFileName = `${videoId}.${format}`;
-      const coverFilePath = path.join(COVER_DIR, coverFileName);
-      console.log(`[CoverWorker] 尝试生成 ${format} 格式封面...`);
-      const ok = await retryGenerateCover(video.videoUrl, coverFilePath, format, {
-        width: COVER_CONFIG.width,
-        samplePoints: [...COVER_CONFIG.samplePoints],
-        timeoutMs: COVER_CONFIG.timeout,
-        maxRetries: COVER_CONFIG.maxRetries,
-        retryDelayMs: COVER_CONFIG.retryDelay,
-      });
-      if (ok) {
-        const coverUrl = `/uploads/cover/${coverFileName}`;
-        console.log(`[CoverWorker] ✓ 视频 ${videoId} 封面生成成功: ${coverUrl}`);
-        try {
-          await prisma.video.update({
-            where: { id: videoId },
-            data: { coverUrl },
-          });
-        } catch (e) {
-          console.error(`[CoverWorker] 更新数据库失败:`, e);
-        }
-        return true;
-      }
-      console.log(`[CoverWorker] ${format} 格式生成失败`);
-    }
-
-    console.log(`[CoverWorker] ✗ 视频 ${videoId} 所有格式都失败`);
-    return false;
-  });
-}
-
-export function ensureCoverAuto() {
-  if (globalForCoverAuto.coverAutoStarted) return;
-  globalForCoverAuto.coverAutoStarted = true;
-
-  void coverWorker();
   void backfillMissingCovers();
-
-  globalForCoverAuto.coverBackfillTimer = setInterval(() => {
+  backfillTimer = setInterval(() => {
     void backfillMissingCovers();
   }, COVER_CONFIG.backfillIntervalMs);
 }
 
+// ========== 公共 API ==========
+
+/**
+ * 将视频加入封面生成队列
+ * 供 tRPC mutation 和 API route 调用
+ */
 export async function enqueueCoverForVideo(
   videoId: string,
   coverUrl?: string | null
 ): Promise<void> {
   if (coverUrl) return;
-  ensureCoverAuto();
   await addToQueue(videoId);
 }

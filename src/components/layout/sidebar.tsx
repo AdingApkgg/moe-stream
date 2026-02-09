@@ -35,6 +35,8 @@ interface NavItem {
   label: string;
   auth?: boolean;
   permission?: string;
+  /** 需要 canUpload 权限才显示 */
+  requireUpload?: boolean;
 }
 
 const mainNavItems: NavItem[] = [
@@ -50,7 +52,7 @@ const userNavItems: NavItem[] = [
 ];
 
 const moreNavItems: NavItem[] = [
-  { href: "/upload", icon: Upload, label: "上传视频", auth: true },
+  { href: "/upload", icon: Upload, label: "上传视频", auth: true, requireUpload: true },
 ];
 
 function NavLink({
@@ -108,6 +110,7 @@ function NavGroup({
 }) {
   const filteredItems = items.filter((item) => {
     if (item.auth && !session) return false;
+    if (item.requireUpload && (!session || !session.user?.canUpload)) return false;
     return true;
   });
 
@@ -317,6 +320,7 @@ function NavGroupMobile({
 }) {
   const filteredItems = items.filter((item) => {
     if (item.auth && !session) return false;
+    if (item.requireUpload && (!session || !session.user?.canUpload)) return false;
     return true;
   });
 

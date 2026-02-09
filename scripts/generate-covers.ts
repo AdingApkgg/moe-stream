@@ -20,7 +20,7 @@ import { execSync } from "child_process";
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { COVER_CONFIG } from "../src/lib/cover-config";
-import { retryGenerateCover } from "../src/lib/cover-generator";
+import { generateCoverForVideo } from "../src/lib/cover-generator";
 import { redis } from "../src/lib/redis";
 
 // 加载环境变量
@@ -173,9 +173,6 @@ async function main() {
   let successCount = 0;
   let errorCount = 0;
 
-  // 尝试的格式顺序：AVIF > WebP > JPEG
-  const formats = COVER_CONFIG.formats;
-
   await runWithConcurrency(
     videos,
     async (video, index) => {
@@ -186,44 +183,32 @@ async function main() {
       const progress = `[${index + 1}/${videos.length}]`;
       console.log(`${progress} 处理: ${video.title}`);
 
-      let success = false;
-      let finalCoverUrl = "";
-
-      for (const ext of formats) {
-        const coverFilename = `${video.id}.${ext}`;
-        const coverPath = join(COVER_DIR, coverFilename);
-        const coverUrl = `/uploads/cover/${coverFilename}`;
-
-        console.log(`  🖼️  尝试生成 ${ext.toUpperCase()} 格式...`);
-
-        const ok = await retryGenerateCover(video.videoUrl, coverPath, ext, {
+      // 使用优化后的封面生成（并行采样 + sharp 转码）
+      const coverUrl = await generateCoverForVideo(
+        video.videoUrl,
+        video.id,
+        COVER_DIR,
+        {
           width: COVER_CONFIG.width,
-          samplePoints: [...COVER_CONFIG.samplePoints],
           timeoutMs: COVER_CONFIG.timeout,
           maxRetries: COVER_CONFIG.maxRetries,
           retryDelayMs: COVER_CONFIG.retryDelay,
-        });
-
-        if (ok && existsSync(coverPath)) {
-          finalCoverUrl = coverUrl;
-          success = true;
-          break;
         }
-      }
+      );
 
-      if (success) {
+      if (coverUrl) {
         await prisma.video.update({
           where: { id: video.id },
-          data: { coverUrl: finalCoverUrl },
+          data: { coverUrl },
         });
-        console.log(`  ✅ 成功: ${finalCoverUrl}`);
+        console.log(`  ✅ 成功: ${coverUrl}`);
         successCount++;
       } else {
         console.log("  ❌ 失败: 无法生成封面");
         errorCount++;
       }
 
-      await markProgress(video.id, success);
+      await markProgress(video.id, !!coverUrl);
     },
     concurrency
   );

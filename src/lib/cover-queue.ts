@@ -9,6 +9,11 @@ type ProcessOptions = {
   retryDelayMs?: number;
 };
 
+function log(msg: string, ...args: unknown[]) {
+  const ts = new Date().toISOString();
+  console.log(`[${ts}][CoverQueue] ${msg}`, ...args);
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -45,11 +50,24 @@ export async function isCoverLocked(videoId: string): Promise<boolean> {
   return exists === 1;
 }
 
+/**
+ * 将视频加入封面生成队列
+ * 使用 try-finally 保证 push 失败时释放 lock
+ */
 export async function addToQueue(videoId: string): Promise<boolean> {
   const locked = await acquireCoverLock(videoId);
   if (!locked) return false;
-  await redis.lpush(COVER_CONFIG.queueName, videoId);
-  return true;
+
+  try {
+    await redis.lpush(COVER_CONFIG.queueName, videoId);
+    log(`入队: ${videoId}`);
+    return true;
+  } catch (err) {
+    // push 失败，释放 lock 防止死锁
+    await releaseCoverLock(videoId);
+    log(`入队失败: ${videoId}, ${String(err)}`);
+    return false;
+  }
 }
 
 async function incrementRetry(videoId: string): Promise<number> {
@@ -76,41 +94,43 @@ export async function processQueue(
   let errors = 0;
   let shouldStop = false;
 
-  console.log(`[CoverQueue] 启动 ${concurrency} 个 worker`);
+  log(`启动 ${concurrency} 个 worker`);
 
   const worker = async (workerId: number) => {
-    console.log(`[CoverQueue] Worker ${workerId} 启动`);
+    log(`Worker ${workerId} 启动`);
     while (!shouldStop) {
       const result = await redis.brpop(COVER_CONFIG.queueName, pollTimeoutSeconds);
       if (!result) continue;
 
       const videoId = result[1];
-      console.log(`[CoverQueue] Worker ${workerId} 取到任务: ${videoId}`);
+      const startTime = Date.now();
+      log(`Worker ${workerId} 取到任务: ${videoId}`);
       await refreshCoverLock(videoId);
 
       let ok = false;
       try {
         ok = await processor(videoId);
       } catch (e) {
-        console.error(`[CoverQueue] Worker ${workerId} 处理异常:`, e);
+        log(`Worker ${workerId} 处理异常: ${videoId}`, e);
         ok = false;
       }
 
+      const elapsed = Date.now() - startTime;
       processed += 1;
 
       if (ok) {
         await resetRetry(videoId);
         await releaseCoverLock(videoId);
-        console.log(`[CoverQueue] Worker ${workerId} 完成: ${videoId}`);
+        log(`Worker ${workerId} 完成: ${videoId} (${elapsed}ms)`);
       } else {
         errors += 1;
         const retryCount = await incrementRetry(videoId);
         if (retryCount <= maxRetries) {
-          console.log(`[CoverQueue] Worker ${workerId} 重试 ${retryCount}/${maxRetries}: ${videoId}`);
+          log(`Worker ${workerId} 重试 ${retryCount}/${maxRetries}: ${videoId}`);
           await sleep(retryDelayMs);
           await redis.lpush(COVER_CONFIG.queueName, videoId);
         } else {
-          console.log(`[CoverQueue] Worker ${workerId} 放弃: ${videoId}`);
+          log(`Worker ${workerId} 放弃: ${videoId} (已重试 ${maxRetries} 次)`);
           await resetRetry(videoId);
           await releaseCoverLock(videoId);
         }

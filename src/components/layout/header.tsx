@@ -26,11 +26,10 @@ import {
   Shield,
   LogIn,
   UserPlus,
-  Tag,
-  Film,
   Clock,
   TrendingUp,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -40,55 +39,116 @@ import { MobileSidebarContent } from "./sidebar";
 import { useIsMounted } from "@/components/motion";
 import { trpc } from "@/lib/trpc";
 import { useDebounce, useStableSession } from "@/lib/hooks";
-
-const SEARCH_HISTORY_KEY = "acgn-flow-search-history";
-const MAX_HISTORY_ITEMS = 10;
-
-// 搜索历史管理
-function getSearchHistory(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const history = localStorage.getItem(SEARCH_HISTORY_KEY);
-    return history ? JSON.parse(history) : [];
-  } catch {
-    return [];
-  }
-}
-
-function addSearchHistory(query: string) {
-  if (typeof window === "undefined" || !query.trim()) return;
-  try {
-    const history = getSearchHistory();
-    const filtered = history.filter(h => h !== query.trim());
-    const updated = [query.trim(), ...filtered].slice(0, MAX_HISTORY_ITEMS);
-    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
-  } catch {
-    // ignore
-  }
-}
-
-function removeSearchHistory(query: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const history = getSearchHistory();
-    const updated = history.filter(h => h !== query);
-    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
-  } catch {
-    // ignore
-  }
-}
-
-function clearSearchHistory() {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(SEARCH_HISTORY_KEY);
-  } catch {
-    // ignore
-  }
-}
+import { useSearchHistoryStore } from "@/stores/app";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   onMenuClick?: () => void;
+}
+
+// ========== 搜索建议列表（桌面 + 移动端共用） ==========
+
+interface SuggestionItem {
+  type: "search" | "history" | "tag" | "video" | "hot";
+  label: string;
+  value: string;
+  index?: number;
+  isHot?: boolean;
+}
+
+function SearchSuggestionsList({
+  items,
+  activeIndex,
+  onSelect,
+  onRemoveHistory,
+  onClearHistory,
+  showHistoryHeader,
+  showHotHeader,
+}: {
+  items: SuggestionItem[];
+  activeIndex: number;
+  onSelect: (item: SuggestionItem) => void;
+  onRemoveHistory?: (query: string) => void;
+  onClearHistory?: () => void;
+  showHistoryHeader: boolean;
+  showHotHeader: boolean;
+}) {
+  return (
+    <div className="py-1">
+      {items.map((item, i) => {
+        const needsHeader = i === 0 || items[i - 1].type !== item.type;
+
+        return (
+          <div key={`${item.type}-${item.value}-${i}`}>
+            {/* 分组标题 */}
+            {needsHeader && item.type === "history" && showHistoryHeader && (
+              <div className="flex items-center justify-between px-4 pt-2 pb-1">
+                <span className="text-xs text-muted-foreground font-medium">搜索历史</span>
+                {onClearHistory && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onClearHistory(); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    清空
+                  </button>
+                )}
+              </div>
+            )}
+            {needsHeader && item.type === "hot" && showHotHeader && (
+              <div className="flex items-center gap-1.5 px-4 pt-2 pb-1">
+                <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium">热搜榜</span>
+              </div>
+            )}
+
+            {/* 列表项 */}
+            <button
+              type="button"
+              data-index={i}
+              onClick={() => onSelect(item)}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
+                activeIndex === i ? "bg-accent" : "hover:bg-accent/50"
+              )}
+            >
+              {/* 图标 */}
+              {item.type === "history" && <Clock className="h-4 w-4 text-muted-foreground shrink-0" />}
+              {(item.type === "search" || item.type === "tag" || item.type === "video") && (
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              )}
+              {item.type === "hot" && (
+                <span className={cn(
+                  "w-5 text-center text-xs font-bold shrink-0",
+                  (item.index ?? 0) < 3 ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {(item.index ?? 0) + 1}
+                </span>
+              )}
+
+              {/* 文本 */}
+              <span className="flex-1 truncate">
+                {item.type === "tag" ? `#${item.label}` : item.label}
+              </span>
+
+              {/* 右侧操作 */}
+              {item.type === "history" && onRemoveHistory && (
+                <X
+                  className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground shrink-0 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); onRemoveHistory(item.value); }}
+                />
+              )}
+              {item.type === "hot" && item.isHot && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium shrink-0">
+                  热
+                </span>
+              )}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
@@ -96,14 +156,14 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      return getSearchHistory();
-    }
-    return [];
-  });
+
+  // Zustand 搜索历史
+  const { history: searchHistory, addSearch, removeSearch, clearHistory } = useSearchHistoryStore();
+
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const mounted = useIsMounted();
   const router = useRouter();
@@ -115,7 +175,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   // 获取搜索建议
   const { data: suggestions } = trpc.video.searchSuggestions.useQuery(
-    { query: debouncedQuery, limit: 5 },
+    { query: debouncedQuery, limit: 8 },
     {
       enabled: debouncedQuery.length >= 2,
       staleTime: 60000,
@@ -138,6 +198,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         !searchInputRef.current.contains(e.target as Node)
       ) {
         setShowSuggestions(false);
+        setActiveIndex(-1);
       }
     };
 
@@ -145,389 +206,422 @@ export function Header({ onMenuClick }: HeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 打开移动搜索时聚焦输入框
+  useEffect(() => {
+    if (showMobileSearch) {
+      // 小延迟确保 DOM 已渲染
+      const timer = setTimeout(() => mobileSearchInputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showMobileSearch]);
+
   // 记录搜索到服务器
   const recordSearchMutation = trpc.video.recordSearch.useMutation();
 
   const handleSearch = useCallback((query: string) => {
     if (query.trim()) {
       const trimmed = query.trim();
-      addSearchHistory(trimmed);
-      setSearchHistory(getSearchHistory());
+      addSearch(trimmed);
       recordSearchMutation.mutate({ keyword: trimmed });
       router.push(`/search?q=${encodeURIComponent(trimmed)}`);
       setShowMobileSearch(false);
       setShowSuggestions(false);
       setSearchQuery("");
+      setActiveIndex(-1);
     }
-  }, [router, recordSearchMutation]);
+  }, [router, recordSearchMutation, addSearch]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setActiveIndex(-1);
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // 如果有选中的建议项，使用它
+    if (activeIndex >= 0 && activeIndex < suggestionItems.length) {
+      handleSuggestionSelect(suggestionItems[activeIndex]);
+      return;
+    }
     handleSearch(searchQuery);
   };
 
-  const handleSuggestionClick = (type: "video" | "tag", value: string) => {
+  const handleSuggestionSelect = useCallback((item: SuggestionItem) => {
     setShowSuggestions(false);
-    if (type === "video") {
-      router.push(`/v/${value}`);
-    } else {
-      router.push(`/tag/${value}`);
+    setShowMobileSearch(false);
+    setActiveIndex(-1);
+
+    switch (item.type) {
+      case "search":
+      case "history":
+      case "hot":
+        handleSearch(item.value);
+        break;
+      case "tag":
+        setSearchQuery("");
+        router.push(`/tag/${item.value}`);
+        break;
+      case "video":
+        setSearchQuery("");
+        router.push(`/v/${item.value}`);
+        break;
     }
-  };
+  }, [handleSearch, router]);
 
-  const handleRemoveHistory = (e: React.MouseEvent, query: string) => {
-    e.stopPropagation();
-    removeSearchHistory(query);
-    setSearchHistory(getSearchHistory());
-  };
+  const handleRemoveHistory = useCallback((query: string) => {
+    removeSearch(query);
+  }, [removeSearch]);
 
-  const handleClearHistory = () => {
-    clearSearchHistory();
-    setSearchHistory([]);
-  };
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+  }, [clearHistory]);
 
-  const hasSuggestions =
-    suggestions && (suggestions.videos.length > 0 || suggestions.tags.length > 0);
-  
-  const showHistoryOrHot = !debouncedQuery && (searchHistory.length > 0 || (hotSearches && hotSearches.length > 0));
+  // ========== 构建统一的建议项列表 ==========
+  const buildSuggestionItems = useCallback((): SuggestionItem[] => {
+    const items: SuggestionItem[] = [];
+
+    if (debouncedQuery.length >= 1) {
+      // 有输入：显示 "搜索 xxx" + 建议
+      items.push({
+        type: "search",
+        label: searchQuery,
+        value: searchQuery,
+      });
+
+      if (suggestions) {
+        // 标签建议
+        for (const tag of suggestions.tags) {
+          items.push({ type: "tag", label: tag.name, value: tag.slug });
+        }
+        // 视频建议
+        for (const video of suggestions.videos) {
+          items.push({ type: "video", label: video.title, value: video.id });
+        }
+      }
+    } else {
+      // 无输入：显示搜索历史 + 热搜
+      for (const h of searchHistory.slice(0, 8)) {
+        items.push({ type: "history", label: h, value: h });
+      }
+
+      if (hotSearches) {
+        for (let i = 0; i < hotSearches.length; i++) {
+          items.push({
+            type: "hot",
+            label: hotSearches[i].keyword,
+            value: hotSearches[i].keyword,
+            index: i,
+            isHot: hotSearches[i].isHot,
+          });
+        }
+      }
+    }
+
+    return items;
+  }, [debouncedQuery, searchQuery, suggestions, searchHistory, hotSearches]);
+
+  const suggestionItems = buildSuggestionItems();
+  const hasSuggestionItems = suggestionItems.length > 0;
+  const hasHistoryItems = suggestionItems.some((i) => i.type === "history");
+  const hasHotItems = suggestionItems.some((i) => i.type === "hot");
+
+  // 键盘导航
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!hasSuggestionItems) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % suggestionItems.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev <= 0 ? suggestionItems.length - 1 : prev - 1));
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setActiveIndex(-1);
+    }
+  }, [hasSuggestionItems, suggestionItems.length]);
+
+  // activeIndex 在搜索输入变化时通过 handleSearchChange 重置
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center px-4">
-        {/* Left Section - Menu & Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Desktop Menu Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden md:flex"
-            onClick={onMenuClick}
-            aria-label="切换侧边栏"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+    <>
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center px-4">
+          {/* Left Section - Menu & Logo */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Desktop Menu Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden md:flex"
+              onClick={onMenuClick}
+              aria-label="切换侧边栏"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
 
-          {/* Mobile Menu */}
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon" aria-label="打开菜单">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <SheetHeader className="border-b px-4 py-4">
-                <SheetTitle>
-                  <Link 
-                    href="/" 
-                    className="flex items-center gap-1 font-bold text-xl"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="text-gradient-anime">Miki</span>
-                    <span>acg</span>
-                  </Link>
-                </SheetTitle>
-              </SheetHeader>
-              <MobileSidebarContent onClose={() => setMobileMenuOpen(false)} />
-            </SheetContent>
-          </Sheet>
+            {/* Mobile Menu */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon" aria-label="打开菜单">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetHeader className="border-b px-4 py-4">
+                  <SheetTitle>
+                    <Link 
+                      href="/" 
+                      className="flex items-center gap-1 font-bold text-xl"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="text-gradient-anime">Miki</span>
+                      <span>acg</span>
+                    </Link>
+                  </SheetTitle>
+                </SheetHeader>
+                <MobileSidebarContent onClose={() => setMobileMenuOpen(false)} />
+              </SheetContent>
+            </Sheet>
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center transition-transform duration-200 hover:scale-105 active:scale-95">
-            <Image
-              src="/Mikiacg-logo.webp"
-              alt="Mikiacg"
-              width={120}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
-          </Link>
-        </div>
-
-        {/* Center Section - Search (居中) */}
-        <div className="flex-1 flex justify-center px-4 lg:px-8">
-          <form onSubmit={handleSearchSubmit} className="hidden md:flex w-full max-w-xl">
-          <div className="relative w-full">
-            <div className="flex">
-              <Input
-                ref={searchInputRef}
-                type="search"
-                placeholder="搜索"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
-                className="rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                autoComplete="off"
+            {/* Logo */}
+            <Link href="/" className="flex items-center transition-transform duration-200 hover:scale-105 active:scale-95">
+              <Image
+                src="/Mikiacg-logo.webp"
+                alt="Mikiacg"
+                width={120}
+                height={32}
+                className="h-8 w-auto"
+                priority
               />
-              <Button 
-                type="submit" 
-                variant="secondary" 
-                className="rounded-l-none border border-input border-l-0 px-6"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {/* 搜索建议/历史/热搜下拉 */}
-            {showSuggestions && (hasSuggestions || showHistoryOrHot) && (
-              <div
-                ref={suggestionsRef}
-                className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 overflow-hidden max-h-[400px] overflow-y-auto"
-              >
-                {/* 有输入时显示搜索建议 */}
-                {debouncedQuery.length >= 2 && hasSuggestions && (
-                  <>
-                    {suggestions.tags.length > 0 && (
-                      <div className="p-2">
-                        <div className="text-xs text-muted-foreground px-2 py-1">标签</div>
-                        {suggestions.tags.map((tag) => (
-                          <button
-                            key={tag.id}
-                            type="button"
-                            onClick={() => handleSuggestionClick("tag", tag.slug)}
-                            className="w-full flex items-center gap-2 px-2 py-2 text-sm hover:bg-accent rounded-md text-left"
-                          >
-                            <Tag className="h-4 w-4 text-muted-foreground" />
-                            <span>#{tag.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {suggestions.videos.length > 0 && (
-                      <div className="p-2 border-t">
-                        <div className="text-xs text-muted-foreground px-2 py-1">视频</div>
-                        {suggestions.videos.map((video) => (
-                          <button
-                            key={video.id}
-                            type="button"
-                            onClick={() => handleSuggestionClick("video", video.id)}
-                            className="w-full flex items-center gap-2 px-2 py-2 text-sm hover:bg-accent rounded-md text-left"
-                          >
-                            <Film className="h-4 w-4 text-muted-foreground" />
-                            <span className="truncate">{video.title}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+            </Link>
+          </div>
 
-                {/* 无输入时显示搜索历史和热搜 */}
-                {!debouncedQuery && (
-                  <>
-                    {/* 搜索历史 */}
-                    {searchHistory.length > 0 && (
-                      <div className="p-2">
-                        <div className="flex items-center justify-between px-2 py-1">
-                          <span className="text-xs text-muted-foreground">搜索历史</span>
-                          <button
-                            type="button"
-                            onClick={handleClearHistory}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            清空
-                          </button>
-                        </div>
-                        {searchHistory.slice(0, 5).map((query) => (
-                          <button
-                            key={query}
-                            type="button"
-                            onClick={() => handleSearch(query)}
-                            className="w-full flex items-center gap-2 px-2 py-2 text-sm hover:bg-accent rounded-md text-left group"
-                          >
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="flex-1 truncate">{query}</span>
-                            <X
-                              className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
-                              onClick={(e) => handleRemoveHistory(e, query)}
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* 热搜榜 */}
-                    {hotSearches && hotSearches.length > 0 && (
-                      <div className={`p-2 ${searchHistory.length > 0 ? "border-t" : ""}`}>
-                        <div className="text-xs text-muted-foreground px-2 py-1 flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
-                          热搜榜
-                        </div>
-                        {hotSearches.map((item, index) => (
-                          <button
-                            key={item.keyword}
-                            type="button"
-                            onClick={() => handleSearch(item.keyword)}
-                            className="w-full flex items-center gap-3 px-2 py-2 text-sm hover:bg-accent rounded-md text-left"
-                          >
-                            <span className={`w-5 text-center text-xs font-bold ${
-                              index < 3 ? "text-primary" : "text-muted-foreground"
-                            }`}>
-                              {index + 1}
-                            </span>
-                            <span className="truncate flex-1">{item.keyword}</span>
-                            {item.isHot && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">
-                                热
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
+          {/* Center Section - Desktop Search */}
+          <div className="flex-1 flex justify-center px-4 lg:px-8">
+            <form onSubmit={handleSearchSubmit} className="hidden md:flex w-full max-w-xl">
+              <div className="relative w-full">
+                <div className="flex">
+                  <Input
+                    ref={searchInputRef}
+                    type="search"
+                    placeholder="搜索视频、标签..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    onKeyDown={handleKeyDown}
+                    className="rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    autoComplete="off"
+                  />
+                  <Button 
+                    type="submit" 
+                    variant="secondary" 
+                    className="rounded-l-none border border-input border-l-0 px-6"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* 桌面端搜索建议下拉 */}
+                {showSuggestions && hasSuggestionItems && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 overflow-hidden max-h-[420px] overflow-y-auto"
+                  >
+                    <SearchSuggestionsList
+                      items={suggestionItems}
+                      activeIndex={activeIndex}
+                      onSelect={handleSuggestionSelect}
+                      onRemoveHistory={handleRemoveHistory}
+                      onClearHistory={handleClearHistory}
+                      showHistoryHeader={hasHistoryItems}
+                      showHotHeader={hasHotItems}
+                    />
+                  </div>
                 )}
               </div>
-            )}
+            </form>
           </div>
-          </form>
-        </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Mobile Search Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setShowMobileSearch((prev) => !prev)}
-            aria-label="搜索"
-          >
-            <Search className="h-5 w-5" />
-          </Button>
+          {/* Right Section */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Mobile Search Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setShowMobileSearch(true)}
+              aria-label="搜索"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
 
-          {isLoading ? (
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-          ) : session?.user ? (
-            <>
-              {/* User Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="relative h-8 w-8 rounded-full"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={session.user.image || undefined}
-                        alt={session.user.name || ""}
-                      />
-                      <AvatarFallback>
-                        {session.user.name?.charAt(0).toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={session.user.image || undefined} />
+            {isLoading ? (
+              <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
+            ) : session?.user ? (
+              <>
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src={session.user.image || undefined}
+                          alt={session.user.name || ""}
+                        />
                         <AvatarFallback>
                           {session.user.name?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex flex-col space-y-1 leading-none min-w-0">
-                        <p className="font-medium truncate">{session.user.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {session.user.email}
-                        </p>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={session.user.image || undefined} />
+                          <AvatarFallback>
+                            {session.user.name?.charAt(0).toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col space-y-1 leading-none min-w-0">
+                          <p className="font-medium truncate">{session.user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {session.user.email}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">
-                      <User className="mr-2 h-4 w-4" />
-                      个人设置
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/my-videos">
-                      <Video className="mr-2 h-4 w-4" />
-                      我的视频
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/favorites">
-                      <Heart className="mr-2 h-4 w-4" />
-                      我的收藏
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/history">
-                      <History className="mr-2 h-4 w-4" />
-                      观看历史
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">
-                      <Shield className="mr-2 h-4 w-4" />
-                      管理面板
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {/* 外观设置 */}
-                  <SettingsPanelInMenu />
-                  <DropdownMenuSeparator />
-                  <AccountSwitcher />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-red-600"
-                    onClick={() => signOut()}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    退出登录
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" asChild className="px-2 sm:px-4">
-                <Link href="/login">
-                  <LogIn className="h-4 w-4 sm:hidden" />
-                  <span className="hidden sm:inline">登录</span>
-                </Link>
-              </Button>
-              <Button size="sm" asChild className="px-2 sm:px-4">
-                <Link href="/register">
-                  <UserPlus className="h-4 w-4 sm:hidden" />
-                  <span className="hidden sm:inline">注册</span>
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Mobile Search */}
-      <div
-        className={`border-t bg-background/95 md:hidden overflow-hidden transition-all duration-200 ${
-          showMobileSearch ? "max-h-16 opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        <form onSubmit={handleSearchSubmit} className="p-2">
-          <div className="relative flex">
-            <Input
-              type="search"
-              placeholder="搜索"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-r-none border-r-0 text-sm"
-              autoComplete="off"
-            />
-            <Button 
-              type="submit" 
-              variant="secondary" 
-              size="sm"
-              className="rounded-l-none border border-input border-l-0"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings">
+                        <User className="mr-2 h-4 w-4" />
+                        个人设置
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/my-videos">
+                        <Video className="mr-2 h-4 w-4" />
+                        我的视频
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/favorites">
+                        <Heart className="mr-2 h-4 w-4" />
+                        我的收藏
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/history">
+                        <History className="mr-2 h-4 w-4" />
+                        观看历史
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">
+                        <Shield className="mr-2 h-4 w-4" />
+                        管理面板
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {/* 外观设置 */}
+                    <SettingsPanelInMenu />
+                    <DropdownMenuSeparator />
+                    <AccountSwitcher />
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      退出登录
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" asChild className="px-2 sm:px-4">
+                  <Link href="/login">
+                    <LogIn className="h-4 w-4 sm:hidden" />
+                    <span className="hidden sm:inline">登录</span>
+                  </Link>
+                </Button>
+                <Button size="sm" asChild className="px-2 sm:px-4">
+                  <Link href="/register">
+                    <UserPlus className="h-4 w-4 sm:hidden" />
+                    <span className="hidden sm:inline">注册</span>
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
-        </form>
-      </div>
-    </header>
+        </div>
+      </header>
+
+      {/* ========== 移动端全屏搜索覆盖层 ========== */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 z-[60] bg-background md:hidden flex flex-col">
+          {/* 顶部搜索栏 */}
+          <div className="flex items-center gap-2 px-2 h-14 border-b shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => { setShowMobileSearch(false); setSearchQuery(""); setActiveIndex(-1); }}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <form onSubmit={handleSearchSubmit} className="flex-1 flex">
+              <Input
+                ref={mobileSearchInputRef}
+                type="search"
+                placeholder="搜索视频、标签..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                autoComplete="off"
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                className="rounded-l-none border border-input border-l-0 px-4 h-10"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+
+          {/* 建议内容 */}
+          <div className="flex-1 overflow-y-auto">
+            {hasSuggestionItems ? (
+              <SearchSuggestionsList
+                items={suggestionItems}
+                activeIndex={activeIndex}
+                onSelect={handleSuggestionSelect}
+                onRemoveHistory={handleRemoveHistory}
+                onClearHistory={handleClearHistory}
+                showHistoryHeader={hasHistoryItems}
+                showHotHeader={hasHotItems}
+              />
+            ) : searchQuery.length > 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Search className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm">输入关键词开始搜索</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Search className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm">搜索视频、标签...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
