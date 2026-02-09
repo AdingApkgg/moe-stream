@@ -38,7 +38,7 @@ export function VideoJsonLd({ video }: VideoJsonLdProps) {
     thumbnailUrl: getCoverFullUrl(video.id, video.coverUrl),
     uploadDate: new Date(video.createdAt).toISOString(),
     contentUrl: video.videoUrl,
-    embedUrl: `${baseUrl}/v/${video.id}`,
+    embedUrl: `${baseUrl}/video/${video.id}`,
     interactionStatistic: {
       "@type": "InteractionCounter",
       interactionType: "https://schema.org/WatchAction",
@@ -192,7 +192,7 @@ export function VideoListJsonLd({ videos }: VideoListJsonLdProps) {
       position: index + 1,
       item: {
         "@type": "VideoObject",
-        "@id": `${baseUrl}/v/${video.id}`,
+        "@id": `${baseUrl}/video/${video.id}`,
         name: video.title,
         description: video.description || video.title,
         thumbnailUrl: getCoverFullUrl(video.id, video.coverUrl),

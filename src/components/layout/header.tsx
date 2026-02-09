@@ -263,7 +263,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         break;
       case "video":
         setSearchQuery("");
-        router.push(`/v/${item.value}`);
+        router.push(`/video/${item.value}`);
         break;
     }
   }, [handleSearch, router]);

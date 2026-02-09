@@ -89,13 +89,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     setCurrentVideoId(videoId);
     
     // 更新 URL（不触发导航）
-    window.history.pushState({}, '', `/v/${videoId}`);
+    window.history.pushState({}, '', `/video/${videoId}`);
   }, [currentVideoId]);
   
   // 监听浏览器前进/后退
   useEffect(() => {
     const handlePopState = () => {
-      const match = window.location.pathname.match(/^\/v\/(.+)$/);
+      const match = window.location.pathname.match(/^\/video\/(.+)$/);
       if (match && match[1] !== currentVideoId) {
         setCurrentVideoId(match[1]);
       }
@@ -351,7 +351,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       <BreadcrumbJsonLd
         items={[
           { name: "首页", url: baseUrl },
-          { name: displayVideo.title, url: `${baseUrl}/v/${displayVideo.id}` },
+          { name: displayVideo.title, url: `${baseUrl}/video/${displayVideo.id}` },
         ]}
       />
 
@@ -397,7 +397,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link href={`/v/edit/${currentVideoId}`}>
+                        <Link href={`/video/edit/${currentVideoId}`}>
                           <Edit className="mr-2 h-4 w-4" />
                           编辑视频
                         </Link>
@@ -690,7 +690,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link href={`/v/edit/${currentVideoId}`}>
+                        <Link href={`/video/edit/${currentVideoId}`}>
                           <Edit className="mr-2 h-4 w-4" />
                           编辑视频
                         </Link>

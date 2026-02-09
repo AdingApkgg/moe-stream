@@ -509,7 +509,7 @@ export default function AdminVideosPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <Link
-                              href={`/v/${video.id}`}
+                              href={`/video/${video.id}`}
                               className="font-medium hover:underline line-clamp-1"
                             >
                               {video.title}
@@ -552,13 +552,13 @@ export default function AdminVideosPage() {
                         {/* 操作按钮 */}
                         <div className="flex items-center gap-1 mt-2">
                           <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/v/${video.id}`} target="_blank">
+                            <Link href={`/video/${video.id}`} target="_blank">
                               <ExternalLink className="h-3 w-3 mr-1" />
                               查看
                             </Link>
                           </Button>
                           <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/v/edit/${video.id}`}>
+                            <Link href={`/video/edit/${video.id}`}>
                               <Edit className="h-3 w-3 mr-1" />
                               编辑
                             </Link>

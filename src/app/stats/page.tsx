@@ -166,7 +166,6 @@ export default function StatsPage() {
                       icon={item.icon}
                       color={item.color}
                       bgColor={item.bgColor}
-                      formatter={"formatter" in item ? item.formatter : undefined}
                     />
                   ))}
             </div>

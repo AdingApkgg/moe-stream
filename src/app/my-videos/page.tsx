@@ -474,7 +474,7 @@ function MyVideosContent() {
 
                 {/* 封面 */}
                 <Link
-                  href={`/v/${video.id}`}
+                  href={`/video/${video.id}`}
                   className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
                 >
                   <Image
@@ -496,7 +496,7 @@ function MyVideosContent() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <Link
-                        href={`/v/${video.id}`}
+                        href={`/video/${video.id}`}
                         className="font-medium hover:text-primary line-clamp-2"
                       >
                         {video.title}
@@ -549,13 +549,13 @@ function MyVideosContent() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/v/${video.id}`} target="_blank">
+                            <Link href={`/video/${video.id}`} target="_blank">
                               <ExternalLink className="h-4 w-4 mr-2" />
                               查看视频
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/v/edit/${video.id}`}>
+                            <Link href={`/video/edit/${video.id}`}>
                               <Edit className="h-4 w-4 mr-2" />
                               编辑视频
                             </Link>

@@ -78,6 +78,11 @@ export const auth = betterAuth({
   pages: {
     signIn: "/login",
   },
+  advanced: {
+    database: {
+      generateId: false, // 让数据库序列生成用户 ID（自增数字），其他表仍由 Prisma @default(cuid()) 处理
+    },
+  },
 });
 
 /** 应用内使用的 Session 类型（与 next-auth 兼容的 shape） */

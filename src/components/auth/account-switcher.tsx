@@ -17,7 +17,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export function AccountSwitcher() {
-  const { data: session, update: updateSession } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const { accounts, addAccount, removeAccount, setSwitchToken, getSwitchToken } = useAccountsStore();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);

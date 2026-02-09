@@ -85,7 +85,7 @@ export default function CommentsPage() {
                   return (
                     <Link
                       key={comment.id}
-                      href={`/v/${comment.video.id}`}
+                      href={`/video/${comment.video.id}`}
                       className="flex gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
                     >
                       <Avatar className="h-8 w-8 shrink-0">

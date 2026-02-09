@@ -135,7 +135,7 @@ export default function SeriesPage() {
         <FadeIn delay={0.1}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {publishedEpisodes.map((episode) => (
-              <Link key={episode.video.id} href={`/v/${episode.video.id}`}>
+              <Link key={episode.video.id} href={`/video/${episode.video.id}`}>
                 <Card className="overflow-hidden group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
                   <div className="relative aspect-video bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

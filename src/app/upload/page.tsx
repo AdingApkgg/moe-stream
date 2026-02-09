@@ -655,7 +655,7 @@ export default function UploadPage() {
       }
       
       toast.success("发布成功");
-      router.push(`/v/${result.id}`);
+      router.push(`/video/${result.id}`);
     } catch {
       // onError 回调已处理错误提示
     } finally {
@@ -945,7 +945,7 @@ export default function UploadPage() {
                                 已合并
                               </Badge>
                             )}
-                            <Link href={`/v/${result.id}`}>
+                            <Link href={`/video/${result.id}`}>
                               <Badge variant="secondary" className="text-xs">
                                 {result.id}
                               </Badge>

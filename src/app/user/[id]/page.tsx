@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { UserPageClient } from "./client";
 import { cache } from "react";
 
@@ -38,6 +40,12 @@ const getUser = cache(async (id: string) => {
 // 动态生成 metadata
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
   const { id } = await params;
+
+  // /user/0 → 重定向到当前用户，metadata 不重要
+  if (id === "0") {
+    return { title: "正在跳转..." };
+  }
+
   const user = await getUser(id);
 
   if (!user) {
@@ -104,6 +112,17 @@ export type SerializedUser = ReturnType<typeof serializeUser>;
 
 export default async function UserPage({ params }: UserPageProps) {
   const { id } = await params;
+
+  // /user/0 → 重定向到当前登录用户的主页
+  if (id === "0") {
+    const session = await getSession();
+    if (session?.user?.id) {
+      redirect(`/user/${session.user.id}`);
+    } else {
+      redirect("/login?callbackUrl=/user/0");
+    }
+  }
+
   const user = await getUser(id);
 
   // 服务端预取用户数据

@@ -46,7 +46,7 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
       className="group transition-transform duration-300 hover:-translate-y-1"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <Link href={`/v/${video.id}`} className="block">
+      <Link href={`/video/${video.id}`} className="block">
         {/* 封面 */}
         <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300">
           <VideoCover

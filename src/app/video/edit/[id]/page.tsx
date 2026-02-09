@@ -130,7 +130,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const updateMutation = trpc.video.update.useMutation({
     onSuccess: () => {
       toast.success("视频更新成功");
-      router.push(`/v/${id}`);
+      router.push(`/video/${id}`);
     },
     onError: (error) => {
       toast.error("更新失败", { description: error.message });
@@ -228,7 +228,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
-      router.push("/login?callbackUrl=/v/edit/" + id);
+      router.push("/login?callbackUrl=/video/edit/" + id);
     }
   }, [authStatus, router, id]);
 
@@ -339,7 +339,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
       {/* 页面标题 */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" asChild>
-          <Link href={`/v/${id}`}>
+          <Link href={`/video/${id}`}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
@@ -1035,7 +1035,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                   )}
                 </Button>
                 <Button type="button" variant="outline" className="w-full" asChild>
-                  <Link href={`/v/${id}`}>取消</Link>
+                  <Link href={`/video/${id}`}>取消</Link>
                 </Button>
               </div>
             </div>

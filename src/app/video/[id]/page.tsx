@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
       type: "video.other",
       title: video.title,
       description,
-      url: `${baseUrl}/v/${id}`,
+      url: `${baseUrl}/video/${id}`,
       images: [
         {
           url: getCoverFullUrl(id, video.coverUrl),
