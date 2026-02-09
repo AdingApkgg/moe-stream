@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -62,14 +62,13 @@ function LoginForm() {
         return;
       }
 
-      const result = await signIn("credentials", {
-        identifier: data.identifier,
-        password: data.password,
-        redirect: false,
-      });
+      const isEmail = data.identifier.includes("@");
+      const result = isEmail
+        ? await authClient.signIn.email({ email: data.identifier, password: data.password })
+        : await authClient.signIn.username({ username: data.identifier, password: data.password });
 
       if (result?.error) {
-        toast.error("登录失败", { description: "账号或密码错误" });
+        toast.error("登录失败", { description: result.error.message ?? "账号或密码错误" });
         setCaptchaKey((k) => k + 1);
         form.setValue("captcha", "");
       } else {

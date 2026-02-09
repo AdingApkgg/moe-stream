@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";

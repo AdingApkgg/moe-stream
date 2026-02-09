@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -452,7 +452,7 @@ export default function UploadPage() {
   const [batchInput, setBatchInput] = useState("");
   const [parsedBatch, setParsedBatch] = useState<ParsedBatchData | null>(null);
   const [batchImporting, setBatchImporting] = useState(false);
-  const [batchResults, setBatchResults] = useState<{ title: string; seriesTitle?: string; id?: string; error?: string }[]>([]);
+  const [batchResults, setBatchResults] = useState<{ title: string; seriesTitle?: string; id?: string; error?: string; merged?: boolean }[]>([]);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
   
@@ -536,6 +536,7 @@ export default function UploadPage() {
             seriesTitle: series.seriesTitle || undefined,
             id: r.id,
             error: r.error,
+            merged: r.merged,
           }));
         } catch (error) {
           // 整个合集失败，标记所有视频
@@ -553,8 +554,13 @@ export default function UploadPage() {
       }
 
       const successCount = allResults.filter(r => r.id).length;
+      const mergedCount = allResults.filter(r => r.merged).length;
       const failCount = allResults.filter(r => r.error).length;
-      toast.success(`导入完成：${successCount} 成功，${failCount} 失败`);
+      toast.success(
+        mergedCount > 0
+          ? `导入完成：${successCount} 条（其中 ${mergedCount} 条已合并同链接），${failCount} 失败`
+          : `导入完成：${successCount} 成功，${failCount} 失败`
+      );
       setBatchResults(allResults);
       refetchSeries();
     } finally {
@@ -846,7 +852,10 @@ export default function UploadPage() {
               <CardHeader>
                 <CardTitle className="text-lg">导入结果</CardTitle>
                 <CardDescription>
-                  成功 {batchResults.filter(r => r.id).length}，失败 {batchResults.filter(r => r.error).length}
+                  成功 {batchResults.filter(r => r.id).length}
+                  {batchResults.filter(r => r.merged).length > 0 &&
+                    `（已合并同链接 ${batchResults.filter(r => r.merged).length}）`}
+                  ，失败 {batchResults.filter(r => r.error).length}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -873,11 +882,18 @@ export default function UploadPage() {
                           </div>
                         </div>
                         {result.id ? (
-                          <Link href={`/v/${result.id}`}>
-                            <Badge variant="secondary" className="text-xs">
-                              {result.id}
-                            </Badge>
-                          </Link>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {result.merged && (
+                              <Badge variant="outline" className="text-xs">
+                                已合并
+                              </Badge>
+                            )}
+                            <Link href={`/v/${result.id}`}>
+                              <Badge variant="secondary" className="text-xs">
+                                {result.id}
+                              </Badge>
+                            </Link>
+                          </div>
                         ) : (
                           <Badge variant="destructive" className="text-xs">
                             {result.error}

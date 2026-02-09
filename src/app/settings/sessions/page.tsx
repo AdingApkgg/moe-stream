@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -71,9 +71,9 @@ export default function SessionsPage() {
     onError: (error) => toast.error(error.message),
   });
 
-  // 记录当前会话信息
+  // 记录当前会话信息（服务端通过 cookie 识别当前 session）
   useEffect(() => {
-    if (session?.jti && !hasRecorded) {
+    if (session?.user && !hasRecorded) {
       fetch("/api/auth/session-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,7 +83,7 @@ export default function SessionsPage() {
         utils.user.getLoginSessions.invalidate();
       }).catch(console.error);
     }
-  }, [session?.jti, hasRecorded, utils.user.getLoginSessions]);
+  }, [session?.user, hasRecorded, utils.user.getLoginSessions]);
 
   useEffect(() => {
     if (status === "unauthenticated") {

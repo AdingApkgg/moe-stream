@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 
 // 从 usehooks-ts 导出常用 hooks

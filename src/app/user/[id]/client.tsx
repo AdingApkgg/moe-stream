@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

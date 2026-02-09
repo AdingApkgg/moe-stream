@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { submitVideosToIndexNow, submitSitePages, submitToIndexNow } from "@/lib/indexnow";
 import { submitSitemapToGoogle, isGoogleConfigured } from "@/lib/google-indexing";
@@ -17,7 +17,7 @@ import { env } from "@/env";
 export async function POST(request: NextRequest) {
   try {
     // 验证管理员权限
-    const session = await auth();
+    const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "需要登录" }, { status: 401 });
     }

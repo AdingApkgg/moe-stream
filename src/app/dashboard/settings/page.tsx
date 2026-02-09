@@ -83,10 +83,15 @@ interface SearchEngineStatus {
 
 export default function AdminSettingsPage() {
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
-  const { data: config, isLoading: configLoading, refetch } = trpc.admin.getSiteConfig.useQuery(
-    undefined,
-    { enabled: !!permissions?.scopes.includes("settings:manage") }
-  );
+  const {
+    data: config,
+    isLoading: configLoading,
+    isError: configError,
+    refetch,
+  } = trpc.admin.getSiteConfig.useQuery(undefined, {
+    enabled: !!permissions?.scopes.includes("settings:manage"),
+    retry: 1,
+  });
   const updateConfig = trpc.admin.updateSiteConfig.useMutation({
     onSuccess: () => {
       toast.success("配置已保存");
@@ -198,7 +203,7 @@ export default function AdminSettingsPage() {
     );
   }
 
-  if (configLoading) {
+  if (configLoading && !config) {
     return (
       <div className="flex items-center justify-center h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -208,6 +213,11 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {configError && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          配置加载失败，请点击下方「保存设置」尝试创建或刷新后重试。
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">

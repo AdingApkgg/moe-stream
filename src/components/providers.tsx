@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { trpc } from "@/lib/trpc";
 import superjson from "superjson";
-import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { useVisualSettings } from "@/components/visual-settings";
@@ -80,8 +79,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider refetchInterval={5 * 60} refetchOnWindowFocus={true}>
-          <ThemeProvider
+        <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
@@ -93,7 +91,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <Toaster richColors position="top-center" />
             </VisualSettingsApplier>
           </ThemeProvider>
-        </SessionProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

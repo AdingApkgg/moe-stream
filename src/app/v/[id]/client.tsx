@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { VideoPlayer, type VideoPlayerRef } from "@/components/video/video-player";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

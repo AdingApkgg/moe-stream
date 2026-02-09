@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 import { useTheme } from "next-themes";
-import { signOut } from "next-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { useSearchHistoryStore } from "@/stores/app";
 
 interface CommandPaletteProps {
@@ -194,7 +194,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             )}
             <CommandSeparator />
             <CommandItem
-              onSelect={() => runCommand(() => signOut({ callbackUrl: "/" }))}
+              onSelect={() => runCommand(() => authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } }))}
             >
               <LogOut className="mr-2 h-4 w-4" />
               退出登录

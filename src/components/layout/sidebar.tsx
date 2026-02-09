@@ -21,7 +21,10 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useStableSession } from "@/lib/hooks";
-import type { Session } from "next-auth";
+import type { AppSession } from "@/lib/auth";
+
+/** 侧栏仅需 user，兼容服务端 AppSession 与客户端 useSession 的 data */
+type SessionWithUser = Pick<AppSession, "user"> | null;
 
 interface SidebarProps {
   collapsed: boolean;
@@ -106,7 +109,7 @@ function NavGroup({
   items: NavItem[];
   collapsed: boolean;
   pathname: string;
-  session: Session | null;
+  session: SessionWithUser;
 }) {
   const filteredItems = items.filter((item) => {
     if (item.auth && !session) return false;
@@ -136,7 +139,7 @@ function NavGroup({
 }
 
 // 用户个人主页链接
-function UserProfileLink({ collapsed, session }: { collapsed: boolean; session: Session }) {
+function UserProfileLink({ collapsed, session }: { collapsed: boolean; session: NonNullable<SessionWithUser> }) {
   const content = (
     <Link
       href={`/user/${session.user.id}`}
@@ -315,7 +318,7 @@ function NavGroupMobile({
   title?: string;
   items: NavItem[];
   pathname: string;
-  session: Session | null;
+  session: SessionWithUser;
   onClick?: () => void;
 }) {
   const filteredItems = items.filter((item) => {

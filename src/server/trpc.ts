@@ -3,14 +3,13 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
-import { auth } from "@/lib/auth";
-import type { Session } from "next-auth";
+import { getSession, type AppSession } from "@/lib/auth";
 
 // Context 类型
 export interface Context {
   prisma: typeof prisma;
   redis: typeof redis;
-  session: Session | null;
+  session: AppSession | null;
   ipv4Address: string | null;
   ipv6Address: string | null;
   userAgent: string | null;
@@ -60,7 +59,7 @@ function extractIpAddresses(ips: string[]): { ipv4: string | null; ipv6: string 
 
 // 创建 Context
 export async function createContext(opts?: { req?: Request }): Promise<Context> {
-  const session = await auth();
+  const session = await getSession();
   const headers = opts?.req?.headers;
   
   // 从多个头部收集所有可能的 IP
@@ -117,7 +116,7 @@ const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
   }
   return next({
     ctx: {
-      session: { ...ctx.session, user: ctx.session.user, jti: ctx.session.jti },
+      session: { ...ctx.session, user: ctx.session.user },
     },
   });
 });

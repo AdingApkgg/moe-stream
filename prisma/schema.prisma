@@ -15,7 +15,8 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   emailVerified DateTime?
-  username      String    @unique
+  username       String    @unique
+  displayUsername String?  // Better Auth username 插件展示名（与 username 可不同）
   password      String?
   nickname      String?
   avatar        String?
@@ -74,6 +75,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
+  password          String? @db.Text // Better Auth credential 密码（bcrypt）
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -82,11 +84,15 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -131,6 +137,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Better Auth 验证表（邮箱验证、重置密码等）
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([expiresAt])
 }
 
 // 邮件验证码

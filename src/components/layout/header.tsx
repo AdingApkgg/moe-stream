@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { signOut } from "next-auth/react";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -534,7 +534,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-red-600"
-                      onClick={() => signOut()}
+                      onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => window.location.reload() } })}
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       退出登录

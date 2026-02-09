@@ -1,6 +1,7 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
@@ -46,7 +47,7 @@ export default function DangerPage() {
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation({
     onSuccess: () => {
       toast.success("账号已注销");
-      signOut({ callbackUrl: "/" });
+      authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -61,7 +62,7 @@ export default function DangerPage() {
   }, [status, router]);
 
   const handleLogout = () => {
-    signOut({ callbackUrl: "/" });
+    authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
   };
 
   const handleDeleteAccount = useCallback(async () => {

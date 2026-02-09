@@ -1158,15 +1158,22 @@ export const adminRouter = router({
       throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
     }
 
-    // 获取或创建默认配置
     let config = await ctx.prisma.siteConfig.findUnique({
       where: { id: "default" },
     });
 
     if (!config) {
-      config = await ctx.prisma.siteConfig.create({
-        data: { id: "default" },
-      });
+      try {
+        config = await ctx.prisma.siteConfig.create({
+          data: { id: "default" },
+        });
+      } catch (e) {
+        // 并发时可能已被其他请求创建，再查一次
+        config = await ctx.prisma.siteConfig.findUnique({
+          where: { id: "default" },
+        });
+        if (!config) throw e;
+      }
     }
 
     return config;
@@ -1219,18 +1226,17 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
       }
 
-      // 清理空字符串为 null
-      const cleanedInput = Object.fromEntries(
-        Object.entries(input).map(([key, value]) => [
-          key,
-          value === "" ? null : value,
-        ])
-      );
+      // 清理：空字符串 → null，并去掉 undefined（避免 Prisma 报错）
+      const cleaned = Object.fromEntries(
+        Object.entries(input)
+          .map(([key, value]) => [key, value === "" ? null : value])
+          .filter(([, value]) => value !== undefined)
+      ) as Record<string, unknown>;
 
       const config = await ctx.prisma.siteConfig.upsert({
         where: { id: "default" },
-        create: { id: "default", ...cleanedInput },
-        update: cleanedInput,
+        create: { id: "default", ...cleaned },
+        update: cleaned,
       });
 
       return config;

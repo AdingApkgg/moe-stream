@@ -1,11 +1,16 @@
 #!/usr/bin/env npx tsx
 /**
  * 旧站视频抓取脚本
- * 从 tv.mikiacg.org 抓取视频数据并导出为批量导入格式
+ * 从 tv.mikiacg.org/index.php/category/Video/ 抓取视频数据并导出为批量导入格式
+ *
+ * 数据结构对应关系：
+ *   - 分类页「找到 N 篇」= N 篇文章（archives），每篇 1 个详情页
+ *   - 1 篇文章 = 1 个作者合集，合集中可含多集（episodes）
+ *   - 仅从分类列表区域 .joe_archive 内取链接，不抓取侧栏/搜索框等
  *
  * 运行方式: npx tsx scripts/fetch-legacy-site.ts
  * 可选参数:
- *   --max-pages=N      最大抓取页数（默认 10）
+ *   --max-pages=N      最大抓取页数（默认 5，按每页约 12 篇，27 篇共 3 页）
  *   --concurrency=N    并发数（默认 8）
  *   --timeout=N        请求超时秒数（默认 20）
  *   --single=URL       只抓取单个页面（调试用）
@@ -28,7 +33,7 @@ const HEADERS: Record<string, string> = {
 function parseArgs() {
   const args = process.argv.slice(2);
   const config = {
-    maxPages: 10,
+    maxPages: 5,
     concurrency: 8,
     timeout: 20_000,
     single: "",
@@ -146,28 +151,41 @@ function extractAuthor(title: string): string {
   return "未分类";
 }
 
-// ─── 获取列表页的所有视频链接 ─────────────────────────────
+// ─── 获取分类列表页的文章链接（仅主列表区域，避免侧栏/搜索） ─────
 
-async function getVideoLinks(
+const CATEGORY_PATH = "/index.php/category/Video";
+
+/** 仅从 .joe_archive 主列表内取 archives 链接，保证数量与「找到 N 篇」一致 */
+async function getVideoLinksFromPage(
   page: number,
   timeout: number,
-): Promise<string[]> {
+): Promise<{ links: string[]; totalFromPage: number | null }> {
   const url =
     page === 1
-      ? `${BASE_URL}/index.php/category/Video/`
-      : `${BASE_URL}/index.php/category/Video/${page}/`;
+      ? `${BASE_URL}${CATEGORY_PATH}/`
+      : `${BASE_URL}${CATEGORY_PATH}/${page}/`;
 
   const html = await fetchWithRetry(url, timeout);
   const $ = cheerio.load(html);
 
-  const links = new Set<string>();
-  $('a[href*="/archives/"]').each((_, el) => {
+  // 解析「找到 27 篇」中的总数（仅第一页有）
+  let totalFromPage: number | null = null;
+  const totalMatch = $(".joe_archive__title-title").text().match(/找到\s*(\d+)\s*篇/);
+  if (totalMatch) totalFromPage = parseInt(totalMatch[1], 10);
+
+  const links: string[] = [];
+  const seenIds = new Set<string>();
+
+  $(".joe_archive a[href*='/archives/']").each((_, el) => {
     const href = $(el).attr("href");
-    if (!href || !/\/archives\/\d+\.html/.test(href)) return;
-    links.add(href.startsWith("http") ? href : BASE_URL + href);
+    if (!href || !/\/archives\/(\d+)\.html/.test(href)) return;
+    const id = href.replace(/.*\/archives\/(\d+)\.html.*/, "$1");
+    if (seenIds.has(id)) return;
+    seenIds.add(id);
+    links.push(href.startsWith("http") ? href : BASE_URL + href);
   });
 
-  return [...links];
+  return { links, totalFromPage };
 }
 
 // ─── 解码 goto 跳转链接中的 base64 URL ──────────────────
@@ -517,18 +535,25 @@ async function main() {
   );
   console.log("─".repeat(50));
 
-  // 1) 获取所有视频链接（串行翻页，避免列表页压力）
+  // 1) 仅从分类主列表 .joe_archive 获取文章链接（串行翻页）
   const allLinks = new Set<string>();
+  let expectedTotal: number | null = null;
+
   for (let page = 1; page <= config.maxPages; page++) {
     process.stdout.write(`获取第 ${page} 页...`);
     try {
-      const links = await getVideoLinks(page, config.timeout);
+      const { links, totalFromPage } = await getVideoLinksFromPage(page, config.timeout);
+      if (totalFromPage != null) expectedTotal = totalFromPage;
       if (links.length === 0) {
         console.log(" 无更多内容，停止");
         break;
       }
       for (const l of links) allLinks.add(l);
-      console.log(` 找到 ${links.length} 个链接`);
+      console.log(` 本页 ${links.length} 篇${expectedTotal != null ? `（分类共 ${expectedTotal} 篇）` : ""}`);
+      if (expectedTotal != null && allLinks.size >= expectedTotal) {
+        console.log(` 已收齐 ${expectedTotal} 篇，停止翻页`);
+        break;
+      }
     } catch (e) {
       console.log(` 失败: ${e instanceof Error ? e.message : e}`);
       break;
@@ -536,7 +561,7 @@ async function main() {
   }
 
   const uniqueLinks = [...allLinks];
-  console.log(`\n共找到 ${uniqueLinks.length} 个唯一视频页面`);
+  console.log(`\n共 ${uniqueLinks.length} 篇文章（每篇 = 1 个作者合集，可含多集）`);
   console.log("─".repeat(50));
 
   // 2) 并发抓取详情页
@@ -578,8 +603,8 @@ async function main() {
   const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
 
   console.log(`抓取完成 (${elapsed}s):`);
-  console.log(`  合集数: ${validCount}`);
-  console.log(`  视频数: ${totalEpisodes}`);
+  console.log(`  文章数: ${validCount}（每篇 1 个作者合集）`);
+  console.log(`  总集数: ${totalEpisodes}`);
   console.log(`  无视频: ${noVideoCount}`);
   console.log(`  失败数: ${errorCount}`);
 
@@ -592,7 +617,7 @@ async function main() {
   const outputFile = `legacy_import_${timestamp}.md`;
 
   const now = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
-  const header = `# 旧站视频导入数据\n\n抓取时间: ${now}\n合集数: ${validCount}, 视频数: ${videoCount}\n\n---\n\n`;
+  const header = `# 旧站视频导入数据\n\n抓取时间: ${now}\n文章数: ${validCount}, 导出视频条数: ${videoCount}\n\n---\n\n`;
 
   writeFileSync(outputFile, header + importText, "utf-8");
   console.log(`\n已保存到: ${outputFile}`);

@@ -5,8 +5,8 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
-    AUTH_SECRET: z.string().min(1),
-    AUTH_URL: z.string().url().optional(),
+    BETTER_AUTH_SECRET: z.string().min(1),
+    BETTER_AUTH_BASE_URL: z.string().url().optional(),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: z.string().optional(),
     SMTP_USER: z.string().optional(),
@@ -25,8 +25,8 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
-    AUTH_SECRET: process.env.AUTH_SECRET,
-    AUTH_URL: process.env.AUTH_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_BASE_URL: process.env.BETTER_AUTH_BASE_URL,
     SMTP_HOST: process.env.SMTP_HOST,
     SMTP_PORT: process.env.SMTP_PORT,
     SMTP_USER: process.env.SMTP_USER,

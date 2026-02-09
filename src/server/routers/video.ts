@@ -666,14 +666,23 @@ export const videoRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "您暂无投稿权限" });
       }
 
-      // 1) 批量预处理标签 — 收集所有唯一标签名，一次性 upsert
+      // 1) 按 videoUrl 查重：已存在的视频复用，不重复创建
+      const videoUrls = input.videos.map((v) => v.videoUrl);
+      const existingVideos = await ctx.prisma.video.findMany({
+        where: { videoUrl: { in: videoUrls } },
+        select: { id: true, videoUrl: true },
+      });
+      const existingByUrl = new Map<string, string>(
+        existingVideos.map((r) => [r.videoUrl, r.id]),
+      );
+
+      // 2) 批量预处理标签 — 收集所有唯一标签名，一次性 upsert
       const allTagNames = new Set<string>();
       for (const v of input.videos) {
         for (const t of v.tagNames ?? []) allTagNames.add(t);
       }
       const tagNameToId = new Map<string, string>();
       if (allTagNames.size > 0) {
-        // 并行 upsert（标签数量有限，通常 < 20）
         await Promise.all(
           [...allTagNames].map(async (tagName) => {
             const slug = tagName
@@ -697,13 +706,21 @@ export const videoRouter = router({
         );
       }
 
-      // 2) 批量预生成视频 ID — 生成候选 ID 后批量检查冲突
-      const ids: string[] = [];
-      const candidateSet = new Set<string>();
+      // 3) 为需要新建的视频生成 ID（仅对 videoUrl 不存在的项）
+      const videoIds: string[] = [];
+      const needNewIdIndexes: number[] = [];
+      for (let i = 0; i < input.videos.length; i++) {
+        const existingId = existingByUrl.get(input.videos[i].videoUrl);
+        if (existingId) {
+          videoIds[i] = existingId;
+        } else {
+          needNewIdIndexes.push(i);
+        }
+      }
 
-      // 先生成足够多的候选 ID（不重复）
-      const needed = input.videos.length;
+      const needed = needNewIdIndexes.length;
       const candidates: string[] = [];
+      const candidateSet = new Set<string>();
       while (candidates.length < needed * 2) {
         const num = Math.floor(Math.random() * 1000000);
         const id = num.toString().padStart(6, "0");
@@ -712,38 +729,31 @@ export const videoRouter = router({
           candidates.push(id);
         }
       }
-
-      // 批量查询哪些已存在
-      const existingRecords = await ctx.prisma.video.findMany({
-        where: { id: { in: candidates } },
-        select: { id: true },
-      });
-      const existingIds = new Set(existingRecords.map(r => r.id));
-
-      // 从候选中挑出不存在的
-      for (const c of candidates) {
-        if (ids.length >= needed) break;
-        if (!existingIds.has(c)) ids.push(c);
+      const existingIds = new Set(
+        (await ctx.prisma.video.findMany({
+          where: { id: { in: candidates } },
+          select: { id: true },
+        })).map((r) => r.id),
+      );
+      let cursor = 0;
+      for (const i of needNewIdIndexes) {
+        while (cursor < candidates.length && existingIds.has(candidates[cursor])) cursor++;
+        if (cursor >= candidates.length) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "无法生成足够唯一 ID" });
+        }
+        videoIds[i] = candidates[cursor++];
       }
 
-      if (ids.length < needed) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "无法生成足够唯一 ID" });
-      }
-
-      // 3) 事务：创建合集 + 所有视频 + 标签关联 + 剧集关联
-      const results: { title: string; id?: string; error?: string }[] = [];
+      // 4) 事务：创建合集 + 仅新建视频 + 剧集关联（已存在视频也加入合集，用 upsert 防重复）
+      const results: { title: string; id?: string; error?: string; merged?: boolean }[] = [];
 
       const txOps: Prisma.PrismaPromise<unknown>[] = [];
 
-      // 创建合集（如果有标题）
       let seriesId: string | undefined;
       if (input.seriesTitle) {
         const sid = `s_${Date.now().toString(36)}`;
         seriesId = sid;
-
-        // 从第一个视频的 extraInfo 提取下载链接给合集
         const firstDl = input.videos[0]?.extraInfo?.downloads?.[0];
-
         txOps.push(
           ctx.prisma.series.create({
             data: {
@@ -759,50 +769,58 @@ export const videoRouter = router({
         );
       }
 
-      // 创建视频 + 标签关联
       for (let i = 0; i < input.videos.length; i++) {
         const v = input.videos[i];
-        const videoId = ids[i];
-        const tagIds = [...new Set((v.tagNames ?? []).map(n => tagNameToId.get(n)).filter(Boolean))] as string[];
+        const videoId = videoIds[i];
+        const isMerged = existingByUrl.has(v.videoUrl);
 
-        txOps.push(
-          ctx.prisma.video.create({
-            data: {
-              id: videoId,
-              title: v.title,
-              description: v.description,
-              videoUrl: v.videoUrl,
-              status: "PUBLISHED",
-              ...(v.coverUrl ? { coverUrl: v.coverUrl } : {}),
-              ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
-              uploader: { connect: { id: ctx.session.user.id } },
-              ...(tagIds.length > 0
-                ? { tags: { create: tagIds.map((tid) => ({ tag: { connect: { id: tid } } })) } }
-                : {}),
-            },
-          })
-        );
-
-        // 合集关联
-        if (seriesId) {
+        if (!isMerged) {
+          const tagIds = [...new Set((v.tagNames ?? []).map((n) => tagNameToId.get(n)).filter(Boolean))] as string[];
           txOps.push(
-            ctx.prisma.seriesEpisode.create({
+            ctx.prisma.video.create({
               data: {
-                seriesId,
-                videoId,
-                episodeNum: i + 1,
+                id: videoId,
+                title: v.title,
+                description: v.description,
+                videoUrl: v.videoUrl,
+                status: "PUBLISHED",
+                ...(v.coverUrl ? { coverUrl: v.coverUrl } : {}),
+                ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
+                uploader: { connect: { id: ctx.session.user.id } },
+                ...(tagIds.length > 0
+                  ? { tags: { create: tagIds.map((tid) => ({ tag: { connect: { id: tid } } })) } }
+                  : {}),
               },
             })
           );
         }
 
-        results.push({ title: v.title, id: videoId });
+        if (seriesId) {
+          txOps.push(
+            ctx.prisma.seriesEpisode.upsert({
+              where: {
+                seriesId_videoId: { seriesId, videoId },
+              },
+              create: {
+                seriesId,
+                videoId,
+                episodeNum: i + 1,
+              },
+              update: { episodeNum: i + 1 },
+            })
+          );
+        }
+
+        results.push({
+          title: v.title,
+          id: videoId,
+          merged: isMerged,
+        });
       }
 
       try {
         await ctx.prisma.$transaction(txOps);
       } catch (e) {
-        // 如果事务整体失败，标记所有为错误
         const msg = e instanceof Error ? e.message : "事务失败";
         return {
           success: false,
@@ -810,14 +828,14 @@ export const videoRouter = router({
           total: input.videos.length,
           successCount: 0,
           failCount: input.videos.length,
-          results: results.map(r => ({ ...r, id: undefined, error: msg })),
+          results: results.map((r) => ({ ...r, id: undefined, error: msg })),
         };
       }
 
-      // 4) 异步入队封面生成（不阻塞响应）
       for (let i = 0; i < input.videos.length; i++) {
-        const v = input.videos[i];
-        enqueueCoverForVideo(ids[i], v.coverUrl || null).catch(() => {});
+        if (!results[i].merged) {
+          enqueueCoverForVideo(videoIds[i], input.videos[i].coverUrl || null).catch(() => {});
+        }
       }
 
       return {
