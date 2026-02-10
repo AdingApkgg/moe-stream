@@ -6,7 +6,7 @@
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import bcrypt from "bcryptjs";
+import { hash } from "../src/lib/bcrypt-wasm";
 import * as dotenv from "dotenv";
 
 if (process.env.NODE_ENV === "production") {
@@ -49,7 +49,7 @@ async function main() {
     process.exit(1);
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await hash(password, 10);
 
   const user = await prisma.user.create({
     data: {

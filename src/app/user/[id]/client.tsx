@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { Calendar, Heart, Star, Loader2, MapPin, Globe, ExternalLink, Mail, Laptop, Smartphone, Clock, ThumbsUp } from "lucide-react";
+import { Calendar, Heart, Star, Loader2, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useInView } from "react-intersection-observer";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,7 +15,6 @@ import { formatRelativeTime } from "@/lib/format";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { SerializedUser } from "./page";
-import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 
 // 社交图标组件
 function TwitterIcon({ className }: { className?: string }) {
@@ -122,7 +120,6 @@ type ProfileTab = "history" | "favorites" | "liked";
 
 /** 无限滚动视频网格（通用） */
 function InfiniteVideoGrid({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   videos, isLoading, isFetchingNextPage, hasNextPage, sentinelRef, emptyIcon, emptyTitle, emptyDescription,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,13 +128,13 @@ function InfiniteVideoGrid({
   isFetchingNextPage: boolean;
   hasNextPage: boolean | undefined;
   sentinelRef: React.Ref<HTMLDivElement>;
-  emptyIcon: React.ComponentType<{ className?: string }>;
+  emptyIcon: LucideIcon;
   emptyTitle: string;
   emptyDescription: string;
 }) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="aspect-video rounded-lg" />
         ))}
@@ -157,12 +154,14 @@ function InfiniteVideoGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {videos.map((video, index) => (
-          <div key={video.id}>
-            <VideoCard video={video} index={index} />
-          </div>
-        ))}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {videos
+          .filter((video) => video?.id != null)
+          .map((video, index) => (
+            <div key={video.id}>
+              <VideoCard video={video} index={index} />
+            </div>
+          ))}
       </div>
       <div ref={sentinelRef} className="flex justify-center py-8">
         {isFetchingNextPage && (
@@ -187,9 +186,6 @@ export function UserPageClient({ id, initialUser }: UserPageClientProps) {
   const { ref: historyRef, inView: historyInView } = useInView();
   const { ref: favRef, inView: favInView } = useInView();
   const { ref: likedRef, inView: likedInView } = useInView();
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-  const deviceRecordedRef = useRef(false);
-
   const isOwnProfile = session?.user?.id === id;
 
   // 客户端获取用户数据
@@ -203,39 +199,6 @@ export function UserPageClient({ id, initialUser }: UserPageClientProps) {
 
   // 优先使用客户端数据，然后是服务端数据
   const displayUser = user || initialUser;
-
-  // 设备信息初始化（包括高精度版本获取）
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const init = async () => {
-      const baseInfo = parseDeviceInfo(navigator.userAgent, {
-        platform: navigator.platform || null,
-        language: navigator.language || null,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-        screen: `${window.screen.width}x${window.screen.height}`,
-        pixelRatio: window.devicePixelRatio || null,
-      });
-      const highEntropyInfo = await getHighEntropyDeviceInfo();
-      const mergedInfo = mergeDeviceInfo(baseInfo, highEntropyInfo);
-      setDeviceInfo(mergedInfo);
-    };
-    init();
-  }, []);
-
-  // 获取设备历史
-  const { data: devices } = trpc.user.getDevices.useQuery(
-    { userId: id, limit: 10 },
-    { enabled: !!displayUser }
-  );
-
-  // 记录设备（仅本人）
-  const recordDeviceMutation = trpc.user.recordDevice.useMutation();
-  useEffect(() => {
-    if (!session?.user?.id || session.user.id !== id) return;
-    if (!deviceInfo || deviceRecordedRef.current) return;
-    deviceRecordedRef.current = true;
-    recordDeviceMutation.mutate({ deviceInfo });
-  }, [session?.user?.id, id, deviceInfo, recordDeviceMutation]);
 
   // 观看记录（仅本人）
   const {
@@ -295,7 +258,8 @@ export function UserPageClient({ id, initialUser }: UserPageClientProps) {
     if (likedInView && likedHasNext && !likedFetchingNext) fetchLikedNext();
   }, [likedInView, likedHasNext, likedFetchingNext, fetchLikedNext]);
 
-  const historyVideos = historyData?.pages.flatMap((p) => p.history.map((h) => h.video)) ?? [];
+  // getHistory 返回的 history 项已是视频对象（含 watchedAt/progress），不是 { video }
+  const historyVideos = historyData?.pages.flatMap((p) => p.history) ?? [];
   const favVideos = favData?.pages.flatMap((p) => p.favorites) ?? [];
   const likedVideos = likedData?.pages.flatMap((p) => p.videos) ?? [];
 
@@ -324,7 +288,7 @@ export function UserPageClient({ id, initialUser }: UserPageClientProps) {
             <Skeleton className="h-16 w-full max-w-md" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="aspect-video rounded-lg" />
           ))}
@@ -427,38 +391,6 @@ export function UserPageClient({ id, initialUser }: UserPageClientProps) {
             </div>
           </div>
       </div>
-
-        <Separator className="my-6" />
-
-        {/* 常用设备 */}
-        {devices && devices.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">常用设备</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {devices.map((device) => {
-                const isMobile = device.deviceType === "mobile" || device.deviceType === "tablet";
-                const DeviceIcon = isMobile ? Smartphone : Laptop;
-                return (
-                  <div key={device.id} className="border rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                      <DeviceIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {device.brand || ""} {device.model || device.deviceType || "未知设备"}
-                      </span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                      <div>系统：{[device.os, device.osVersion].filter(Boolean).join(" ") || "未知"}</div>
-                      <div>浏览器：{[device.browser, device.browserVersion].filter(Boolean).join(" ") || "未知"}</div>
-                      {device.ipv4Location && <div title="基于 IPv4 地址">IPv4属地：{device.ipv4Location}</div>}
-                      {device.ipv6Location && <div title="基于 IPv6 地址">IPv6属地：{device.ipv6Location}</div>}
-                      <div>最近活跃：{formatRelativeTime(device.lastActiveAt)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* 观看记录 / 收藏 / 喜欢 - 仅本人可见 */}
         {isOwnProfile && (

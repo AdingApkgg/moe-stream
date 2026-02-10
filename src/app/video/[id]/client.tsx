@@ -191,9 +191,100 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   );
 
   const incrementViews = trpc.video.incrementViews.useMutation();
-  const likeMutation = trpc.video.like.useMutation();
-  const dislikeMutation = trpc.video.dislike.useMutation();
-  const confusedMutation = trpc.video.confused.useMutation();
+  const utils = trpc.useUtils();
+
+  const likeMutation = trpc.video.like.useMutation({
+    onMutate: async (vars) => {
+      const vid = vars.videoId;
+      await utils.video.getInteractionStatus.cancel({ videoId: vid });
+      const prev = utils.video.getInteractionStatus.getData({ videoId: vid });
+      utils.video.getInteractionStatus.setData({ videoId: vid }, () => ({
+        liked: !prev?.liked,
+        disliked: prev?.disliked ?? false,
+        confused: prev?.confused ?? false,
+        favorited: prev?.favorited ?? false,
+      }));
+      const prevVideo = utils.video.getById.getData({ id: vid });
+      if (prevVideo?._count) {
+        const delta = prev?.liked ? -1 : 1;
+        utils.video.getById.setData({ id: vid }, (old) => old ? { ...old, _count: { ...old._count, likes: Math.max(0, (old._count?.likes ?? 0) + delta) } } : old);
+      }
+      return { prev };
+    },
+    onSettled: (_data, _err, vars) => {
+      utils.video.getById.invalidate({ id: vars.videoId });
+      utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
+    },
+  });
+  const dislikeMutation = trpc.video.dislike.useMutation({
+    onMutate: async (vars) => {
+      const vid = vars.videoId;
+      await utils.video.getInteractionStatus.cancel({ videoId: vid });
+      const prev = utils.video.getInteractionStatus.getData({ videoId: vid });
+      utils.video.getInteractionStatus.setData({ videoId: vid }, () => ({
+        liked: prev?.liked ?? false,
+        disliked: !prev?.disliked,
+        confused: prev?.confused ?? false,
+        favorited: prev?.favorited ?? false,
+      }));
+      const prevVideo = utils.video.getById.getData({ id: vid });
+      if (prevVideo?._count) {
+        const delta = prev?.disliked ? -1 : 1;
+        utils.video.getById.setData({ id: vid }, (old) => old ? { ...old, _count: { ...old._count, dislikes: Math.max(0, (old._count?.dislikes ?? 0) + delta) } } : old);
+      }
+      return { prev };
+    },
+    onSettled: (_data, _err, vars) => {
+      utils.video.getById.invalidate({ id: vars.videoId });
+      utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
+    },
+  });
+  const confusedMutation = trpc.video.confused.useMutation({
+    onMutate: async (vars) => {
+      const vid = vars.videoId;
+      await utils.video.getInteractionStatus.cancel({ videoId: vid });
+      const prev = utils.video.getInteractionStatus.getData({ videoId: vid });
+      utils.video.getInteractionStatus.setData({ videoId: vid }, () => ({
+        liked: prev?.liked ?? false,
+        disliked: prev?.disliked ?? false,
+        confused: !prev?.confused,
+        favorited: prev?.favorited ?? false,
+      }));
+      const prevVideo = utils.video.getById.getData({ id: vid });
+      if (prevVideo?._count) {
+        const delta = prev?.confused ? -1 : 1;
+        utils.video.getById.setData({ id: vid }, (old) => old ? { ...old, _count: { ...old._count, confused: Math.max(0, (old._count?.confused ?? 0) + delta) } } : old);
+      }
+      return { prev };
+    },
+    onSettled: (_data, _err, vars) => {
+      utils.video.getById.invalidate({ id: vars.videoId });
+      utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
+    },
+  });
+  const favoriteMutation = trpc.video.favorite.useMutation({
+    onMutate: async (vars) => {
+      const vid = vars.videoId;
+      await utils.video.getInteractionStatus.cancel({ videoId: vid });
+      const prev = utils.video.getInteractionStatus.getData({ videoId: vid });
+      utils.video.getInteractionStatus.setData({ videoId: vid }, () => ({
+        liked: prev?.liked ?? false,
+        disliked: prev?.disliked ?? false,
+        confused: prev?.confused ?? false,
+        favorited: !prev?.favorited,
+      }));
+      const prevVideo = utils.video.getById.getData({ id: vid });
+      if (prevVideo?._count) {
+        const delta = prev?.favorited ? -1 : 1;
+        utils.video.getById.setData({ id: vid }, (old) => old ? { ...old, _count: { ...old._count, favorites: Math.max(0, (old._count?.favorites ?? 0) + delta) } } : old);
+      }
+      return { prev };
+    },
+    onSettled: (_data, _err, vars) => {
+      utils.video.getById.invalidate({ id: vars.videoId });
+      utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
+    },
+  });
   const recordHistoryMutation = trpc.video.recordHistory.useMutation({
     onError: (error) => {
       console.error("记录观看历史失败:", error.message);
@@ -214,8 +305,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => setHasMounted(true), []);
   const isOwner = hasMounted && session?.user?.id === displayVideo?.uploader?.id;
-  const favoriteMutation = trpc.video.favorite.useMutation();
-  const utils = trpc.useUtils();
 
   // 增加观看次数
   useEffect(() => {
@@ -259,8 +348,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await likeMutation.mutateAsync({ videoId: currentVideoId });
-      utils.video.getById.invalidate({ id: currentVideoId });
-      utils.video.getInteractionStatus.invalidate({ videoId: currentVideoId });
     } catch {
       toast.error("操作失败");
     }
@@ -273,8 +360,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await dislikeMutation.mutateAsync({ videoId: currentVideoId });
-      utils.video.getById.invalidate({ id: currentVideoId });
-      utils.video.getInteractionStatus.invalidate({ videoId: currentVideoId });
     } catch {
       toast.error("操作失败");
     }
@@ -287,8 +372,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await confusedMutation.mutateAsync({ videoId: currentVideoId });
-      utils.video.getById.invalidate({ id: currentVideoId });
-      utils.video.getInteractionStatus.invalidate({ videoId: currentVideoId });
     } catch {
       toast.error("操作失败");
     }
@@ -302,7 +385,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     try {
       const result = await favoriteMutation.mutateAsync({ videoId: currentVideoId });
       toast.success(result.favorited ? "已添加到收藏" : "已取消收藏");
-      utils.video.getInteractionStatus.invalidate({ videoId: currentVideoId });
     } catch {
       toast.error("操作失败");
     }
@@ -496,7 +578,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             <div className="md:hidden overflow-x-auto scrollbar-hide">
               <div className="flex items-center gap-2 px-3 py-2 min-w-max">
                 <button
-                  onClick={handleLike}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
                   disabled={likeMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     status?.liked 
@@ -508,7 +591,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span>{displayVideo._count.likes || '喜欢'}</span>
                 </button>
                 <button
-                  onClick={handleConfused}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfused(); }}
                   disabled={confusedMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     status?.confused 
@@ -520,7 +604,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span>{displayVideo._count.confused || '疑惑'}</span>
                 </button>
                 <button
-                  onClick={handleDislike}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislike(); }}
                   disabled={dislikeMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     status?.disliked 
@@ -532,7 +617,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span>{displayVideo._count.dislikes || '不喜欢'}</span>
                 </button>
                 <button
-                  onClick={handleFavorite}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFavorite(); }}
                   disabled={favoriteMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     status?.favorited 
@@ -544,7 +630,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span>收藏</span>
                 </button>
                 <button
-                  onClick={handleShare}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium bg-muted hover:bg-muted/80 transition-colors"
                 >
                   <Share2 className="h-4 w-4" />
@@ -766,9 +853,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <Button
+                  type="button"
                   variant={status?.liked ? "default" : "outline"}
                   size="sm"
-                  onClick={handleLike}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
                   disabled={likeMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.liked ? "bg-green-600 hover:bg-green-700" : ""}`}
                 >
@@ -779,9 +867,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.likes}</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={status?.confused ? "default" : "outline"}
                   size="sm"
-                  onClick={handleConfused}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfused(); }}
                   disabled={confusedMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.confused ? "bg-yellow-600 hover:bg-yellow-700" : ""}`}
                 >
@@ -792,9 +881,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.confused}</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={status?.disliked ? "default" : "outline"}
                   size="sm"
-                  onClick={handleDislike}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislike(); }}
                   disabled={dislikeMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.disliked ? "bg-red-600 hover:bg-red-700" : ""}`}
                 >
@@ -805,9 +895,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.dislikes}</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={status?.favorited ? "default" : "outline"}
                   size="sm"
-                  onClick={handleFavorite}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFavorite(); }}
                   disabled={favoriteMutation.isPending}
                   className="px-2 sm:px-3"
                 >
@@ -816,7 +907,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   />
                   <span className="hidden sm:inline">收藏</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleShare} className="px-2 sm:px-3">
+                <Button type="button" variant="outline" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }} className="px-2 sm:px-3">
                   <Share2 className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">分享</span>
                 </Button>

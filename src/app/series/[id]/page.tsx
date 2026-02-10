@@ -34,7 +34,7 @@ export default function SeriesPage() {
         <div className="container py-6 max-w-6xl">
           <Skeleton className="h-8 w-48 mb-4" />
           <Skeleton className="h-4 w-96 mb-6" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="aspect-video rounded-lg" />
             ))}
@@ -133,7 +133,7 @@ export default function SeriesPage() {
 
         {/* 剧集列表 */}
         <FadeIn delay={0.1}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {publishedEpisodes.map((episode) => (
               <Link key={episode.video.id} href={`/video/${episode.video.id}`}>
                 <Card className="overflow-hidden group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">

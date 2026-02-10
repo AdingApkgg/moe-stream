@@ -36,6 +36,7 @@ export function AdGate() {
   const [completed, setCompleted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [now, setNow] = useState(0);
 
   const allAds = useMemo(() => parseAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
   const enabledAds = useMemo(() => allAds.filter((a) => a.enabled), [allAds]);
@@ -99,8 +100,20 @@ export function AdGate() {
   }, [required, hours]);
 
   useEffect(() => {
-    setMounted(true);
+    const id = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(id);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const update = () => setNow(Date.now());
+    const id = setInterval(update, 1000);
+    const tid = setTimeout(update, 0);
+    return () => {
+      clearInterval(id);
+      clearTimeout(tid);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted || typeof window === "undefined") return;
@@ -109,13 +122,17 @@ export function AdGate() {
       if (until) {
         const t = parseInt(until, 10);
         if (!Number.isNaN(t) && t > Date.now()) {
-          setFreeUntil(t);
+          setTimeout(() => setFreeUntil(t), 0);
           return;
         }
         localStorage.removeItem(STORAGE_FREE_UNTIL);
       }
       const count = localStorage.getItem(STORAGE_VIEW_COUNT);
-      setViewCount(count ? Math.min(parseInt(count, 10) || 0, required) : 0);
+      setTimeout(
+        () =>
+          setViewCount(count ? Math.min(parseInt(count, 10) || 0, required) : 0),
+        0
+      );
     } catch {}
   }, [mounted, required]);
 
@@ -132,7 +149,7 @@ export function AdGate() {
 
   if (!mounted || !gateOn || !userAllowsAds) return null;
   if (dismissed) return null;
-  if (freeUntil != null && freeUntil > Date.now() && !completed) return null;
+  if (freeUntil != null && (now === 0 || freeUntil > now) && !completed) return null;
   if (completed) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-sm">

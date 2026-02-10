@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, ownerProcedure, adminProcedure } from "../trpc";
-import bcrypt from "bcryptjs";
+import { hash, compare } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";
-import { getIpLocation } from "@/lib/ip-location";
 import { nanoid } from "nanoid";
 import { SignJWT, jwtVerify } from "jose";
 
@@ -31,7 +30,7 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await bcrypt.hash(input.password, 12);
+      const hashedPassword = await hash(input.password, 12);
 
       const user = await ctx.prisma.user.create({
         data: {
@@ -387,7 +386,7 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      const isValid = await bcrypt.compare(input.currentPassword, user.password);
+      const isValid = await compare(input.currentPassword, user.password);
       if (!isValid) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -395,7 +394,7 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await bcrypt.hash(input.newPassword, 12);
+      const hashedPassword = await hash(input.newPassword, 12);
       await ctx.prisma.user.update({
         where: { id: ctx.session.user.id },
         data: { password: hashedPassword },
@@ -424,7 +423,7 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await bcrypt.hash(input.newPassword, 12);
+      const hashedPassword = await hash(input.newPassword, 12);
       await ctx.prisma.user.update({
         where: { email: input.email },
         data: { password: hashedPassword },
@@ -464,7 +463,7 @@ export const userRouter = router({
 
       // 验证密码
       if (user.password) {
-        const isValid = await bcrypt.compare(input.password, user.password);
+        const isValid = await compare(input.password, user.password);
         if (!isValid) {
           throw new TRPCError({
             code: "BAD_REQUEST",

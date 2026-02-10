@@ -95,8 +95,11 @@ export function HomePageClient({ initialTags, initialVideos, siteConfig, initial
     }
   );
 
-  // 数据
-  const videos = videoData?.videos ?? (videoPage === 1 ? initialVideos : []);
+  // 数据（用 useMemo 稳定引用，避免下游 useMemo 依赖在每次渲染时变化）
+  const videos = useMemo(
+    () => videoData?.videos ?? (videoPage === 1 ? initialVideos : []),
+    [videoData?.videos, videoPage, initialVideos]
+  );
   const videoTotalPages = videoData?.totalPages ?? 1;
   const series = seriesData?.items ?? [];
   const seriesTotalPages = seriesData?.totalPages ?? 1;
@@ -349,7 +352,7 @@ export function HomePageClient({ initialTags, initialVideos, siteConfig, initial
                 {videoLoading && videos.length === 0 ? (
                   <VideoGrid videos={[]} isLoading />
                 ) : gridItems.some((x) => x.type === "ad") ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                     {gridItems.map((item, index) =>
                       item.type === "ad" ? (
                         <AdCard
@@ -394,7 +397,7 @@ export function HomePageClient({ initialTags, initialVideos, siteConfig, initial
           ) : (
             // 合集网格
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {seriesLoading && series.length === 0 ? (
                   // 加载骨架屏
                   Array.from({ length: 8 }).map((_, i) => (

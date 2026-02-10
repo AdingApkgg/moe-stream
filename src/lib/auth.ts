@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { username, customSession } from "better-auth/plugins";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { hash, compare } from "@/lib/bcrypt-wasm";
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
@@ -19,8 +19,8 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
     password: {
-      hash: (password) => bcrypt.hash(password, 10),
-      verify: (data) => bcrypt.compare(data.password, data.hash),
+      hash: (password) => hash(password, 10),
+      verify: (data) => compare(data.password, data.hash),
     },
   },
   plugins: [

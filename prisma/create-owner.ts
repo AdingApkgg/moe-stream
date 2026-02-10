@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import bcrypt from "bcryptjs";
+import { hash } from "../src/lib/bcrypt-wasm";
 import { config } from "dotenv";
 import path from "node:path";
 
@@ -52,7 +52,7 @@ async function main() {
     }
 
     // 加密密码
-    const hashedPassword = await bcrypt.hash(OWNER_CONFIG.password, 12);
+    const hashedPassword = await hash(OWNER_CONFIG.password, 12);
 
     // 创建站长用户
     const owner = await prisma.user.create({
