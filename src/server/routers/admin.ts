@@ -692,6 +692,102 @@ export const adminRouter = router({
       return { success: true, count: result.count };
     }),
 
+  // ========== 正则批量编辑 ==========
+
+  // 正则批量编辑 - 预览
+  batchRegexPreview: adminProcedure
+    .input(
+      z.object({
+        videoIds: z.array(z.string()).min(1).max(500),
+        field: z.enum(["title", "description", "coverUrl", "videoUrl"]),
+        pattern: z.string().min(1),
+        replacement: z.string(),
+        flags: z.string().default("g"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
+      }
+
+      let regex: RegExp;
+      try {
+        regex = new RegExp(input.pattern, input.flags);
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无效的正则表达式" });
+      }
+
+      const videos = await ctx.prisma.video.findMany({
+        where: { id: { in: input.videoIds } },
+        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true },
+      });
+
+      const previews: { id: string; title: string; before: string; after: string; changed: boolean }[] = [];
+
+      for (const video of videos) {
+        const original = (video[input.field] ?? "") as string;
+        const replaced = original.replace(regex, input.replacement);
+        if (original !== replaced) {
+          previews.push({
+            id: video.id,
+            title: video.title,
+            before: original,
+            after: replaced,
+            changed: true,
+          });
+        }
+      }
+
+      return { previews, totalMatched: previews.length, totalSelected: videos.length };
+    }),
+
+  // 正则批量编辑 - 执行
+  batchRegexUpdate: adminProcedure
+    .input(
+      z.object({
+        videoIds: z.array(z.string()).min(1).max(500),
+        field: z.enum(["title", "description", "coverUrl", "videoUrl"]),
+        pattern: z.string().min(1),
+        replacement: z.string(),
+        flags: z.string().default("g"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
+      }
+
+      let regex: RegExp;
+      try {
+        regex = new RegExp(input.pattern, input.flags);
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无效的正则表达式" });
+      }
+
+      const videos = await ctx.prisma.video.findMany({
+        where: { id: { in: input.videoIds } },
+        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true },
+      });
+
+      let updatedCount = 0;
+
+      for (const video of videos) {
+        const original = (video[input.field] ?? "") as string;
+        const replaced = original.replace(regex, input.replacement);
+        if (original !== replaced) {
+          await ctx.prisma.video.update({
+            where: { id: video.id },
+            data: { [input.field]: replaced || null },
+          });
+          updatedCount++;
+        }
+      }
+
+      return { success: true, count: updatedCount };
+    }),
+
   // ========== 批量导入 ==========
 
   // 批量导入视频（解析短代码）

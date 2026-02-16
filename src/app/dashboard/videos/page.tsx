@@ -30,6 +30,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   Collapsible,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
@@ -58,6 +67,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Replace,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
@@ -107,6 +117,16 @@ export default function AdminVideosPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [batchAction, setBatchAction] = useState<"delete" | null>(null);
   const [selectAllLoading, setSelectAllLoading] = useState(false);
+
+  // 正则批量编辑状态
+  const [regexOpen, setRegexOpen] = useState(false);
+  const [regexField, setRegexField] = useState<"title" | "description" | "coverUrl" | "videoUrl">("videoUrl");
+  const [regexPattern, setRegexPattern] = useState("");
+  const [regexReplacement, setRegexReplacement] = useState("");
+  const [regexFlags, setRegexFlags] = useState("g");
+  const [regexPreviewing, setRegexPreviewing] = useState(false);
+  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
+  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
 
   const limit = 50;
   const utils = trpc.useUtils();
@@ -159,6 +179,19 @@ export default function AdminVideosPage() {
       setBatchAction(null);
     },
     onError: (error) => toast.error(error.message || "批量删除失败"),
+  });
+
+  const batchRegexUpdateMutation = trpc.admin.batchRegexUpdate.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已更新 ${result.count} 个视频`);
+      utils.admin.listAllVideos.invalidate();
+      setRegexOpen(false);
+      setRegexPreviews([]);
+      setRegexPreviewStats(null);
+      setRegexPattern("");
+      setRegexReplacement("");
+    },
+    onError: (error) => toast.error(error.message || "批量编辑失败"),
   });
 
   const videos = useMemo(
@@ -436,15 +469,29 @@ export default function AdminVideosPage() {
                 批量拒绝
               </Button>
               {canManage && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setBatchAction("delete")}
-                  disabled={batchDeleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  批量删除
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setRegexPreviews([]);
+                      setRegexPreviewStats(null);
+                      setRegexOpen(true);
+                    }}
+                  >
+                    <Replace className="h-4 w-4 mr-1" />
+                    正则编辑
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBatchAction("delete")}
+                    disabled={batchDeleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    批量删除
+                  </Button>
+                </>
               )}
             </div>
           </>
@@ -811,6 +858,212 @@ export default function AdminVideosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 正则批量编辑对话框 */}
+      <Dialog open={regexOpen} onOpenChange={(open) => {
+        setRegexOpen(open);
+        if (!open) {
+          setRegexPreviews([]);
+          setRegexPreviewStats(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>正则批量编辑</DialogTitle>
+            <DialogDescription>
+              对已选 {selectedIds.size} 个视频使用正则表达式批量替换字段内容
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 字段选择 */}
+            <div className="space-y-2">
+              <Label>目标字段</Label>
+              <Select value={regexField} onValueChange={(v) => {
+                setRegexField(v as typeof regexField);
+                setRegexPreviews([]);
+                setRegexPreviewStats(null);
+              }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="videoUrl">视频加载源 (videoUrl)</SelectItem>
+                  <SelectItem value="coverUrl">封面链接 (coverUrl)</SelectItem>
+                  <SelectItem value="title">标题 (title)</SelectItem>
+                  <SelectItem value="description">描述 (description)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 正则表达式 */}
+            <div className="space-y-2">
+              <Label>匹配正则</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="例: https://old-cdn\.com"
+                  value={regexPattern}
+                  onChange={(e) => {
+                    setRegexPattern(e.target.value);
+                    setRegexPreviews([]);
+                    setRegexPreviewStats(null);
+                  }}
+                  className="flex-1 font-mono text-sm"
+                />
+                <Input
+                  placeholder="flags"
+                  value={regexFlags}
+                  onChange={(e) => {
+                    setRegexFlags(e.target.value);
+                    setRegexPreviews([]);
+                    setRegexPreviewStats(null);
+                  }}
+                  className="w-20 font-mono text-sm text-center"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                支持 JavaScript 正则语法，flags 默认 g（全局替换）。常用：gi（全局+忽略大小写）
+              </p>
+            </div>
+
+            {/* 替换为 */}
+            <div className="space-y-2">
+              <Label>替换为</Label>
+              <Input
+                placeholder="例: https://new-cdn.com"
+                value={regexReplacement}
+                onChange={(e) => {
+                  setRegexReplacement(e.target.value);
+                  setRegexPreviews([]);
+                  setRegexPreviewStats(null);
+                }}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                支持 $1, $2 等捕获组引用。留空则删除匹配内容
+              </p>
+            </div>
+
+            {/* 预览按钮 */}
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={!regexPattern || regexPreviewing}
+              onClick={async () => {
+                setRegexPreviewing(true);
+                try {
+                  new RegExp(regexPattern, regexFlags);
+                } catch {
+                  toast.error("无效的正则表达式");
+                  setRegexPreviewing(false);
+                  return;
+                }
+                try {
+                  const result = await utils.client.admin.batchRegexPreview.query({
+                    videoIds: Array.from(selectedIds),
+                    field: regexField,
+                    pattern: regexPattern,
+                    replacement: regexReplacement,
+                    flags: regexFlags,
+                  });
+                  setRegexPreviews(result.previews);
+                  setRegexPreviewStats({ totalMatched: result.totalMatched, totalSelected: result.totalSelected });
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "预览失败");
+                } finally {
+                  setRegexPreviewing(false);
+                }
+              }}
+            >
+              {regexPreviewing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4 mr-2" />
+              )}
+              预览变更
+            </Button>
+
+            {/* 预览结果 */}
+            {regexPreviewStats && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant={regexPreviewStats.totalMatched > 0 ? "default" : "secondary"}>
+                    {regexPreviewStats.totalMatched} / {regexPreviewStats.totalSelected} 个视频将被修改
+                  </Badge>
+                </div>
+
+                {regexPreviews.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-2 font-medium">视频</th>
+                          <th className="text-left p-2 font-medium text-red-600">替换前</th>
+                          <th className="text-left p-2 font-medium text-green-600">替换后</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {regexPreviews.slice(0, 50).map((p) => (
+                          <tr key={p.id} className="hover:bg-muted/30">
+                            <td className="p-2 max-w-[120px] truncate" title={p.title}>
+                              {p.title}
+                            </td>
+                            <td className="p-2 font-mono text-xs text-red-600 max-w-[200px] break-all">
+                              {p.before.length > 100 ? p.before.slice(0, 100) + "..." : p.before}
+                            </td>
+                            <td className="p-2 font-mono text-xs text-green-600 max-w-[200px] break-all">
+                              {p.after.length > 100 ? p.after.slice(0, 100) + "..." : p.after}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {regexPreviews.length > 50 && (
+                      <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+                        还有 {regexPreviews.length - 50} 条变更未显示
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {regexPreviews.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    没有视频匹配该正则表达式
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegexOpen(false)}>
+              取消
+            </Button>
+            <Button
+              disabled={
+                !regexPattern ||
+                !regexPreviewStats ||
+                regexPreviewStats.totalMatched === 0 ||
+                batchRegexUpdateMutation.isPending
+              }
+              onClick={() => {
+                batchRegexUpdateMutation.mutate({
+                  videoIds: Array.from(selectedIds),
+                  field: regexField,
+                  pattern: regexPattern,
+                  replacement: regexReplacement,
+                  flags: regexFlags,
+                });
+              }}
+            >
+              {batchRegexUpdateMutation.isPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              应用变更 {regexPreviewStats ? `(${regexPreviewStats.totalMatched} 个)` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

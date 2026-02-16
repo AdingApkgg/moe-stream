@@ -130,14 +130,18 @@ export function startCoverWorker() {
 let backfillTimer: NodeJS.Timeout | null = null;
 
 async function tryAcquireBackfillLock(): Promise<boolean> {
-  const result = await redis.set(
-    "cover:backfill:lock",
-    "1",
-    "EX",
-    COVER_CONFIG.backfillLockTtlSeconds,
-    "NX"
-  );
-  return result === "OK";
+  try {
+    const result = await redis.set(
+      "cover:backfill:lock",
+      "1",
+      "EX",
+      COVER_CONFIG.backfillLockTtlSeconds,
+      "NX"
+    );
+    return result === "OK";
+  } catch {
+    return false;
+  }
 }
 
 async function backfillMissingCovers(): Promise<void> {

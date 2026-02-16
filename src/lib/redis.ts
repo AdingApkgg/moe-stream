@@ -3,31 +3,54 @@ import { env } from "@/env";
 
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined;
+  redisErrorLogged: boolean | undefined;
 };
+
+const MAX_RECONNECT_ATTEMPTS = process.env.NODE_ENV === "production" ? Infinity : 5;
+
+// 使用 WHATWG URL API 解析，避免 ioredis 内部调用已废弃的 url.parse()
+function parseRedisUrl(url: string) {
+  const parsed = new URL(url);
+  return {
+    host: parsed.hostname || "127.0.0.1",
+    port: parsed.port ? Number(parsed.port) : 6379,
+    password: parsed.password || undefined,
+    username: parsed.username || undefined,
+    db: parsed.pathname ? Number(parsed.pathname.slice(1)) || 0 : 0,
+  };
+}
 
 export const redis =
   globalForRedis.redis ??
-  new Redis(env.REDIS_URL, {
+  new Redis({
+    ...parseRedisUrl(env.REDIS_URL),
     maxRetriesPerRequest: 3,
     lazyConnect: true,
     enableReadyCheck: true,
     retryStrategy(times) {
-      // 指数退避，最大 10 秒
-      return Math.min(times * 200, 10000);
+      if (times > MAX_RECONNECT_ATTEMPTS) {
+        console.warn(`[Redis] 已达最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连。缓存功能将降级为直接查询数据库。`);
+        return null;
+      }
+      return Math.min(times * 500, 10000);
     },
   });
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
-// 连接事件监控
-redis.on("error", (err) => {
-  console.error("[Redis] Connection error:", err.message);
+// 连接事件监控（避免重复日志刷屏）
+redis.on("error", () => {
+  if (!globalForRedis.redisErrorLogged) {
+    globalForRedis.redisErrorLogged = true;
+    console.warn("[Redis] 连接失败，缓存将降级。如需 Redis 请确保服务已启动。");
+  }
 });
 redis.on("connect", () => {
+  globalForRedis.redisErrorLogged = false;
   console.log("[Redis] Connected");
 });
 redis.on("reconnecting", () => {
-  console.log("[Redis] Reconnecting...");
+  // 静默，不再重复打印
 });
 
 export default redis;

@@ -155,8 +155,21 @@ export async function processQueue(
 
   const worker = async (workerId: number) => {
     log(`Worker ${workerId} 启动`);
+    let consecutiveErrors = 0;
     while (!shouldStop) {
-      const result = await redis.brpop(COVER_CONFIG.queueName, pollTimeoutSeconds);
+      let result: [string, string] | null;
+      try {
+        result = await redis.brpop(COVER_CONFIG.queueName, pollTimeoutSeconds);
+      } catch {
+        consecutiveErrors++;
+        if (consecutiveErrors === 1) {
+          log(`Worker ${workerId} Redis 不可用，等待重连...`);
+        }
+        // 退避等待，避免刷屏
+        await sleep(Math.min(consecutiveErrors * 2000, 30000));
+        continue;
+      }
+      consecutiveErrors = 0;
       if (!result) continue;
 
       const videoId = result[1];
