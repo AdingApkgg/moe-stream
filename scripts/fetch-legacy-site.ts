@@ -1,16 +1,19 @@
 #!/usr/bin/env npx tsx
 /**
  * 旧站视频抓取脚本
- * 从 tv.mikiacg.org/index.php/category/Video/ 抓取视频数据并导出为批量导入格式
+ * 按 archives ID 顺序扫描 tv.mikiacg.org 上的所有文章，提取视频数据并导出为批量导入格式
  *
  * 数据结构对应关系：
- *   - 分类页「找到 N 篇」= N 篇文章（archives），每篇 1 个详情页
+ *   - 每个 archives/{id}.html 对应 1 篇文章（可能有内容或为空页）
  *   - 1 篇文章 = 1 个作者合集，合集中可含多集（episodes）
- *   - 仅从分类列表区域 .joe_archive 内取链接，不抓取侧栏/搜索框等
+ *   - 不依赖分类页（分类页可能未列出所有文章），改为按 ID 递增扫描
+ *   - 连续遇到 N 个空页后自动停止扫描
  *
  * 运行方式: npx tsx scripts/fetch-legacy-site.ts
  * 可选参数:
- *   --max-pages=N      最大抓取页数（默认 5，按每页约 12 篇，27 篇共 3 页）
+ *   --start-id=N       起始 archives ID（默认 1）
+ *   --max-id=N         最大 archives ID（默认 200）
+ *   --max-empty=N      连续空页停止阈值（默认 20）
  *   --concurrency=N    并发数（默认 8）
  *   --timeout=N        请求超时秒数（默认 20）
  *   --single=URL       只抓取单个页面（调试用）
@@ -33,14 +36,18 @@ const HEADERS: Record<string, string> = {
 function parseArgs() {
   const args = process.argv.slice(2);
   const config = {
-    maxPages: 5,
+    startId: 1,
+    maxId: 200,
+    maxEmpty: 20,
     concurrency: 8,
     timeout: 20_000,
     single: "",
   };
   for (const arg of args) {
     const [key, val] = arg.split("=");
-    if (key === "--max-pages") config.maxPages = Number(val);
+    if (key === "--start-id") config.startId = Number(val);
+    else if (key === "--max-id") config.maxId = Number(val);
+    else if (key === "--max-empty") config.maxEmpty = Number(val);
     else if (key === "--concurrency") config.concurrency = Number(val);
     else if (key === "--timeout") config.timeout = Number(val) * 1000;
     else if (key === "--single") config.single = val;
@@ -151,41 +158,51 @@ function extractAuthor(title: string): string {
   return "未分类";
 }
 
-// ─── 获取分类列表页的文章链接（仅主列表区域，避免侧栏/搜索） ─────
+// ─── 按 ID 扫描发现有效文章 ──────────────────────────────
 
-const CATEGORY_PATH = "/index.php/category/Video";
-
-/** 仅从 .joe_archive 主列表内取 archives 链接，保证数量与「找到 N 篇」一致 */
-async function getVideoLinksFromPage(
-  page: number,
+/** 逐个检测 archives ID 是否有内容（有标题即为有效），返回有效文章的 URL 列表 */
+async function discoverArticlesByIdScan(
+  startId: number,
+  maxId: number,
+  maxEmpty: number,
+  concurrency: number,
   timeout: number,
-): Promise<{ links: string[]; totalFromPage: number | null }> {
-  const url =
-    page === 1
-      ? `${BASE_URL}${CATEGORY_PATH}/`
-      : `${BASE_URL}${CATEGORY_PATH}/${page}/`;
+): Promise<string[]> {
+  const validUrls: string[] = [];
+  let consecutiveEmpty = 0;
 
-  const html = await fetchWithRetry(url, timeout);
-  const $ = cheerio.load(html);
+  for (let id = startId; id <= maxId; id++) {
+    const url = `${BASE_URL}/index.php/archives/${id}.html`;
+    try {
+      const html = await fetchWithRetry(url, timeout);
+      const $ = cheerio.load(html);
+      const title =
+        $("h1.joe_detail__title").text().trim() ||
+        $('meta[property="og:title"]').attr("content")?.trim() ||
+        "";
+      const hasTitle = title.length > 0 && !title.includes("咪咔映阁");
 
-  // 解析「找到 27 篇」中的总数（仅第一页有）
-  let totalFromPage: number | null = null;
-  const totalMatch = $(".joe_archive__title-title").text().match(/找到\s*(\d+)\s*篇/);
-  if (totalMatch) totalFromPage = parseInt(totalMatch[1], 10);
+      if (hasTitle) {
+        validUrls.push(url);
+        consecutiveEmpty = 0;
+        process.stdout.write(`  [${id}] ✓ ${title.slice(0, 30)}\n`);
+      } else {
+        consecutiveEmpty++;
+        if (consecutiveEmpty >= maxEmpty) {
+          console.log(`  连续 ${maxEmpty} 个空页，停止扫描（最后 ID: ${id}）`);
+          break;
+        }
+      }
+    } catch {
+      consecutiveEmpty++;
+      if (consecutiveEmpty >= maxEmpty) {
+        console.log(`  连续 ${maxEmpty} 个无效页，停止扫描（最后 ID: ${id}）`);
+        break;
+      }
+    }
+  }
 
-  const links: string[] = [];
-  const seenIds = new Set<string>();
-
-  $(".joe_archive a[href*='/archives/']").each((_, el) => {
-    const href = $(el).attr("href");
-    if (!href || !/\/archives\/(\d+)\.html/.test(href)) return;
-    const id = href.replace(/.*\/archives\/(\d+)\.html.*/, "$1");
-    if (seenIds.has(id)) return;
-    seenIds.add(id);
-    links.push(href.startsWith("http") ? href : BASE_URL + href);
-  });
-
-  return { links, totalFromPage };
+  return validUrls;
 }
 
 // ─── 解码 goto 跳转链接中的 base64 URL ──────────────────
@@ -529,39 +546,23 @@ async function main() {
     return;
   }
 
-  console.log(`开始抓取 ${BASE_URL}/index.php/category/Video/`);
+  console.log(`开始扫描 ${BASE_URL}/index.php/archives/{id}.html`);
   console.log(
-    `最大页数: ${config.maxPages}, 并发数: ${config.concurrency}`,
+    `ID 范围: ${config.startId}-${config.maxId}, 连续空页阈值: ${config.maxEmpty}, 并发数: ${config.concurrency}`,
   );
   console.log("─".repeat(50));
 
-  // 1) 仅从分类主列表 .joe_archive 获取文章链接（串行翻页）
-  const allLinks = new Set<string>();
-  let expectedTotal: number | null = null;
+  // 1) 按 ID 顺序扫描发现有效文章
+  console.log("发现文章...");
+  const uniqueLinks = await discoverArticlesByIdScan(
+    config.startId,
+    config.maxId,
+    config.maxEmpty,
+    config.concurrency,
+    config.timeout,
+  );
 
-  for (let page = 1; page <= config.maxPages; page++) {
-    process.stdout.write(`获取第 ${page} 页...`);
-    try {
-      const { links, totalFromPage } = await getVideoLinksFromPage(page, config.timeout);
-      if (totalFromPage != null) expectedTotal = totalFromPage;
-      if (links.length === 0) {
-        console.log(" 无更多内容，停止");
-        break;
-      }
-      for (const l of links) allLinks.add(l);
-      console.log(` 本页 ${links.length} 篇${expectedTotal != null ? `（分类共 ${expectedTotal} 篇）` : ""}`);
-      if (expectedTotal != null && allLinks.size >= expectedTotal) {
-        console.log(` 已收齐 ${expectedTotal} 篇，停止翻页`);
-        break;
-      }
-    } catch (e) {
-      console.log(` 失败: ${e instanceof Error ? e.message : e}`);
-      break;
-    }
-  }
-
-  const uniqueLinks = [...allLinks];
-  console.log(`\n共 ${uniqueLinks.length} 篇文章（每篇 = 1 个作者合集，可含多集）`);
+  console.log(`\n共发现 ${uniqueLinks.length} 篇有效文章（每篇 = 1 个作者合集，可含多集）`);
   console.log("─".repeat(50));
 
   // 2) 并发抓取详情页

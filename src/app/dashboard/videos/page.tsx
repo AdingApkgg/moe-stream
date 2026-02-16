@@ -68,6 +68,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Replace,
+  BookTemplate,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
@@ -75,6 +77,82 @@ import { getCoverUrl } from "@/lib/cover";
 
 type VideoStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | VideoStatus;
+
+interface RegexTemplate {
+  name: string;
+  description: string;
+  field: "title" | "description" | "coverUrl" | "videoUrl";
+  pattern: string;
+  replacement: string;
+  flags: string;
+}
+
+const REGEX_TEMPLATES: RegexTemplate[] = [
+  {
+    name: "去除路径数字编号前缀",
+    description: "将 /1-ViciNeko/ 变为 /ViciNeko/，去除目录名前的「数字-」前缀",
+    field: "videoUrl",
+    pattern: "\\/\\d+-",
+    replacement: "/",
+    flags: "g",
+  },
+  {
+    name: "HTTP 升级 HTTPS",
+    description: "将 http:// 替换为 https://",
+    field: "videoUrl",
+    pattern: "^http://",
+    replacement: "https://",
+    flags: "",
+  },
+  {
+    name: "替换 CDN 域名",
+    description: "将旧 CDN 域名替换为新域名（请修改域名）",
+    field: "videoUrl",
+    pattern: "https://old-cdn\\.example\\.com",
+    replacement: "https://cdn.mikiacg.vip",
+    flags: "g",
+  },
+  {
+    name: "更换视频扩展名 mp4→webm",
+    description: "将 .mp4 扩展名替换为 .webm",
+    field: "videoUrl",
+    pattern: "\\.mp4$",
+    replacement: ".webm",
+    flags: "",
+  },
+  {
+    name: "去除 URL 查询参数",
+    description: "移除 URL 中 ? 后的所有查询参数",
+    field: "videoUrl",
+    pattern: "\\?.*$",
+    replacement: "",
+    flags: "",
+  },
+  {
+    name: "去除文件名数字前缀",
+    description: "将 /01.title.webm 变为 /title.webm，去除文件名开头的「数字.」前缀",
+    field: "videoUrl",
+    pattern: "\\/(\\d+)\\.",
+    replacement: "/",
+    flags: "g",
+  },
+  {
+    name: "替换路径中指定目录名",
+    description: "替换路径中的某个目录名（请修改目录名）",
+    field: "videoUrl",
+    pattern: "\\/old-folder\\/",
+    replacement: "/new-folder/",
+    flags: "g",
+  },
+  {
+    name: "封面 URL 补全协议",
+    description: "为以 // 开头的封面 URL 补全 https: 协议",
+    field: "coverUrl",
+    pattern: "^\\/\\/",
+    replacement: "https://",
+    flags: "",
+  },
+];
 
 interface VideoItem {
   id: string;
@@ -894,6 +972,43 @@ export default function AdminVideosPage() {
                   <SelectItem value="description">描述 (description)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* 常用模版 */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <BookTemplate className="h-3.5 w-3.5" />
+                常用模版
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {REGEX_TEMPLATES.map((tpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                      "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
+                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    )}
+                    title={tpl.description}
+                    onClick={() => {
+                      setRegexField(tpl.field);
+                      setRegexPattern(tpl.pattern);
+                      setRegexReplacement(tpl.replacement);
+                      setRegexFlags(tpl.flags);
+                      setRegexPreviews([]);
+                      setRegexPreviewStats(null);
+                      toast.success(`已填入模版: ${tpl.name}`);
+                    }}
+                  >
+                    <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+                    {tpl.name}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                点击模版一键填入正则和替换内容，填入后可按需微调
+              </p>
             </div>
 
             {/* 正则表达式 */}
