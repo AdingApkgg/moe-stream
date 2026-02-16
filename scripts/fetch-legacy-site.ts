@@ -61,6 +61,7 @@ interface Episode {
   num: number;
   title: string;
   videoUrl: string;
+  coverUrl: string;
 }
 
 interface Download {
@@ -351,21 +352,43 @@ async function extractFromPage(
     // ── 剧集（核心：多层兜底） ──
     const episodes: Episode[] = [];
 
-    // 方式 1：从剧集列表 <a class="switch-video" video-url="..." data-original-title="...">第N集</a>
+    // 方式 1：从剧集列表 <a class="switch-video" video-url="..." data-index="N" data-title="...">
     $("a.switch-video[video-url]").each((_, el) => {
       const $el = $(el);
       const url = $el.attr("video-url") ?? "";
-      const subTitle = $el.attr("data-original-title")?.trim() ?? "";
-      const epText = $el.text().trim();
-      const numMatch = epText.match(/第(\d+)集/);
-      if (!url || !numMatch) return;
+      if (!url) return;
 
-      const num = Number(numMatch[1]);
+      // 优先用 data-index 取集号，兜底从文本解析「第N集」
+      const dataIndex = $el.attr("data-index");
+      let num = dataIndex ? Number(dataIndex) : 0;
+      if (!num) {
+        const epText = $el.text().trim();
+        const numMatch = epText.match(/第(\d+)集/);
+        if (!numMatch) return;
+        num = Number(numMatch[1]);
+      }
+
+      // 优先用 data-title 取剧集标题，兜底 data-original-title / .video-desc-box 文本
+      const subTitle =
+        $el.attr("data-title")?.trim() ||
+        $el.attr("data-original-title")?.trim() ||
+        $el.find(".video-desc-box").first().contents().filter(function () {
+          return this.type === "text";
+        }).text().trim() ||
+        "";
+
+      // 封面：优先 data-cover 属性，兜底 .video-thumbnail-right 内的 img
+      const epCover =
+        $el.attr("data-cover")?.trim() ||
+        $el.find(".video-thumbnail-right img").attr("src")?.trim() ||
+        "";
+
       if (num > 0 && !episodes.some((e) => e.num === num)) {
         episodes.push({
           num,
           title: subTitle || `第${num}集`,
           videoUrl: url,
+          coverUrl: epCover,
         });
       }
     });
@@ -391,7 +414,7 @@ async function extractFromPage(
           : prefix || `第${num}集`;
 
         if (!episodes.some((e) => e.num === num)) {
-          episodes.push({ num, title: epTitle, videoUrl: url });
+          episodes.push({ num, title: epTitle, videoUrl: url, coverUrl: "" });
         }
       }
     }
@@ -400,7 +423,7 @@ async function extractFromPage(
     if (episodes.length === 0) {
       const dplayerVideo = $(".dplayer-video source").attr("src") ?? "";
       if (dplayerVideo) {
-        episodes.push({ num: 1, title: "正片", videoUrl: dplayerVideo });
+        episodes.push({ num: 1, title: "正片", videoUrl: dplayerVideo, coverUrl: "" });
       }
     }
 
@@ -484,10 +507,11 @@ function generateImportText(videos: VideoInfo[]): {
 
     lines.push(""); // 空行分隔头部与剧集
 
-    // ── 剧集：每集仅标题 + 视频 ──
+    // ── 剧集：每集标题 + 封面 + 视频 ──
     for (const v of vids) {
       const writeEpisode = (ep: Episode) => {
         lines.push(`标题：${v.title} - ${ep.title}`);
+        if (ep.coverUrl) lines.push(`封面：${ep.coverUrl}`);
         lines.push(`视频：${ep.videoUrl}`);
         lines.push("");
         count++;
@@ -531,15 +555,15 @@ async function main() {
     console.log(`作者介绍: ${info.authorIntro ? info.authorIntro.slice(0, 80) + "..." : "（无）"}`);
     console.log(`剧集数: ${info.episodes.length}`);
     if (info.episodes.length > 0) {
-      console.log("前 3 集:");
-      for (const ep of info.episodes.slice(0, 3)) {
+      const printEp = (ep: Episode) => {
         console.log(`  ${ep.num}. ${ep.title} → ${ep.videoUrl.slice(-50)}`);
-      }
+        if (ep.coverUrl) console.log(`     封面: ${ep.coverUrl.slice(-60)}`);
+      };
+      console.log("前 3 集:");
+      for (const ep of info.episodes.slice(0, 3)) printEp(ep);
       if (info.episodes.length > 3) {
         console.log("后 2 集:");
-        for (const ep of info.episodes.slice(-2)) {
-          console.log(`  ${ep.num}. ${ep.title} → ${ep.videoUrl.slice(-50)}`);
-        }
+        for (const ep of info.episodes.slice(-2)) printEp(ep);
       }
     }
     if (info.error) console.log(`错误: ${info.error}`);
