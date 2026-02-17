@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { submitVideosToIndexNow, submitSitePages, submitToIndexNow } from "@/lib/indexnow";
+import { submitVideosToIndexNow, submitGamesToIndexNow, submitSitePages, submitToIndexNow } from "@/lib/indexnow";
 import { submitSitemapToGoogle, isGoogleConfigured } from "@/lib/google-indexing";
 import { env } from "@/env";
 
@@ -45,34 +45,56 @@ export async function POST(request: NextRequest) {
     const results: { indexnow?: { success: number; failed: number } | boolean; google?: boolean } = {};
     const messages: string[] = [];
 
-    // 获取视频 ID 列表
+    // 获取视频和游戏 ID 列表
     let videoIds: string[] = [];
+    let gameIds: string[] = [];
 
     switch (type) {
       case "all": {
-        const videos = await prisma.video.findMany({
-          where: { status: "PUBLISHED" },
-          select: { id: true },
-          orderBy: { createdAt: "desc" },
-        });
+        const [videos, games] = await Promise.all([
+          prisma.video.findMany({
+            where: { status: "PUBLISHED" },
+            select: { id: true },
+            orderBy: { createdAt: "desc" },
+          }),
+          prisma.game.findMany({
+            where: { status: "PUBLISHED" },
+            select: { id: true },
+            orderBy: { createdAt: "desc" },
+          }),
+        ]);
         videoIds = videos.map((v) => v.id);
+        gameIds = games.map((g) => g.id);
         break;
       }
 
       case "recent": {
         const since = new Date();
         since.setDate(since.getDate() - days);
-        const videos = await prisma.video.findMany({
-          where: {
-            status: "PUBLISHED",
-            OR: [
-              { createdAt: { gte: since } },
-              { updatedAt: { gte: since } },
-            ],
-          },
-          select: { id: true },
-        });
+        const [videos, games] = await Promise.all([
+          prisma.video.findMany({
+            where: {
+              status: "PUBLISHED",
+              OR: [
+                { createdAt: { gte: since } },
+                { updatedAt: { gte: since } },
+              ],
+            },
+            select: { id: true },
+          }),
+          prisma.game.findMany({
+            where: {
+              status: "PUBLISHED",
+              OR: [
+                { createdAt: { gte: since } },
+                { updatedAt: { gte: since } },
+              ],
+            },
+            select: { id: true },
+          }),
+        ]);
         videoIds = videos.map((v) => v.id);
+        gameIds = games.map((g) => g.id);
         break;
       }
 
@@ -111,11 +133,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "无效的 type 参数" }, { status: 400 });
     }
 
-    // 提交视频到 IndexNow
+    // 提交视频和游戏到 IndexNow
     if (hasIndexNow) {
-      results.indexnow = await submitVideosToIndexNow(videoIds);
-      const r = results.indexnow as { success: number };
-      messages.push(`IndexNow: ${r.success} 个视频`);
+      const [videoResult, gameResult] = await Promise.all([
+        submitVideosToIndexNow(videoIds),
+        submitGamesToIndexNow(gameIds),
+      ]);
+      results.indexnow = {
+        success: videoResult.success + gameResult.success,
+        failed: videoResult.failed + gameResult.failed,
+      };
+      const parts: string[] = [];
+      if (videoResult.success > 0) parts.push(`${videoResult.success} 个视频`);
+      if (gameResult.success > 0) parts.push(`${gameResult.success} 个游戏`);
+      messages.push(`IndexNow: ${parts.join("、") || "0 条内容"}`);
     }
 
     // 同时通知 Google 更新 sitemap

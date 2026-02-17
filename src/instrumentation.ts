@@ -5,8 +5,8 @@
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 export async function register() {
-  // 仅在 Node.js 运行时启动（排除 Edge Runtime）
-  if (process.env.NEXT_RUNTIME === "nodejs") {
+  // 仅在 Node.js 运行时 + 非开发环境启动（排除 Edge Runtime 和 dev server）
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NODE_ENV !== "development") {
     const { startCoverWorker, startBackfillScheduler } = await import(
       "@/lib/cover-auto"
     );

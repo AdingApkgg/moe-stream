@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { getOrSet } from "@/lib/redis";
+import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 
 const GAME_CACHE_TTL = 60; // 1 minute
 
@@ -311,6 +312,11 @@ export const gameRouter = router({
         },
       });
 
+      // 发布状态时异步提交到 IndexNow
+      if (status === "PUBLISHED") {
+        submitGameToIndexNow(game.id).catch(() => {});
+      }
+
       return { id: game.id, status: game.status };
     }),
 
@@ -451,7 +457,23 @@ export const gameRouter = router({
         }
       }
 
+      // 批量创建完成后，异步提交成功创建/更新的游戏到 IndexNow
+      const successIds = results
+        .filter((r) => r.id && !r.error)
+        .map((r) => r.id!);
+      if (successIds.length > 0 && status === "PUBLISHED") {
+        submitGamesToIndexNow(successIds).catch(() => {});
+      }
+
       return { results };
+    }),
+
+  /** 批量提交游戏到 IndexNow */
+  submitBatchToIndexNow: protectedProcedure
+    .input(z.object({ gameIds: z.array(z.string()) }))
+    .mutation(async ({ input }) => {
+      const result = await submitGamesToIndexNow(input.gameIds);
+      return result;
     }),
 
   /** 切换收藏 */

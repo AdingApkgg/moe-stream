@@ -1152,9 +1152,7 @@ function VideoExtraInfoSection({ extraInfo }: { extraInfo: import("@/lib/shortco
             <Info className="h-4 w-4" />
             作品介绍
           </h3>
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {extraInfo.intro}
-          </div>
+          <Markdown content={extraInfo.intro} className="text-sm" />
         </div>
       )}
 
@@ -1191,7 +1189,9 @@ function VideoExtraInfoSection({ extraInfo }: { extraInfo: import("@/lib/shortco
               </p>
             )}
             {extraInfo.authorIntro && (
-              <p className="text-sm text-muted-foreground mt-2">{extraInfo.authorIntro}</p>
+              <div className="mt-2">
+                <Markdown content={extraInfo.authorIntro} className="text-sm" />
+              </div>
             )}
           </div>
         </div>

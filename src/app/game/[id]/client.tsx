@@ -18,6 +18,7 @@ import {
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { Markdown } from "@/components/ui/markdown";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import type { SerializedGame } from "./page";
 import type { GameExtraInfo } from "./page";
@@ -326,9 +327,7 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
               <TabsContent value="intro" className="pt-4">
                 <Card>
                   <CardContent className="p-4 sm:p-6">
-                    <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                      {initialGame.description}
-                    </div>
+                    <Markdown content={initialGame.description!} />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -381,9 +380,7 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
               <TabsContent value="characters" className="pt-4">
                 <Card>
                   <CardContent className="p-4 sm:p-6">
-                    <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                      {extra.characterIntro}
-                    </div>
+                    <Markdown content={extra.characterIntro!} />
                   </CardContent>
                 </Card>
               </TabsContent>

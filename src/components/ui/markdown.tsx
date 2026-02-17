@@ -3,36 +3,20 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { mdxProseClasses } from "@/components/mdx/mdx-components";
 
 interface MarkdownProps {
   content: string;
   className?: string;
 }
 
+/** 客户端 Markdown 渲染器 - 用于客户端组件中渲染 Markdown/MDX 字符串 */
 export function Markdown({ content, className }: MarkdownProps) {
   return (
-    <div
-      className={cn(
-        "prose prose-sm dark:prose-invert max-w-none",
-        "prose-headings:font-semibold prose-headings:tracking-tight",
-        "prose-h1:text-xl prose-h2:text-lg prose-h3:text-base",
-        "prose-p:leading-relaxed prose-p:text-muted-foreground",
-        "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-        "prose-strong:text-foreground prose-strong:font-semibold",
-        "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
-        "prose-pre:bg-muted prose-pre:border prose-pre:rounded-lg",
-        "prose-blockquote:border-l-primary prose-blockquote:bg-muted/50 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r",
-        "prose-ul:list-disc prose-ol:list-decimal",
-        "prose-li:text-muted-foreground",
-        "prose-hr:border-border",
-        "prose-table:border prose-th:bg-muted prose-th:p-2 prose-td:p-2 prose-td:border",
-        className
-      )}
-    >
+    <div className={cn(mdxProseClasses, className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // 自定义链接在新标签页打开
           a: ({ href, children, ...props }) => (
             <a
               href={href}
@@ -43,7 +27,6 @@ export function Markdown({ content, className }: MarkdownProps) {
               {children}
             </a>
           ),
-          // 自定义图片样式
           img: ({ src, alt, ...props }) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img

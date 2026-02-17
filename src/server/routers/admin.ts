@@ -8,6 +8,7 @@ import { parseShortcode } from "@/lib/shortcode-parser";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { addToQueueBatch } from "@/lib/cover-queue";
 import { deleteCache } from "@/lib/redis";
+import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 
 // 检查用户是否有特定权限
 async function hasScope(
@@ -1946,6 +1947,11 @@ export const adminRouter = router({
         data: { status: input.status },
       });
 
+      // 审核通过时通知搜索引擎索引
+      if (input.status === "PUBLISHED") {
+        submitGameToIndexNow(input.gameId).catch(() => {});
+      }
+
       return { success: true };
     }),
 
@@ -2032,6 +2038,11 @@ export const adminRouter = router({
         },
       });
 
+      // 发布状态时异步提交到 IndexNow
+      if (input.status === "PUBLISHED") {
+        submitGameToIndexNow(game.id).catch(() => {});
+      }
+
       return game;
     }),
 
@@ -2080,6 +2091,9 @@ export const adminRouter = router({
           });
         }
       }
+
+      // 游戏更新后通知搜索引擎重新索引
+      submitGameToIndexNow(gameId).catch(() => {});
 
       return { success: true };
     }),
@@ -2134,6 +2148,11 @@ export const adminRouter = router({
         where: { id: { in: input.gameIds } },
         data: { status: input.status },
       });
+
+      // 批量审核通过时通知搜索引擎索引
+      if (input.status === "PUBLISHED") {
+        submitGamesToIndexNow(input.gameIds).catch(() => {});
+      }
 
       return { success: true, count: result.count };
     }),

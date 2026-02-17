@@ -189,5 +189,6 @@ export async function enqueueCoverForVideo(
   coverUrl?: string | null
 ): Promise<void> {
   if (coverUrl) return;
+  if (process.env.NODE_ENV === "development") return;
   await addToQueue(videoId);
 }

@@ -133,6 +133,47 @@ export async function submitVideosToIndexNow(videoIds: string[]): Promise<{ succ
 }
 
 /**
+ * 提交游戏页面到 IndexNow
+ * @param gameId 游戏ID
+ */
+export async function submitGameToIndexNow(gameId: string): Promise<boolean> {
+  const appUrl = env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) return false;
+  
+  const gameUrl = `${appUrl}/game/${gameId}`;
+  return submitToIndexNow(gameUrl);
+}
+
+/**
+ * 批量提交游戏页面到 IndexNow
+ * @param gameIds 游戏ID列表
+ */
+export async function submitGamesToIndexNow(gameIds: string[]): Promise<{ success: number; failed: number }> {
+  const appUrl = env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl || !env.INDEXNOW_KEY) {
+    return { success: 0, failed: gameIds.length };
+  }
+
+  const urls = gameIds.map((id) => `${appUrl}/game/${id}`);
+  
+  const batchSize = 10000;
+  let success = 0;
+  let failed = 0;
+
+  for (let i = 0; i < urls.length; i += batchSize) {
+    const batch = urls.slice(i, i + batchSize);
+    const result = await submitToIndexNow(batch);
+    if (result) {
+      success += batch.length;
+    } else {
+      failed += batch.length;
+    }
+  }
+
+  return { success, failed };
+}
+
+/**
  * 提交首页和其他重要页面
  */
 export async function submitSitePages(): Promise<boolean> {
