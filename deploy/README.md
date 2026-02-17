@@ -15,43 +15,52 @@
 
 ## 技术栈
 
-- **前端**: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Three.js
-- **后端**: tRPC, Prisma 7, NextAuth.js v5
+- **前端**: Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui
+- **后端**: tRPC, Prisma 7, Better Auth
 - **数据库**: PostgreSQL, Redis
-- **部署**: PM2, Nginx, Rathole
+- **内容渲染**: MDX (next-mdx-remote + @next/mdx)
+- **部署**: PM2 / Podman Compose, Nginx, Rathole
 
 ## 内网机部署
 
-### 1. 环境准备
+### 方式 A: Podman / Docker Compose（推荐）
+
+```bash
+git clone https://github.com/your-repo/mikiacg.git
+cd mikiacg
+cp .env.production.example .env.production
+# 编辑 .env.production
+
+# 全栈启动（PostgreSQL + Redis + App）
+podman compose up -d
+
+# 初始化数据库
+podman compose exec app npx prisma db push
+```
+
+### 方式 B: PM2
 
 ```bash
 git clone https://github.com/your-repo/mikiacg.git
 cd mikiacg
 cp .env.example .env
 # 编辑 .env 配置
-```
 
-### 2. 启动服务
-
-```bash
 # 安装依赖
 pnpm install --frozen-lockfile
 
 # 生成 Prisma Client
 pnpm db:generate
 
+# 初始化数据库
+pnpm db:push
+pnpm db:seed
+
 # 构建生产版本
 pnpm build
 
 # 启动/重启服务
 pm2 restart mikiacg || pm2 start ecosystem.config.cjs
-```
-
-### 3. 初始化数据库
-
-```bash
-pnpm db:push
-pnpm db:seed
 ```
 
 ### 4. 配置 Rathole 客户端
@@ -119,6 +128,17 @@ tar -czvf uploads-backup.tar.gz uploads/
 ```
 
 ## 更新
+
+**Podman Compose:**
+
+```bash
+git pull
+podman compose build --no-cache
+podman compose up -d
+podman compose exec app npx prisma db push
+```
+
+**PM2:**
 
 ```bash
 git pull
