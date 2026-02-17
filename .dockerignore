@@ -1,0 +1,26 @@
+node_modules
+.next
+.git
+.gitignore
+.cursor
+.vscode
+.history
+.DS_Store
+*.log
+
+# 构建产物
+src/generated
+tsconfig.tsbuildinfo
+
+# 环境配置（由 compose 注入）
+.env.development
+.env.production.local
+.env.local
+
+# 数据目录
+uploads/*
+data/*
+logs/*
+legacy_*.json
+legacy_*.txt
+deploy

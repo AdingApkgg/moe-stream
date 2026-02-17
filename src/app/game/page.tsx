@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { GameListClient } from "./client";
 import { cache } from "react";
+import { getPublicSiteConfig } from "@/lib/site-config";
+import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 const getInitialData = cache(async () => {
-  const [tags, games, typeStats, siteConfig] = await Promise.all([
+  const [tags, games, typeStats, siteConfig, fullConfig] = await Promise.all([
     // 获取热门游戏标签
     prisma.tag.findMany({
       where: {
@@ -49,12 +51,21 @@ const getInitialData = cache(async () => {
         announcementEnabled: true,
       },
     }),
+    // 获取完整站点配置（含广告列表）
+    getPublicSiteConfig(),
   ]);
+
+  // 服务端预选 4 条广告（SSR 直出）
+  const rawAds: Ad[] = Array.isArray(fullConfig.sponsorAds)
+    ? (fullConfig.sponsorAds as Ad[]).filter((a) => a.enabled !== false)
+    : [];
+  const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(rawAds, 4) : [];
 
   return {
     tags,
     games,
     siteConfig,
+    initialAds,
     typeStats: typeStats.map((s) => ({
       type: s.gameType || "OTHER",
       count: s._count.id,
@@ -81,7 +92,7 @@ function serializeGames(games: Awaited<ReturnType<typeof getInitialData>>["games
 }
 
 export default async function GameListPage() {
-  const { tags, games, typeStats, siteConfig } = await getInitialData();
+  const { tags, games, typeStats, siteConfig, initialAds } = await getInitialData();
   const serializedGames = serializeGames(games);
 
   return (
@@ -90,6 +101,7 @@ export default async function GameListPage() {
       initialGames={serializedGames}
       typeStats={typeStats}
       siteConfig={siteConfig}
+      initialAds={initialAds}
     />
   );
 }

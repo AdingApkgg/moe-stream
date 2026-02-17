@@ -2,13 +2,16 @@
 
 import { trpc } from "@/lib/trpc";
 import { GameGrid } from "@/components/game/game-grid";
-import type { GameCardData } from "@/components/game/game-card";
+import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AlertTriangle, X, ChevronLeft, ChevronRight, Gamepad2 } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
+import { AdCard } from "@/components/ads/ad-card";
+import { useRandomAds } from "@/hooks/use-ads";
+import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
 
 /** 游戏类型选项 */
@@ -46,9 +49,11 @@ interface GameListClientProps {
     announcement: string | null;
     announcementEnabled: boolean;
   } | null;
+  /** 服务端预选的广告（首页第一页 SSR 直出用） */
+  initialAds?: Ad[];
 }
 
-export function GameListClient({ initialTags, initialGames, typeStats, siteConfig }: GameListClientProps) {
+export function GameListClient({ initialTags, initialGames, typeStats, siteConfig, initialAds = [] }: GameListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
 
   // 记录用户访问了游戏区
@@ -86,6 +91,47 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
     [gameData?.games, page, sortBy, selectedTag, selectedType, initialGames]
   );
   const totalPages = gameData?.totalPages ?? 1;
+
+  // 广告选取：首页第一页用服务端预选的 initialAds（SSR 直出），后续页客户端按权重随机选取
+  const isFirstPage = page === 1 && sortBy === "latest" && selectedTag === null && selectedType === "";
+  const adSeed = `game-${page}-${sortBy}-${selectedTag ?? ""}-${selectedType}`;
+  const { ads: clientAds, showAds } = useRandomAds(4, adSeed);
+  const pickedAds = isFirstPage && initialAds.length > 0 ? initialAds : clientAds;
+
+  // 计算 4 个广告的插入位置（均匀分散在游戏列表中）
+  const adInsertPositions = useMemo(() => {
+    if (!showAds || pickedAds.length === 0 || games.length < 4) return [];
+    const count = Math.min(pickedAds.length, Math.floor(games.length / 3));
+    if (count === 0) return [];
+    const step = Math.floor(games.length / (count + 1));
+    const positions: number[] = [];
+    let seedNum = 0;
+    for (let i = 0; i < adSeed.length; i++) seedNum = (seedNum * 31 + adSeed.charCodeAt(i)) | 0;
+    for (let i = 0; i < count; i++) {
+      const base = step * (i + 1);
+      const offset = Math.abs(seedNum + i * 7) % Math.max(1, Math.floor(step / 2));
+      positions.push(Math.min(base + offset, games.length));
+    }
+    return [...new Set(positions)].sort((a, b) => a - b);
+  }, [showAds, pickedAds.length, games.length, adSeed]);
+
+  // 游戏 + 广告混合列表
+  type GridItem = { type: "game"; game: GameCardData } | { type: "ad"; adIndex: number };
+  const gridItems = useMemo((): GridItem[] => {
+    if (adInsertPositions.length === 0) return games.map((g) => ({ type: "game" as const, game: g }));
+    const items: GridItem[] = [];
+    let adIdx = 0;
+    for (let i = 0; i <= games.length; i++) {
+      while (adIdx < adInsertPositions.length && adInsertPositions[adIdx] === i) {
+        items.push({ type: "ad", adIndex: adIdx });
+        adIdx++;
+      }
+      if (i < games.length) {
+        items.push({ type: "game", game: games[i] });
+      }
+    }
+    return items;
+  }, [games, adInsertPositions]);
 
   // 标签栏滚动箭头
   const checkScrollArrows = () => {
@@ -284,6 +330,19 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
           <div key={`${sortBy}-${selectedTag}-${selectedType}-${page}`}>
             {isLoading && games.length === 0 ? (
               <GameGrid games={[]} isLoading />
+            ) : gridItems.some((x) => x.type === "ad") ? (
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+                {gridItems.map((item, index) =>
+                  item.type === "ad" ? (
+                    <AdCard
+                      key={`ad-${item.adIndex}`}
+                      ad={pickedAds[item.adIndex]}
+                    />
+                  ) : (
+                    <GameCard key={item.game.id} game={item.game} index={index} />
+                  )
+                )}
+              </div>
             ) : (
               <GameGrid games={games} isLoading={false} />
             )}

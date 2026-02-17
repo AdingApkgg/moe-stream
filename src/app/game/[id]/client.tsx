@@ -103,10 +103,10 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
 
         {/* 头部：封面 + 基本信息 */}
         <FadeIn delay={0.1}>
-          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr] gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-[360px_1fr] lg:grid-cols-[420px_1fr] gap-6 mb-8">
             {/* 左侧：封面 */}
-            <div className="mx-auto md:mx-0 w-full max-w-[320px]">
-              <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted shadow-lg">
+            <div className="mx-auto md:mx-0 w-full max-w-[420px]">
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-muted shadow-lg">
                 {initialGame.coverUrl ? (
                   <Image
                     src={
@@ -507,7 +507,7 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
           <FadeIn delay={0.3}>
             <div className="mb-8">
               <h2 className="text-lg font-bold mb-4">相关推荐</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {relatedGames.map((game, index) => (
                   <GameCard
                     key={game.id}

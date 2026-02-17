@@ -1,0 +1,84 @@
+# ============================================================
+# Podman / Docker Compose 配置
+# ============================================================
+#
+# 开发环境（仅启动 PostgreSQL + Redis，应用在宿主机运行）:
+#   podman compose up -d postgres redis
+#   # 或
+#   docker compose up -d postgres redis
+#
+# 全栈启动（含应用容器）:
+#   podman compose up -d
+#   # 或
+#   docker compose up -d
+#
+# 停止:
+#   podman compose down
+#
+# 查看日志:
+#   podman compose logs -f app
+#
+# ============================================================
+
+services:
+  # ---------- PostgreSQL ----------
+  postgres:
+    image: postgres:17-alpine
+    container_name: mikiacg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mikiacg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mikiacg_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mikiacg}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mikiacg}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Redis ----------
+  redis:
+    image: redis:7-alpine
+    container_name: mikiacg-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- 应用 ----------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mikiacg-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mikiacg}:${POSTGRES_PASSWORD:-mikiacg_password}@postgres:5432/${POSTGRES_DB:-mikiacg}?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.production
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

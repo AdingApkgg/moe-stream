@@ -22,7 +22,12 @@
     "script:create-user": "NODE_ENV=production tsx scripts/create-user.ts",
     "script:create-owner": "NODE_ENV=production tsx scripts/create-owner.ts",
     "script:fetch-videos": "tsx scripts/fetch-legacy-site.ts",
-    "script:fetch-games": "tsx scripts/fetch-legacy-games.ts"
+    "script:fetch-games": "tsx scripts/fetch-legacy-games.ts",
+    "compose:infra": "podman compose up -d postgres redis",
+    "compose:up": "podman compose up -d",
+    "compose:down": "podman compose down",
+    "compose:logs": "podman compose logs -f",
+    "compose:build": "podman compose build --no-cache"
   },
   "dependencies": {
     "@fontsource/noto-sans-jp": "^5.2.9",

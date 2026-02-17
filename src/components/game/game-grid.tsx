@@ -6,16 +6,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface GameGridProps {
   games: GameCardData[];
   isLoading?: boolean;
-  columns?: 4 | 5 | 6;
+  columns?: 3 | 4 | 5;
 }
 
 const gridColumns = {
-  4: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
-  5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-  6: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
+  3: "grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+  5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function GameGrid({ games, isLoading, columns = 5 }: GameGridProps) {
+export function GameGrid({ games, isLoading, columns = 4 }: GameGridProps) {
   if (isLoading) {
     return (
       <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
@@ -46,7 +46,7 @@ export function GameGrid({ games, isLoading, columns = 5 }: GameGridProps) {
 function GameCardSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="relative aspect-[3/4] rounded-lg overflow-hidden">
+      <div className="relative aspect-video rounded-lg overflow-hidden">
         <Skeleton className="absolute inset-0" />
         <div className="absolute top-1.5 left-1.5">
           <Skeleton className="h-4 w-10 rounded" />

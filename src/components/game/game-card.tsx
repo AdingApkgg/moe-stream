@@ -112,8 +112,8 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <Link href={`/game/${game.id}`} className="block">
-        {/* 封面 - 3:4 竖版比例 (游戏封面更适合竖版) */}
-        <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300">
+        {/* 封面 - 16:9 横版比例 */}
+        <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300">
           <GameCoverImage coverUrl={game.coverUrl} title={game.title} />
 
           {/* 底部渐变遮罩 */}
