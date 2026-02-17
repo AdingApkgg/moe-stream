@@ -8,10 +8,10 @@ const tagTypeSchema = z.enum(["video", "game"]).optional();
 
 // 缓存键
 const CACHE_KEYS = {
-  tagBySlug: (slug: string, type: string) => `tag:slug:${slug}:${type}`,
-  tagList: (search: string, limit: number, type: string) =>
-    `tag:list:${search || "all"}:${limit}:${type}`,
-  popularTags: (limit: number, type: string) => `tag:popular:${limit}:${type}`,
+  tagBySlug: (slug: string, type?: string) => `tag:slug:${slug}:${type || "all"}`,
+  tagList: (search: string, limit: number, type?: string) =>
+    `tag:list:${search || "all"}:${limit}:${type || "all"}`,
+  popularTags: (limit: number, type?: string) => `tag:popular:${limit}:${type || "all"}`,
 };
 
 // 缓存时间（秒）

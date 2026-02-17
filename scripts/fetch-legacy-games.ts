@@ -535,7 +535,7 @@ async function extractGameFromPage(
 
 async function writeToDatabase(games: GameInfo[]) {
   // 动态加载 Prisma（避免脚本不需要 DB 时也要连接）
-  const { PrismaClient } = await import("@prisma/client");
+  const { PrismaClient } = await import("../src/generated/prisma/client");
   const prisma = new PrismaClient();
 
   try {
