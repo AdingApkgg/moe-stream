@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
@@ -249,6 +251,9 @@ export default function DashboardLayout({
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
+              <SheetHeader className="sr-only">
+                <SheetTitle>管理面板导航</SheetTitle>
+              </SheetHeader>
               <SidebarContent
                 permissions={permissions}
                 pathname={pathname}

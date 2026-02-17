@@ -91,6 +91,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="relative min-h-screen flex flex-col overflow-x-hidden">
       <Header onMenuClick={toggleSidebar} />
       
+      {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
+      <div className="h-14 shrink-0" />
+      
       <div className="flex flex-1">
         {/* 桌面端侧边栏 */}
         {showSidebar && (

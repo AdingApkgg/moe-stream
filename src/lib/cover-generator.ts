@@ -248,10 +248,12 @@ export interface BestFrameResult {
 }
 
 /**
- * 智能选帧：并行提取采样帧 + 质量分析
+ * 智能选帧：串行提取采样帧 + 质量分析
  * 返回最佳帧的路径和临时目录（调用者负责清理 tempDir）
  *
  * 优化:
+ * - 串行提取 + 交错延迟，避免并发请求冲击 CDN
+ * - 早停机制：得分足够高时跳过剩余采样点
  * - ffprobe 超时后立即回退到默认采样点（不阻塞）
  * - ffmpeg 添加 -analyzeduration / -probesize 限制流分析
  * - 帧分析在低分辨率下进行（analysisWidth）
@@ -278,35 +280,51 @@ export async function selectBestFrame(
   log("CoverGen", `采样点: [${samplePoints.map((t) => t.toFixed(1)).join(", ")}]s, 宽度: ${width}px`);
 
   try {
-    // 并行提取所有采样帧（每个 ffmpeg 进程独立连接 + seek，适合远程 URL）
-    const frameResults = await Promise.all(
-      samplePoints.map(async (timeSec) => {
-        const framePath = path.join(tempDir, `frame-${timeSec}.jpg`);
-        const ok = await extractFrame(
-          videoUrl, timeSec, framePath, width,
-          Math.min(timeoutMs, 15000)
-        );
-        if (!ok) return null;
+    // 串行提取采样帧（避免并发请求冲击 CDN 导致 Connection reset）
+    // 每帧之间交错 300ms，并支持早停（得分 >= 0.7 即可跳过剩余帧）
+    const EARLY_STOP_SCORE = 0.7;
+    const STAGGER_DELAY_MS = 300;
 
-        try {
-          const analysis = await analyzeFrame(framePath);
-          log(
-            "CoverGen",
-            `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`
-          );
-          return { timeSec, framePath, analysis };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    // 选择最佳有效帧
+    type FrameResult = { timeSec: number; framePath: string; analysis: Awaited<ReturnType<typeof analyzeFrame>> };
+    const frameResults: (FrameResult | null)[] = [];
     let best: { timeSec: number; framePath: string; score: number } | null = null;
-    for (const result of frameResults) {
-      if (!result || !result.analysis.valid) continue;
-      if (!best || result.analysis.score > best.score) {
-        best = { timeSec: result.timeSec, framePath: result.framePath, score: result.analysis.score };
+
+    for (let i = 0; i < samplePoints.length; i++) {
+      const timeSec = samplePoints[i];
+      const framePath = path.join(tempDir, `frame-${timeSec}.jpg`);
+
+      // 交错延迟（首帧不等待）
+      if (i > 0) await sleep(STAGGER_DELAY_MS);
+
+      const ok = await extractFrame(
+        videoUrl, timeSec, framePath, width,
+        Math.min(timeoutMs, 15000)
+      );
+      if (!ok) {
+        frameResults.push(null);
+        continue;
+      }
+
+      try {
+        const analysis = await analyzeFrame(framePath);
+        log(
+          "CoverGen",
+          `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`
+        );
+        frameResults.push({ timeSec, framePath, analysis });
+
+        // 更新最佳帧
+        if (analysis.valid && (!best || analysis.score > best.score)) {
+          best = { timeSec, framePath, score: analysis.score };
+        }
+
+        // 早停：得分足够高，跳过剩余采样点
+        if (analysis.valid && analysis.score >= EARLY_STOP_SCORE) {
+          log("CoverGen", `早停: @${timeSec}s 得分 ${analysis.score.toFixed(3)} >= ${EARLY_STOP_SCORE}`);
+          break;
+        }
+      } catch {
+        frameResults.push(null);
       }
     }
 
@@ -404,7 +422,7 @@ export interface GenerateCoverOptions {
  * 为视频生成封面（完整流程）
  *
  * 性能优化:
- * 1. 并行采样帧（4 个 ffmpeg 同时运行，各自独立 HTTP range seek）
+ * 1. 串行采样帧 + 交错延迟（避免 CDN 限流），支持早停
  * 2. ffprobe 超时 5s → 快速回退到固定采样点
  * 3. ffmpeg -analyzeduration/-probesize 限制远程流探测开销
  * 4. 帧分析在 480px 低分辨率下进行（减少 sharp 计算量）

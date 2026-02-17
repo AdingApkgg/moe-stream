@@ -30,11 +30,14 @@ import {
   TrendingUp,
   X,
   ArrowLeft,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { SettingsPanelInMenu } from "./settings-panel";
 import { MobileSidebarContent } from "./sidebar";
 import { useIsMounted } from "@/components/motion";
 import { trpc } from "@/lib/trpc";
@@ -153,6 +156,7 @@ function SearchSuggestionsList({
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { session, isLoading: sessionLoading } = useStableSession();
+  const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -345,15 +349,15 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background">
-        <div className="flex h-14 items-center gap-1 px-2 md:px-4">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background">
+        <div className="flex h-14 items-center">
           {/* Left: Menu + Logo */}
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center shrink-0 h-full px-2 md:px-4">
             {/* Desktop Menu Toggle */}
             <Button
               variant="ghost"
               size="icon"
-              className="hidden md:inline-flex h-10 w-10 rounded-full"
+              className="hidden md:inline-flex h-10 w-10 rounded-full shrink-0"
               onClick={onMenuClick}
               aria-label="切换侧边栏"
             >
@@ -385,7 +389,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </Sheet>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center ml-1 md:ml-2">
+            <Link href="/" className="flex items-center ml-1">
               <Image
                 src="/Mikiacg-logo.webp"
                 alt="Mikiacg"
@@ -398,7 +402,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
 
           {/* Center: YouTube-style pill search bar */}
-          <div className="flex-1 flex justify-center px-2 md:px-8 lg:px-16">
+          <div className="flex-1 flex justify-center px-2 md:px-6 lg:px-12">
             <form onSubmit={handleSearchSubmit} className="hidden md:flex w-full max-w-[560px]">
               <div className="relative w-full">
                 <div className="flex">
@@ -446,7 +450,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
 
           {/* Right: Search (mobile) + User */}
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0 pr-2 md:pr-4">
             {/* Mobile Search Toggle */}
             <Button
               variant="ghost"
@@ -456,6 +460,44 @@ export function Header({ onMenuClick }: HeaderProps) {
               aria-label="搜索"
             >
               <Search className="h-5 w-5" />
+            </Button>
+
+            {/* 主题三选：跟随系统 / 浅色 / 深色 */}
+            <div className="hidden sm:flex items-center h-8 rounded-full bg-muted/60 p-0.5 gap-0.5">
+              {([
+                { value: "system", icon: Monitor, label: "跟随系统" },
+                { value: "light", icon: Sun, label: "浅色" },
+                { value: "dark", icon: Moon, label: "深色" },
+              ] as const).map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTheme(value)}
+                  aria-label={label}
+                  className={cn(
+                    "flex items-center justify-center h-7 w-7 rounded-full transition-colors",
+                    mounted && theme === value
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
+            {/* 移动端：单按钮循环切换 */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sm:hidden h-9 w-9 rounded-full"
+              onClick={() => {
+                const next = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
+                setTheme(next);
+              }}
+              aria-label="切换主题"
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
             </Button>
 
             {isLoading ? (
@@ -527,8 +569,6 @@ export function Header({ onMenuClick }: HeaderProps) {
                       管理面板
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <SettingsPanelInMenu />
                   <DropdownMenuSeparator />
                   <AccountSwitcher />
                   <DropdownMenuSeparator />

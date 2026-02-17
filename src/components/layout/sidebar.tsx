@@ -201,7 +201,7 @@ function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
             type="button"
             onClick={() => setContentMode(opt.id)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors",
+              "flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-xs whitespace-nowrap transition-colors",
               isSelected
                 ? "bg-background text-foreground font-medium shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
