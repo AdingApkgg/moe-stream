@@ -1344,44 +1344,46 @@ export const videoRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const favorites = await ctx.prisma.favorite.findMany({
-        where: {
-          userId: ctx.session.user.id,
-          video: { status: "PUBLISHED" },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: ctx.session.user.id,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [favorites, totalCount] = await Promise.all([
+        ctx.prisma.favorite.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (favorites.length > input.limit) {
-        const nextItem = favorites.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.favorite.count({ where }),
+      ]);
 
       return {
         favorites: favorites
           .filter((f) => f.video !== null)
           .map((f) => f.video),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 
@@ -1390,44 +1392,46 @@ export const videoRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const likes = await ctx.prisma.like.findMany({
-        where: {
-          userId: ctx.session.user.id,
-          video: { status: "PUBLISHED" },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: ctx.session.user.id,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [likes, totalCount] = await Promise.all([
+        ctx.prisma.like.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (likes.length > input.limit) {
-        const nextItem = likes.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.like.count({ where }),
+      ]);
 
       return {
         videos: likes
           .filter((l) => l.video !== null)
           .map((l) => l.video),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 
@@ -1437,44 +1441,46 @@ export const videoRouter = router({
       z.object({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const favorites = await ctx.prisma.favorite.findMany({
-        where: {
-          userId: input.userId,
-          video: { status: "PUBLISHED" },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [favorites, totalCount] = await Promise.all([
+        ctx.prisma.favorite.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (favorites.length > input.limit) {
-        const nextItem = favorites.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.favorite.count({ where }),
+      ]);
 
       return {
         favorites: favorites
           .filter((f) => f.video !== null)
           .map((f) => f.video),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 
@@ -1484,44 +1490,46 @@ export const videoRouter = router({
       z.object({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const likes = await ctx.prisma.like.findMany({
-        where: {
-          userId: input.userId,
-          video: { status: "PUBLISHED" },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [likes, totalCount] = await Promise.all([
+        ctx.prisma.like.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (likes.length > input.limit) {
-        const nextItem = likes.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.like.count({ where }),
+      ]);
 
       return {
         videos: likes
           .filter((l) => l.video !== null)
           .map((l) => l.video),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 
@@ -1531,40 +1539,38 @@ export const videoRouter = router({
       z.object({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const history = await ctx.prisma.watchHistory.findMany({
-        where: {
-          userId: input.userId,
-          video: {
-            status: "PUBLISHED",
-          },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { updatedAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [history, totalCount] = await Promise.all([
+        ctx.prisma.watchHistory.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (history.length > input.limit) {
-        const nextItem = history.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.watchHistory.count({ where }),
+      ]);
 
       return {
         history: history
@@ -1574,7 +1580,9 @@ export const videoRouter = router({
             watchedAt: h.updatedAt,
             progress: h.progress,
           })),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 
@@ -1583,40 +1591,38 @@ export const videoRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const history = await ctx.prisma.watchHistory.findMany({
-        where: {
-          userId: ctx.session.user.id,
-          video: {
-            status: "PUBLISHED",
-          },
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { updatedAt: "desc" },
-        include: {
-          video: {
-            include: {
-              uploader: {
-                select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = {
+        userId: ctx.session.user.id,
+        video: { status: "PUBLISHED" as const },
+      };
+
+      const [history, totalCount] = await Promise.all([
+        ctx.prisma.watchHistory.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            video: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
               },
-              tags: {
-                include: { tag: { select: { id: true, name: true, slug: true } } },
-              },
-              _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
             },
           },
-        },
-      });
-
-      let nextCursor: string | undefined = undefined;
-      if (history.length > input.limit) {
-        const nextItem = history.pop();
-        nextCursor = nextItem!.id;
-      }
+        }),
+        ctx.prisma.watchHistory.count({ where }),
+      ]);
 
       return {
         history: history
@@ -1626,7 +1632,9 @@ export const videoRouter = router({
             watchedAt: h.updatedAt,
             progress: h.progress,
           })),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 

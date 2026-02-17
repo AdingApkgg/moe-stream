@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Input } from "./input";
 import { Button } from "./button";
 import { Loader2, Mail } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 
 interface EmailCodeInputProps {
   email: string;

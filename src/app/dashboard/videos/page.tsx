@@ -42,7 +42,7 @@ import {
   Collapsible,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import {
   Video,
   Search,

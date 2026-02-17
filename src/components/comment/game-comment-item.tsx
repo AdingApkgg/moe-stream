@@ -47,7 +47,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getAvatarUrlClient } from "@/lib/avatar";

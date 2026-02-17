@@ -5,6 +5,8 @@ interface UserPreferences {
   autoplay: boolean;
   quality: "auto" | "1080p" | "720p" | "480p";
   volume: number;
+  soundEnabled: boolean;
+  soundVolume: number;
 }
 
 interface UserStore {
@@ -20,6 +22,8 @@ const defaultPreferences: UserPreferences = {
   autoplay: false,
   quality: "auto",
   volume: 1,
+  soundEnabled: false,
+  soundVolume: 0.3,
 };
 
 export const useUserStore = create<UserStore>()(

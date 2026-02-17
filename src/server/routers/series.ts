@@ -101,7 +101,7 @@ export const seriesRouter = router({
     .input(z.object({
       userId: z.string().optional(),
       limit: z.number().min(1).max(50).default(20),
-      cursor: z.string().optional(),
+      page: z.number().min(1).default(1),
     }))
     .query(async ({ ctx, input }) => {
       const userId = input.userId || ctx.session?.user?.id;
@@ -109,30 +109,30 @@ export const seriesRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "请先登录" });
       }
 
-      const series = await ctx.prisma.series.findMany({
-        where: { creatorId: userId },
-        include: {
-          _count: { select: { episodes: true } },
-          episodes: {
-            take: 1,
-            orderBy: { episodeNum: "asc" },
-            include: {
-              video: {
-                select: { id: true, coverUrl: true },
+      const { limit, page } = input;
+      const where = { creatorId: userId };
+
+      const [series, totalCount] = await Promise.all([
+        ctx.prisma.series.findMany({
+          where,
+          include: {
+            _count: { select: { episodes: true } },
+            episodes: {
+              take: 1,
+              orderBy: { episodeNum: "asc" },
+              include: {
+                video: {
+                  select: { id: true, coverUrl: true },
+                },
               },
             },
           },
-        },
-        orderBy: { updatedAt: "desc" },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-      });
-
-      let nextCursor: string | undefined;
-      if (series.length > input.limit) {
-        const nextItem = series.pop();
-        nextCursor = nextItem?.id;
-      }
+          orderBy: { updatedAt: "desc" },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        ctx.prisma.series.count({ where }),
+      ]);
 
       return {
         items: series.map(s => ({
@@ -140,7 +140,9 @@ export const seriesRouter = router({
           episodeCount: s._count.episodes,
           firstEpisodeCover: s.episodes[0]?.video.coverUrl || s.coverUrl,
         })),
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 

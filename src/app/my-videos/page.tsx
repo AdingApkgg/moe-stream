@@ -58,7 +58,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { formatViews, formatRelativeTime } from "@/lib/format";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import Image from "next/image";
 import { EmptyState } from "@/components/ui/empty-state";

@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Heart, Star, Loader2, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, type LucideIcon } from "lucide-react";
+import { Calendar, Heart, Star, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useInView } from "react-intersection-observer";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { formatRelativeTime } from "@/lib/format";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useSound } from "@/hooks/use-sound";
 import type { SerializedUser } from "./page";
 
 // 社交图标组件
@@ -118,16 +119,13 @@ function SocialLinks({ socialLinks }: { socialLinks: Record<string, string> | nu
 
 type ProfileTab = "history" | "favorites" | "liked";
 
-/** 无限滚动视频网格（通用） */
-function InfiniteVideoGrid({
-  videos, isLoading, isFetchingNextPage, hasNextPage, sentinelRef, emptyIcon, emptyTitle, emptyDescription,
+/** 视频网格（通用） */
+function VideoGrid({
+  videos, isLoading, emptyIcon, emptyTitle, emptyDescription,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   videos: any[];
   isLoading: boolean;
-  isFetchingNextPage: boolean;
-  hasNextPage: boolean | undefined;
-  sentinelRef: React.Ref<HTMLDivElement>;
   emptyIcon: LucideIcon;
   emptyTitle: string;
   emptyDescription: string;
@@ -153,25 +151,15 @@ function InfiniteVideoGrid({
   }
 
   return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {videos
-          .filter((video) => video?.id != null)
-          .map((video, index) => (
-            <div key={video.id}>
-              <VideoCard video={video} index={index} />
-            </div>
-          ))}
-      </div>
-      <div ref={sentinelRef} className="flex justify-center py-8">
-        {isFetchingNextPage && (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        )}
-        {!hasNextPage && videos.length > 0 && (
-          <p className="text-sm text-muted-foreground">没有更多了</p>
-        )}
-      </div>
-    </>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {videos
+        .filter((video) => video?.id != null)
+        .map((video, index) => (
+          <div key={video.id}>
+            <VideoCard video={video} index={index} />
+          </div>
+        ))}
+    </div>
   );
 }
 
@@ -184,10 +172,11 @@ interface UserPageClientProps {
 
 export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: UserPageClientProps) {
   const { data: session, status } = useSession();
+  const { play } = useSound();
   const [activeTab, setActiveTab] = useState<ProfileTab>("history");
-  const { ref: historyRef, inView: historyInView } = useInView();
-  const { ref: favRef, inView: favInView } = useInView();
-  const { ref: likedRef, inView: likedInView } = useInView();
+  const [historyPage, setHistoryPage] = useState(1);
+  const [favPage, setFavPage] = useState(1);
+  const [likedPage, setLikedPage] = useState(1);
 
   // 使用服务端预判断作为初始值；客户端 session 加载完成后以客户端结果为准
   const clientIsOwn = status === "authenticated" && session?.user?.id === id;
@@ -206,67 +195,26 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
   const displayUser = user || initialUser;
 
   // 观看记录（公开，任何人可查看指定用户的观看记录）
-  const {
-    data: historyData,
-    isLoading: historyLoading,
-    fetchNextPage: fetchHistoryNext,
-    hasNextPage: historyHasNext,
-    isFetchingNextPage: historyFetchingNext,
-  } = trpc.video.getUserHistory.useInfiniteQuery(
-    { userId: id, limit: 20 },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-      enabled: activeTab === "history",
-    }
+  const { data: historyData, isLoading: historyLoading } = trpc.video.getUserHistory.useQuery(
+    { userId: id, limit: 20, page: historyPage },
+    { enabled: activeTab === "history" }
   );
 
   // 收藏列表（公开，任何人可查看指定用户的收藏）
-  const {
-    data: favData,
-    isLoading: favLoading,
-    fetchNextPage: fetchFavNext,
-    hasNextPage: favHasNext,
-    isFetchingNextPage: favFetchingNext,
-  } = trpc.video.getUserFavorites.useInfiniteQuery(
-    { userId: id, limit: 20 },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-      enabled: activeTab === "favorites",
-    }
+  const { data: favData, isLoading: favLoading } = trpc.video.getUserFavorites.useQuery(
+    { userId: id, limit: 20, page: favPage },
+    { enabled: activeTab === "favorites" }
   );
 
   // 喜欢（点赞）列表（公开，任何人可查看指定用户的喜欢）
-  const {
-    data: likedData,
-    isLoading: likedLoading,
-    fetchNextPage: fetchLikedNext,
-    hasNextPage: likedHasNext,
-    isFetchingNextPage: likedFetchingNext,
-  } = trpc.video.getUserLiked.useInfiniteQuery(
-    { userId: id, limit: 20 },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-      enabled: activeTab === "liked",
-    }
+  const { data: likedData, isLoading: likedLoading } = trpc.video.getUserLiked.useQuery(
+    { userId: id, limit: 20, page: likedPage },
+    { enabled: activeTab === "liked" }
   );
 
-  // 无限滚动触发
-  useEffect(() => {
-    if (historyInView && historyHasNext && !historyFetchingNext) fetchHistoryNext();
-  }, [historyInView, historyHasNext, historyFetchingNext, fetchHistoryNext]);
-
-  useEffect(() => {
-    if (favInView && favHasNext && !favFetchingNext) fetchFavNext();
-  }, [favInView, favHasNext, favFetchingNext, fetchFavNext]);
-
-  useEffect(() => {
-    if (likedInView && likedHasNext && !likedFetchingNext) fetchLikedNext();
-  }, [likedInView, likedHasNext, likedFetchingNext, fetchLikedNext]);
-
-  // getHistory 返回的 history 项已是视频对象（含 watchedAt/progress），不是 { video }
-  const historyVideos = historyData?.pages.flatMap((p) => p.history) ?? [];
-  const favVideos = favData?.pages.flatMap((p) => p.favorites) ?? [];
-  const likedVideos = likedData?.pages.flatMap((p) => p.videos) ?? [];
+  const historyVideos = historyData?.history ?? [];
+  const favVideos = favData?.favorites ?? [];
+  const likedVideos = likedData?.videos ?? [];
 
   // 用户不存在
   if (!initialUser && !displayUser && !userLoading) {
@@ -405,7 +353,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => { setActiveTab(tab.key); play("navigate"); }}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
                   activeTab === tab.key
@@ -425,42 +373,57 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
         {/* Tab 内容 */}
         {activeTab === "history" && (
-          <InfiniteVideoGrid
-            videos={historyVideos}
-            isLoading={historyLoading}
-            isFetchingNextPage={historyFetchingNext}
-            hasNextPage={historyHasNext}
-            sentinelRef={historyRef}
-            emptyIcon={Clock}
-            emptyTitle="暂无观看记录"
-            emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
-          />
+          <>
+            <VideoGrid
+              videos={historyVideos}
+              isLoading={historyLoading}
+              emptyIcon={Clock}
+              emptyTitle="暂无观看记录"
+              emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
+            />
+            <Pagination
+              currentPage={historyPage}
+              totalPages={historyData?.totalPages ?? 1}
+              onPageChange={setHistoryPage}
+              className="mt-6"
+            />
+          </>
         )}
 
         {activeTab === "favorites" && (
-          <InfiniteVideoGrid
-            videos={favVideos}
-            isLoading={favLoading}
-            isFetchingNextPage={favFetchingNext}
-            hasNextPage={favHasNext}
-            sentinelRef={favRef}
-            emptyIcon={Star}
-            emptyTitle="暂无收藏"
-            emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
-          />
+          <>
+            <VideoGrid
+              videos={favVideos}
+              isLoading={favLoading}
+              emptyIcon={Star}
+              emptyTitle="暂无收藏"
+              emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
+            />
+            <Pagination
+              currentPage={favPage}
+              totalPages={favData?.totalPages ?? 1}
+              onPageChange={setFavPage}
+              className="mt-6"
+            />
+          </>
         )}
 
         {activeTab === "liked" && (
-          <InfiniteVideoGrid
-            videos={likedVideos}
-            isLoading={likedLoading}
-            isFetchingNextPage={likedFetchingNext}
-            hasNextPage={likedHasNext}
-            sentinelRef={likedRef}
-            emptyIcon={ThumbsUp}
-            emptyTitle="暂无喜欢"
-            emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
-          />
+          <>
+            <VideoGrid
+              videos={likedVideos}
+              isLoading={likedLoading}
+              emptyIcon={ThumbsUp}
+              emptyTitle="暂无喜欢"
+              emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
+            />
+            <Pagination
+              currentPage={likedPage}
+              totalPages={likedData?.totalPages ?? 1}
+              onPageChange={setLikedPage}
+              className="mt-6"
+            />
+          </>
         )}
     </div>
   );

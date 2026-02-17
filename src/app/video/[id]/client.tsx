@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatViews, formatRelativeTime } from "@/lib/format";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
+import { useSound } from "@/hooks/use-sound";
 import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
 import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
@@ -192,6 +193,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   const incrementViews = trpc.video.incrementViews.useMutation();
   const utils = trpc.useUtils();
+  const { play } = useSound();
 
   const likeMutation = trpc.video.like.useMutation({
     onMutate: async (vars) => {
@@ -348,6 +350,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await likeMutation.mutateAsync({ videoId: currentVideoId });
+      play("success");
     } catch {
       toast.error("操作失败");
     }
@@ -360,6 +363,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await dislikeMutation.mutateAsync({ videoId: currentVideoId });
+      play("success");
     } catch {
       toast.error("操作失败");
     }
@@ -372,6 +376,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await confusedMutation.mutateAsync({ videoId: currentVideoId });
+      play("success");
     } catch {
       toast.error("操作失败");
     }
@@ -385,6 +390,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     try {
       const result = await favoriteMutation.mutateAsync({ videoId: currentVideoId });
       toast.success(result.favorited ? "已添加到收藏" : "已取消收藏");
+      play(result.favorited ? "success" : "cancel");
     } catch {
       toast.error("操作失败");
     }

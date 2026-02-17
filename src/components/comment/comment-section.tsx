@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import { CommentItem } from "./comment-item";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useIsMounted } from "@/components/motion";

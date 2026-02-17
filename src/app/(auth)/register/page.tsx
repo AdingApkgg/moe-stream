@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EmailCodeInput } from "@/components/ui/email-code-input";

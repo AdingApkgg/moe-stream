@@ -18,53 +18,51 @@ export const commentRouter = router({
   listRecent: publicProcedure
     .input(
       z.object({
-        cursor: z.string().optional(),
-        limit: z.number().min(1).max(50).default(10),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { cursor, limit } = input;
+      const { page, limit } = input;
+      const where = {
+        isDeleted: false,
+        isHidden: false,
+        video: { status: "PUBLISHED" as const },
+      };
 
-      const comments = await ctx.prisma.comment.findMany({
-        where: {
-          isDeleted: false,
-          isHidden: false,
-          video: {
-            status: "PUBLISHED",
-          },
-        },
-        take: limit + 1,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              nickname: true,
-              avatar: true,
-              role: true,
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.comment.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+                role: true,
+              },
+            },
+            video: {
+              select: {
+                id: true,
+                title: true,
+                coverUrl: true,
+              },
             },
           },
-          video: {
-            select: {
-              id: true,
-              title: true,
-              coverUrl: true,
-            },
-          },
-        },
-      });
-
-      let nextCursor: string | undefined;
-      if (comments.length > limit) {
-        const nextItem = comments.pop();
-        nextCursor = nextItem?.id;
-      }
+        }),
+        ctx.prisma.comment.count({ where }),
+      ]);
 
       return {
         comments,
-        nextCursor,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
       };
     }),
 

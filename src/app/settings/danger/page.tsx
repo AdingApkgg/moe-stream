@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import { Loader2, LogOut, Trash2, AlertTriangle } from "lucide-react";
 
 export default function DangerPage() {

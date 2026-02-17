@@ -17,7 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import {
   AlertDialog,
   AlertDialogAction,

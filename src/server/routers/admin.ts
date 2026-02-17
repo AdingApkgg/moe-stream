@@ -230,59 +230,63 @@ export const adminRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
         search: z.string().optional(),
         role: z.enum(["ALL", "USER", "ADMIN", "OWNER"]).default("ALL"),
         banned: z.enum(["ALL", "BANNED", "ACTIVE"]).default("ALL"),
       })
     )
     .query(async ({ ctx, input }) => {
-      // 检查权限
       const canView = await hasScope(ctx.prisma, ctx.session.user.id, "user:view");
       if (!canView) {
         throw new TRPCError({ code: "FORBIDDEN", message: "无用户查看权限" });
       }
 
-      const users = await ctx.prisma.user.findMany({
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        where: {
-          ...(input.role !== "ALL" && { role: input.role }),
-          ...(input.banned === "BANNED" && { isBanned: true }),
-          ...(input.banned === "ACTIVE" && { isBanned: false }),
-          ...(input.search && {
-            OR: [
-              { username: { contains: input.search, mode: "insensitive" } },
-              { nickname: { contains: input.search, mode: "insensitive" } },
-              { email: { contains: input.search, mode: "insensitive" } },
-            ],
-          }),
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          nickname: true,
-          avatar: true,
-          role: true,
-          adminScopes: true,
-          isBanned: true,
-          banReason: true,
-          lastIpLocation: true,
-          adsEnabled: true,
-          createdAt: true,
-          _count: { select: { videos: true, comments: true, likes: true } },
-        },
-      });
+      const { limit, page } = input;
+      const where = {
+        ...(input.role !== "ALL" && { role: input.role }),
+        ...(input.banned === "BANNED" && { isBanned: true }),
+        ...(input.banned === "ACTIVE" && { isBanned: false }),
+        ...(input.search && {
+          OR: [
+            { username: { contains: input.search, mode: "insensitive" as const } },
+            { nickname: { contains: input.search, mode: "insensitive" as const } },
+            { email: { contains: input.search, mode: "insensitive" as const } },
+          ],
+        }),
+      };
 
-      let nextCursor: string | undefined = undefined;
-      if (users.length > input.limit) {
-        const nextItem = users.pop();
-        nextCursor = nextItem!.id;
-      }
+      const [users, totalCount] = await Promise.all([
+        ctx.prisma.user.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            nickname: true,
+            avatar: true,
+            role: true,
+            adminScopes: true,
+            isBanned: true,
+            banReason: true,
+            lastIpLocation: true,
+            adsEnabled: true,
+            createdAt: true,
+            _count: { select: { videos: true, comments: true, likes: true } },
+          },
+        }),
+        ctx.prisma.user.count({ where }),
+      ]);
 
-      return { users, nextCursor };
+      return {
+        users,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   // 封禁用户
@@ -1045,7 +1049,7 @@ export const adminRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
         search: z.string().optional(),
       })
     )
@@ -1055,30 +1059,35 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
       }
 
-      const tags = await ctx.prisma.tag.findMany({
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        where: input.search
-          ? {
-              OR: [
-                { name: { contains: input.search, mode: "insensitive" } },
-                { slug: { contains: input.search, mode: "insensitive" } },
-              ],
-            }
-          : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          _count: { select: { videos: true, games: true } },
-        },
-      });
+      const { limit, page } = input;
+      const where = input.search
+        ? {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" as const } },
+              { slug: { contains: input.search, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
 
-      let nextCursor: string | undefined = undefined;
-      if (tags.length > input.limit) {
-        const nextItem = tags.pop();
-        nextCursor = nextItem!.id;
-      }
+      const [tags, totalCount] = await Promise.all([
+        ctx.prisma.tag.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            _count: { select: { videos: true, games: true } },
+          },
+        }),
+        ctx.prisma.tag.count({ where }),
+      ]);
 
-      return { tags, nextCursor };
+      return {
+        tags,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   // 更新标签
@@ -1213,7 +1222,7 @@ export const adminRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
       })
@@ -1224,6 +1233,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
       }
 
+      const { limit, page } = input;
       const where = {
         ...(input.search && {
           OR: [
@@ -1245,24 +1255,26 @@ export const adminRouter = router({
         };
       }>;
 
-      const comments = (await ctx.prisma.comment.findMany({
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: { select: { id: true, username: true, nickname: true, avatar: true } },
-          video: { select: { id: true, title: true } },
-        },
-      })) as AdminComment[];
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.comment.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: { select: { id: true, username: true, nickname: true, avatar: true } },
+            video: { select: { id: true, title: true } },
+          },
+        }) as Promise<AdminComment[]>,
+        ctx.prisma.comment.count({ where }),
+      ]);
 
-      let nextCursor: string | undefined = undefined;
-      if (comments.length > input.limit) {
-        const nextItem = comments.pop();
-        nextCursor = nextItem!.id;
-      }
-
-      return { comments, nextCursor };
+      return {
+        comments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   // 隐藏/显示评论
@@ -1428,7 +1440,7 @@ export const adminRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
       })
@@ -1439,6 +1451,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
       }
 
+      const { limit, page } = input;
       const where = {
         ...(input.search && {
           OR: [
@@ -1460,24 +1473,26 @@ export const adminRouter = router({
         };
       }>;
 
-      const comments = (await ctx.prisma.gameComment.findMany({
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-          user: { select: { id: true, username: true, nickname: true, avatar: true } },
-          game: { select: { id: true, title: true } },
-        },
-      })) as AdminGameComment[];
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.gameComment.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: { select: { id: true, username: true, nickname: true, avatar: true } },
+            game: { select: { id: true, title: true } },
+          },
+        }) as Promise<AdminGameComment[]>,
+        ctx.prisma.gameComment.count({ where }),
+      ]);
 
-      let nextCursor: string | undefined = undefined;
-      if (comments.length > input.limit) {
-        const nextItem = comments.pop();
-        nextCursor = nextItem!.id;
-      }
-
-      return { comments, nextCursor };
+      return {
+        comments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   toggleGameCommentHidden: adminProcedure

@@ -34,6 +34,8 @@ import {
   Moon,
   Monitor,
   Gamepad2,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -44,6 +46,8 @@ import { useIsMounted } from "@/components/motion";
 import { trpc } from "@/lib/trpc";
 import { useDebounce, useStableSession } from "@/lib/hooks";
 import { useSearchHistoryStore } from "@/stores/app";
+import { useUserStore } from "@/stores/user";
+import { playSound } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -153,6 +157,32 @@ function SearchSuggestionsList({
         );
       })}
     </div>
+  );
+}
+
+function SoundToggleButton() {
+  const soundEnabled = useUserStore((s) => s.preferences.soundEnabled);
+  const soundVolume = useUserStore((s) => s.preferences.soundVolume);
+  const setPreference = useUserStore((s) => s.setPreference);
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-9 w-9 rounded-full"
+      onClick={() => {
+        const next = !soundEnabled;
+        setPreference("soundEnabled", next);
+        if (next) playSound("toggle", soundVolume);
+      }}
+      aria-label={soundEnabled ? "关闭音效" : "开启音效"}
+    >
+      {soundEnabled ? (
+        <Volume2 className="h-4 w-4" />
+      ) : (
+        <VolumeX className="h-4 w-4 text-muted-foreground" />
+      )}
+    </Button>
   );
 }
 
@@ -511,6 +541,9 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
             </Button>
+
+            {/* Sound Toggle */}
+            <SoundToggleButton />
 
             {isLoading ? (
               <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />

@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 import { Loader2, Upload, Link, X, Images, MapPin, Globe, AtSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {

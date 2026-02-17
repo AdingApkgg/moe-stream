@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSound } from "@/hooks/use-sound";
 import {
   Users,
   Video,
@@ -124,6 +125,7 @@ function StatCardSkeleton() {
 
 export default function StatsPage() {
   const [rangeDays, setRangeDays] = useState<1 | 7 | 30>(30);
+  const { play } = useSound();
 
   const { data: totalStats, isLoading: totalLoading } =
     trpc.admin.getPublicStats.useQuery();
@@ -181,7 +183,7 @@ export default function StatsPage() {
               </CardTitle>
               <Tabs
                 value={rangeDays.toString()}
-                onValueChange={(v) => setRangeDays(Number(v) as 1 | 7 | 30)}
+                onValueChange={(v) => { setRangeDays(Number(v) as 1 | 7 | 30); play("navigate"); }}
               >
                 <TabsList className="h-8">
                   {RANGE_OPTIONS.map((opt) => (

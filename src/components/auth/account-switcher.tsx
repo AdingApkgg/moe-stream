@@ -14,7 +14,7 @@ import {
 import { Check, Plus, UserCircle, X, Loader2 } from "lucide-react";
 import { useAccountsStore, type SavedAccount } from "@/stores/accounts";
 import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 
 export function AccountSwitcher() {
   const { data: session } = useSession();

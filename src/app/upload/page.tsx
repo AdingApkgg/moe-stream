@@ -18,7 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
+import { useSound } from "@/hooks/use-sound";
 import {
   Loader2,
   Upload,
@@ -246,7 +247,8 @@ function buildGameExtraInfo(g: ParsedGame): Record<string, unknown> | undefined 
 export default function UploadPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  
+  const { play } = useSound();
+
   // 内容类型选择
   const [contentType, setContentType] = useState<UploadContentType>("video");
 
@@ -777,7 +779,7 @@ export default function UploadPage() {
       {contentType === "video" && (
       <>
       {/* 模式切换 */}
-      <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as "single" | "batch")} className="mb-6">
+      <Tabs value={uploadMode} onValueChange={(v) => { setUploadMode(v as "single" | "batch"); play("navigate"); }} className="mb-6">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="single" className="gap-2">
             <FileVideo className="h-4 w-4" />
@@ -1712,7 +1714,7 @@ export default function UploadPage() {
       {/* ==================== 游戏上传 ==================== */}
       {contentType === "game" && (
       <>
-        <Tabs value={gameUploadMode} onValueChange={(v) => setGameUploadMode(v as "single" | "batch")} className="mb-6">
+        <Tabs value={gameUploadMode} onValueChange={(v) => { setGameUploadMode(v as "single" | "batch"); play("navigate"); }} className="mb-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="single" className="gap-2">
               <Gamepad2 className="h-4 w-4" />

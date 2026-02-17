@@ -8,6 +8,8 @@ import { Footer } from "./footer";
 import { BottomNav } from "./bottom-nav";
 import { CommandPalette } from "./command-palette";
 import { AdGate } from "@/components/ads/ad-gate";
+import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
 import { useIsMounted } from "@/components/motion";
 
@@ -30,6 +32,7 @@ function shouldHideSidebar(pathname: string): boolean {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mounted = useIsMounted();
+  const { showHelp, setShowHelp } = useKeyboardShortcuts();
   
   // 判断页面类型
   const isOverlayMode = isOverlaySidebarPage(pathname);
@@ -130,6 +133,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* 赞助商广告门（启用且未达免广告时段时显示） */}
       <AdGate />
+
+      {/* 快捷键帮助对话框 */}
+      <KeyboardShortcutsDialog open={showHelp} onOpenChange={setShowHelp} />
     </div>
   );
 }

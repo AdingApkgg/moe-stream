@@ -39,7 +39,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-with-sound";
 
 // 配置表单 schema
 const configFormSchema = z.object({

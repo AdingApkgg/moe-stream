@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import { useEffect, useCallback, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -39,72 +38,6 @@ export function useStableSession() {
     status,
     isLoading: status === "loading",
   };
-}
-
-// ==================== useInfiniteScroll ====================
-// 统一的无限滚动 hook，用于替代各页面重复的 useInView + fetchNextPage 逻辑
-
-interface UseInfiniteScrollOptions {
-  /** 是否启用无限滚动 */
-  enabled?: boolean;
-  /** 触发加载的阈值，0-1 之间的数值 */
-  threshold?: number;
-  /** 触发加载的距离（像素） */
-  rootMargin?: string;
-  /** 防抖延迟（毫秒） */
-  debounceMs?: number;
-}
-
-interface UseInfiniteScrollReturn {
-  /** 绑定到观察元素的 ref */
-  ref: (node?: Element | null) => void;
-  /** 元素是否在视口内 */
-  inView: boolean;
-}
-
-/**
- * 无限滚动 hook
- * @param fetchNextPage - 加载下一页的函数
- * @param hasNextPage - 是否还有下一页
- * @param isFetchingNextPage - 是否正在加载下一页
- * @param options - 配置选项
- */
-export function useInfiniteScroll(
-  fetchNextPage: () => void,
-  hasNextPage: boolean | undefined,
-  isFetchingNextPage: boolean,
-  options: UseInfiniteScrollOptions = {}
-): UseInfiniteScrollReturn {
-  const {
-    enabled = true,
-    threshold = 0,
-    rootMargin = "100px",
-    debounceMs = 100,
-  } = options;
-
-  const lastFetchTime = useRef(0);
-
-  const { ref, inView } = useInView({
-    threshold,
-    rootMargin,
-    skip: !enabled,
-  });
-
-  useEffect(() => {
-    if (!enabled) return;
-    if (!inView) return;
-    if (!hasNextPage) return;
-    if (isFetchingNextPage) return;
-
-    // 防抖
-    const now = Date.now();
-    if (now - lastFetchTime.current < debounceMs) return;
-    lastFetchTime.current = now;
-
-    fetchNextPage();
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage, enabled, debounceMs]);
-
-  return { ref, inView };
 }
 
 // ==================== useRequireAuth ====================
