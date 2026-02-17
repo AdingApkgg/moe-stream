@@ -5,6 +5,7 @@ import { gameRouter } from "./game";
 import { tagRouter } from "./tag";
 import { adminRouter } from "./admin";
 import { commentRouter } from "./comment";
+import { gameCommentRouter } from "./game-comment";
 import { seriesRouter } from "./series";
 import { siteRouter } from "./site";
 
@@ -15,6 +16,7 @@ export const appRouter = router({
   tag: tagRouter,
   admin: adminRouter,
   comment: commentRouter,
+  gameComment: gameCommentRouter,
   series: seriesRouter,
   site: siteRouter,
 });

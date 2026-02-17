@@ -30,14 +30,26 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await hash(input.password, 12);
+      const hashedPassword = await hash(input.password, 10);
 
       const user = await ctx.prisma.user.create({
         data: {
           email: input.email,
-          username: input.username,
+          username: input.username.toLowerCase(),
+          displayUsername: input.username,
           password: hashedPassword,
           nickname: input.nickname || input.username,
+        },
+      });
+
+      // 创建 Better Auth credential Account（登录时从此表验证密码）
+      await ctx.prisma.account.create({
+        data: {
+          userId: user.id,
+          type: "credential",
+          provider: "credential",
+          providerAccountId: user.id,
+          password: hashedPassword,
         },
       });
 
@@ -378,8 +390,9 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
       const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
+        where: { id: userId },
       });
 
       if (!user || !user.password) {
@@ -394,9 +407,15 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await hash(input.newPassword, 12);
+      const hashedPassword = await hash(input.newPassword, 10);
       await ctx.prisma.user.update({
-        where: { id: ctx.session.user.id },
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      // 同步更新 Better Auth credential Account
+      await ctx.prisma.account.updateMany({
+        where: { userId, provider: "credential" },
         data: { password: hashedPassword },
       });
 
@@ -423,9 +442,15 @@ export const userRouter = router({
         });
       }
 
-      const hashedPassword = await hash(input.newPassword, 12);
+      const hashedPassword = await hash(input.newPassword, 10);
       await ctx.prisma.user.update({
         where: { email: input.email },
+        data: { password: hashedPassword },
+      });
+
+      // 同步更新 Better Auth credential Account
+      await ctx.prisma.account.updateMany({
+        where: { userId: user.id, provider: "credential" },
         data: { password: hashedPassword },
       });
 

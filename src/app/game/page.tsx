@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const getInitialData = cache(async () => {
-  const [tags, games, typeStats] = await Promise.all([
+  const [tags, games, typeStats, siteConfig] = await Promise.all([
     // 获取热门游戏标签
     prisma.tag.findMany({
       where: {
@@ -42,11 +42,19 @@ const getInitialData = cache(async () => {
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
     }),
+    // 获取公告配置
+    prisma.siteConfig.findFirst({
+      select: {
+        announcement: true,
+        announcementEnabled: true,
+      },
+    }),
   ]);
 
   return {
     tags,
     games,
+    siteConfig,
     typeStats: typeStats.map((s) => ({
       type: s.gameType || "OTHER",
       count: s._count.id,
@@ -73,7 +81,7 @@ function serializeGames(games: Awaited<ReturnType<typeof getInitialData>>["games
 }
 
 export default async function GameListPage() {
-  const { tags, games, typeStats } = await getInitialData();
+  const { tags, games, typeStats, siteConfig } = await getInitialData();
   const serializedGames = serializeGames(games);
 
   return (
@@ -81,6 +89,7 @@ export default async function GameListPage() {
       initialTags={tags}
       initialGames={serializedGames}
       typeStats={typeStats}
+      siteConfig={siteConfig}
     />
   );
 }

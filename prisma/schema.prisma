@@ -59,7 +59,8 @@ model User {
   gameLikes          GameLike[]
   gameDislikes       GameDislike[]
   gameComments       GameComment[]    @relation("GameCommentAuthor")
-  gameCommentReplies GameComment[]    @relation("GameCommentReplyTo")
+  gameCommentReplies    GameComment[]    @relation("GameCommentReplyTo")
+  gameCommentReactions  GameCommentReaction[]
 
   @@index([email])
   @@index([username])
@@ -404,6 +405,7 @@ model GameComment {
   parent      GameComment?   @relation("GameCommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies     GameComment[]  @relation("GameCommentReplies")
   replyToUser User?          @relation("GameCommentReplyTo", fields: [replyToUserId], references: [id], onDelete: SetNull)
+  reactions   GameCommentReaction[]
 
   @@index([gameId, createdAt])
   @@index([gameId, likes])
@@ -411,6 +413,20 @@ model GameComment {
   @@index([parentId])
 }
 
+
+model GameCommentReaction {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  isLike    Boolean
+  createdAt DateTime @default(now())
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment GameComment       @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
 
 model Tag {
   id        String       @id @default(cuid())
@@ -706,4 +722,20 @@ model SiteConfig {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==================== 友情链接 ====================
+
+model FriendLink {
+  id          String   @id @default(cuid())
+  name        String                         // 站点名称
+  url         String                         // 站点链接
+  logo        String?                        // 站点 logo URL
+  description String?                        // 站点描述
+  sort        Int      @default(0)           // 排序（越大越靠前）
+  visible     Boolean  @default(true)        // 是否显示
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sort])
 }

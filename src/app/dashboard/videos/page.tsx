@@ -78,16 +78,23 @@ import { getCoverUrl } from "@/lib/cover";
 type VideoStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | VideoStatus;
 
+type VideoRegexField =
+  | "title" | "description" | "coverUrl" | "videoUrl"
+  | "extraInfo.intro" | "extraInfo.author" | "extraInfo.authorIntro"
+  | "extraInfo.downloads.url" | "extraInfo.downloads.name" | "extraInfo.downloads.password"
+  | "extraInfo.relatedVideos";
+
 interface RegexTemplate {
   name: string;
   description: string;
-  field: "title" | "description" | "coverUrl" | "videoUrl";
+  field: VideoRegexField;
   pattern: string;
   replacement: string;
   flags: string;
 }
 
 const REGEX_TEMPLATES: RegexTemplate[] = [
+  // 视频源
   {
     name: "去除路径数字编号前缀",
     description: "将 /1-ViciNeko/ 变为 /ViciNeko/，去除目录名前的「数字-」前缀",
@@ -97,7 +104,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "g",
   },
   {
-    name: "HTTP 升级 HTTPS",
+    name: "视频源 HTTP→HTTPS",
     description: "将 http:// 替换为 https://",
     field: "videoUrl",
     pattern: "^http://",
@@ -105,7 +112,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "替换 CDN 域名",
+    name: "替换视频 CDN 域名",
     description: "将旧 CDN 域名替换为新域名（请修改域名）",
     field: "videoUrl",
     pattern: "https://old-cdn\\.example\\.com",
@@ -121,7 +128,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "去除 URL 查询参数",
+    name: "去除视频源查询参数",
     description: "移除 URL 中 ? 后的所有查询参数",
     field: "videoUrl",
     pattern: "\\?.*$",
@@ -144,12 +151,63 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     replacement: "/new-folder/",
     flags: "g",
   },
+  // 封面
   {
     name: "封面 URL 补全协议",
     description: "为以 // 开头的封面 URL 补全 https: 协议",
     field: "coverUrl",
     pattern: "^\\/\\/",
     replacement: "https://",
+    flags: "",
+  },
+  {
+    name: "封面 HTTP→HTTPS",
+    description: "将封面 URL 中的 http:// 替换为 https://",
+    field: "coverUrl",
+    pattern: "^http://",
+    replacement: "https://",
+    flags: "",
+  },
+  // 标题 & 描述
+  {
+    name: "去除标题方括号标记",
+    description: "去除标题中的 [汉化]、[中文] 等方括号标记",
+    field: "title",
+    pattern: "\\s*\\[.*?\\]\\s*",
+    replacement: " ",
+    flags: "g",
+  },
+  {
+    name: "清空描述中 HTML 标签",
+    description: "移除描述中所有 HTML 标签，只保留文本内容",
+    field: "description",
+    pattern: "<[^>]*>",
+    replacement: "",
+    flags: "g",
+  },
+  // 下载链接
+  {
+    name: "下载链接 HTTP→HTTPS",
+    description: "将下载链接中的 http:// 替换为 https://",
+    field: "extraInfo.downloads.url",
+    pattern: "^http://",
+    replacement: "https://",
+    flags: "",
+  },
+  {
+    name: "替换下载链接域名",
+    description: "替换下载链接中的域名（请修改域名）",
+    field: "extraInfo.downloads.url",
+    pattern: "https://old\\.example\\.com",
+    replacement: "https://new.example.com",
+    flags: "g",
+  },
+  {
+    name: "去除下载链接查询参数",
+    description: "移除下载链接中 ? 后的所有查询参数",
+    field: "extraInfo.downloads.url",
+    pattern: "\\?.*$",
+    replacement: "",
     flags: "",
   },
 ];
@@ -198,7 +256,7 @@ export default function AdminVideosPage() {
 
   // 正则批量编辑状态
   const [regexOpen, setRegexOpen] = useState(false);
-  const [regexField, setRegexField] = useState<"title" | "description" | "coverUrl" | "videoUrl">("videoUrl");
+  const [regexField, setRegexField] = useState<VideoRegexField>("videoUrl");
   const [regexPattern, setRegexPattern] = useState("");
   const [regexReplacement, setRegexReplacement] = useState("");
   const [regexFlags, setRegexFlags] = useState("g");
@@ -970,6 +1028,13 @@ export default function AdminVideosPage() {
                   <SelectItem value="coverUrl">封面链接 (coverUrl)</SelectItem>
                   <SelectItem value="title">标题 (title)</SelectItem>
                   <SelectItem value="description">描述 (description)</SelectItem>
+                  <SelectItem value="extraInfo.intro">作品介绍 (intro)</SelectItem>
+                  <SelectItem value="extraInfo.author">原作者 (author)</SelectItem>
+                  <SelectItem value="extraInfo.authorIntro">作者介绍 (authorIntro)</SelectItem>
+                  <SelectItem value="extraInfo.downloads.url">下载链接 (downloads.url)</SelectItem>
+                  <SelectItem value="extraInfo.downloads.name">下载名称 (downloads.name)</SelectItem>
+                  <SelectItem value="extraInfo.downloads.password">下载密码 (downloads.password)</SelectItem>
+                  <SelectItem value="extraInfo.relatedVideos">相关视频 (relatedVideos)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

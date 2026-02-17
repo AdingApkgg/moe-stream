@@ -699,7 +699,12 @@ export const adminRouter = router({
     .input(
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
-        field: z.enum(["title", "description", "coverUrl", "videoUrl"]),
+        field: z.enum([
+          "title", "description", "coverUrl", "videoUrl",
+          "extraInfo.intro", "extraInfo.author", "extraInfo.authorIntro",
+          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "extraInfo.relatedVideos",
+        ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
@@ -720,22 +725,61 @@ export const adminRouter = router({
 
       const videos = await ctx.prisma.video.findMany({
         where: { id: { in: input.videoIds } },
-        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true },
+        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true, extraInfo: true },
       });
 
       const previews: { id: string; title: string; before: string; after: string; changed: boolean }[] = [];
+      const field = input.field;
+      const isExtraField = field.startsWith("extraInfo.");
 
       for (const video of videos) {
-        const original = (video[input.field] ?? "") as string;
-        const replaced = original.replace(regex, input.replacement);
-        if (original !== replaced) {
-          previews.push({
-            id: video.id,
-            title: video.title,
-            before: original,
-            after: replaced,
-            changed: true,
-          });
+        if (!isExtraField) {
+          const original = ((video as Record<string, unknown>)[field] ?? "") as string;
+          const replaced = original.replace(regex, input.replacement);
+          if (original !== replaced) {
+            previews.push({ id: video.id, title: video.title, before: original, after: replaced, changed: true });
+          }
+        } else {
+          const extra = (video.extraInfo ?? {}) as Record<string, unknown>;
+          const subField = field.replace("extraInfo.", "");
+
+          if (subField.startsWith("downloads.")) {
+            const prop = subField.replace("downloads.", "") as "url" | "name" | "password";
+            const downloads = (extra.downloads ?? []) as { name?: string; url?: string; password?: string }[];
+            const beforeLines: string[] = [];
+            const afterLines: string[] = [];
+            for (const d of downloads) {
+              const original = (d[prop] ?? "") as string;
+              const replaced = original.replace(regex, input.replacement);
+              if (original !== replaced) {
+                beforeLines.push(original);
+                afterLines.push(replaced);
+              }
+            }
+            if (beforeLines.length > 0) {
+              previews.push({ id: video.id, title: video.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+            }
+          } else if (subField === "relatedVideos") {
+            const arr = (extra[subField] ?? []) as string[];
+            const beforeLines: string[] = [];
+            const afterLines: string[] = [];
+            for (let i = 0; i < arr.length; i++) {
+              const replaced = (arr[i] ?? "").replace(regex, input.replacement);
+              if (arr[i] !== replaced) {
+                beforeLines.push(arr[i]);
+                afterLines.push(replaced);
+              }
+            }
+            if (beforeLines.length > 0) {
+              previews.push({ id: video.id, title: video.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+            }
+          } else {
+            const original = (extra[subField] ?? "") as string;
+            const replaced = original.replace(regex, input.replacement);
+            if (original !== replaced) {
+              previews.push({ id: video.id, title: video.title, before: original, after: replaced, changed: true });
+            }
+          }
         }
       }
 
@@ -747,7 +791,12 @@ export const adminRouter = router({
     .input(
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
-        field: z.enum(["title", "description", "coverUrl", "videoUrl"]),
+        field: z.enum([
+          "title", "description", "coverUrl", "videoUrl",
+          "extraInfo.intro", "extraInfo.author", "extraInfo.authorIntro",
+          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "extraInfo.relatedVideos",
+        ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
@@ -768,20 +817,68 @@ export const adminRouter = router({
 
       const videos = await ctx.prisma.video.findMany({
         where: { id: { in: input.videoIds } },
-        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true },
+        select: { id: true, title: true, description: true, coverUrl: true, videoUrl: true, extraInfo: true },
       });
 
       let updatedCount = 0;
+      const field = input.field;
+      const isExtraField = field.startsWith("extraInfo.");
 
       for (const video of videos) {
-        const original = (video[input.field] ?? "") as string;
-        const replaced = original.replace(regex, input.replacement);
-        if (original !== replaced) {
-          await ctx.prisma.video.update({
-            where: { id: video.id },
-            data: { [input.field]: replaced || null },
-          });
-          updatedCount++;
+        if (!isExtraField) {
+          const original = ((video as Record<string, unknown>)[field] ?? "") as string;
+          const replaced = original.replace(regex, input.replacement);
+          if (original !== replaced) {
+            await ctx.prisma.video.update({
+              where: { id: video.id },
+              data: { [field]: replaced || null },
+            });
+            updatedCount++;
+          }
+        } else {
+          const extra = (video.extraInfo ?? {}) as Record<string, unknown>;
+          const subField = field.replace("extraInfo.", "");
+          let changed = false;
+          const newExtra = { ...extra };
+
+          if (subField.startsWith("downloads.")) {
+            const prop = subField.replace("downloads.", "") as "url" | "name" | "password";
+            const downloads = [...((extra.downloads ?? []) as { name?: string; url?: string; password?: string }[])];
+            for (let i = 0; i < downloads.length; i++) {
+              const original = (downloads[i][prop] ?? "") as string;
+              const replaced = original.replace(regex, input.replacement);
+              if (original !== replaced) {
+                downloads[i] = { ...downloads[i], [prop]: replaced || undefined };
+                changed = true;
+              }
+            }
+            if (changed) newExtra.downloads = downloads;
+          } else if (subField === "relatedVideos") {
+            const arr = [...((extra[subField] ?? []) as string[])];
+            for (let i = 0; i < arr.length; i++) {
+              const replaced = (arr[i] ?? "").replace(regex, input.replacement);
+              if (arr[i] !== replaced) {
+                arr[i] = replaced;
+                changed = true;
+              }
+            }
+            if (changed) newExtra[subField] = arr;
+          } else {
+            const original = (extra[subField] ?? "") as string;
+            const replaced = original.replace(regex, input.replacement);
+            if (original !== replaced) {
+              newExtra[subField] = replaced || undefined;
+              changed = true;
+            }
+          }
+
+          if (changed) {
+            await ctx.prisma.video.update({
+              where: { id: video.id },
+              data: { extraInfo: newExtra as Prisma.InputJsonValue },
+            });
+            updatedCount++;
+          }
         }
       }
 
@@ -898,14 +995,15 @@ export const adminRouter = router({
     }
 
     const tags = await ctx.prisma.tag.findMany({
-      select: { _count: { select: { videos: true } } },
+      select: { _count: { select: { videos: true, games: true } } },
     });
 
     const total = tags.length;
     const withVideos = tags.filter((t) => t._count.videos > 0).length;
-    const empty = total - withVideos;
+    const withGames = tags.filter((t) => t._count.games > 0).length;
+    const empty = tags.filter((t) => t._count.videos === 0 && t._count.games === 0).length;
 
-    return { total, withVideos, empty };
+    return { total, withVideos, withGames, empty };
   }),
 
   // 创建标签
@@ -969,7 +1067,7 @@ export const adminRouter = router({
           : undefined,
         orderBy: { createdAt: "desc" },
         include: {
-          _count: { select: { videos: true } },
+          _count: { select: { videos: true, games: true } },
         },
       });
 
@@ -1070,16 +1168,32 @@ export const adminRouter = router({
 
       // 将这些视频关联到目标标签
       for (const video of sourceVideos) {
-        // 添加目标标签关联
         await ctx.prisma.tagOnVideo.upsert({
           where: { videoId_tagId: { videoId: video.id, tagId: input.targetTagId } },
           create: { videoId: video.id, tagId: input.targetTagId },
           update: {},
         });
-        
-        // 删除源标签关联
         await ctx.prisma.tagOnVideo.deleteMany({
           where: { videoId: video.id, tagId: { in: input.sourceTagIds } },
+        });
+      }
+
+      // 获取所有源标签关联的游戏
+      const sourceGames = await ctx.prisma.game.findMany({
+        where: {
+          tags: { some: { tagId: { in: input.sourceTagIds } } },
+        },
+        select: { id: true },
+      });
+
+      for (const game of sourceGames) {
+        await ctx.prisma.tagOnGame.upsert({
+          where: { gameId_tagId: { gameId: game.id, tagId: input.targetTagId } },
+          create: { gameId: game.id, tagId: input.targetTagId },
+          update: {},
+        });
+        await ctx.prisma.tagOnGame.deleteMany({
+          where: { gameId: game.id, tagId: { in: input.sourceTagIds } },
         });
       }
 
@@ -1307,6 +1421,208 @@ export const adminRouter = router({
       return { success: true, count: result.count };
     }),
 
+  // ========== 游戏评论管理 ==========
+
+  listGameComments: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.string().nullish(),
+        search: z.string().optional(),
+        status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      const where = {
+        ...(input.search && {
+          OR: [
+            { content: { contains: input.search, mode: "insensitive" as const } },
+            { user: { username: { contains: input.search, mode: "insensitive" as const } } },
+            { user: { nickname: { contains: input.search, mode: "insensitive" as const } } },
+            { game: { title: { contains: input.search, mode: "insensitive" as const } } },
+          ],
+        }),
+        ...(input.status === "VISIBLE" && { isDeleted: false, isHidden: false }),
+        ...(input.status === "HIDDEN" && { isHidden: true, isDeleted: false }),
+        ...(input.status === "DELETED" && { isDeleted: true }),
+      };
+
+      type AdminGameComment = Prisma.GameCommentGetPayload<{
+        include: {
+          user: { select: { id: true; username: true; nickname: true; avatar: true } };
+          game: { select: { id: true; title: true } };
+        };
+      }>;
+
+      const comments = (await ctx.prisma.gameComment.findMany({
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { id: true, username: true, nickname: true, avatar: true } },
+          game: { select: { id: true, title: true } },
+        },
+      })) as AdminGameComment[];
+
+      let nextCursor: string | undefined = undefined;
+      if (comments.length > input.limit) {
+        const nextItem = comments.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return { comments, nextCursor };
+    }),
+
+  toggleGameCommentHidden: adminProcedure
+    .input(z.object({ commentId: z.string(), isHidden: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.gameComment.update({
+        where: { id: input.commentId },
+        data: { isHidden: input.isHidden },
+      });
+
+      return { success: true };
+    }),
+
+  deleteGameComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.gameComment.update({
+        where: { id: input.commentId },
+        data: { isDeleted: true },
+      });
+
+      return { success: true };
+    }),
+
+  restoreGameComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.gameComment.update({
+        where: { id: input.commentId },
+        data: { isDeleted: false },
+      });
+
+      return { success: true };
+    }),
+
+  getGameCommentStats: adminProcedure.query(async ({ ctx }) => {
+    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+    if (!canManage) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+    }
+
+    const [total, visible, hidden, deleted] = await Promise.all([
+      ctx.prisma.gameComment.count(),
+      ctx.prisma.gameComment.count({ where: { isDeleted: false, isHidden: false } }),
+      ctx.prisma.gameComment.count({ where: { isHidden: true, isDeleted: false } }),
+      ctx.prisma.gameComment.count({ where: { isDeleted: true } }),
+    ]);
+
+    return { total, visible, hidden, deleted };
+  }),
+
+  batchGameCommentAction: adminProcedure
+    .input(
+      z.object({
+        commentIds: z.array(z.string()).min(1).max(100),
+        action: z.enum(["hide", "show", "delete", "restore"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      const data = (() => {
+        switch (input.action) {
+          case "hide":
+            return { isHidden: true };
+          case "show":
+            return { isHidden: false };
+          case "delete":
+            return { isDeleted: true };
+          case "restore":
+            return { isDeleted: false };
+        }
+      })();
+
+      const result = await ctx.prisma.gameComment.updateMany({
+        where: { id: { in: input.commentIds } },
+        data,
+      });
+
+      return { success: true, count: result.count };
+    }),
+
+  hardDeleteGameComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.gameComment.deleteMany({
+        where: { parentId: input.commentId },
+      });
+
+      await ctx.prisma.gameCommentReaction.deleteMany({
+        where: { commentId: input.commentId },
+      });
+
+      await ctx.prisma.gameComment.delete({
+        where: { id: input.commentId },
+      });
+
+      return { success: true };
+    }),
+
+  batchHardDeleteGameComments: adminProcedure
+    .input(z.object({ commentIds: z.array(z.string()).min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.gameComment.deleteMany({
+        where: { parentId: { in: input.commentIds } },
+      });
+
+      await ctx.prisma.gameCommentReaction.deleteMany({
+        where: { commentId: { in: input.commentIds } },
+      });
+
+      const result = await ctx.prisma.gameComment.deleteMany({
+        where: { id: { in: input.commentIds } },
+      });
+
+      return { success: true, count: result.count };
+    }),
+
   // ========== 网站配置 ==========
 
   // 获取网站配置
@@ -1507,6 +1823,31 @@ export const adminRouter = router({
     }),
 
   // ==================== 游戏管理 ====================
+
+  /** 获取游戏用于编辑（管理员可编辑任意游戏） */
+  getGameForEdit: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
+      }
+
+      const game = await ctx.prisma.game.findUnique({
+        where: { id: input.id },
+        include: {
+          tags: {
+            include: { tag: { select: { id: true, name: true, slug: true } } },
+          },
+        },
+      });
+
+      if (!game) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
+      }
+
+      return game;
+    }),
 
   /** 游戏统计 */
   getGameStats: adminProcedure.query(async ({ ctx }) => {
@@ -1811,5 +2152,263 @@ export const adminRouter = router({
       });
 
       return { success: true, count: result.count };
+    }),
+
+  // ========== 友情链接管理 ==========
+
+  listFriendLinks: adminProcedure.query(async ({ ctx }) => {
+    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+    if (!canManage) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
+    }
+    return ctx.prisma.friendLink.findMany({ orderBy: [{ sort: "desc" }, { createdAt: "desc" }] });
+  }),
+
+  createFriendLink: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        url: z.string().url(),
+        logo: z.string().optional(),
+        description: z.string().max(200).optional(),
+        sort: z.number().int().default(0),
+        visible: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
+      }
+      return ctx.prisma.friendLink.create({ data: input });
+    }),
+
+  updateFriendLink: adminProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(100).optional(),
+        url: z.string().url().optional(),
+        logo: z.string().optional(),
+        description: z.string().max(200).optional(),
+        sort: z.number().int().optional(),
+        visible: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
+      }
+      const { id, ...data } = input;
+      return ctx.prisma.friendLink.update({ where: { id }, data });
+    }),
+
+  deleteFriendLink: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
+      }
+      await ctx.prisma.friendLink.delete({ where: { id: input.id } });
+      return { success: true };
+    }),
+
+  // ========== 游戏正则批量编辑 ==========
+
+  // 直接列字段
+  // extraInfo JSON 子字段用 "extraInfo.xxx" 格式表示
+
+  // 正则批量编辑 - 预览
+  batchGameRegexPreview: adminProcedure
+    .input(
+      z.object({
+        gameIds: z.array(z.string()).min(1).max(500),
+        field: z.enum([
+          "title", "description", "coverUrl", "gameType", "version",
+          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "extraInfo.screenshots", "extraInfo.videos",
+          "extraInfo.originalName", "extraInfo.authorUrl", "extraInfo.characterIntro",
+        ]),
+        pattern: z.string().min(1),
+        replacement: z.string(),
+        flags: z.string().default("g"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
+      }
+
+      let regex: RegExp;
+      try {
+        regex = new RegExp(input.pattern, input.flags);
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无效的正则表达式" });
+      }
+
+      const games = await ctx.prisma.game.findMany({
+        where: { id: { in: input.gameIds } },
+        select: { id: true, title: true, description: true, coverUrl: true, gameType: true, version: true, extraInfo: true },
+      });
+
+      const previews: { id: string; title: string; before: string; after: string; changed: boolean }[] = [];
+      const field = input.field;
+      const isExtraField = field.startsWith("extraInfo.");
+
+      for (const game of games) {
+        if (!isExtraField) {
+          const original = ((game as Record<string, unknown>)[field] ?? "") as string;
+          const replaced = original.replace(regex, input.replacement);
+          if (original !== replaced) {
+            previews.push({ id: game.id, title: game.title, before: original, after: replaced, changed: true });
+          }
+        } else {
+          const extra = (game.extraInfo ?? {}) as Record<string, unknown>;
+          const subField = field.replace("extraInfo.", "");
+
+          if (subField.startsWith("downloads.")) {
+            const prop = subField.replace("downloads.", "") as "url" | "name" | "password";
+            const downloads = (extra.downloads ?? []) as { name?: string; url?: string; password?: string }[];
+            const originals = downloads.map((d) => (d[prop] ?? "") as string);
+            const replaceds = originals.map((o) => o.replace(regex, input.replacement));
+            const beforeLines: string[] = [];
+            const afterLines: string[] = [];
+            for (let i = 0; i < originals.length; i++) {
+              if (originals[i] !== replaceds[i]) {
+                beforeLines.push(originals[i]);
+                afterLines.push(replaceds[i]);
+              }
+            }
+            if (beforeLines.length > 0) {
+              previews.push({ id: game.id, title: game.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+            }
+          } else if (subField === "screenshots" || subField === "videos") {
+            const arr = (extra[subField] ?? []) as string[];
+            const originals = arr.map((s) => s ?? "");
+            const replaceds = originals.map((o) => o.replace(regex, input.replacement));
+            const beforeLines: string[] = [];
+            const afterLines: string[] = [];
+            for (let i = 0; i < originals.length; i++) {
+              if (originals[i] !== replaceds[i]) {
+                beforeLines.push(originals[i]);
+                afterLines.push(replaceds[i]);
+              }
+            }
+            if (beforeLines.length > 0) {
+              previews.push({ id: game.id, title: game.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+            }
+          } else {
+            const original = (extra[subField] ?? "") as string;
+            const replaced = original.replace(regex, input.replacement);
+            if (original !== replaced) {
+              previews.push({ id: game.id, title: game.title, before: original, after: replaced, changed: true });
+            }
+          }
+        }
+      }
+
+      return { previews, totalMatched: previews.length, totalSelected: games.length };
+    }),
+
+  // 正则批量编辑 - 执行
+  batchGameRegexUpdate: adminProcedure
+    .input(
+      z.object({
+        gameIds: z.array(z.string()).min(1).max(500),
+        field: z.enum([
+          "title", "description", "coverUrl", "gameType", "version",
+          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "extraInfo.screenshots", "extraInfo.videos",
+          "extraInfo.originalName", "extraInfo.authorUrl", "extraInfo.characterIntro",
+        ]),
+        pattern: z.string().min(1),
+        replacement: z.string(),
+        flags: z.string().default("g"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
+      }
+
+      let regex: RegExp;
+      try {
+        regex = new RegExp(input.pattern, input.flags);
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无效的正则表达式" });
+      }
+
+      const games = await ctx.prisma.game.findMany({
+        where: { id: { in: input.gameIds } },
+        select: { id: true, title: true, description: true, coverUrl: true, gameType: true, version: true, extraInfo: true },
+      });
+
+      let updatedCount = 0;
+      const field = input.field;
+      const isExtraField = field.startsWith("extraInfo.");
+
+      for (const game of games) {
+        if (!isExtraField) {
+          const original = ((game as Record<string, unknown>)[field] ?? "") as string;
+          const replaced = original.replace(regex, input.replacement);
+          if (original !== replaced) {
+            await ctx.prisma.game.update({
+              where: { id: game.id },
+              data: { [field]: replaced || null },
+            });
+            updatedCount++;
+          }
+        } else {
+          const extra = (game.extraInfo ?? {}) as Record<string, unknown>;
+          const subField = field.replace("extraInfo.", "");
+          let changed = false;
+          const newExtra = { ...extra };
+
+          if (subField.startsWith("downloads.")) {
+            const prop = subField.replace("downloads.", "") as "url" | "name" | "password";
+            const downloads = [...((extra.downloads ?? []) as { name?: string; url?: string; password?: string }[])];
+            for (let i = 0; i < downloads.length; i++) {
+              const original = (downloads[i][prop] ?? "") as string;
+              const replaced = original.replace(regex, input.replacement);
+              if (original !== replaced) {
+                downloads[i] = { ...downloads[i], [prop]: replaced || undefined };
+                changed = true;
+              }
+            }
+            if (changed) newExtra.downloads = downloads;
+          } else if (subField === "screenshots" || subField === "videos") {
+            const arr = [...((extra[subField] ?? []) as string[])];
+            for (let i = 0; i < arr.length; i++) {
+              const replaced = (arr[i] ?? "").replace(regex, input.replacement);
+              if (arr[i] !== replaced) {
+                arr[i] = replaced;
+                changed = true;
+              }
+            }
+            if (changed) newExtra[subField] = arr;
+          } else {
+            const original = (extra[subField] ?? "") as string;
+            const replaced = original.replace(regex, input.replacement);
+            if (original !== replaced) {
+              newExtra[subField] = replaced || undefined;
+              changed = true;
+            }
+          }
+
+          if (changed) {
+            await ctx.prisma.game.update({
+              where: { id: game.id },
+              data: { extraInfo: newExtra as Prisma.InputJsonValue },
+            });
+            updatedCount++;
+          }
+        }
+      }
+
+      return { success: true, count: updatedCount };
     }),
 });

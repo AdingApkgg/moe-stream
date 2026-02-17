@@ -18,6 +18,7 @@ import {
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { GameCommentSection } from "@/components/comment/game-comment-section";
 import type { SerializedGame } from "./page";
 import type { GameExtraInfo } from "./page";
 
@@ -525,13 +526,11 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
           </FadeIn>
         )}
 
-        {/* 评论区预留 */}
+        {/* 评论区 */}
         <FadeIn delay={0.35}>
-          <Card className="mb-8">
-            <CardContent className="p-6 text-center text-muted-foreground">
-              <p className="text-sm">评论功能即将上线</p>
-            </CardContent>
-          </Card>
+          <div className="px-3 md:px-0 mb-8">
+            <GameCommentSection gameId={id} />
+          </div>
         </FadeIn>
       </div>
     </PageWrapper>

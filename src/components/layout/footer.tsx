@@ -39,6 +39,9 @@ export function Footer() {
             )}
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/links" className="hover:text-foreground transition-colors">
+              友链
+            </Link>
             <Link href="/feed.xml" className="hover:text-foreground transition-colors">
               RSS
             </Link>

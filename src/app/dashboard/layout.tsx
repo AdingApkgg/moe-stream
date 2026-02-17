@@ -28,6 +28,7 @@ import {
   Menu,
   Sparkles,
   ChevronLeft,
+  Link2,
 } from "lucide-react";
 
 const menuItems = [
@@ -60,6 +61,12 @@ const menuItems = [
     label: "评论管理",
     icon: MessageSquare,
     scope: "comment:manage",
+  },
+  {
+    href: "/dashboard/links",
+    label: "友情链接",
+    icon: Link2,
+    scope: "settings:manage",
   },
   {
     href: "/dashboard/settings",

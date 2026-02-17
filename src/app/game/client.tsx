@@ -5,7 +5,7 @@ import { GameGrid } from "@/components/game/game-grid";
 import type { GameCardData } from "@/components/game/game-card";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Gamepad2 } from "lucide-react";
+import { AlertTriangle, X, ChevronLeft, ChevronRight, Gamepad2 } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
@@ -42,9 +42,13 @@ interface GameListClientProps {
   initialTags: Tag[];
   initialGames: GameCardData[];
   typeStats: TypeStat[];
+  siteConfig: {
+    announcement: string | null;
+    announcementEnabled: boolean;
+  } | null;
 }
 
-export function GameListClient({ initialTags, initialGames, typeStats }: GameListClientProps) {
+export function GameListClient({ initialTags, initialGames, typeStats, siteConfig }: GameListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
 
   // 记录用户访问了游戏区
@@ -56,6 +60,7 @@ export function GameListClient({ initialTags, initialGames, typeStats }: GameLis
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [showAnnouncement, setShowAnnouncement] = useState(true);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -144,6 +149,28 @@ export function GameListClient({ initialTags, initialGames, typeStats }: GameLis
   return (
     <PageWrapper>
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
+        {/* 公告横幅 */}
+        {siteConfig?.announcementEnabled && siteConfig.announcement && (
+          <div
+            className={`mb-4 relative overflow-hidden transition-all duration-300 ${
+              showAnnouncement ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">
+                {siteConfig.announcement}
+              </p>
+              <button
+                onClick={() => setShowAnnouncement(false)}
+                className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 页面标题 */}
         <FadeIn delay={0.05}>
           <div className="flex items-center gap-3 mb-4">

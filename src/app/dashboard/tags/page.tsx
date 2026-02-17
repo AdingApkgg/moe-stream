@@ -42,11 +42,11 @@ import {
   Trash2,
   Loader2,
   Video,
+  Gamepad2,
   Plus,
   Merge,
   CheckSquare,
   Square,
-  ExternalLink,
   Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -56,7 +56,7 @@ interface TagItem {
   name: string;
   slug: string;
   createdAt: Date;
-  _count: { videos: number };
+  _count: { videos: number; games: number };
 }
 
 export default function AdminTagsPage() {
@@ -244,6 +244,10 @@ export default function AdminTagsPage() {
                 <Badge variant="secondary">{stats.withVideos}</Badge>
               </div>
               <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">有游戏</span>
+                <Badge variant="secondary">{stats.withGames}</Badge>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">空标签</span>
                 <Badge variant="outline">{stats.empty}</Badge>
               </div>
@@ -368,8 +372,18 @@ export default function AdminTagsPage() {
                               className="h-7 w-7"
                               asChild
                             >
-                              <Link href={`/video/tag/${tag.slug}`} target="_blank">
-                                <ExternalLink className="h-3 w-3" />
+                              <Link href={`/video/tag/${tag.slug}`} target="_blank" title="视频">
+                                <Video className="h-3 w-3" />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              asChild
+                            >
+                              <Link href={`/game/tag/${tag.slug}`} target="_blank" title="游戏">
+                                <Gamepad2 className="h-3 w-3" />
                               </Link>
                             </Button>
                             <Button
@@ -394,6 +408,10 @@ export default function AdminTagsPage() {
                           <span className="flex items-center gap-1">
                             <Video className="h-3 w-3" />
                             {tag._count.videos} 个视频
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Gamepad2 className="h-3 w-3" />
+                            {tag._count.games} 个游戏
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
@@ -511,7 +529,7 @@ export default function AdminTagsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确定要删除这个标签吗？</AlertDialogTitle>
             <AlertDialogDescription>
-              此操作不可撤销，标签将被永久删除。已关联的视频不会被删除，但会失去此标签。
+              此操作不可撤销，标签将被永久删除。已关联的视频和游戏不会被删除，但会失去此标签。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -533,7 +551,7 @@ export default function AdminTagsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确定批量删除吗？</AlertDialogTitle>
             <AlertDialogDescription>
-              将永久删除 {selectedIds.size} 个标签，已关联的视频不会被删除，但会失去这些标签。
+              将永久删除 {selectedIds.size} 个标签，已关联的视频和游戏不会被删除，但会失去这些标签。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -554,7 +572,7 @@ export default function AdminTagsPage() {
           <DialogHeader>
             <DialogTitle>合并标签</DialogTitle>
             <DialogDescription>
-              将所选标签合并到目标标签。合并后，原标签将被删除，关联的视频会转移到目标标签。
+              将所选标签合并到目标标签。合并后，原标签将被删除，关联的视频和游戏会转移到目标标签。
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -568,7 +586,7 @@ export default function AdminTagsPage() {
                   .filter((t) => selectedIds.has(t.id))
                   .map((tag) => (
                     <SelectItem key={tag.id} value={tag.id}>
-                      {tag.name} ({tag._count.videos} 个视频)
+                      {tag.name} ({tag._count.videos} 个视频, {tag._count.games} 个游戏)
                     </SelectItem>
                   ))}
               </SelectContent>
