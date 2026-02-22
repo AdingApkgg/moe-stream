@@ -239,7 +239,7 @@ pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
 ## 项目结构
 
 ```
-acgn-platform/
+moe-stream/
 ├── prisma/
 │   ├── schema.prisma        # 数据模型定义
 │   └── seed.ts              # 种子数据

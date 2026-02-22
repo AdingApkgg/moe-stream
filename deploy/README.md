@@ -26,8 +26,8 @@
 ### 方式 A: Podman / Docker Compose（推荐）
 
 ```bash
-git clone https://github.com/your-org/acgn-platform.git
-cd acgn-platform
+git clone https://github.com/your-username/moe-stream.git
+cd moe-stream
 cp .env.production.example .env.production
 # 编辑 .env.production
 
@@ -41,8 +41,8 @@ podman compose exec app npx prisma db push
 ### 方式 B: PM2
 
 ```bash
-git clone https://github.com/your-username/acgn-platform.git
-cd acgn-platform
+git clone https://github.com/your-username/moe-stream.git
+cd moe-stream
 cp .env.example .env
 # 编辑 .env 配置
 
