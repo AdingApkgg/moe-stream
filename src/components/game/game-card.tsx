@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Gamepad2, ThumbsUp, Eye, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatViews, formatRelativeTime } from "@/lib/format";
+import { useSound } from "@/hooks/use-sound";
 
 /** 游戏类型显示名映射 */
 const GAME_TYPE_LABELS: Record<string, string> = {
@@ -96,6 +97,7 @@ function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: 
 }
 
 function GameCardComponent({ game, index = 0 }: GameCardProps) {
+  const { play } = useSound();
   const extra = game.extraInfo && typeof game.extraInfo === "object" && !Array.isArray(game.extraInfo)
     ? game.extraInfo
     : null;
@@ -110,6 +112,7 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
     <div
       className="group transition-transform duration-300 hover:-translate-y-1"
       style={{ animationDelay: `${index * 50}ms` }}
+      onMouseEnter={() => play("hover")}
     >
       <Link href={`/game/${game.id}`} className="block">
         {/* 封面 - 16:9 横版比例 */}

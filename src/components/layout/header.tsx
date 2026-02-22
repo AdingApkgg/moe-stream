@@ -48,6 +48,7 @@ import { useDebounce, useStableSession } from "@/lib/hooks";
 import { useSearchHistoryStore } from "@/stores/app";
 import { useUserStore } from "@/stores/user";
 import { playSound } from "@/lib/audio";
+import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/contexts/site-config";
 
@@ -191,6 +192,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const siteConfig = useSiteConfig();
   const { session, isLoading: sessionLoading } = useStableSession();
   const { theme, setTheme } = useTheme();
+  const { play } = useSound();
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -402,7 +404,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="hidden md:inline-flex h-10 w-10 rounded-full shrink-0"
-              onClick={onMenuClick}
+              onClick={() => { onMenuClick?.(); play("swoosh"); }}
               aria-label="切换侧边栏"
             >
               <Menu className="h-5 w-5" />
@@ -457,7 +459,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                       placeholder="搜索"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      onFocus={() => setShowSuggestions(true)}
+                      onFocus={() => { setShowSuggestions(true); play("click"); }}
                       onKeyDown={handleKeyDown}
                       className="h-10 rounded-l-full rounded-r-none border border-r-0 pl-4 pr-3 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                       autoComplete="off"
@@ -500,7 +502,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="md:hidden h-10 w-10 rounded-full"
-              onClick={() => setShowMobileSearch(true)}
+              onClick={() => { setShowMobileSearch(true); play("click"); }}
               aria-label="搜索"
             >
               <Search className="h-5 w-5" />
@@ -516,7 +518,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setTheme(value)}
+                  onClick={() => { setTheme(value); play("toggle"); }}
                   aria-label={label}
                   className={cn(
                     "flex items-center justify-center h-7 w-7 rounded-full transition-colors",
@@ -537,6 +539,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               onClick={() => {
                 const next = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
                 setTheme(next);
+                play("toggle");
               }}
               aria-label="切换主题"
             >

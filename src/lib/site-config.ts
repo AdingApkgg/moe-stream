@@ -30,6 +30,13 @@ export interface PublicSiteConfig {
   adGateViewsRequired: number;
   adGateHours: number;
   sponsorAds: Ad[] | null;
+  effectEnabled: boolean;
+  effectType: string;
+  effectDensity: number;
+  effectSpeed: number;
+  effectOpacity: number;
+  effectColor: string;
+  soundDefaultEnabled: boolean;
 }
 
 const selectFields = {
@@ -58,6 +65,13 @@ const selectFields = {
   adGateViewsRequired: true,
   adGateHours: true,
   sponsorAds: true,
+  effectEnabled: true,
+  effectType: true,
+  effectDensity: true,
+  effectSpeed: true,
+  effectOpacity: true,
+  effectColor: true,
+  soundDefaultEnabled: true,
 } as const;
 
 const defaultConfig: PublicSiteConfig = {
@@ -86,6 +100,13 @@ const defaultConfig: PublicSiteConfig = {
   adGateViewsRequired: 3,
   adGateHours: 12,
   sponsorAds: null,
+  effectEnabled: true,
+  effectType: "sakura",
+  effectDensity: 50,
+  effectSpeed: 1.0,
+  effectOpacity: 0.8,
+  effectColor: "",
+  soundDefaultEnabled: true,
 };
 
 /**

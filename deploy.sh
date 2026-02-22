@@ -134,7 +134,14 @@ echo "🗄️  同步数据库..."
 pnpm db:push --accept-data-loss
 
 echo "🔨 构建项目..."
+# 保留旧 .next 供运行中的服务继续响应旧 chunk 请求
+if [ -d .next ]; then
+  rm -rf .next.bak
+  mv .next .next.bak
+fi
 pnpm build
+# 构建成功后才清理旧产物
+rm -rf .next.bak
 
 echo "🚀 重启服务..."
 pm2 restart ecosystem.config.cjs 2>/dev/null || pm2 start ecosystem.config.cjs

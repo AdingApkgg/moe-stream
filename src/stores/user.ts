@@ -22,7 +22,7 @@ const defaultPreferences: UserPreferences = {
   autoplay: false,
   quality: "auto",
   volume: 1,
-  soundEnabled: false,
+  soundEnabled: true,
   soundVolume: 0.3,
 };
 
@@ -38,6 +38,14 @@ export const useUserStore = create<UserStore>()(
     }),
     {
       name: "user-preferences",
+      version: 1,
+      migrate: (persisted, version) => {
+        if (version === 0) {
+          const old = persisted as { preferences: UserPreferences };
+          return { ...old };
+        }
+        return persisted as UserStore;
+      },
     }
   )
 );

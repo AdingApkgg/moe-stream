@@ -5,6 +5,7 @@ import Link from "next/link";
 import { VideoCover } from "./video-cover";
 import { Play, ThumbsUp } from "lucide-react";
 import { formatDuration, formatViews, formatRelativeTime } from "@/lib/format";
+import { useSound } from "@/hooks/use-sound";
 
 interface VideoCardProps {
   video: {
@@ -33,6 +34,7 @@ interface VideoCardProps {
 }
 
 function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
+  const { play } = useSound();
   const extra = video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? video.extraInfo : null;
   const authorName = extra?.author || video.uploader.nickname || video.uploader.username;
 
@@ -45,6 +47,7 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
     <div
       className="group transition-transform duration-300 hover:-translate-y-1"
       style={{ animationDelay: `${index * 50}ms` }}
+      onMouseEnter={() => play("hover")}
     >
       <Link href={`/video/${video.id}`} className="block">
         {/* 封面 */}

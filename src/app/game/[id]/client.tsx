@@ -93,13 +93,13 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
 
   const toggleReaction = trpc.game.toggleReaction.useMutation({
     onSuccess: () => {
-      play("success");
+      play("like");
       utils.game.getUserInteraction.invalidate({ gameId: id });
     },
   });
   const toggleFavorite = trpc.game.toggleFavorite.useMutation({
     onSuccess: () => {
-      play("success");
+      play("favorite");
       utils.game.getUserInteraction.invalidate({ gameId: id });
     },
   });

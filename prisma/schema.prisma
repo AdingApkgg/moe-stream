@@ -736,6 +736,15 @@ model SiteConfig {
   storageCustomDomain String?  // 自定义域名（公开访问地址）
   storagePathPrefix   String?  // 存储路径前缀
 
+  // 视觉效果
+  effectEnabled       Boolean @default(true)
+  effectType          String  @default("sakura")  // sakura | firefly | snow | stars | none
+  effectDensity       Int     @default(50)         // 粒子密度 1-100
+  effectSpeed         Float   @default(1.0)        // 速度倍率 0.1-3.0
+  effectOpacity       Float   @default(0.8)        // 透明度 0-1
+  effectColor         String  @default("")         // 自定义颜色（空=使用预设）
+  soundDefaultEnabled Boolean @default(true)       // 新用户音效默认开启
+
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份
   backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）

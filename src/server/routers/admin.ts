@@ -1751,6 +1751,15 @@ export const adminRouter = router({
       backupRetentionDays: z.number().int().min(1).max(365).optional(),
       backupIncludeUploads: z.boolean().optional(),
       backupIncludeConfig: z.boolean().optional(),
+
+      // 视觉效果
+      effectEnabled: z.boolean().optional(),
+      effectType: z.enum(["sakura", "firefly", "snow", "stars", "none"]).optional(),
+      effectDensity: z.number().int().min(1).max(100).optional(),
+      effectSpeed: z.number().min(0.1).max(3.0).optional(),
+      effectOpacity: z.number().min(0).max(1).optional(),
+      effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
+      soundDefaultEnabled: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
@@ -1771,6 +1780,8 @@ export const adminRouter = router({
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
+        "effectEnabled", "effectType", "effectDensity", "effectSpeed",
+        "effectOpacity", "effectColor", "soundDefaultEnabled",
       ]);
       const cleaned = Object.fromEntries(
         Object.entries(input)
@@ -1871,6 +1882,8 @@ export const adminRouter = router({
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
+        "effectEnabled", "effectType", "effectDensity", "effectSpeed",
+        "effectOpacity", "effectColor", "soundDefaultEnabled",
       ]);
 
       const cleaned = Object.fromEntries(

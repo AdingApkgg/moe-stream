@@ -5,7 +5,12 @@ export type SoundType =
   | "navigate"
   | "notify"
   | "error"
-  | "toggle";
+  | "toggle"
+  | "hover"
+  | "like"
+  | "favorite"
+  | "tab"
+  | "swoosh";
 
 let audioCtx: AudioContext | null = null;
 
@@ -76,6 +81,29 @@ const soundDefs: Record<SoundType, (ctx: AudioContext, vol: number) => void> = {
 
   toggle(ctx, vol) {
     playTone(ctx, vol * 0.5, 1000, 0.02, "square");
+  },
+
+  hover(ctx, vol) {
+    playTone(ctx, vol * 0.15, 1200, 0.015, "sine");
+  },
+
+  like(ctx, vol) {
+    playTone(ctx, vol * 0.5, 440, 0.06, "sine", 880);
+    setTimeout(() => playTone(ctx, vol * 0.4, 880, 0.08, "sine", 1100), 50);
+  },
+
+  favorite(ctx, vol) {
+    playTone(ctx, vol * 0.5, 660, 0.06, "sine");
+    setTimeout(() => playTone(ctx, vol * 0.4, 880, 0.05, "sine"), 60);
+    setTimeout(() => playTone(ctx, vol * 0.3, 1100, 0.08, "sine"), 120);
+  },
+
+  tab(ctx, vol) {
+    playTone(ctx, vol * 0.4, 700, 0.03, "sine", 900);
+  },
+
+  swoosh(ctx, vol) {
+    playTone(ctx, vol * 0.3, 300, 0.08, "sine", 600);
   },
 };
 

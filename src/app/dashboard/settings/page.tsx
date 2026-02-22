@@ -48,6 +48,8 @@ import {
   HardDrive,
   Download,
   Upload,
+  Sparkles,
+  Volume2,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -130,6 +132,15 @@ const configFormSchema = z.object({
   storageSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
   storageCustomDomain: z.string().max(500).optional().nullable().or(z.literal("")),
   storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
+
+  // 视觉效果
+  effectEnabled: z.boolean(),
+  effectType: z.enum(["sakura", "firefly", "snow", "stars", "none"]),
+  effectDensity: z.number().int().min(1).max(100),
+  effectSpeed: z.number().min(0.1).max(3.0),
+  effectOpacity: z.number().min(0).max(1),
+  effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
+  soundDefaultEnabled: z.boolean(),
 });
 
 type ConfigFormValues = z.infer<typeof configFormSchema>;
@@ -404,6 +415,13 @@ export default function AdminSettingsPage() {
       storageSecretKey: "",
       storageCustomDomain: "",
       storagePathPrefix: "",
+      effectEnabled: true,
+      effectType: "sakura",
+      effectDensity: 50,
+      effectSpeed: 1.0,
+      effectOpacity: 0.8,
+      effectColor: "",
+      soundDefaultEnabled: true,
     },
   });
   const { fields: adsFields, append: appendAd, remove: removeAd } = useFieldArray({
@@ -459,6 +477,13 @@ export default function AdminSettingsPage() {
         storageSecretKey: ((config as Record<string, unknown>).storageSecretKey as string) || "",
         storageCustomDomain: ((config as Record<string, unknown>).storageCustomDomain as string) || "",
         storagePathPrefix: ((config as Record<string, unknown>).storagePathPrefix as string) || "",
+        effectEnabled: (config as Record<string, unknown>).effectEnabled as boolean ?? true,
+        effectType: ((config as Record<string, unknown>).effectType as ConfigFormValues["effectType"]) ?? "sakura",
+        effectDensity: (config as Record<string, unknown>).effectDensity as number ?? 50,
+        effectSpeed: (config as Record<string, unknown>).effectSpeed as number ?? 1.0,
+        effectOpacity: (config as Record<string, unknown>).effectOpacity as number ?? 0.8,
+        effectColor: ((config as Record<string, unknown>).effectColor as string) || "",
+        soundDefaultEnabled: (config as Record<string, unknown>).soundDefaultEnabled as boolean ?? true,
       });
     }
   }, [config, form]);
@@ -575,7 +600,7 @@ export default function AdminSettingsPage() {
       </AlertDialog>
 
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 lg:w-auto lg:inline-grid">
           <TabsTrigger value="basic" className="gap-2">
             <Info className="h-4 w-4" />
             <span className="hidden sm:inline">基本信息</span>
@@ -583,6 +608,10 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="features" className="gap-2">
             <ToggleLeft className="h-4 w-4" />
             <span className="hidden sm:inline">功能开关</span>
+          </TabsTrigger>
+          <TabsTrigger value="effects" className="gap-2">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">视觉效果</span>
           </TabsTrigger>
           <TabsTrigger value="content" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -848,6 +877,178 @@ export default function AdminSettingsPage() {
                       </FormItem>
                     )}
                   />
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 视觉效果 */}
+            <TabsContent value="effects">
+              <Card>
+                <CardHeader>
+                  <CardTitle>视觉效果</CardTitle>
+                  <CardDescription>配置全站粒子动画和音效默认设置</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="effectEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>启用粒子效果</FormLabel>
+                          <FormDescription>全站显示粒子动画背景</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="effectType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>效果类型</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择粒子效果" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="sakura">🌸 樱花飘落</SelectItem>
+                            <SelectItem value="firefly">✨ 萤火虫</SelectItem>
+                            <SelectItem value="snow">❄️ 雪花飘落</SelectItem>
+                            <SelectItem value="stars">⭐ 星空闪烁</SelectItem>
+                            <SelectItem value="none">关闭</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="effectDensity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>粒子密度</FormLabel>
+                          <span className="text-sm text-muted-foreground">{field.value}</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min={1}
+                            max={100}
+                            value={field.value}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="w-full accent-primary"
+                          />
+                        </FormControl>
+                        <FormDescription>数值越大粒子越多（移动端自动减半）</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="effectSpeed"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>速度倍率</FormLabel>
+                          <span className="text-sm text-muted-foreground">{field.value.toFixed(1)}x</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min={0.1}
+                            max={3.0}
+                            step={0.1}
+                            value={field.value}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="w-full accent-primary"
+                          />
+                        </FormControl>
+                        <FormDescription>控制粒子运动速度</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="effectOpacity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>透明度</FormLabel>
+                          <span className="text-sm text-muted-foreground">{Math.round(field.value * 100)}%</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={field.value}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="w-full accent-primary"
+                          />
+                        </FormControl>
+                        <FormDescription>粒子的整体透明度</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="effectColor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>自定义颜色</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} placeholder="留空使用预设颜色，如 #ff69b4" />
+                        </FormControl>
+                        <FormDescription>输入十六进制颜色值覆盖默认配色</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                      <Volume2 className="h-4 w-4" />
+                      音效设置
+                    </h3>
+                    <FormField
+                      control={form.control}
+                      name="soundDefaultEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>新用户默认开启音效</FormLabel>
+                            <FormDescription>首次访问的用户是否自动启用 UI 音效</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <Button type="submit" disabled={updateConfig.isPending}>
                     {updateConfig.isPending ? (

@@ -350,7 +350,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     try {
       await likeMutation.mutateAsync({ videoId: currentVideoId });
-      play("success");
+      play("like");
     } catch {
       toast.error("操作失败");
     }
@@ -390,7 +390,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     try {
       const result = await favoriteMutation.mutateAsync({ videoId: currentVideoId });
       toast.success(result.favorited ? "已添加到收藏" : "已取消收藏");
-      play(result.favorited ? "success" : "cancel");
+      play(result.favorited ? "favorite" : "cancel");
     } catch {
       toast.error("操作失败");
     }

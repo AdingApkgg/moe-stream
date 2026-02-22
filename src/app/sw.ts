@@ -22,8 +22,30 @@ const AUTH_PATHS = /\/api\/auth\//i;
 // 跨域资源 - 不缓存（避免 opaque 响应导致 Cache.put 失败）
 const isCrossOrigin = (url: URL) => url.origin !== self.location.origin;
 
+// 已知的运行时缓存名称，用于激活时清理旧缓存
+const KNOWN_CACHES = new Set([
+  "static-assets",
+  "images",
+  "fonts",
+  "api",
+  "pages",
+  "js-css",
+]);
+
+// 新 SW 激活时清理所有运行时缓存，确保部署后不引用旧 chunk
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter((name) => KNOWN_CACHES.has(name))
+          .map((name) => caches.delete(name))
+      )
+    )
+  );
+});
+
 const serwist = new Serwist({
-  // 禁用预缓存，只使用运行时缓存（避免路径不匹配问题）
   precacheEntries: [],
   skipWaiting: true,
   clientsClaim: true,

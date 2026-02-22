@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUIStore } from "@/stores/app";
 import { Play, Gamepad2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSound } from "@/hooks/use-sound";
 
 const subscribe = () => () => {};
 const getSnapshot = () => true;
@@ -38,7 +39,9 @@ export default function LandingClient() {
   }
 
   // 首次访问：展示选择界面
+  const { play } = useSound();
   const handleChoose = (mode: "video" | "game") => {
+    play("navigate");
     chooseContentMode(mode);
     router.replace(mode === "game" ? "/game" : "/video");
   };
