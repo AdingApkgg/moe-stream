@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useCallback, useSyncExternalStore } from "react";
+import { useRef, useMemo, useEffect, useSyncExternalStore } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useUIStore } from "@/stores/app";
@@ -192,22 +192,26 @@ function SakuraParticles({ config, count, mouse }: ParticleProps) {
   const geometry = useMemo(() => createPetalGeometry(), []);
   const particlesRef = useRef(generateSakuraParticles(count, config.color));
 
-  const syncColors = useCallback(() => {
-    if (!meshRef.current) return;
+  useEffect(() => {
     const particles = particlesRef.current;
+    const preset = PRESETS.sakura;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].color = config.color
+        ? new THREE.Color(config.color)
+        : new THREE.Color(preset.colors[i % preset.colors.length]);
+    }
+    if (!meshRef.current) return;
     for (let i = 0; i < particles.length; i++) {
       meshRef.current.setColorAt(i, particles[i].color);
     }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }, [config.color]);
 
-  useEffect(() => { syncColors(); }, [syncColors]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
     const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = 0.016;
+    const dt = Math.min(delta, 0.05);
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -260,24 +264,28 @@ function FireflyParticles({ config, count, mouse }: ParticleProps) {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particlesRef = useRef(generateFireflyParticles(count, config.color));
 
-  const syncColors = useCallback(() => {
-    if (!coreRef.current) return;
+  useEffect(() => {
     const particles = particlesRef.current;
+    const preset = PRESETS.firefly;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].baseColor = config.color
+        ? new THREE.Color(config.color)
+        : new THREE.Color(preset.colors[i % preset.colors.length]);
+    }
+    if (!coreRef.current) return;
     for (let i = 0; i < particles.length; i++) {
       coreRef.current.setColorAt(i, particles[i].baseColor);
       haloRef.current?.setColorAt(i, particles[i].baseColor);
     }
     if (coreRef.current.instanceColor) coreRef.current.instanceColor.needsUpdate = true;
     if (haloRef.current?.instanceColor) haloRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }, [config.color]);
 
-  useEffect(() => { syncColors(); }, [syncColors]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!coreRef.current) return;
     const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = 0.016;
+    const dt = Math.min(delta, 0.05);
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -353,22 +361,26 @@ function SnowParticles({ config, count, mouse }: ParticleProps) {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particlesRef = useRef(generateSnowParticles(count, config.color));
 
-  const syncColors = useCallback(() => {
-    if (!meshRef.current) return;
+  useEffect(() => {
     const particles = particlesRef.current;
+    const preset = PRESETS.snow;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].color = config.color
+        ? new THREE.Color(config.color)
+        : new THREE.Color(preset.colors[i % preset.colors.length]);
+    }
+    if (!meshRef.current) return;
     for (let i = 0; i < particles.length; i++) {
       meshRef.current.setColorAt(i, particles[i].color);
     }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }, [config.color]);
 
-  useEffect(() => { syncColors(); }, [syncColors]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
     const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = 0.016;
+    const dt = Math.min(delta, 0.05);
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -420,24 +432,28 @@ function StarsParticles({ config, count }: Omit<ParticleProps, "mouse">) {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particlesRef = useRef(generateStarsParticles(count, config.color));
 
-  const syncColors = useCallback(() => {
-    if (!meshRef.current) return;
+  useEffect(() => {
     const particles = particlesRef.current;
+    const preset = PRESETS.stars;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].color = config.color
+        ? new THREE.Color(config.color)
+        : new THREE.Color(preset.colors[i % preset.colors.length]);
+    }
+    if (!meshRef.current) return;
     for (let i = 0; i < particles.length; i++) {
       meshRef.current.setColorAt(i, particles[i].color);
       haloRef.current?.setColorAt(i, particles[i].color);
     }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
     if (haloRef.current?.instanceColor) haloRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }, [config.color]);
 
-  useEffect(() => { syncColors(); }, [syncColors]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
     const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = 0.016;
+    const dt = Math.min(delta, 0.05);
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
@@ -618,22 +634,26 @@ function CyberParticles({ config, count, mouse }: ParticleProps) {
   const particlesRef = useRef(generateCyberParticles(count, config.color));
   const actualCount = Math.floor(count * 1.5);
 
-  const syncColors = useCallback(() => {
-    if (!meshRef.current) return;
+  useEffect(() => {
     const particles = particlesRef.current;
+    const preset = PRESETS.cyber;
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].color = config.color
+        ? new THREE.Color(config.color)
+        : new THREE.Color(preset.colors[i % preset.colors.length]);
+    }
+    if (!meshRef.current) return;
     for (let i = 0; i < particles.length; i++) {
       meshRef.current.setColorAt(i, particles[i].color);
     }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }, [config.color]);
 
-  useEffect(() => { syncColors(); }, [syncColors]);
-
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
     const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = 0.016;
+    const dt = Math.min(delta, 0.05);
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -681,17 +701,17 @@ function CyberParticles({ config, count, mouse }: ParticleProps) {
 function ParticleScene({ config, count, mouse }: ParticleProps) {
   switch (config.type) {
     case "sakura":
-      return <SakuraParticles config={config} count={count} mouse={mouse} />;
+      return <SakuraParticles key={count} config={config} count={count} mouse={mouse} />;
     case "firefly":
-      return <FireflyParticles config={config} count={count} mouse={mouse} />;
+      return <FireflyParticles key={count} config={config} count={count} mouse={mouse} />;
     case "snow":
-      return <SnowParticles config={config} count={count} mouse={mouse} />;
+      return <SnowParticles key={count} config={config} count={count} mouse={mouse} />;
     case "stars":
-      return <StarsParticles config={config} count={count} />;
+      return <StarsParticles key={count} config={config} count={count} />;
     case "aurora":
       return <AuroraEffect config={config} mouse={mouse} />;
     case "cyber":
-      return <CyberParticles config={config} count={count} mouse={mouse} />;
+      return <CyberParticles key={count} config={config} count={count} mouse={mouse} />;
     default:
       return null;
   }
