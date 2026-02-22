@@ -15,7 +15,7 @@ function isChunkLoadError(error: unknown): boolean {
 
 export default function GlobalError({
   error,
-  reset,
+  reset: _reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;

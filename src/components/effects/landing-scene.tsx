@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useMemo } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, MeshDistortMaterial, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -20,11 +20,11 @@ const ACCENT_AMBER = new THREE.Color("#f59e0b");
 const NEUTRAL_DIM = new THREE.Color("#6366f1");
 
 function CameraRig({ mouse }: { mouse: React.RefObject<{ x: number; y: number }> }) {
-  const { camera } = useThree();
-  useFrame(() => {
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, mouse.current.x * 0.6, 0.03);
-    camera.position.y = THREE.MathUtils.lerp(camera.position.y, mouse.current.y * 0.4, 0.03);
-    camera.lookAt(0, 0, 0);
+  useFrame((state) => {
+    const cam = state.camera;
+    cam.position.x = THREE.MathUtils.lerp(cam.position.x, mouse.current.x * 0.6, 0.03);
+    cam.position.y = THREE.MathUtils.lerp(cam.position.y, mouse.current.y * 0.4, 0.03);
+    cam.lookAt(0, 0, 0);
   });
   return null;
 }
