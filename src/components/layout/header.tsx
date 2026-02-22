@@ -434,7 +434,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center ml-1">
               <Image
-                src={siteConfig?.siteLogo || "/logo.webp"}
+                src={siteConfig?.siteLogo || "/default-logo.svg"}
                 alt={siteConfig?.siteName || "ACGN Site"}
                 width={108}
                 height={28}

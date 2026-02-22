@@ -14,9 +14,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     orientation: "portrait-primary",
     icons: [
       {
-        src: config.siteLogo || "/logo.webp",
-        sizes: "180x180",
-        type: "image/webp",
+        src: config.siteLogo || "/default-logo.svg",
+        sizes: config.siteLogo ? "180x180" : "any",
+        type: config.siteLogo ? "image/webp" : "image/svg+xml",
       },
     ],
     categories: ["entertainment", "video"],

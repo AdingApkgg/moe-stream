@@ -64,6 +64,7 @@ public/google*.html
 public/*.txt
 !public/robots.txt
 public/*-logo.*
+!public/default-logo.svg
 public/*logo*.webp
 
 # Misc
