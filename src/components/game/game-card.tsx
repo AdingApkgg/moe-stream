@@ -7,32 +7,18 @@ import { Gamepad2, ThumbsUp, Eye, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
+import { useTilt } from "@/hooks/use-tilt";
 
-/** 游戏类型显示名映射 */
 const GAME_TYPE_LABELS: Record<string, string> = {
-  ADV: "ADV",
-  SLG: "SLG",
-  RPG: "RPG",
-  ACT: "ACT",
-  STG: "STG",
-  PZL: "PZL",
-  AVG: "AVG",
-  FTG: "FTG",
-  TAB: "TAB",
-  OTHER: "其他",
+  ADV: "ADV", SLG: "SLG", RPG: "RPG", ACT: "ACT",
+  STG: "STG", PZL: "PZL", AVG: "AVG", FTG: "FTG",
+  TAB: "TAB", OTHER: "其他",
 };
 
-/** 游戏类型对应的颜色 */
 const GAME_TYPE_COLORS: Record<string, string> = {
-  ADV: "bg-blue-500/80",
-  SLG: "bg-purple-500/80",
-  RPG: "bg-green-500/80",
-  ACT: "bg-red-500/80",
-  STG: "bg-orange-500/80",
-  PZL: "bg-cyan-500/80",
-  AVG: "bg-indigo-500/80",
-  FTG: "bg-rose-500/80",
-  TAB: "bg-amber-500/80",
+  ADV: "bg-blue-500/80", SLG: "bg-purple-500/80", RPG: "bg-green-500/80",
+  ACT: "bg-red-500/80", STG: "bg-orange-500/80", PZL: "bg-cyan-500/80",
+  AVG: "bg-indigo-500/80", FTG: "bg-rose-500/80", TAB: "bg-amber-500/80",
   OTHER: "bg-gray-500/80",
 };
 
@@ -98,6 +84,12 @@ function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: 
 
 function GameCardComponent({ game, index = 0 }: GameCardProps) {
   const { play } = useSound();
+  const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
+    maxTilt: 8,
+    scale: 1.03,
+    glareMaxOpacity: 0.12,
+  });
+
   const extra = game.extraInfo && typeof game.extraInfo === "object" && !Array.isArray(game.extraInfo)
     ? game.extraInfo
     : null;
@@ -110,33 +102,31 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
 
   return (
     <div
-      className="group transition-transform duration-300 hover:-translate-y-1"
+      ref={tiltRef}
+      className="group"
       style={{ animationDelay: `${index * 50}ms` }}
       onMouseEnter={() => play("hover")}
     >
       <Link href={`/game/${game.id}`} className="block">
-        {/* 封面 - 16:9 横版比例 */}
         <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300">
           <GameCoverImage coverUrl={game.coverUrl} title={game.title} />
 
-          {/* 底部渐变遮罩 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-          {/* 游戏手柄 hover */}
+          {/* Hover icon */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
             <div className="bg-white/90 dark:bg-black/80 backdrop-blur-md rounded-full p-3 shadow-2xl transition-transform duration-200 group-hover:scale-110 active:scale-95">
               <Gamepad2 className="h-5 w-5 text-primary" />
             </div>
           </div>
 
-          {/* 左上角：游戏类型 */}
+          {/* Game type badge */}
           {game.gameType && (
             <div className={`absolute top-1.5 left-1.5 ${GAME_TYPE_COLORS[game.gameType] || GAME_TYPE_COLORS.OTHER} backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold`}>
               {GAME_TYPE_LABELS[game.gameType] || game.gameType}
             </div>
           )}
 
-          {/* 右上角：免费/付费 */}
           {game.isFree && (
             <Badge
               variant="secondary"
@@ -146,9 +136,7 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
             </Badge>
           )}
 
-          {/* 底部信息 */}
           <div className="absolute bottom-0 left-0 right-0 p-2 space-y-1">
-            {/* 有下载则显示下载图标 */}
             <div className="flex items-center gap-2 text-[10px] sm:text-xs">
               <span className={`flex items-center gap-0.5 ${likeColor}`}>
                 <ThumbsUp className="h-3 w-3" />
@@ -165,9 +153,14 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
               )}
             </div>
           </div>
+
+          {/* Tilt glare overlay */}
+          <div
+            ref={glareRef}
+            className="absolute inset-0 rounded-lg pointer-events-none opacity-0 transition-opacity duration-300 z-10"
+          />
         </div>
 
-        {/* 标题 + 作者 · 时间 */}
         <div className="mt-2 px-0.5 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200">
             {game.title}

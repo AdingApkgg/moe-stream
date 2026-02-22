@@ -1754,7 +1754,7 @@ export const adminRouter = router({
 
       // 视觉效果
       effectEnabled: z.boolean().optional(),
-      effectType: z.enum(["sakura", "firefly", "snow", "stars", "none"]).optional(),
+      effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]).optional(),
       effectDensity: z.number().int().min(1).max(100).optional(),
       effectSpeed: z.number().min(0.1).max(3.0).optional(),
       effectOpacity: z.number().min(0).max(1).optional(),

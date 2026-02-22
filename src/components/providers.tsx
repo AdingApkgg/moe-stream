@@ -125,7 +125,7 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
                   <Suspense fallback={null}>
                     <ParticleBackground
                       config={{
-                        type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "none",
+                        type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
                         density: siteConfig.effectDensity,
                         speed: siteConfig.effectSpeed,
                         opacity: siteConfig.effectOpacity,

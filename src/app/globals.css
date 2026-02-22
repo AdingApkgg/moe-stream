@@ -211,6 +211,10 @@
     animation: float 3s ease-in-out infinite;
   }
   
+  .animate-float-slow {
+    animation: float-ambient 6s ease-in-out infinite;
+  }
+  
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
@@ -219,6 +223,23 @@
     animation: shimmer 2s linear infinite;
     background-size: 200% 100%;
   }
+  
+  .animate-glow {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+  
+  .animate-border-glow {
+    animation: border-glow 4s linear infinite;
+    background-size: 300% 300%;
+  }
+  
+  .shadow-glow-purple {
+    box-shadow: 0 0 20px -5px oklch(0.7 0.2 285 / 30%);
+  }
+  
+  .shadow-glow-emerald {
+    box-shadow: 0 0 20px -5px oklch(0.7 0.2 160 / 30%);
+  }
 }
 
 @keyframes float {
@@ -226,9 +247,26 @@
   50% { transform: translateY(-10px); }
 }
 
+@keyframes float-ambient {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(0.5deg); }
+  75% { transform: translateY(4px) rotate(-0.5deg); }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px currentColor); }
+  50% { filter: drop-shadow(0 0 12px currentColor); }
+}
+
+@keyframes border-glow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* 滚动条美化 */

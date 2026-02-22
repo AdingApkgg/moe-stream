@@ -135,7 +135,7 @@ const configFormSchema = z.object({
 
   // 视觉效果
   effectEnabled: z.boolean(),
-  effectType: z.enum(["sakura", "firefly", "snow", "stars", "none"]),
+  effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]),
   effectDensity: z.number().int().min(1).max(100),
   effectSpeed: z.number().min(0.1).max(3.0),
   effectOpacity: z.number().min(0).max(1),
@@ -931,6 +931,8 @@ export default function AdminSettingsPage() {
                             <SelectItem value="firefly">✨ 萤火虫</SelectItem>
                             <SelectItem value="snow">❄️ 雪花飘落</SelectItem>
                             <SelectItem value="stars">⭐ 星空闪烁</SelectItem>
+                            <SelectItem value="aurora">🌌 极光</SelectItem>
+                            <SelectItem value="cyber">💠 赛博雨</SelectItem>
                             <SelectItem value="none">关闭</SelectItem>
                           </SelectContent>
                         </Select>
