@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from "react";
+import { useRef, useMemo, useEffect, useCallback, useSyncExternalStore } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useUIStore } from "@/stores/app";
@@ -69,7 +69,6 @@ function applyMouseForce(
   return { x: 0, y: 0 };
 }
 
-// -- Custom petal geometry for sakura --
 function createPetalGeometry() {
   const shape = new THREE.Shape();
   shape.moveTo(0, 0);
@@ -79,47 +78,136 @@ function createPetalGeometry() {
 }
 
 // ============================
-// Sakura — Custom petal shape, natural tumbling, mouse repulsion
+// Particle data generators (called outside render via useRef init)
+// ============================
+function generateSakuraParticles(count: number, color: string) {
+  const preset = PRESETS.sakura;
+  return Array.from({ length: count }, (_, i) => ({
+    x: (Math.random() - 0.5) * 22,
+    y: Math.random() * 14 - 3,
+    z: -1 + Math.random() * 4,
+    rotX: Math.random() * Math.PI * 2,
+    rotY: Math.random() * Math.PI * 2,
+    rotZ: Math.random() * Math.PI * 2,
+    speedY: 0.4 + Math.random() * 0.6,
+    speedRotX: (Math.random() - 0.5) * 2.2,
+    speedRotY: (Math.random() - 0.5) * 1.0,
+    speedRotZ: (Math.random() - 0.5) * 1.8,
+    swayPhase: Math.random() * Math.PI * 2,
+    swayAmp: 0.4 + Math.random() * 0.8,
+    swayFreq: 0.6 + Math.random() * 0.8,
+    scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
+    pulsePhase: Math.random() * Math.PI * 2,
+    color: color
+      ? new THREE.Color(color)
+      : new THREE.Color(preset.colors[i % preset.colors.length]),
+  }));
+}
+
+function generateFireflyParticles(count: number, color: string) {
+  const preset = PRESETS.firefly;
+  return Array.from({ length: count }, (_, i) => ({
+    x: (Math.random() - 0.5) * 20,
+    y: (Math.random() - 0.5) * 12,
+    z: (Math.random() - 0.5) * 6,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.2,
+    wanderAngle: Math.random() * Math.PI * 2,
+    wanderSpeed: 0.5 + Math.random() * 1.5,
+    phase: Math.random() * Math.PI * 2,
+    pulseSpeed: 1.2 + Math.random() * 2.5,
+    scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
+    baseColor: color
+      ? new THREE.Color(color)
+      : new THREE.Color(preset.colors[i % preset.colors.length]),
+  }));
+}
+
+function generateSnowParticles(count: number, color: string) {
+  const preset = PRESETS.snow;
+  return Array.from({ length: count }, (_, i) => ({
+    x: (Math.random() - 0.5) * 22,
+    y: Math.random() * 14 - 3,
+    z: -2 + Math.random() * 6,
+    speedY: 0.15 + Math.random() * 0.45,
+    swayPhase1: Math.random() * Math.PI * 2,
+    swayPhase2: Math.random() * Math.PI * 2,
+    swayAmp1: 0.2 + Math.random() * 0.5,
+    swayAmp2: 0.1 + Math.random() * 0.3,
+    rotZ: Math.random() * Math.PI * 2,
+    rotSpeedZ: (Math.random() - 0.5) * 0.6,
+    scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
+    sparklePhase: Math.random() * Math.PI * 2,
+    sparkleSpeed: 3 + Math.random() * 5,
+    depthFactor: 0.5 + Math.random() * 0.5,
+    color: color
+      ? new THREE.Color(color)
+      : new THREE.Color(preset.colors[i % preset.colors.length]),
+  }));
+}
+
+function generateStarsParticles(count: number, color: string) {
+  const preset = PRESETS.stars;
+  return Array.from({ length: count }, (_, i) => ({
+    x: (Math.random() - 0.5) * 26,
+    y: (Math.random() - 0.5) * 16,
+    z: -3 - Math.random() * 5,
+    phase: Math.random() * Math.PI * 2,
+    twinkleSpeed: 0.4 + Math.random() * 2.5,
+    scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
+    flashTimer: 8 + Math.random() * 20,
+    flashCountdown: 8 + Math.random() * 20,
+    isFlashing: false,
+    color: color
+      ? new THREE.Color(color)
+      : new THREE.Color(preset.colors[i % preset.colors.length]),
+  }));
+}
+
+function generateCyberParticles(count: number, color: string) {
+  const preset = PRESETS.cyber;
+  const total = Math.floor(count * 1.5);
+  return Array.from({ length: total }, (_, i) => ({
+    x: (Math.random() - 0.5) * 22,
+    y: Math.random() * 16 - 4,
+    z: (Math.random() - 0.5) * 5,
+    speedY: 1.2 + Math.random() * 4.0,
+    baseScale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
+    tailLength: 0.5 + Math.random() * 3.0,
+    phase: Math.random() * Math.PI * 2,
+    flashSpeed: 2 + Math.random() * 6,
+    brightness: 0.4 + Math.random() * 0.6,
+    color: color
+      ? new THREE.Color(color)
+      : new THREE.Color(preset.colors[i % preset.colors.length]),
+  }));
+}
+
+// ============================
+// Sakura
 // ============================
 function SakuraParticles({ config, count, mouse }: ParticleProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null!);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const geometry = useMemo(() => createPetalGeometry(), []);
+  const particlesRef = useRef(generateSakuraParticles(count, config.color));
 
-  const particles = useMemo(() => {
-    const preset = PRESETS.sakura;
-    return Array.from({ length: count }, (_, i) => ({
-      x: (Math.random() - 0.5) * 22,
-      y: Math.random() * 14 - 3,
-      z: -1 + Math.random() * 4,
-      rotX: Math.random() * Math.PI * 2,
-      rotY: Math.random() * Math.PI * 2,
-      rotZ: Math.random() * Math.PI * 2,
-      speedY: 0.4 + Math.random() * 0.6,
-      speedRotX: (Math.random() - 0.5) * 2.2,
-      speedRotY: (Math.random() - 0.5) * 1.0,
-      speedRotZ: (Math.random() - 0.5) * 1.8,
-      swayPhase: Math.random() * Math.PI * 2,
-      swayAmp: 0.4 + Math.random() * 0.8,
-      swayFreq: 0.6 + Math.random() * 0.8,
-      scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-      pulsePhase: Math.random() * Math.PI * 2,
-      color: config.color
-        ? new THREE.Color(config.color)
-        : new THREE.Color(preset.colors[i % preset.colors.length]),
-    }));
-  }, [count, config.color]);
-
-  useEffect(() => {
+  const syncColors = useCallback(() => {
     if (!meshRef.current) return;
-    particles.forEach((p, i) => meshRef.current.setColorAt(i, p.color));
+    const particles = particlesRef.current;
+    for (let i = 0; i < particles.length; i++) {
+      meshRef.current.setColorAt(i, particles[i].color);
+    }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, [particles]);
+  }, []);
 
-  useFrame((state, delta) => {
+  useEffect(() => { syncColors(); }, [syncColors]);
+
+  useFrame(() => {
     if (!meshRef.current) return;
+    const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = Math.min(delta, 0.05);
+    const dt = 0.016;
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -164,46 +252,32 @@ function SakuraParticles({ config, count, mouse }: ParticleProps) {
 }
 
 // ============================
-// Firefly — AdditiveBlending glow, wandering paths, pulse, mouse attraction
+// Firefly
 // ============================
 function FireflyParticles({ config, count, mouse }: ParticleProps) {
   const coreRef = useRef<THREE.InstancedMesh>(null!);
   const haloRef = useRef<THREE.InstancedMesh>(null!);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const particlesRef = useRef(generateFireflyParticles(count, config.color));
 
-  const particles = useMemo(() => {
-    const preset = PRESETS.firefly;
-    return Array.from({ length: count }, (_, i) => ({
-      x: (Math.random() - 0.5) * 20,
-      y: (Math.random() - 0.5) * 12,
-      z: (Math.random() - 0.5) * 6,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.2,
-      wanderAngle: Math.random() * Math.PI * 2,
-      wanderSpeed: 0.5 + Math.random() * 1.5,
-      phase: Math.random() * Math.PI * 2,
-      pulseSpeed: 1.2 + Math.random() * 2.5,
-      scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-      baseColor: config.color
-        ? new THREE.Color(config.color)
-        : new THREE.Color(preset.colors[i % preset.colors.length]),
-    }));
-  }, [count, config.color]);
-
-  useEffect(() => {
+  const syncColors = useCallback(() => {
     if (!coreRef.current) return;
-    particles.forEach((p, i) => {
-      coreRef.current.setColorAt(i, p.baseColor);
-      haloRef.current?.setColorAt(i, p.baseColor);
-    });
+    const particles = particlesRef.current;
+    for (let i = 0; i < particles.length; i++) {
+      coreRef.current.setColorAt(i, particles[i].baseColor);
+      haloRef.current?.setColorAt(i, particles[i].baseColor);
+    }
     if (coreRef.current.instanceColor) coreRef.current.instanceColor.needsUpdate = true;
     if (haloRef.current?.instanceColor) haloRef.current.instanceColor.needsUpdate = true;
-  }, [particles]);
+  }, []);
 
-  useFrame((_, delta) => {
+  useEffect(() => { syncColors(); }, [syncColors]);
+
+  useFrame(() => {
     if (!coreRef.current) return;
+    const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = Math.min(delta, 0.05);
+    const dt = 0.016;
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -249,7 +323,6 @@ function FireflyParticles({ config, count, mouse }: ParticleProps) {
 
   return (
     <>
-      {/* Bright core */}
       <instancedMesh ref={coreRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 12]} />
         <meshBasicMaterial
@@ -259,7 +332,6 @@ function FireflyParticles({ config, count, mouse }: ParticleProps) {
           depthWrite={false}
         />
       </instancedMesh>
-      {/* Soft glow halo */}
       <instancedMesh ref={haloRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 12]} />
         <meshBasicMaterial
@@ -274,45 +346,29 @@ function FireflyParticles({ config, count, mouse }: ParticleProps) {
 }
 
 // ============================
-// Snow — Multi-frequency sway, depth parallax, sparkle pulse
+// Snow
 // ============================
 function SnowParticles({ config, count, mouse }: ParticleProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null!);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const particlesRef = useRef(generateSnowParticles(count, config.color));
 
-  const particles = useMemo(() => {
-    const preset = PRESETS.snow;
-    return Array.from({ length: count }, (_, i) => ({
-      x: (Math.random() - 0.5) * 22,
-      y: Math.random() * 14 - 3,
-      z: -2 + Math.random() * 6,
-      speedY: 0.15 + Math.random() * 0.45,
-      swayPhase1: Math.random() * Math.PI * 2,
-      swayPhase2: Math.random() * Math.PI * 2,
-      swayAmp1: 0.2 + Math.random() * 0.5,
-      swayAmp2: 0.1 + Math.random() * 0.3,
-      rotZ: Math.random() * Math.PI * 2,
-      rotSpeedZ: (Math.random() - 0.5) * 0.6,
-      scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-      sparklePhase: Math.random() * Math.PI * 2,
-      sparkleSpeed: 3 + Math.random() * 5,
-      depthFactor: 0.5 + Math.random() * 0.5,
-      color: config.color
-        ? new THREE.Color(config.color)
-        : new THREE.Color(preset.colors[i % preset.colors.length]),
-    }));
-  }, [count, config.color]);
-
-  useEffect(() => {
+  const syncColors = useCallback(() => {
     if (!meshRef.current) return;
-    particles.forEach((p, i) => meshRef.current.setColorAt(i, p.color));
+    const particles = particlesRef.current;
+    for (let i = 0; i < particles.length; i++) {
+      meshRef.current.setColorAt(i, particles[i].color);
+    }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, [particles]);
+  }, []);
 
-  useFrame((_, delta) => {
+  useEffect(() => { syncColors(); }, [syncColors]);
+
+  useFrame(() => {
     if (!meshRef.current) return;
+    const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = Math.min(delta, 0.05);
+    const dt = 0.016;
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -356,45 +412,32 @@ function SnowParticles({ config, count, mouse }: ParticleProps) {
 }
 
 // ============================
-// Stars — Additive glow, depth layers, twinkle + occasional flash
+// Stars
 // ============================
 function StarsParticles({ config, count }: Omit<ParticleProps, "mouse">) {
   const meshRef = useRef<THREE.InstancedMesh>(null!);
   const haloRef = useRef<THREE.InstancedMesh>(null!);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const particlesRef = useRef(generateStarsParticles(count, config.color));
 
-  const particles = useMemo(() => {
-    const preset = PRESETS.stars;
-    return Array.from({ length: count }, (_, i) => ({
-      x: (Math.random() - 0.5) * 26,
-      y: (Math.random() - 0.5) * 16,
-      z: -3 - Math.random() * 5,
-      phase: Math.random() * Math.PI * 2,
-      twinkleSpeed: 0.4 + Math.random() * 2.5,
-      scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-      flashTimer: 8 + Math.random() * 20,
-      flashCountdown: 8 + Math.random() * 20,
-      isFlashing: false,
-      color: config.color
-        ? new THREE.Color(config.color)
-        : new THREE.Color(preset.colors[i % preset.colors.length]),
-    }));
-  }, [count, config.color]);
-
-  useEffect(() => {
+  const syncColors = useCallback(() => {
     if (!meshRef.current) return;
-    particles.forEach((p, i) => {
-      meshRef.current.setColorAt(i, p.color);
-      haloRef.current?.setColorAt(i, p.color);
-    });
+    const particles = particlesRef.current;
+    for (let i = 0; i < particles.length; i++) {
+      meshRef.current.setColorAt(i, particles[i].color);
+      haloRef.current?.setColorAt(i, particles[i].color);
+    }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
     if (haloRef.current?.instanceColor) haloRef.current.instanceColor.needsUpdate = true;
-  }, [particles]);
+  }, []);
 
-  useFrame((_, delta) => {
+  useEffect(() => { syncColors(); }, [syncColors]);
+
+  useFrame(() => {
     if (!meshRef.current) return;
+    const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = Math.min(delta, 0.05);
+    const dt = 0.016;
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
@@ -456,7 +499,7 @@ function StarsParticles({ config, count }: Omit<ParticleProps, "mouse">) {
 }
 
 // ============================
-// Aurora — Custom shader: flowing northern lights wave bands
+// Aurora
 // ============================
 const auroraVertexShader = `
 varying vec2 vUv;
@@ -567,42 +610,30 @@ function AuroraEffect({ config, mouse }: { config: ParticleConfig; mouse: React.
 }
 
 // ============================
-// Cyber — Digital rain, neon glow, vertical fall, flash effect
+// Cyber
 // ============================
 function CyberParticles({ config, count, mouse }: ParticleProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null!);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const particlesRef = useRef(generateCyberParticles(count, config.color));
+  const actualCount = Math.floor(count * 1.5);
 
-  const particles = useMemo(() => {
-    const preset = PRESETS.cyber;
-    return Array.from({ length: Math.floor(count * 1.5) }, (_, i) => ({
-      x: (Math.random() - 0.5) * 22,
-      y: Math.random() * 16 - 4,
-      z: (Math.random() - 0.5) * 5,
-      speedY: 1.2 + Math.random() * 4.0,
-      baseScale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-      tailLength: 0.5 + Math.random() * 3.0,
-      phase: Math.random() * Math.PI * 2,
-      flashSpeed: 2 + Math.random() * 6,
-      brightness: 0.4 + Math.random() * 0.6,
-      color: config.color
-        ? new THREE.Color(config.color)
-        : new THREE.Color(preset.colors[i % preset.colors.length]),
-    }));
-  }, [count, config.color]);
-
-  const actualCount = useMemo(() => Math.floor(count * 1.5), [count]);
-
-  useEffect(() => {
+  const syncColors = useCallback(() => {
     if (!meshRef.current) return;
-    particles.forEach((p, i) => meshRef.current.setColorAt(i, p.color));
+    const particles = particlesRef.current;
+    for (let i = 0; i < particles.length; i++) {
+      meshRef.current.setColorAt(i, particles[i].color);
+    }
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, [particles]);
+  }, []);
 
-  useFrame((_, delta) => {
+  useEffect(() => { syncColors(); }, [syncColors]);
+
+  useFrame(() => {
     if (!meshRef.current) return;
+    const particles = particlesRef.current;
     const spd = config.speed;
-    const dt = Math.min(delta, 0.05);
+    const dt = 0.016;
     const mw = getMouseWorld(mouse.current);
 
     for (let i = 0; i < particles.length; i++) {
@@ -669,17 +700,17 @@ function ParticleScene({ config, count, mouse }: ParticleProps) {
 // ============================
 // Main export
 // ============================
+const subscribeResize = (cb: () => void) => {
+  window.addEventListener("resize", cb);
+  return () => window.removeEventListener("resize", cb);
+};
+const getIsMobile = () => window.innerWidth < 768;
+const getIsMobileServer = () => false;
+
 export default function ParticleBackground({ config }: { config: ParticleConfig }) {
   const reducedMotion = useUIStore((s) => s.reducedMotion);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useSyncExternalStore(subscribeResize, getIsMobile, getIsMobileServer);
   const mouseRef = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-    const resizeHandler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", resizeHandler);
-    return () => window.removeEventListener("resize", resizeHandler);
-  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

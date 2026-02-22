@@ -5,7 +5,7 @@ import { VideoGrid } from "@/components/video/video-grid";
 import { GameGrid } from "@/components/game/game-grid";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Search, Clock, TrendingUp, X, Play, Gamepad2 } from "lucide-react";
+import { Search, Clock, TrendingUp, X, Play, Gamepad2, type LucideIcon } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
 import { useSearchHistoryStore } from "@/stores/app";
@@ -19,7 +19,7 @@ type SearchTab = "video" | "game";
 type SortBy = "latest" | "views" | "likes";
 type TimeRange = "all" | "today" | "week" | "month";
 
-const TAB_OPTIONS: { value: SearchTab; label: string; icon: React.ElementType }[] = [
+const TAB_OPTIONS: { value: SearchTab; label: string; icon: LucideIcon }[] = [
   { value: "video", label: "视频", icon: Play },
   { value: "game", label: "游戏", icon: Gamepad2 },
 ];

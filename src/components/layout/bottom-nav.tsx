@@ -9,13 +9,14 @@ import {
   Heart,
   User,
   Compass,
+  type LucideIcon,
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 import { useIsMounted } from "@/components/motion";
 
 interface NavItem {
   href: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   auth?: boolean;
   loginHref?: string;

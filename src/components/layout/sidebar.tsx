@@ -16,6 +16,7 @@ import {
   Image,
   Gamepad2,
   Play,
+  type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
 import { Separator } from "@/components/ui/separator";
@@ -36,7 +37,7 @@ interface SidebarProps {
 
 interface NavItem {
   href: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   auth?: boolean;
   permission?: string;
@@ -51,7 +52,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 /** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
-const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: React.ElementType }[] = [
+const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: LucideIcon }[] = [
   { id: "video", label: "视频", icon: Play },
   { id: "image", label: "图片", icon: Image },
   { id: "game", label: "游戏", icon: Gamepad2 },
