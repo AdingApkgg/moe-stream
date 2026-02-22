@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
-  
-  // 安全联系信息（符合 RFC 9116 规范）
-  const securityTxt = `# Security Policy for Mikiacg
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
+  const securityEmail = config.securityEmail || config.contactEmail;
+
+  const contactLines = securityEmail
+    ? `Contact: mailto:${securityEmail}\nContact: ${baseUrl}/security`
+    : `Contact: ${baseUrl}/security`;
+
+  const securityTxt = `# Security Policy for ${config.siteName}
 # https://securitytxt.org/
 
-Contact: mailto:security@saop.cc
-Contact: ${baseUrl}/security
+${contactLines}
 Expires: ${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
 Preferred-Languages: zh, en
 Canonical: ${baseUrl}/.well-known/security.txt
-
-# 感谢您帮助我们保持网站安全！
-# Thank you for helping us keep our site secure!
 `;
 
   return new NextResponse(securityTxt, {

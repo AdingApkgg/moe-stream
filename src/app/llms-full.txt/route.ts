@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
+  const siteName = config.siteName;
 
   let statsSection = "";
   let videoTagsSection = "";
@@ -226,12 +228,12 @@ ${statsSection}${videoTagsSection}${gameTagsSection}${recentVideosSection}${rece
 
 - 用户上传的内容版权归原作者所有
 - 平台遵守相关法律法规，提供侵权投诉渠道
-- 如有版权问题，请联系: contact@saop.cc
+- 如有版权问题，请联系: ${config.contactEmail || ""}
 
 ## 联系方式
 
 - 网站: ${baseUrl}
-- 邮箱: contact@saop.cc
+- 邮箱: ${config.contactEmail || ""}
 
 ---
 Generated: ${new Date().toISOString()}

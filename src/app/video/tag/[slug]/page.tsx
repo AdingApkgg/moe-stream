@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { VideoTagPageClient } from "./client";
 import { CollectionPageJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 interface VideoTagPageProps {
   params: Promise<{ slug: string }>;
@@ -47,7 +48,8 @@ export async function generateMetadata({
     };
   }
 
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const siteConfig = await getPublicSiteConfig();
+  const siteName = siteConfig.siteName;
   const description = `浏览 ${tag.name} 标签下的 ${tag._count.videos} 个视频`;
 
   return {
@@ -84,8 +86,9 @@ export default async function VideoTagPage({ params }: VideoTagPageProps) {
   const tag = await getTag(slug);
 
   const initialTag = tag ? serializeTag(tag) : null;
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://acgn.app";
+  const config = await getPublicSiteConfig();
+  const siteName = config.siteName;
+  const siteUrl = config.siteUrl;
 
   return (
     <>

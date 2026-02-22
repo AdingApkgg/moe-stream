@@ -1,10 +1,12 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const config = await getPublicSiteConfig();
   return {
-    name: "Mikiacg",
-    short_name: "Mikiacg",
-    description: "Mikiacg 流式媒体内容分享平台",
+    name: config.siteName,
+    short_name: config.siteName,
+    description: config.siteDescription || `${config.siteName} 流式媒体内容分享平台`,
     start_url: "/",
     display: "standalone",
     background_color: "#000000",
@@ -12,7 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait-primary",
     icons: [
       {
-        src: "/Mikiacg-logo.webp",
+        src: config.siteLogo || "/Mikiacg-logo.webp",
         sizes: "180x180",
         type: "image/webp",
       },

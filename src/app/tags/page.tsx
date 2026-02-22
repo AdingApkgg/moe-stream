@@ -2,15 +2,16 @@ import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { TagsPageClient } from "./client";
 import { CollectionPageJsonLd } from "@/components/seo/json-ld";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
-const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://acgn.app";
-
-export const metadata: Metadata = {
-  title: "标签",
-  description: `浏览 ${siteName} 的所有标签，按分类查找 ACGN 相关内容`,
-  keywords: ["标签", "分类", "ACGN", "动漫", "视频", "游戏"],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  return {
+    title: "标签",
+    description: `浏览 ${config.siteName} 的所有标签，按分类查找 ACGN 相关内容`,
+    keywords: ["标签", "分类", "ACGN", "动漫", "视频", "游戏"],
+  };
+}
 
 async function getTagsData() {
   const [videoPopularTags, videoAllTags, gamePopularTags, gameAllTags] =
@@ -54,8 +55,8 @@ async function getTagsData() {
 }
 
 export default async function TagsPage() {
-  const { videoPopularTags, videoAllTags, gamePopularTags, gameAllTags } =
-    await getTagsData();
+  const [{ videoPopularTags, videoAllTags, gamePopularTags, gameAllTags }, config] =
+    await Promise.all([getTagsData(), getPublicSiteConfig()]);
 
   const totalTags = new Set([
     ...videoAllTags.map((t) => t.id),
@@ -65,9 +66,9 @@ export default async function TagsPage() {
   return (
     <>
       <CollectionPageJsonLd
-        name={`标签 - ${siteName}`}
-        description={`浏览 ${siteName} 的 ${totalTags} 个内容标签`}
-        url={`${siteUrl}/tags`}
+        name={`标签 - ${config.siteName}`}
+        description={`浏览 ${config.siteName} 的 ${totalTags} 个内容标签`}
+        url={`${config.siteUrl}/tags`}
         numberOfItems={totalTags}
       />
       <TagsPageClient

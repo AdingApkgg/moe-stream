@@ -49,6 +49,7 @@ import { useSearchHistoryStore } from "@/stores/app";
 import { useUserStore } from "@/stores/user";
 import { playSound } from "@/lib/audio";
 import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/contexts/site-config";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -187,6 +188,7 @@ function SoundToggleButton() {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const siteConfig = useSiteConfig();
   const { session, isLoading: sessionLoading } = useStableSession();
   const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
@@ -418,11 +420,10 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <SheetTitle>
                     <Link 
                       href="/" 
-                      className="flex items-center gap-1 font-bold text-xl"
+                      className="flex items-center font-bold text-xl"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <span className="text-gradient-anime">Miki</span>
-                      <span>acg</span>
+                      {siteConfig?.siteName || "Mikiacg"}
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -433,12 +434,13 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center ml-1">
               <Image
-                src="/Mikiacg-logo.webp"
-                alt="Mikiacg"
+                src={siteConfig?.siteLogo || "/Mikiacg-logo.webp"}
+                alt={siteConfig?.siteName || "Mikiacg"}
                 width={108}
                 height={28}
                 className="h-7 w-auto"
                 priority
+                unoptimized
               />
             </Link>
           </div>

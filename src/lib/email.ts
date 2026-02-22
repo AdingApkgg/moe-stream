@@ -129,7 +129,9 @@ export async function sendVerificationCode(
     };
 
     const config = typeConfig[type];
-    const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+    const { getPublicSiteConfig } = await import("@/lib/site-config");
+    const siteConfig = await getPublicSiteConfig();
+    const siteName = siteConfig.siteName;
 
     const html = templates.verificationCode({
       siteName,

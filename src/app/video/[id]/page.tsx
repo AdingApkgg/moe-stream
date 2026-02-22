@@ -5,6 +5,7 @@ import { VideoPageClient } from "./client";
 import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCoverFullUrl } from "@/lib/cover";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 interface VideoPageProps {
   params: Promise<{ id: string }>;
@@ -64,7 +65,8 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
     : `由 ${uploaderName} 上传的视频`;
   const keywords = video.tags.map(({ tag }) => tag.name);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const siteConfig = await getPublicSiteConfig();
+  const baseUrl = siteConfig.siteUrl;
 
   return {
     title: video.title,

@@ -217,6 +217,7 @@ interface VideoItem {
   title: string;
   description: string | null;
   coverUrl: string | null;
+  videoUrl: string;
   duration: number | null;
   views: number;
   status: string;
@@ -650,11 +651,9 @@ export default function AdminVideosPage() {
       ) : (
         <>
           <div className="space-y-3">
-            {videos.map((video, index) => {
+            {videos.map((video) => {
               const isSelected = selectedIds.has(video.id);
               const isExpanded = expandedIds.has(video.id);
-              const itemNumber = totalCount - ((currentPage - 1) * limit + index);
-
               return (
                 <Card
                   key={video.id}
@@ -673,9 +672,6 @@ export default function AdminVideosPage() {
 
                       {/* 封面 */}
                       <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
-                        <div className="absolute top-1 left-1 z-10 bg-black/70 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
-                          #{itemNumber}
-                        </div>
                         <Image
                           src={getCoverUrl(video.id, video.coverUrl)}
                           alt={video.title}
@@ -807,6 +803,26 @@ export default function AdminVideosPage() {
                               <ChevronDown className="h-4 w-4" />
                             )}
                           </Button>
+                        </div>
+
+                        {/* 封面链接和视频源链接 */}
+                        <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-muted-foreground font-mono">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="shrink-0 text-muted-foreground/60">封面</span>
+                            {video.coverUrl ? (
+                              <a href={video.coverUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={video.coverUrl}>
+                                {video.coverUrl}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground/40">未设置</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="shrink-0 text-muted-foreground/60">视频</span>
+                            <a href={video.videoUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={video.videoUrl}>
+                              {video.videoUrl}
+                            </a>
+                          </div>
                         </div>
                       </div>
                     </div>

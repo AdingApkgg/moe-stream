@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { UserPageClient } from "./client";
 import { cache } from "react";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 interface UserPageProps {
   params: Promise<{ id: string }>;
@@ -59,8 +60,9 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
     ? user.bio.slice(0, 160) 
     : `${displayName} 的个人主页`;
 
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const siteConfig = await getPublicSiteConfig();
+  const siteName = siteConfig.siteName;
+  const baseUrl = siteConfig.siteUrl;
 
   return {
     title: displayName,

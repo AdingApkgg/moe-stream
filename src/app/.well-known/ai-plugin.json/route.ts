@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
+  const siteName = config.siteName;
 
   const plugin = {
     schema_version: "v1",
@@ -18,7 +20,7 @@ export async function GET() {
       url: `${baseUrl}/.well-known/openapi.yaml`,
     },
     logo_url: `${baseUrl}/icon`,
-    contact_email: "contact@saop.cc",
+    contact_email: config.contactEmail || "",
     legal_info_url: `${baseUrl}/about`,
   };
 

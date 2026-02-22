@@ -671,11 +671,9 @@ export default function DashboardGamesPage() {
       ) : (
         <>
           <div className="space-y-3">
-            {games.map((game, index) => {
+            {games.map((game) => {
               const isSelected = selectedIds.has(game.id);
               const isExpanded = expandedIds.has(game.id);
-              const itemNumber = totalCount - ((currentPage - 1) * limit + index);
-
               return (
                 <Card
                   key={game.id}
@@ -694,9 +692,6 @@ export default function DashboardGamesPage() {
 
                       {/* 封面 */}
                       <div className="relative w-20 h-[104px] rounded-lg bg-muted overflow-hidden shrink-0">
-                        <div className="absolute top-1 left-1 z-10 bg-black/70 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
-                          #{itemNumber}
-                        </div>
                         {game.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -838,6 +833,20 @@ export default function DashboardGamesPage() {
                               <ChevronDown className="h-4 w-4" />
                             )}
                           </Button>
+                        </div>
+
+                        {/* 封面链接 */}
+                        <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-muted-foreground font-mono">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="shrink-0 text-muted-foreground/60">封面</span>
+                            {game.coverUrl ? (
+                              <a href={game.coverUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={game.coverUrl}>
+                                {game.coverUrl}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground/40">未设置</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

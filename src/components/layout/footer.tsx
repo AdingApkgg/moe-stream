@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { trpc } from "@/lib/trpc";
+import { useSiteConfig } from "@/contexts/site-config";
 
 export function Footer() {
-  const { data: config } = trpc.site.getConfig.useQuery();
+  const config = useSiteConfig();
   
   const siteName = config?.siteName || "Mikiacg";
   const footerLinks = config?.footerLinks || [];
   const icpBeian = config?.icpBeian;
   const publicSecurityBeian = config?.publicSecurityBeian;
+  const githubUrl = config?.githubUrl;
 
   return (
     <footer className="border-t bg-background">
@@ -51,14 +52,16 @@ export function Footer() {
             <Link href="/sitemap.xml" className="hover:text-foreground transition-colors">
               Sitemap
             </Link>
-            <a 
-              href="https://github.com/AdingApkgg/mikiacg" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
-            >
-              GitHub
-            </a>
+            {githubUrl && (
+              <a 
+                href={githubUrl}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                GitHub
+              </a>
+            )}
             {/* 自定义页脚链接 */}
             {footerLinks.map((link, index) => (
               <a 

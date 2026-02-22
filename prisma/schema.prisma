@@ -674,10 +674,16 @@ model SiteConfig {
   
   // 基本信息
   siteName        String   @default("Mikiacg")
+  siteUrl         String?  // 站点 URL（优先级高于 NEXT_PUBLIC_APP_URL 环境变量）
   siteDescription String?  @db.Text
   siteLogo        String?  // Logo URL
   siteFavicon     String?  // Favicon URL
   siteKeywords    String?  // SEO 关键词，逗号分隔
+  
+  // SEO / 验证
+  googleVerification  String?  // Google Search Console 验证码
+  githubUrl           String?  // GitHub 仓库链接（页脚显示）
+  securityEmail       String?  // 安全联系邮箱（security.txt 用）
   
   // 公告
   announcement    String?  @db.Text  // 公告内容（支持 Markdown）
@@ -719,9 +725,56 @@ model SiteConfig {
   // 广告列表（统一管理，广告门和页面广告位共用）
   // [{ title, platform, url, description, imageUrl, weight, enabled }]
   sponsorAds          Json?
+
+  // 对象存储
+  storageProvider     String   @default("local") // local | s3 | r2 | minio | oss | cos
+  storageEndpoint     String?  // S3 兼容端点 URL
+  storageBucket       String?  // 存储桶名称
+  storageRegion       String?  // 区域
+  storageAccessKey    String?  // Access Key ID
+  storageSecretKey    String?  // Secret Access Key
+  storageCustomDomain String?  // 自定义域名（公开访问地址）
+  storagePathPrefix   String?  // 存储路径前缀
+
+  // 数据备份
+  backupEnabled         Boolean @default(false)  // 是否启用自动备份
+  backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）
+  backupRetentionDays   Int     @default(30)     // 备份保留天数
+  backupIncludeUploads  Boolean @default(true)   // 是否包含 uploads 目录
+  backupIncludeConfig   Boolean @default(true)   // 是否包含配置文件
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==================== 数据备份 ====================
+
+model BackupRecord {
+  id            String       @id @default(cuid())
+  filename      String
+  size          BigInt       @default(0)        // 文件大小（字节）
+  type          BackupType   @default(MANUAL)
+  status        BackupStatus @default(PENDING)
+  errorMessage  String?      @db.Text
+  storagePath   String?                         // 对象存储中的 key
+  includes      Json?                           // { database: true, uploads: true, config: true }
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+enum BackupType {
+  AUTO
+  MANUAL
+}
+
+enum BackupStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 // ==================== 友情链接 ====================

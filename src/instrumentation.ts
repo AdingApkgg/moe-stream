@@ -24,5 +24,15 @@ export async function register() {
     console.log(
       `[${new Date().toISOString()}][Instrumentation] 封面生成后台服务已启动`
     );
+
+    // 启动数据备份调度器
+    const { startBackupScheduler } = await import("@/lib/backup");
+    console.log(
+      `[${new Date().toISOString()}][Instrumentation] 启动数据备份调度器...`
+    );
+    await startBackupScheduler();
+    console.log(
+      `[${new Date().toISOString()}][Instrumentation] 数据备份调度器已启动`
+    );
   }
 }

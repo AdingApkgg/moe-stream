@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { GamePageClient } from "./client";
 import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 interface GamePageProps {
   params: Promise<{ id: string }>;
@@ -61,7 +62,8 @@ export async function generateMetadata({ params }: GamePageProps): Promise<Metad
     : `${uploaderName} 分享的游戏`;
   const keywords = game.tags.map(({ tag }) => tag.name);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const siteConfig = await getPublicSiteConfig();
+  const baseUrl = siteConfig.siteUrl;
 
   return {
     title: game.title,

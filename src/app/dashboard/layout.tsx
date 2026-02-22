@@ -21,6 +21,7 @@ import {
   Users,
   Video,
   Gamepad2,
+  Layers,
   Tag,
   Settings,
   Shield,
@@ -29,6 +30,7 @@ import {
   Sparkles,
   ChevronLeft,
   Link2,
+  DatabaseBackup,
 } from "lucide-react";
 
 const menuItems = [
@@ -42,6 +44,12 @@ const menuItems = [
     href: "/dashboard/games",
     label: "游戏管理",
     icon: Gamepad2,
+    scope: "video:moderate",
+  },
+  {
+    href: "/dashboard/series",
+    label: "合集管理",
+    icon: Layers,
     scope: "video:moderate",
   },
   {
@@ -66,6 +74,12 @@ const menuItems = [
     href: "/dashboard/links",
     label: "友情链接",
     icon: Link2,
+    scope: "settings:manage",
+  },
+  {
+    href: "/dashboard/backups",
+    label: "数据备份",
+    icon: DatabaseBackup,
     scope: "settings:manage",
   },
   {

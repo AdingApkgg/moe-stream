@@ -431,7 +431,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   return (
     <>

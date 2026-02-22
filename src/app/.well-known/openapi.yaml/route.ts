@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
+  const siteName = config.siteName;
 
   const openapi = `openapi: 3.1.0
 info:
@@ -25,7 +27,7 @@ info:
     - LLMs.txt: ${baseUrl}/llms.txt
   version: 2.0.0
   contact:
-    email: contact@saop.cc
+    email: ${config.contactEmail || "contact@example.com"}
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

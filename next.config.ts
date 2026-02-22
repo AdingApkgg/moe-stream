@@ -42,17 +42,21 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
+    if (process.env.NODE_ENV !== "production") return [];
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) return [];
+    const urlObj = new URL(appUrl);
+    const host = urlObj.hostname.replace(/\./g, "\\.");
     return [
-      // 所有非 www.mikiacg.vip 的域名/IP 访问统一 301 到主域名
       {
         source: "/:path*",
         has: [
           {
             type: "host",
-            value: "(?!^www\\.mikiacg\\.vip$).*",
+            value: `(?!^${host}$).*`,
           },
         ],
-        destination: "https://www.mikiacg.vip/:path*",
+        destination: `${appUrl}/:path*`,
         permanent: true,
       },
     ];

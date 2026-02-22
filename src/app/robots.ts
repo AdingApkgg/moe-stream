@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
-export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
 
   // AI 爬虫允许访问的路径
   const aiAllowPaths = ["/", "/video/", "/video/tag/", "/game/", "/game/tag/", "/user/", "/tags", "/search", "/llms.txt", "/llms-full.txt", "/feed.xml"];

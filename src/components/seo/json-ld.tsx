@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { getCoverFullUrl } from "@/lib/cover";
+import { useSiteConfig } from "@/contexts/site-config";
 
 interface VideoJsonLdProps {
   video: {
@@ -28,7 +29,8 @@ interface VideoJsonLdProps {
 }
 
 export function VideoJsonLd({ video }: VideoJsonLdProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const config = useSiteConfig();
+  const baseUrl = config?.siteUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -71,10 +73,14 @@ interface WebsiteJsonLdProps {
 }
 
 export function WebsiteJsonLd({
-  siteName = "Mikiacg",
-  siteUrl = "https://www.mikiacg.vip",
-  description = "Mikiacg 流式媒体内容分享平台",
+  siteName,
+  siteUrl,
+  description,
 }: WebsiteJsonLdProps) {
+  const config = useSiteConfig();
+  siteName = siteName || config?.siteName || "Mikiacg";
+  siteUrl = siteUrl || config?.siteUrl || "http://localhost:3000";
+  description = description || config?.siteDescription || `${siteName} 流式媒体内容分享平台`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -135,23 +141,31 @@ interface OrganizationJsonLdProps {
 }
 
 export function OrganizationJsonLd({
-  name = "Mikiacg",
-  url = "https://www.mikiacg.vip",
-  logo = "https://www.mikiacg.vip/icon",
+  name,
+  url,
+  logo,
 }: OrganizationJsonLdProps) {
+  const config = useSiteConfig();
+  name = name || config?.siteName || "Mikiacg";
+  url = url || config?.siteUrl || "http://localhost:3000";
+  logo = logo || (config?.siteUrl ? `${config.siteUrl}/icon` : "/icon");
+  const contactEmail = config?.contactEmail || "";
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: name,
-    url: url,
-    logo: logo,
+    name,
+    url,
+    logo,
     sameAs: [],
-    contactPoint: {
-      "@type": "ContactPoint",
-      email: "contact@saop.cc",
-      contactType: "customer service",
-      availableLanguage: ["Chinese", "English"],
-    },
+    ...(contactEmail && {
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: contactEmail,
+        contactType: "customer service",
+        availableLanguage: ["Chinese", "English"],
+      },
+    }),
   };
 
   return (
@@ -182,7 +196,8 @@ interface VideoListJsonLdProps {
  * 视频列表结构化数据 - 用于首页和列表页
  */
 export function VideoListJsonLd({ videos }: VideoListJsonLdProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const config = useSiteConfig();
+  const baseUrl = config?.siteUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const jsonLd = {
     "@context": "https://schema.org",

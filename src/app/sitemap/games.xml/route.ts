@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const revalidate = 3600;
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
 
   try {
     const games = await prisma.game.findMany({

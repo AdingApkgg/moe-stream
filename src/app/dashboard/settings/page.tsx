@@ -22,6 +22,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Settings,
   Search,
   Loader2,
@@ -38,17 +45,36 @@ import {
   Megaphone,
   Plus,
   Trash2,
+  HardDrive,
+  Download,
+  Upload,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // 配置表单 schema
 const configFormSchema = z.object({
   // 基本信息
   siteName: z.string().min(1, "网站名称不能为空").max(100),
+  siteUrl: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   siteDescription: z.string().max(500).optional().nullable(),
   siteLogo: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   siteFavicon: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   siteKeywords: z.string().max(500).optional().nullable(),
+  
+  // SEO / 验证
+  googleVerification: z.string().max(200).optional().nullable().or(z.literal("")),
+  githubUrl: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  securityEmail: z.string().email("请输入有效的邮箱").optional().nullable().or(z.literal("")),
   
   // 公告
   announcement: z.string().max(2000).optional().nullable(),
@@ -94,6 +120,16 @@ const configFormSchema = z.object({
     weight: z.number().int().min(1).max(100),
     enabled: z.boolean(),
   })),
+
+  // 对象存储
+  storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]),
+  storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
+  storageBucket: z.string().max(200).optional().nullable().or(z.literal("")),
+  storageRegion: z.string().max(100).optional().nullable().or(z.literal("")),
+  storageAccessKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  storageSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  storageCustomDomain: z.string().max(500).optional().nullable().or(z.literal("")),
+  storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
 });
 
 type ConfigFormValues = z.infer<typeof configFormSchema>;
@@ -259,19 +295,88 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const exportConfig = trpc.admin.exportSiteConfig.useQuery(undefined, {
+    enabled: false,
+  });
+
+  const importConfig = trpc.admin.importSiteConfig.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已还原 ${result.imported} 项配置`);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(error.message || "还原失败");
+    },
+  });
+
+  const handleExportConfig = async () => {
+    try {
+      const result = await exportConfig.refetch();
+      if (result.data) {
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `site-config-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("配置已导出");
+      }
+    } catch {
+      toast.error("导出失败");
+    }
+  };
+
+  const handleImportConfig = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (typeof data !== "object" || data === null) {
+          toast.error("文件格式不正确");
+          return;
+        }
+        setPendingImport(data);
+        setShowImportDialog(true);
+      } catch {
+        toast.error("文件解析失败，请确保是有效的 JSON 文件");
+      }
+    };
+    input.click();
+  };
+
+  const confirmImport = () => {
+    if (pendingImport) {
+      importConfig.mutate({ data: pendingImport });
+    }
+    setShowImportDialog(false);
+    setPendingImport(null);
+  };
+
   const [engineStatus, setEngineStatus] = useState<SearchEngineStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recentDays, setRecentDays] = useState(7);
   const [lastResult, setLastResult] = useState<{ type: string; message: string; time: Date } | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
 
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configFormSchema),
     defaultValues: {
       siteName: "Mikiacg",
+      siteUrl: "",
       siteDescription: "",
       siteLogo: "",
       siteFavicon: "",
       siteKeywords: "",
+      googleVerification: "",
+      githubUrl: "",
+      securityEmail: "",
       announcement: "",
       announcementEnabled: false,
       allowRegistration: true,
@@ -291,6 +396,14 @@ export default function AdminSettingsPage() {
       adGateViewsRequired: 3,
       adGateHours: 12,
       sponsorAds: [],
+      storageProvider: "local",
+      storageEndpoint: "",
+      storageBucket: "",
+      storageRegion: "",
+      storageAccessKey: "",
+      storageSecretKey: "",
+      storageCustomDomain: "",
+      storagePathPrefix: "",
     },
   });
   const { fields: adsFields, append: appendAd, remove: removeAd } = useFieldArray({
@@ -303,10 +416,14 @@ export default function AdminSettingsPage() {
     if (config) {
       form.reset({
         siteName: config.siteName,
+        siteUrl: (config as Record<string, unknown>).siteUrl as string || "",
         siteDescription: config.siteDescription || "",
         siteLogo: config.siteLogo || "",
         siteFavicon: config.siteFavicon || "",
         siteKeywords: config.siteKeywords || "",
+        googleVerification: (config as Record<string, unknown>).googleVerification as string || "",
+        githubUrl: (config as Record<string, unknown>).githubUrl as string || "",
+        securityEmail: (config as Record<string, unknown>).securityEmail as string || "",
         announcement: config.announcement || "",
         announcementEnabled: config.announcementEnabled,
         allowRegistration: config.allowRegistration,
@@ -334,6 +451,14 @@ export default function AdminSettingsPage() {
           weight: item.weight ?? 1,
           enabled: item.enabled !== false,
         })),
+        storageProvider: ((config as Record<string, unknown>).storageProvider as ConfigFormValues["storageProvider"]) ?? "local",
+        storageEndpoint: ((config as Record<string, unknown>).storageEndpoint as string) || "",
+        storageBucket: ((config as Record<string, unknown>).storageBucket as string) || "",
+        storageRegion: ((config as Record<string, unknown>).storageRegion as string) || "",
+        storageAccessKey: ((config as Record<string, unknown>).storageAccessKey as string) || "",
+        storageSecretKey: ((config as Record<string, unknown>).storageSecretKey as string) || "",
+        storageCustomDomain: ((config as Record<string, unknown>).storageCustomDomain as string) || "",
+        storagePathPrefix: ((config as Record<string, unknown>).storagePathPrefix as string) || "",
       });
     }
   }, [config, form]);
@@ -407,10 +532,50 @@ export default function AdminSettingsPage() {
             配置网站的系统参数
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportConfig}>
+            <Download className="h-4 w-4 mr-1" />
+            备份配置
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImportConfig}>
+            <Upload className="h-4 w-4 mr-1" />
+            还原配置
+          </Button>
+        </div>
       </div>
 
+      <AlertDialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认还原配置</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>还原将覆盖当前的所有系统配置（含友情链接），此操作不可撤销。建议先备份当前配置后再还原。</p>
+                {typeof pendingImport?._exportedAt === "string" && (
+                  <p className="mt-2 text-xs">
+                    配置备份时间：{new Date(pendingImport._exportedAt).toLocaleString()}
+                  </p>
+                )}
+                {Array.isArray(pendingImport?._friendLinks) && (
+                  <p className="mt-1 text-xs">
+                    包含 {(pendingImport._friendLinks as unknown[]).length} 条友情链接
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmImport} disabled={importConfig.isPending}>
+              {importConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              确认还原
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="basic" className="gap-2">
             <Info className="h-4 w-4" />
             <span className="hidden sm:inline">基本信息</span>
@@ -422,6 +587,10 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="content" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">内容设置</span>
+          </TabsTrigger>
+          <TabsTrigger value="storage" className="gap-2">
+            <HardDrive className="h-4 w-4" />
+            <span className="hidden sm:inline">对象存储</span>
           </TabsTrigger>
           <TabsTrigger value="footer" className="gap-2">
             <Link2 className="h-4 w-4" />
@@ -456,6 +625,21 @@ export default function AdminSettingsPage() {
                         <FormControl>
                           <Input {...field} placeholder="Mikiacg" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="siteUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>站点 URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} placeholder="https://www.example.com" />
+                        </FormControl>
+                        <FormDescription>站点的访问地址，用于生成 SEO、Sitemap、RSS 等。留空则使用 .env 中的 NEXT_PUBLIC_APP_URL</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -779,6 +963,172 @@ export default function AdminSettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* 对象存储 */}
+            <TabsContent value="storage">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5" />
+                    对象存储
+                  </CardTitle>
+                  <CardDescription>
+                    配置 S3 兼容的对象存储服务，用于存放图片、视频封面等静态资源。切换为对象存储后，新上传的文件将保存至远程存储桶。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                    对象存储功能尚在开发中，当前仅支持配置保存，实际上传仍使用本地存储。
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="storageProvider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>存储提供商</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择存储提供商" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="local">本地存储</SelectItem>
+                            <SelectItem value="s3">Amazon S3</SelectItem>
+                            <SelectItem value="r2">Cloudflare R2</SelectItem>
+                            <SelectItem value="minio">MinIO</SelectItem>
+                            <SelectItem value="oss">阿里云 OSS</SelectItem>
+                            <SelectItem value="cos">腾讯云 COS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>选择「本地存储」时下方配置无需填写</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("storageProvider") !== "local" && (
+                    <div className="space-y-4 pt-2">
+                      <FormField
+                        control={form.control}
+                        name="storageEndpoint"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Endpoint</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="https://s3.amazonaws.com" />
+                            </FormControl>
+                            <FormDescription>S3 兼容的端点地址，如 https://s3.us-east-1.amazonaws.com</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="storageBucket"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>存储桶名称</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="my-bucket" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="storageRegion"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>区域</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="us-east-1" />
+                              </FormControl>
+                              <FormDescription>部分服务商可留空</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="storageAccessKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Access Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="AKIA..." />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="storageSecretKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Secret Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="storageCustomDomain"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>自定义域名</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="https://cdn.example.com" />
+                            </FormControl>
+                            <FormDescription>用于替换默认的存储桶域名，设置后文件公开链接将使用此域名</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="storagePathPrefix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>路径前缀</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="uploads/" />
+                            </FormControl>
+                            <FormDescription>文件在存储桶中的路径前缀，如 uploads/</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* 页脚备案 */}
             <TabsContent value="footer">
               <Card>
@@ -790,6 +1140,21 @@ export default function AdminSettingsPage() {
                   <CardDescription>配置页脚信息和备案号</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="githubUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GitHub 链接</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} placeholder="https://github.com/your-org/your-repo" />
+                        </FormControl>
+                        <FormDescription>页脚显示的 GitHub 仓库链接，留空则不显示</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="footerText"
@@ -973,10 +1338,66 @@ export default function AdminSettingsPage() {
 
         {/* SEO 搜索引擎 */}
         <TabsContent value="seo">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+              <Card className="mb-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="h-5 w-5" />
+                    SEO 设置
+                  </CardTitle>
+                  <CardDescription>
+                    搜索引擎验证和安全联系配置
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="googleVerification"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Google 验证码</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} placeholder="Google Search Console 验证码" />
+                        </FormControl>
+                        <FormDescription>Google Search Console 的网站验证码，会自动添加到页面 meta 标签中</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="securityEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>安全联系邮箱</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} type="email" placeholder="security@example.com" />
+                        </FormControl>
+                        <FormDescription>用于 security.txt 中的安全联系方式，留空则不显示</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
+                <Globe className="h-5 w-5" />
                 搜索引擎推送
               </CardTitle>
               <CardDescription>

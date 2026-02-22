@@ -10,73 +10,85 @@ import { Providers } from "@/components/providers";
 import { AppLayout } from "@/components/layout/app-layout";
 import { getPublicSiteConfig } from "@/lib/site-config";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  const siteName = config.siteName;
+  const baseUrl = config.siteUrl;
+  const description = config.siteDescription || `${siteName} 流式媒体内容分享平台，提供丰富的动画、漫画、游戏、轻小说相关内容。`;
+  const keywords = config.siteKeywords
+    ? config.siteKeywords.split(",").map((k) => k.trim()).filter(Boolean)
+    : ["ACGN", "动漫", "视频", "anime", "动画", "漫画", "游戏", "轻小说", "二次元"];
 
-export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
-  title: {
-    default: `${siteName} - Mikiacg 流式媒体内容分享平台`,
-    template: `%s | ${siteName}`,
-  },
-  description: `${siteName} 是一个 Mikiacg 流式媒体内容分享平台，提供丰富的动画、漫画、游戏、轻小说相关内容。`,
-  keywords: ["ACGN", "动漫", "视频", "anime", "动画", "漫画", "游戏", "轻小说", "二次元"],
-  authors: [{ name: siteName }],
-  creator: siteName,
-  publisher: siteName,
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  openGraph: {
-    type: "website",
-    locale: "zh_CN",
-    url: baseUrl,
-    siteName: siteName,
-    title: `${siteName} - Mikiacg 流式媒体内容分享平台`,
-    description: `${siteName} 是一个 Mikiacg 流式媒体内容分享平台，提供丰富的动画、漫画、游戏、轻小说相关内容。`,
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: siteName,
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${siteName} - Mikiacg 流式媒体内容分享平台`,
-    description: `${siteName} 是一个 Mikiacg 流式媒体内容分享平台`,
-    images: ["/og-image.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+  let metadataBase: URL;
+  try {
+    metadataBase = new URL(baseUrl);
+  } catch {
+    metadataBase = new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000");
+  }
+
+  return {
+    metadataBase,
+    title: {
+      default: `${siteName} - ${description}`,
+      template: `%s | ${siteName}`,
+    },
+    description,
+    keywords,
+    authors: [{ name: siteName }],
+    creator: siteName,
+    publisher: siteName,
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+    openGraph: {
+      type: "website",
+      locale: "zh_CN",
+      url: baseUrl,
+      siteName,
+      title: `${siteName} - ${description}`,
+      description,
+      images: [
+        {
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: siteName,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${siteName} - ${description}`,
+      description,
+      images: ["/og-image.png"],
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  alternates: {
-    types: {
-      "application/rss+xml": "/feed.xml",
+    alternates: {
+      types: {
+        "application/rss+xml": "/feed.xml",
+      },
     },
-  },
-  verification: {
-    google: "Makh0QpTE_cFQ_WZF3qShdl6cTicB36RA97vazztCDg",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: siteName,
-  },
-  applicationName: siteName,
-};
+    ...(config.googleVerification ? { verification: { google: config.googleVerification } } : {}),
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: siteName,
+    },
+    applicationName: siteName,
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -101,17 +113,10 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/feed.xml" />
-        <link rel="apple-touch-icon" href="/Mikiacg-logo.webp" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        {/* AI 友好标签 */}
-        <meta name="ai-content-description" content="Mikiacg - 动画、漫画、游戏、轻小说相关视频内容分享平台" />
         <link rel="author" href="/llms.txt" />
         <link rel="help" href="/llms-full.txt" />
-        {/* 规范链接和多语言备用 */}
-        <link rel="canonical" href={baseUrl} />
       </head>
       <body className="font-sans" suppressHydrationWarning>
-        {/* 异步数据获取移至子级 Server Component，避免 Turbopack 异步根 Layout 模块解析问题 */}
         <RootProviders>{children}</RootProviders>
       </body>
     </html>

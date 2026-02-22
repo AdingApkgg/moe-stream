@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
-// Sitemap Index - 索引多个子 sitemap
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
 
   return [
     {

@@ -1674,10 +1674,16 @@ export const adminRouter = router({
     .input(z.object({
       // 基本信息
       siteName: z.string().min(1).max(100).optional(),
+      siteUrl: z.string().url().optional().nullable().or(z.literal("")),
       siteDescription: z.string().max(500).optional().nullable(),
       siteLogo: z.string().url().optional().nullable().or(z.literal("")),
       siteFavicon: z.string().url().optional().nullable().or(z.literal("")),
       siteKeywords: z.string().max(500).optional().nullable(),
+      
+      // SEO / 验证
+      googleVerification: z.string().max(200).optional().nullable().or(z.literal("")),
+      githubUrl: z.string().url().optional().nullable().or(z.literal("")),
+      securityEmail: z.string().email().optional().nullable().or(z.literal("")),
       
       // 公告
       announcement: z.string().max(2000).optional().nullable(),
@@ -1728,6 +1734,23 @@ export const adminRouter = router({
         weight: z.number().int().min(1).max(100).optional().default(1),
         enabled: z.boolean().optional().default(true),
       })).max(50).optional().nullable(),
+
+      // 对象存储
+      storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).optional(),
+      storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
+      storageBucket: z.string().max(200).optional().nullable().or(z.literal("")),
+      storageRegion: z.string().max(100).optional().nullable().or(z.literal("")),
+      storageAccessKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      storageSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      storageCustomDomain: z.string().max(500).optional().nullable().or(z.literal("")),
+      storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
+
+      // 数据备份
+      backupEnabled: z.boolean().optional(),
+      backupIntervalHours: z.number().int().min(1).max(720).optional(),
+      backupRetentionDays: z.number().int().min(1).max(365).optional(),
+      backupIncludeUploads: z.boolean().optional(),
+      backupIncludeConfig: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
@@ -1737,12 +1760,17 @@ export const adminRouter = router({
 
       // 仅保留 SiteConfig 存在的字段，空字符串转 null，并确保 Json 为可序列化值
       const allowedKeys = new Set([
-        "siteName", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
+        "siteName", "siteUrl", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
+        "googleVerification", "githubUrl", "securityEmail",
         "announcement", "announcementEnabled", "allowRegistration", "allowUpload",
         "allowComment", "requireEmailVerify", "videosPerPage", "commentsPerPage",
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
+        "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
+        "backupEnabled", "backupIntervalHours", "backupRetentionDays",
+        "backupIncludeUploads", "backupIncludeConfig",
       ]);
       const cleaned = Object.fromEntries(
         Object.entries(input)
@@ -1771,7 +1799,132 @@ export const adminRouter = router({
       // 清除站点配置缓存，使更改立即生效
       await deleteCache("site:config");
 
+      // 备份配置变更时热更新调度器
+      if (
+        input.backupEnabled !== undefined ||
+        input.backupIntervalHours !== undefined
+      ) {
+        try {
+          const { restartBackupScheduler } = await import("@/lib/backup");
+          restartBackupScheduler();
+        } catch {
+          // 开发环境可能不可用
+        }
+      }
+
       return config;
+    }),
+
+  // ==================== 配置备份与还原 ====================
+
+  exportSiteConfig: adminProcedure.query(async ({ ctx }) => {
+    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+    if (!canManage) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+    }
+
+    const [config, friendLinks] = await Promise.all([
+      ctx.prisma.siteConfig.findUnique({ where: { id: "default" } }),
+      ctx.prisma.friendLink.findMany({ orderBy: { sort: "desc" } }),
+    ]);
+
+    if (!config) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "配置不存在" });
+    }
+
+    const { id: _id, createdAt: _ca, updatedAt: _ua, ...exportable } = config;
+    void _id; void _ca; void _ua;
+    return {
+      _exportedAt: new Date().toISOString(),
+      _version: 2,
+      ...exportable,
+      _friendLinks: friendLinks.map(({ id: _fid, createdAt: _fc, updatedAt: _fu, ...rest }) => {
+        void _fid; void _fc; void _fu;
+        return rest;
+      }),
+    };
+  }),
+
+  importSiteConfig: adminProcedure
+    .input(z.object({
+      data: z.record(z.string(), z.unknown()),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const { data } = input;
+
+      const systemKeys = new Set(["_exportedAt", "_version", "_friendLinks", "id", "createdAt", "updatedAt"]);
+
+      const allowedKeys = new Set([
+        "siteName", "siteUrl", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
+        "googleVerification", "githubUrl", "securityEmail",
+        "announcement", "announcementEnabled", "allowRegistration", "allowUpload",
+        "allowComment", "requireEmailVerify", "videosPerPage", "commentsPerPage",
+        "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
+        "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
+        "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
+        "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
+        "backupEnabled", "backupIntervalHours", "backupRetentionDays",
+        "backupIncludeUploads", "backupIncludeConfig",
+      ]);
+
+      const cleaned = Object.fromEntries(
+        Object.entries(data)
+          .filter(([key]) => !systemKeys.has(key) && allowedKeys.has(key))
+          .filter(([, value]) => value !== undefined)
+      ) as Record<string, unknown>;
+
+      // 保证 Json 字段可序列化
+      for (const jsonKey of ["sponsorAds", "socialLinks", "footerLinks"]) {
+        if (cleaned[jsonKey] != null) {
+          cleaned[jsonKey] = JSON.parse(JSON.stringify(cleaned[jsonKey])) as Prisma.InputJsonValue;
+        }
+      }
+
+      let importedCount = Object.keys(cleaned).length;
+
+      // 还原 SiteConfig
+      if (importedCount > 0) {
+        await ctx.prisma.siteConfig.upsert({
+          where: { id: "default" },
+          create: { id: "default", ...cleaned } as Prisma.SiteConfigCreateInput,
+          update: cleaned as Prisma.SiteConfigUpdateInput,
+        });
+        await deleteCache("site:config");
+      }
+
+      // 还原友情链接
+      const friendLinksData = data._friendLinks;
+      if (Array.isArray(friendLinksData) && friendLinksData.length > 0) {
+        await ctx.prisma.friendLink.deleteMany();
+        for (const link of friendLinksData) {
+          if (typeof link === "object" && link !== null && "name" in link && "url" in link) {
+            const fl = link as Record<string, unknown>;
+            await ctx.prisma.friendLink.create({
+              data: {
+                name: String(fl.name),
+                url: String(fl.url),
+                logo: fl.logo ? String(fl.logo) : null,
+                description: fl.description ? String(fl.description) : null,
+                sort: typeof fl.sort === "number" ? fl.sort : 0,
+                visible: fl.visible !== false,
+              },
+            });
+          }
+        }
+        importedCount += friendLinksData.length;
+      }
+
+      if (importedCount === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "导入数据为空或格式不正确" });
+      }
+
+      return { imported: importedCount };
     }),
 
   // 重置视频封面：清除匹配模式的封面URL并触发自动生成
@@ -2444,5 +2597,351 @@ export const adminRouter = router({
       }
 
       return { success: true, count: updatedCount };
+    }),
+
+  // ========== 数据备份 ==========
+
+  listBackups: adminProcedure
+    .input(z.object({
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(5).max(50).default(20),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 20;
+
+      const [records, total] = await Promise.all([
+        ctx.prisma.backupRecord.findMany({
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        ctx.prisma.backupRecord.count(),
+      ]);
+
+      return {
+        records: records.map((r) => ({
+          ...r,
+          size: r.size.toString(),
+        })),
+        total,
+        page,
+        pageSize,
+      };
+    }),
+
+  triggerBackup: adminProcedure
+    .input(z.object({
+      includeDatabase: z.boolean().default(true),
+      includeUploads: z.boolean().default(true),
+      includeConfig: z.boolean().default(true),
+    }).optional())
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const { createBackup } = await import("@/lib/backup");
+
+      const running = await ctx.prisma.backupRecord.findFirst({
+        where: { status: { in: ["PENDING", "RUNNING"] } },
+      });
+      if (running) {
+        throw new TRPCError({ code: "CONFLICT", message: "已有备份任务正在进行" });
+      }
+
+      const id = await createBackup({
+        type: "MANUAL",
+        includeDatabase: input?.includeDatabase ?? true,
+        includeUploads: input?.includeUploads ?? true,
+        includeConfig: input?.includeConfig ?? true,
+      });
+
+      return { id };
+    }),
+
+  deleteBackup: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const { deleteBackupById } = await import("@/lib/backup");
+      await deleteBackupById(input.id);
+      return { success: true };
+    }),
+
+  getBackupDownloadUrl: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const record = await ctx.prisma.backupRecord.findUnique({
+        where: { id: input.id },
+      });
+      if (!record || !record.storagePath || record.status !== "COMPLETED") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "备份文件不存在或未完成" });
+      }
+
+      const { getStorageConfig, getPresignedDownloadUrl } = await import("@/lib/s3-client");
+      const storageConfig = await getStorageConfig();
+      if (storageConfig.provider === "local") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "本地存储不支持下载链接" });
+      }
+
+      const url = await getPresignedDownloadUrl(storageConfig, record.storagePath, 3600);
+      return { url };
+    }),
+
+  restoreBackup: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
+      }
+
+      const record = await ctx.prisma.backupRecord.findUnique({
+        where: { id: input.id },
+      });
+      if (!record || record.status !== "COMPLETED") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "备份不存在或未完成" });
+      }
+
+      const { restoreBackupById } = await import("@/lib/backup");
+      const result = await restoreBackupById(input.id);
+
+      if (result.errors.length > 0 && !result.database && !result.uploads && !result.config) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: result.errors.join("; "),
+        });
+      }
+
+      return result;
+    }),
+
+  // ==================== 合集管理 ====================
+
+  getSeriesStats: adminProcedure.query(async ({ ctx }) => {
+    const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+    if (!canModerate) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+    }
+
+    const [total, totalEpisodes] = await Promise.all([
+      ctx.prisma.series.count(),
+      ctx.prisma.seriesEpisode.count(),
+    ]);
+
+    return { total, totalEpisodes };
+  }),
+
+  listAllSeries: adminProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(50),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      const { page, limit, search } = input;
+
+      const where: Prisma.SeriesWhereInput = {};
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+        ];
+      }
+
+      const [series, totalCount] = await Promise.all([
+        ctx.prisma.series.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            creator: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            _count: { select: { episodes: true } },
+            episodes: {
+              take: 1,
+              orderBy: { episodeNum: "asc" },
+              include: {
+                video: {
+                  select: { id: true, coverUrl: true, title: true },
+                },
+              },
+            },
+          },
+        }),
+        ctx.prisma.series.count({ where }),
+      ]);
+
+      return {
+        series,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  getSeriesDetail: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
+      if (!canModerate) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      const series = await ctx.prisma.series.findUnique({
+        where: { id: input.id },
+        include: {
+          creator: {
+            select: { id: true, username: true, nickname: true, avatar: true },
+          },
+          episodes: {
+            orderBy: { episodeNum: "asc" },
+            include: {
+              video: {
+                select: {
+                  id: true,
+                  title: true,
+                  coverUrl: true,
+                  videoUrl: true,
+                  duration: true,
+                  views: true,
+                  status: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!series) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
+      }
+
+      return series;
+    }),
+
+  adminUpdateSeries: adminProcedure
+    .input(z.object({
+      id: z.string(),
+      title: z.string().min(1).max(100).optional(),
+      description: z.string().max(2000).optional().nullable(),
+      coverUrl: z.string().optional().nullable(),
+      downloadUrl: z.string().optional().nullable(),
+      downloadNote: z.string().max(1000).optional().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      const series = await ctx.prisma.series.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!series) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
+      }
+
+      const { id, ...data } = input;
+      const updateData: Prisma.SeriesUpdateInput = {};
+      if (data.title !== undefined) updateData.title = data.title;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.coverUrl !== undefined) updateData.coverUrl = data.coverUrl || null;
+      if (data.downloadUrl !== undefined) updateData.downloadUrl = data.downloadUrl || null;
+      if (data.downloadNote !== undefined) updateData.downloadNote = data.downloadNote;
+
+      return ctx.prisma.series.update({
+        where: { id },
+        data: updateData,
+      });
+    }),
+
+  adminDeleteSeries: adminProcedure
+    .input(z.object({ seriesId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      const series = await ctx.prisma.series.findUnique({
+        where: { id: input.seriesId },
+      });
+
+      if (!series) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
+      }
+
+      await ctx.prisma.series.delete({
+        where: { id: input.seriesId },
+      });
+
+      return { success: true };
+    }),
+
+  adminRemoveEpisode: adminProcedure
+    .input(z.object({
+      seriesId: z.string(),
+      videoId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      await ctx.prisma.seriesEpisode.delete({
+        where: {
+          seriesId_videoId: {
+            seriesId: input.seriesId,
+            videoId: input.videoId,
+          },
+        },
+      });
+
+      return { success: true };
+    }),
+
+  adminBatchDeleteSeries: adminProcedure
+    .input(z.object({
+      seriesIds: z.array(z.string()).min(1).max(500),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
+      }
+
+      const result = await ctx.prisma.series.deleteMany({
+        where: { id: { in: input.seriesIds } },
+      });
+
+      return { success: true, count: result.count };
     }),
 });

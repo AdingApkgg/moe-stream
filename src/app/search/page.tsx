@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { SearchContent } from "./client";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string }>;
 }
 
-// 动态生成 metadata
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
   const { q: query } = await searchParams;
   
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const config = await getPublicSiteConfig();
+  const siteName = config.siteName;
 
   if (!query) {
     return {

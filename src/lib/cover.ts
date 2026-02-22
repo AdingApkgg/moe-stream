@@ -2,7 +2,7 @@
  * 封面 URL 工具函数
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.mikiacg.vip";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 /**
  * 获取视频封面 URL（相对路径，用于前端组件）

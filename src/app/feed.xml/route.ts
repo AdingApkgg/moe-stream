@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { getCoverFullUrl } from "@/lib/cover";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const siteName = process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg";
+  const config = await getPublicSiteConfig();
+  const baseUrl = config.siteUrl;
+  const siteName = config.siteName;
 
   const escapeXml = (str: string) =>
     str
