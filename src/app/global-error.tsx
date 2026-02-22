@@ -15,7 +15,7 @@ function isChunkLoadError(error: unknown): boolean {
 
 export default function GlobalError({
   error,
-  reset: _reset,
+  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -56,7 +56,7 @@ export default function GlobalError({
             : "发生了意外错误，请尝试刷新页面。"}
         </p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => reset()}
           style={{
             padding: "0.5rem 1.5rem",
             borderRadius: "0.375rem",
