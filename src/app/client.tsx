@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, lazy, Suspense } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, lazy, Suspense, type ReactNode, type ErrorInfo } from "react";
 import { useRouter } from "next/navigation";
 import { useUIStore } from "@/stores/app";
 import { Play, Gamepad2, Loader2, Sparkles, Zap } from "lucide-react";
@@ -8,6 +8,18 @@ import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
 
 const LandingScene = lazy(() => import("@/components/effects/landing-scene"));
+
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn("[LandingScene] 3D scene failed to render:", error, info);
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 const subscribe = () => () => {};
 const getSnapshot = () => true;
@@ -59,9 +71,11 @@ export default function LandingClient() {
   return (
     <div className="relative flex h-[calc(100vh-3.5rem)] items-center justify-center px-4 overflow-hidden">
       {/* 3D floating geometry scene */}
-      <Suspense fallback={null}>
-        <LandingScene hoveredMode={hoveredMode} mouse={mouseRef} />
-      </Suspense>
+      <SceneErrorBoundary>
+        <Suspense fallback={null}>
+          <LandingScene hoveredMode={hoveredMode} mouse={mouseRef} />
+        </Suspense>
+      </SceneErrorBoundary>
 
       {/* Glass cards */}
       <div className="relative z-10 w-full max-w-2xl space-y-8 text-center">

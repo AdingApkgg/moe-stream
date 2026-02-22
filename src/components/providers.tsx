@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { Component, useState, useEffect, lazy, Suspense, type ReactNode, type ErrorInfo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { trpc } from "@/lib/trpc";
@@ -11,6 +11,18 @@ import { SiteConfigProvider } from "@/contexts/site-config";
 import type { PublicSiteConfig } from "@/lib/site-config";
 
 const ParticleBackground = lazy(() => import("@/components/effects/particle-background"));
+
+class EffectErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn("[ParticleBackground] Effect failed:", error, info);
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 function isChunkLoadError(error: unknown): boolean {
   if (!error) return false;
@@ -122,17 +134,19 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
             <SiteConfigProvider value={siteConfig}>
                 <ServiceWorkerRegistration />
                 {siteConfig.effectEnabled && siteConfig.effectType !== "none" && (
-                  <Suspense fallback={null}>
-                    <ParticleBackground
-                      config={{
-                        type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
-                        density: siteConfig.effectDensity,
-                        speed: siteConfig.effectSpeed,
-                        opacity: siteConfig.effectOpacity,
-                        color: siteConfig.effectColor,
-                      }}
-                    />
-                  </Suspense>
+                  <EffectErrorBoundary>
+                    <Suspense fallback={null}>
+                      <ParticleBackground
+                        config={{
+                          type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
+                          density: siteConfig.effectDensity,
+                          speed: siteConfig.effectSpeed,
+                          opacity: siteConfig.effectOpacity,
+                          color: siteConfig.effectColor,
+                        }}
+                      />
+                    </Suspense>
+                  </EffectErrorBoundary>
                 )}
                 {children}
                 <Toaster richColors position="top-center" />

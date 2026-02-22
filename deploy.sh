@@ -114,6 +114,7 @@ set -e
 export PNPM_HOME="\$HOME/.local/share/pnpm"
 export PATH="\$PNPM_HOME:\$PATH"
 export NODE_ENV=production
+export APP_NAME="${APP_NAME}"
 
 cd ${DEPLOY_PATH}
 
@@ -134,16 +135,22 @@ echo "🗄️  同步数据库..."
 pnpm db:push --accept-data-loss
 
 echo "🔨 构建项目..."
-# 保留旧 .next 供运行中的服务继续响应旧 chunk 请求
-if [ -d .next ]; then
-  rm -rf .next.bak
-  mv .next .next.bak
+# 备份旧静态资源，构建后合并回新产物实现平滑过渡
+if [ -d .next/static ]; then
+  rm -rf /tmp/next-old-static
+  cp -r .next/static /tmp/next-old-static
 fi
 pnpm build
-# 构建成功后才清理旧产物
-rm -rf .next.bak
+# 将旧 chunk 合并到新构建（不覆盖同名文件）
+# 确保持有旧 HTML 的用户仍能加载旧 chunk
+if [ -d /tmp/next-old-static/chunks ]; then
+  cp -rn /tmp/next-old-static/chunks/ .next/static/chunks/ 2>/dev/null || true
+fi
+rm -rf /tmp/next-old-static
 
 echo "🚀 重启服务..."
+# 清理可能存在的错误命名进程（如 app vs mikiacg 冲突）
+pm2 delete app 2>/dev/null || true
 pm2 restart ecosystem.config.cjs 2>/dev/null || pm2 start ecosystem.config.cjs
 pm2 save
 DEPLOY_SCRIPT
