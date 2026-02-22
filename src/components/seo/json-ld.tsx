@@ -78,7 +78,7 @@ export function WebsiteJsonLd({
   description,
 }: WebsiteJsonLdProps) {
   const config = useSiteConfig();
-  siteName = siteName || config?.siteName || "Mikiacg";
+  siteName = siteName || config?.siteName || "ACGN Site";
   siteUrl = siteUrl || config?.siteUrl || "http://localhost:3000";
   description = description || config?.siteDescription || `${siteName} 流式媒体内容分享平台`;
   const jsonLd = {
@@ -146,7 +146,7 @@ export function OrganizationJsonLd({
   logo,
 }: OrganizationJsonLdProps) {
   const config = useSiteConfig();
-  name = name || config?.siteName || "Mikiacg";
+  name = name || config?.siteName || "ACGN Site";
   url = url || config?.siteUrl || "http://localhost:3000";
   logo = logo || (config?.siteUrl ? `${config.siteUrl}/icon` : "/icon");
   const contactEmail = config?.contactEmail || "";

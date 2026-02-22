@@ -47,10 +47,24 @@ public/cache
 # SSL certificates
 certbot
 
-# Deploy secrets (keep templates)
+# Deploy secrets (only .example versions are tracked)
+.env.deploy
 deploy/rathole-client.toml
 deploy/rathole-server.toml
-!deploy/*.example.toml
+deploy/nginx-public.conf
+deploy/rathole-client.service
+deploy/rathole-server.service
+
+# Legacy migration data
+legacy_*.json
+legacy_*.txt
+
+# Site-specific files (logo, verification, IndexNow key)
+public/google*.html
+public/*.txt
+!public/robots.txt
+public/*-logo.*
+public/*logo*.webp
 
 # Misc
 *.tsbuildinfo

@@ -1,4 +1,4 @@
-# 咪咔次元 (Mikiacg)
+# ACGN Platform
 
 ACGN 流式媒体内容分享平台。不存储视频文件，仅通过用户提供的直链（MP4 / HLS）加载视频，同时提供游戏资源分享。
 
@@ -97,7 +97,7 @@ pnpm compose:infra   # 启动 PostgreSQL 17 + Redis 7 容器
 默认连接地址（`.env.development`）：
 
 ```
-DATABASE_URL="postgresql://mikiacg:mikiacg_password@localhost:5432/mikiacg?schema=public"
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/acgn?schema=public"
 REDIS_URL="redis://localhost:6379"
 ```
 
@@ -186,9 +186,9 @@ pnpm script:create-owner   # 创建 OWNER 角色用户
 
 ```bash
 # 配置（可选，有默认值）
-export DEPLOY_USER=i
+export DEPLOY_USER=deploy
 export DEPLOY_HOST=your-server.com
-export DEPLOY_PATH=/home/i/mikiacg
+export DEPLOY_PATH=/opt/app
 
 # 部署
 pnpm deploy              # 常规部署
@@ -223,7 +223,7 @@ rsync -avz --delete \
   --exclude 'uploads/*' \
   --exclude 'logs/*' \
   --exclude '.git' \
-  ./ user@server:/path/to/mikiacg/
+  ./ user@server:/opt/app/
 ```
 
 服务器：
@@ -231,7 +231,7 @@ rsync -avz --delete \
 ```bash
 pnpm install --frozen-lockfile
 pnpm db:push
-pm2 restart mikiacg || pm2 start ecosystem.config.cjs
+pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
 ```
 
 更多部署细节（Nginx 反代、Rathole 内网穿透、SSL 配置等）参见 [deploy/README.md](deploy/README.md)。
@@ -239,7 +239,7 @@ pm2 restart mikiacg || pm2 start ecosystem.config.cjs
 ## 项目结构
 
 ```
-mikiacg/
+acgn-platform/
 ├── prisma/
 │   ├── schema.prisma        # 数据模型定义
 │   └── seed.ts              # 种子数据

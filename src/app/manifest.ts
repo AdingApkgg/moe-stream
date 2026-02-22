@@ -14,7 +14,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     orientation: "portrait-primary",
     icons: [
       {
-        src: config.siteLogo || "/Mikiacg-logo.webp",
+        src: config.siteLogo || "/logo.webp",
         sizes: "180x180",
         type: "image/webp",
       },

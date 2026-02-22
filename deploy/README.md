@@ -1,4 +1,4 @@
-# Mikiacg 部署指南
+# ACGN Platform 部署指南
 
 ## 架构概览
 
@@ -26,8 +26,8 @@
 ### 方式 A: Podman / Docker Compose（推荐）
 
 ```bash
-git clone https://github.com/your-repo/mikiacg.git
-cd mikiacg
+git clone https://github.com/your-org/acgn-platform.git
+cd acgn-platform
 cp .env.production.example .env.production
 # 编辑 .env.production
 
@@ -41,8 +41,8 @@ podman compose exec app npx prisma db push
 ### 方式 B: PM2
 
 ```bash
-git clone https://github.com/your-repo/mikiacg.git
-cd mikiacg
+git clone https://github.com/your-username/acgn-platform.git
+cd acgn-platform
 cp .env.example .env
 # 编辑 .env 配置
 
@@ -60,7 +60,7 @@ pnpm db:seed
 pnpm build
 
 # 启动/重启服务
-pm2 restart mikiacg || pm2 start ecosystem.config.cjs
+pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs
 ```
 
 ### 4. 配置 Rathole 客户端
@@ -92,9 +92,10 @@ rathole -s deploy/rathole-server.toml
 ### 3. 配置 Nginx
 
 ```bash
-sudo cp deploy/nginx-public.conf /etc/nginx/sites-available/mikiacg.conf
-sudo ln -s /etc/nginx/sites-available/mikiacg.conf /etc/nginx/sites-enabled/
-sudo certbot certonly --webroot -w /var/www/certbot -d www.mikiacg.vip
+sudo cp deploy/nginx-public.example.conf /etc/nginx/sites-available/app.conf
+# 编辑 app.conf，将 example.com 替换为你的域名
+sudo ln -s /etc/nginx/sites-available/app.conf /etc/nginx/sites-enabled/
+sudo certbot certonly --webroot -w /var/www/certbot -d www.your-domain.com
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -145,5 +146,5 @@ git pull
 pnpm install --frozen-lockfile
 pnpm build
 pnpm db:push
-pm2 restart mikiacg
+pm2 restart ecosystem.config.cjs
 ```

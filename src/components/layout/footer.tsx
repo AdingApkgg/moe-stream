@@ -6,7 +6,7 @@ import { useSiteConfig } from "@/contexts/site-config";
 export function Footer() {
   const config = useSiteConfig();
   
-  const siteName = config?.siteName || "Mikiacg";
+  const siteName = config?.siteName || "ACGN Site";
   const footerLinks = config?.footerLinks || [];
   const icpBeian = config?.icpBeian;
   const publicSecurityBeian = config?.publicSecurityBeian;

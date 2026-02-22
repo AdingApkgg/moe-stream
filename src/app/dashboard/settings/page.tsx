@@ -368,7 +368,7 @@ export default function AdminSettingsPage() {
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configFormSchema),
     defaultValues: {
-      siteName: "Mikiacg",
+      siteName: "",
       siteUrl: "",
       siteDescription: "",
       siteLogo: "",
@@ -623,7 +623,7 @@ export default function AdminSettingsPage() {
                       <FormItem>
                         <FormLabel>网站名称</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Mikiacg" />
+                          <Input {...field} placeholder="Your Site Name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

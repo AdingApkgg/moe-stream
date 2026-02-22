@@ -6,7 +6,7 @@ import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "游戏 - Mikiacg",
+  title: "游戏",
   description: "发现精选 ACGN 游戏，免费下载各种 ADV、SLG、RPG、ACT 类型游戏",
   keywords: ["ACGN", "游戏", "ADV", "SLG", "RPG", "免费游戏", "galgame"],
 };

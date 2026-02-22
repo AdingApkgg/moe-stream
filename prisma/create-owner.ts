@@ -8,12 +8,12 @@ import path from "node:path";
 const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
 config({ path: path.join(__dirname, "..", envFile) });
 
-// 站长用户配置 - 请修改以下信息
+// 站长用户配置 - 通过环境变量设置，或在 .env 文件中配置
 const OWNER_CONFIG = {
-  email: "i@mikiacg.com",      // 修改为你的邮箱
-  username: "mikiacg",               // 修改为你想要的用户名
-  password: "12345678",         // 修改为你的密码（至少6位）
-  nickname: "Miroacg",                // 显示昵称
+  email: process.env.OWNER_EMAIL || "admin@example.com",
+  username: process.env.OWNER_USERNAME || "admin",
+  password: process.env.OWNER_PASSWORD || "changeme123",
+  nickname: process.env.OWNER_NICKNAME || "Admin",
 };
 
 async function main() {

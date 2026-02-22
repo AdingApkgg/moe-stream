@@ -10,11 +10,14 @@
 set -e
 
 # ============================================================
-# 配置
+# 配置（从 .env.deploy 加载，或通过环境变量覆盖）
 # ============================================================
-DEPLOY_USER="${DEPLOY_USER:-i}"
-DEPLOY_HOST="${DEPLOY_HOST:-205.198.64.243}"
-DEPLOY_PATH="${DEPLOY_PATH:-/home/i/mikiacg}"
+[[ -f .env.deploy ]] && set -a && source .env.deploy && set +a
+
+DEPLOY_USER="${DEPLOY_USER:?请在 .env.deploy 中设置 DEPLOY_USER}"
+DEPLOY_HOST="${DEPLOY_HOST:?请在 .env.deploy 中设置 DEPLOY_HOST}"
+DEPLOY_PATH="${DEPLOY_PATH:?请在 .env.deploy 中设置 DEPLOY_PATH}"
+APP_NAME="${APP_NAME:-app}"
 DEPLOY_TARGET="${DEPLOY_USER}@${DEPLOY_HOST}"
 
 # 颜色
@@ -51,11 +54,11 @@ done
 # 开始部署
 # ============================================================
 START_TIME=$(date +%s)
-ARCHIVE="/tmp/mikiacg-deploy.tar.gz"
+ARCHIVE="/tmp/${APP_NAME}-deploy.tar.gz"
 
 echo ""
 echo "=========================================="
-echo "  咪咔次元 快速部署"
+echo "  快速部署"
 echo "  目标: ${DEPLOY_TARGET}:${DEPLOY_PATH}"
 echo "  $(date '+%Y-%m-%d %H:%M:%S')"
 echo "=========================================="
@@ -118,8 +121,8 @@ echo "🧹 清理旧源代码..."
 rm -rf src/ prisma/ scripts/ public/
 
 echo "📦 解压文件..."
-tar -xzf /tmp/mikiacg-deploy.tar.gz --overwrite 2>/dev/null
-rm /tmp/mikiacg-deploy.tar.gz
+tar -xzf /tmp/${APP_NAME}-deploy.tar.gz --overwrite 2>/dev/null
+rm /tmp/${APP_NAME}-deploy.tar.gz
 
 echo "📥 安装依赖..."
 pnpm install --frozen-lockfile
@@ -134,7 +137,7 @@ echo "🔨 构建项目..."
 pnpm build
 
 echo "🚀 重启服务..."
-pm2 restart mikiacg 2>/dev/null || pm2 start ecosystem.config.cjs
+pm2 restart ecosystem.config.cjs 2>/dev/null || pm2 start ecosystem.config.cjs
 pm2 save
 DEPLOY_SCRIPT
 
@@ -151,5 +154,5 @@ echo ""
 echo "=========================================="
 log_success "部署完成！"
 echo "  耗时: ${DURATION} 秒"
-echo "  地址: https://www.mikiacg.vip"
+echo "  地址: https://${DEPLOY_HOST}"
 echo "=========================================="

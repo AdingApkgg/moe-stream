@@ -221,7 +221,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     description: "替换截图链接中的 CDN 域名（请修改域名）",
     field: "extraInfo.screenshots",
     pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.mikiacg.vip",
+    replacement: "https://cdn.example.com",
     flags: "g",
   },
   {
@@ -246,7 +246,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     description: "替换视频链接中的 CDN 域名（请修改域名）",
     field: "extraInfo.videos",
     pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.mikiacg.vip",
+    replacement: "https://cdn.example.com",
     flags: "g",
   },
   // 作者链接

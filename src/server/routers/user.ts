@@ -157,7 +157,8 @@ export const userRouter = router({
 
   // 生成账号切换令牌（类似 GitHub 的快速切换）
   generateSwitchToken: protectedProcedure.mutation(async ({ ctx }) => {
-    const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET || "fallback-secret");
+    const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
+    if (!secret.length) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "BETTER_AUTH_SECRET not configured" });
     const tokenId = nanoid(16);
     
     // 创建一个短期令牌，包含用户ID和随机标识
@@ -179,7 +180,7 @@ export const userRouter = router({
     .input(z.object({ token: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
-        const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET || "fallback-secret");
+        const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
         const { payload } = await jwtVerify(input.token, secret);
 
         if (payload.type !== "switch" || !payload.sub) {

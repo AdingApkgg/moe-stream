@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * 旧站视频抓取脚本
- * 按 archives ID 顺序扫描 tv.mikiacg.org 上的所有文章，提取视频数据并导出为批量导入格式
+ * 按 archives ID 顺序扫描旧站上的所有文章，提取视频数据并导出为批量导入格式
  *
  * 数据结构对应关系：
  *   - 每个 archives/{id}.html 对应 1 篇文章（可能有内容或为空页）
@@ -24,7 +24,7 @@ import { writeFileSync } from "fs";
 
 // ─── 配置 ────────────────────────────────────────────────
 
-const BASE_URL = "https://tv.mikiacg.org";
+const BASE_URL = process.env.LEGACY_VIDEO_SITE_URL || "https://old-video-site.example.com";
 const HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -181,7 +181,7 @@ async function discoverArticlesByIdScan(
         $("h1.joe_detail__title").text().trim() ||
         $('meta[property="og:title"]').attr("content")?.trim() ||
         "";
-      const hasTitle = title.length > 0 && !title.includes("咪咔映阁");
+      const hasTitle = title.length > 0 && !title.includes(BASE_URL.split("//")[1]?.split(".")[0] || "");
 
       if (hasTitle) {
         validUrls.push(url);
@@ -282,7 +282,7 @@ async function extractFromPage(
       $('meta[property="og:title"]').attr("content")?.trim() ||
       $("title").text().trim() ||
       ""
-    ).replace(/\s*[-|]\s*咪咔映阁.*$/, "");
+    ).replace(/\s*[-|]\s*\S+映阁.*$/, "");
 
     if (!title) return { ...base, error: "无标题" };
 

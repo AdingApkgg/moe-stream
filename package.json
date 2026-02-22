@@ -1,5 +1,5 @@
 {
-  "name": "mikiacg",
+  "name": "acgn-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,9 +14,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "deploy": "./deploy.sh",
     "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:stop": "pm2 stop mikiacg",
-    "pm2:restart": "pm2 restart mikiacg",
-    "pm2:logs": "pm2 logs mikiacg",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs",
+    "pm2:logs": "pm2 logs ecosystem.config.cjs",
     "pm2:status": "pm2 status",
     "script:migrate-auth": "NODE_ENV=production tsx scripts/migrate-better-auth.ts",
     "script:create-user": "NODE_ENV=production tsx scripts/create-user.ts",

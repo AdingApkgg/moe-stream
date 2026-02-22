@@ -24,18 +24,18 @@ services:
   # ---------- PostgreSQL ----------
   postgres:
     image: postgres:17-alpine
-    container_name: mikiacg-postgres
+    container_name: ${APP_NAME:-acgn}-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-mikiacg}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mikiacg_password}
-      POSTGRES_DB: ${POSTGRES_DB:-mikiacg}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-acgn}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mikiacg}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
   # ---------- Redis ----------
   redis:
     image: redis:7-alpine
-    container_name: mikiacg-redis
+    container_name: ${APP_NAME:-acgn}-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -60,12 +60,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mikiacg-app
+    container_name: ${APP_NAME:-acgn}-app
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-mikiacg}:${POSTGRES_PASSWORD:-mikiacg_password}@postgres:5432/${POSTGRES_DB:-mikiacg}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
     env_file:

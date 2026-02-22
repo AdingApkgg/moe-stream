@@ -423,7 +423,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                       className="flex items-center font-bold text-xl"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      {siteConfig?.siteName || "Mikiacg"}
+                      {siteConfig?.siteName || "ACGN Site"}
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -434,8 +434,8 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center ml-1">
               <Image
-                src={siteConfig?.siteLogo || "/Mikiacg-logo.webp"}
-                alt={siteConfig?.siteName || "Mikiacg"}
+                src={siteConfig?.siteLogo || "/logo.webp"}
+                alt={siteConfig?.siteName || "ACGN Site"}
                 width={108}
                 height={28}
                 className="h-7 w-auto"

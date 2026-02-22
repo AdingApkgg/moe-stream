@@ -673,7 +673,7 @@ model SiteConfig {
   id        String   @id @default("default") // 单例模式，只有一条记录
   
   // 基本信息
-  siteName        String   @default("Mikiacg")
+  siteName        String   @default("My Site")
   siteUrl         String?  // 站点 URL（优先级高于 NEXT_PUBLIC_APP_URL 环境变量）
   siteDescription String?  @db.Text
   siteLogo        String?  // Logo URL

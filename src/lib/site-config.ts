@@ -61,7 +61,7 @@ const selectFields = {
 } as const;
 
 const defaultConfig: PublicSiteConfig = {
-  siteName: process.env.NEXT_PUBLIC_APP_NAME || "Mikiacg",
+  siteName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
   siteUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   siteDescription: null,
   siteLogo: null,

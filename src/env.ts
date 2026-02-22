@@ -20,7 +20,7 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
-    NEXT_PUBLIC_APP_NAME: z.string().default("咪咔次元"),
+    NEXT_PUBLIC_APP_NAME: z.string().default("ACGN Site"),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,

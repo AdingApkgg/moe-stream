@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * 旧站游戏数据抓取 & 迁移脚本
- * 从 www.mikiacg.org 的分类页面抓取所有游戏文章，提取结构化数据
+ * 从旧站的分类页面抓取所有游戏文章，提取结构化数据
  *
  * 数据来源：
  *   - /sitemap.xml 获取全部文章链接，自动过滤出游戏文章
@@ -28,7 +28,7 @@ import { writeFileSync } from "fs";
 
 // ─── 配置 ────────────────────────────────────────────────
 
-const BASE_URL = "https://www.mikiacg.org";
+const BASE_URL = process.env.LEGACY_GAME_SITE_URL || "https://old-site.example.com";
 const SITEMAP_URL = `${BASE_URL}/sitemap.xml`;
 const HEADERS: Record<string, string> = {
   "User-Agent":
@@ -301,7 +301,7 @@ async function extractGameFromPage(
       $('meta[property="og:title"]').attr("content")?.trim() ||
       $("title").text().trim() ||
       ""
-    ).replace(/\s*[-|]\s*咪咔Game.*$/, "");
+    ).replace(/\s*[-|]\s*\S+Game.*$/, "");
 
     if (!title) return { ...base, error: "无标题" };
 

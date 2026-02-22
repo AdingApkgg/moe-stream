@@ -47,7 +47,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             color: "white",
           }}
         >
-          Mikiacg
+          ACGN
         </div>
       ),
       { ...size }
@@ -105,7 +105,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             {video.title}
           </div>
           <div style={{ fontSize: 24, opacity: 0.8 }}>
-            {video.uploader.nickname || video.uploader.username} · Mikiacg
+            {video.uploader.nickname || video.uploader.username}
           </div>
         </div>
       </div>

@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
 import { pickWeightedRandomAds } from "@/lib/ads";
 
-const STORAGE_FREE_UNTIL = "mikiacg_ad_gate_free_until";
-const STORAGE_VIEW_COUNT = "mikiacg_ad_gate_view_count";
-const SESSION_CLICK_AT = "mikiacg_ad_gate_click_at";
+const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
+const STORAGE_VIEW_COUNT = "acgn_ad_gate_view_count";
+const SESSION_CLICK_AT = "acgn_ad_gate_click_at";
 const MIN_AWAY_MS = 1000; // 至少在新标签页停留 1 秒再返回才计数
 const MAX_AWAY_MS = 10 * 60 * 1000;
 

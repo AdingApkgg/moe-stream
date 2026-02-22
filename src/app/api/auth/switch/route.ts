@@ -34,9 +34,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. 验证 JWT 切换令牌
-    const secret = new TextEncoder().encode(
-      process.env.BETTER_AUTH_SECRET || "fallback-secret"
-    );
+    const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
+    if (!secret.length) {
+      return NextResponse.json({ error: "服务器配置错误" }, { status: 500 });
+    }
     let userId: string;
     try {
       const { payload } = await jwtVerify(token, secret);

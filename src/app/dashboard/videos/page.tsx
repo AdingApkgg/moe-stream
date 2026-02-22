@@ -116,7 +116,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     description: "将旧 CDN 域名替换为新域名（请修改域名）",
     field: "videoUrl",
     pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.mikiacg.vip",
+    replacement: "https://cdn.example.com",
     flags: "g",
   },
   {

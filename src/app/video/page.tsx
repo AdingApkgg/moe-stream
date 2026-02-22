@@ -7,7 +7,7 @@ import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "视频 - Mikiacg",
+  title: "视频",
   description: "发现最新 ACGN 视频内容，精选动画、漫画、游戏、小说相关视频",
   keywords: ["ACGN", "视频", "动画", "漫画", "游戏"],
 };
