@@ -7,7 +7,7 @@ import { nanoid } from "nanoid";
 import { parseShortcode } from "@/lib/shortcode-parser";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { addToQueueBatch } from "@/lib/cover-queue";
-import { deleteCache } from "@/lib/redis";
+import { deleteCache, deleteCachePattern } from "@/lib/redis";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 
 // 检查用户是否有特定权限
@@ -990,84 +990,145 @@ export const adminRouter = router({
       };
     }),
 
+  // ========== 标签分类管理 ==========
+
+  listTagCategories: adminProcedure.query(async ({ ctx }) => {
+    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+    if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+    return ctx.prisma.tagCategory.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { _count: { select: { tags: true } } },
+    });
+  }),
+
+  createTagCategory: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(30),
+      slug: z.string().min(1).max(30),
+      color: z.string().max(20).default("#6366f1"),
+      sortOrder: z.number().int().default(0),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+      const existing = await ctx.prisma.tagCategory.findFirst({
+        where: { OR: [{ name: input.name }, { slug: input.slug }] },
+      });
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "分类名称或 slug 已存在" });
+
+      const cat = await ctx.prisma.tagCategory.create({ data: input });
+      await deleteCachePattern("tag:*");
+      return { success: true, category: cat };
+    }),
+
+  updateTagCategory: adminProcedure
+    .input(z.object({
+      id: z.string(),
+      name: z.string().min(1).max(30).optional(),
+      slug: z.string().min(1).max(30).optional(),
+      color: z.string().max(20).optional(),
+      sortOrder: z.number().int().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+      const { id, ...data } = input;
+      const cat = await ctx.prisma.tagCategory.update({ where: { id }, data });
+      await deleteCachePattern("tag:*");
+      return { success: true, category: cat };
+    }),
+
+  deleteTagCategory: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+      await ctx.prisma.tagCategory.delete({ where: { id: input.id } });
+      await deleteCachePattern("tag:*");
+      return { success: true };
+    }),
+
   // ========== 标签管理 ==========
 
-  // 标签统计
   getTagStats: adminProcedure.query(async ({ ctx }) => {
     const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-    }
+    if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
-    const tags = await ctx.prisma.tag.findMany({
-      select: { _count: { select: { videos: true, games: true } } },
-    });
+    const [tags, categoryCount] = await Promise.all([
+      ctx.prisma.tag.findMany({
+        select: { categoryId: true, _count: { select: { videos: true, games: true } } },
+      }),
+      ctx.prisma.tagCategory.count(),
+    ]);
 
     const total = tags.length;
     const withVideos = tags.filter((t) => t._count.videos > 0).length;
     const withGames = tags.filter((t) => t._count.games > 0).length;
     const empty = tags.filter((t) => t._count.videos === 0 && t._count.games === 0).length;
+    const uncategorized = tags.filter((t) => !t.categoryId).length;
 
-    return { total, withVideos, withGames, empty };
+    return { total, withVideos, withGames, empty, uncategorized, categoryCount };
   }),
 
-  // 创建标签
   createTag: adminProcedure
-    .input(
-      z.object({
-        name: z.string().min(1).max(50),
-        slug: z.string().min(1).max(50).optional(),
-      })
-    )
+    .input(z.object({
+      name: z.string().min(1).max(50),
+      slug: z.string().min(1).max(50).optional(),
+      categoryId: z.string().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
-      // 生成 slug
       const slug = input.slug || input.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
 
-      // 检查是否已存在
       const existing = await ctx.prisma.tag.findFirst({
         where: { OR: [{ name: input.name }, { slug }] },
       });
-
-      if (existing) {
-        throw new TRPCError({ code: "CONFLICT", message: "标签名称或 slug 已存在" });
-      }
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "标签名称或 slug 已存在" });
 
       const tag = await ctx.prisma.tag.create({
-        data: { name: input.name, slug },
+        data: { name: input.name, slug, categoryId: input.categoryId || null },
       });
+      await deleteCachePattern("tag:*");
 
       return { success: true, tag };
     }),
 
-  // 获取所有标签
   listTags: adminProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(50),
-        page: z.number().min(1).default(1),
-        search: z.string().optional(),
-      })
-    )
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      page: z.number().min(1).default(1),
+      search: z.string().optional(),
+      categoryId: z.string().optional(),
+      uncategorized: z.boolean().optional(),
+    }))
     .query(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
       const { limit, page } = input;
-      const where = input.search
-        ? {
-            OR: [
-              { name: { contains: input.search, mode: "insensitive" as const } },
-              { slug: { contains: input.search, mode: "insensitive" as const } },
-            ],
-          }
-        : {};
+      const conditions: Prisma.TagWhereInput[] = [];
+
+      if (input.search) {
+        conditions.push({
+          OR: [
+            { name: { contains: input.search, mode: "insensitive" } },
+            { slug: { contains: input.search, mode: "insensitive" } },
+          ],
+        });
+      }
+      if (input.uncategorized) {
+        conditions.push({ categoryId: null });
+      } else if (input.categoryId) {
+        conditions.push({ categoryId: input.categoryId });
+      }
+
+      const where: Prisma.TagWhereInput = conditions.length > 0 ? { AND: conditions } : {};
 
       const [tags, totalCount] = await Promise.all([
         ctx.prisma.tag.findMany({
@@ -1076,6 +1137,7 @@ export const adminRouter = router({
           where,
           orderBy: { createdAt: "desc" },
           include: {
+            category: true,
             _count: { select: { videos: true, games: true } },
           },
         }),
@@ -1090,93 +1152,86 @@ export const adminRouter = router({
       };
     }),
 
-  // 更新标签
   updateTag: adminProcedure
-    .input(
-      z.object({
-        tagId: z.string(),
-        name: z.string().min(1).max(50).optional(),
-        slug: z.string().min(1).max(50).optional(),
-      })
-    )
+    .input(z.object({
+      tagId: z.string(),
+      name: z.string().min(1).max(50).optional(),
+      slug: z.string().min(1).max(50).optional(),
+      categoryId: z.string().nullable().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
       const { tagId, ...data } = input;
-
-      const tag = await ctx.prisma.tag.update({
-        where: { id: tagId },
-        data,
-      });
+      const tag = await ctx.prisma.tag.update({ where: { id: tagId }, data });
+      await deleteCachePattern("tag:*");
 
       return { success: true, tag };
     }),
 
-  // 删除标签
-  deleteTag: adminProcedure
-    .input(z.object({ tagId: z.string() }))
+  // 批量修改标签分类
+  batchUpdateTagCategory: adminProcedure
+    .input(z.object({
+      tagIds: z.array(z.string()).min(1).max(100),
+      categoryId: z.string().nullable(),
+    }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
-      await ctx.prisma.tag.delete({ where: { id: input.tagId } });
-
-      return { success: true };
-    }),
-
-  // 批量删除标签
-  batchDeleteTags: adminProcedure
-    .input(z.object({ tagIds: z.array(z.string()).min(1).max(100) }))
-    .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
-
-      const result = await ctx.prisma.tag.deleteMany({
+      const result = await ctx.prisma.tag.updateMany({
         where: { id: { in: input.tagIds } },
+        data: { categoryId: input.categoryId },
       });
+      await deleteCachePattern("tag:*");
 
       return { success: true, count: result.count };
     }),
 
-  // 合并标签
-  mergeTags: adminProcedure
-    .input(
-      z.object({
-        sourceTagIds: z.array(z.string()).min(1).max(100),
-        targetTagId: z.string(),
-      })
-    )
+  deleteTag: adminProcedure
+    .input(z.object({ tagId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-      }
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
 
-      // 获取目标标签
-      const targetTag = await ctx.prisma.tag.findUnique({
-        where: { id: input.targetTagId },
+      await ctx.prisma.tag.delete({ where: { id: input.tagId } });
+      await deleteCachePattern("tag:*");
+
+      return { success: true };
+    }),
+
+  batchDeleteTags: adminProcedure
+    .input(z.object({ tagIds: z.array(z.string()).min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+      const result = await ctx.prisma.tag.deleteMany({
+        where: { id: { in: input.tagIds } },
       });
+      await deleteCachePattern("tag:*");
 
-      if (!targetTag) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
-      }
+      return { success: true, count: result.count };
+    }),
 
-      // 获取所有源标签关联的视频
+  mergeTags: adminProcedure
+    .input(z.object({
+      sourceTagIds: z.array(z.string()).min(1).max(100),
+      targetTagId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
+      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
+
+      const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
+      if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
+
       const sourceVideos = await ctx.prisma.video.findMany({
-        where: {
-          tags: { some: { tagId: { in: input.sourceTagIds } } },
-        },
+        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
         select: { id: true },
       });
 
-      // 将这些视频关联到目标标签
       for (const video of sourceVideos) {
         await ctx.prisma.tagOnVideo.upsert({
           where: { videoId_tagId: { videoId: video.id, tagId: input.targetTagId } },
@@ -1188,11 +1243,8 @@ export const adminRouter = router({
         });
       }
 
-      // 获取所有源标签关联的游戏
       const sourceGames = await ctx.prisma.game.findMany({
-        where: {
-          tags: { some: { tagId: { in: input.sourceTagIds } } },
-        },
+        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
         select: { id: true },
       });
 
@@ -1207,10 +1259,8 @@ export const adminRouter = router({
         });
       }
 
-      // 删除源标签
-      await ctx.prisma.tag.deleteMany({
-        where: { id: { in: input.sourceTagIds } },
-      });
+      await ctx.prisma.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
+      await deleteCachePattern("tag:*");
 
       return { success: true, mergedCount: input.sourceTagIds.length };
     }),

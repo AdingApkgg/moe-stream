@@ -14,53 +14,68 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 async function getTagsData() {
-  const [videoPopularTags, videoAllTags, gamePopularTags, gameAllTags] =
-    await Promise.all([
-      // 视频热门标签
-      prisma.tag.findMany({
-        take: 20,
-        where: { videos: { some: {} } },
-        include: { _count: { select: { videos: true } } },
-        orderBy: { videos: { _count: "desc" } },
-      }),
-      // 视频全部标签
-      prisma.tag.findMany({
-        take: 100,
-        where: { videos: { some: {} } },
-        include: { _count: { select: { videos: true } } },
-        orderBy: { name: "asc" },
-      }),
-      // 游戏热门标签
-      prisma.tag.findMany({
-        take: 20,
-        where: { games: { some: {} } },
-        include: { _count: { select: { games: true } } },
-        orderBy: { games: { _count: "desc" } },
-      }),
-      // 游戏全部标签
-      prisma.tag.findMany({
-        take: 100,
-        where: { games: { some: {} } },
-        include: { _count: { select: { games: true } } },
-        orderBy: { name: "asc" },
-      }),
-    ]);
+  const [categories, videoTags, gameTags] = await Promise.all([
+    prisma.tagCategory.findMany({
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.tag.findMany({
+      where: { videos: { some: {} } },
+      include: {
+        category: true,
+        _count: { select: { videos: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.tag.findMany({
+      where: { games: { some: {} } },
+      include: {
+        category: true,
+        _count: { select: { games: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const groupByCategory = <T extends { categoryId: string | null }>(
+    tags: T[],
+  ) => {
+    const grouped: {
+      category: { id: string; name: string; slug: string; color: string } | null;
+      tags: T[];
+    }[] = [];
+
+    for (const cat of categories) {
+      const catTags = tags.filter((t) => t.categoryId === cat.id);
+      if (catTags.length > 0) {
+        grouped.push({
+          category: { id: cat.id, name: cat.name, slug: cat.slug, color: cat.color },
+          tags: catTags,
+        });
+      }
+    }
+
+    const uncategorized = tags.filter((t) => !t.categoryId);
+    if (uncategorized.length > 0) {
+      grouped.push({ category: null, tags: uncategorized });
+    }
+
+    return grouped;
+  };
 
   return {
-    videoPopularTags,
-    videoAllTags,
-    gamePopularTags,
-    gameAllTags,
+    videoGroups: groupByCategory(videoTags),
+    gameGroups: groupByCategory(gameTags),
+    totalVideoTags: videoTags.length,
+    totalGameTags: gameTags.length,
   };
 }
 
 export default async function TagsPage() {
-  const [{ videoPopularTags, videoAllTags, gamePopularTags, gameAllTags }, config] =
-    await Promise.all([getTagsData(), getPublicSiteConfig()]);
+  const [data, config] = await Promise.all([getTagsData(), getPublicSiteConfig()]);
 
   const totalTags = new Set([
-    ...videoAllTags.map((t) => t.id),
-    ...gameAllTags.map((t) => t.id),
+    ...data.videoGroups.flatMap((g) => g.tags.map((t) => t.id)),
+    ...data.gameGroups.flatMap((g) => g.tags.map((t) => t.id)),
   ]).size;
 
   return (
@@ -72,10 +87,10 @@ export default async function TagsPage() {
         numberOfItems={totalTags}
       />
       <TagsPageClient
-        videoPopularTags={videoPopularTags}
-        videoAllTags={videoAllTags}
-        gamePopularTags={gamePopularTags}
-        gameAllTags={gameAllTags}
+        videoGroups={data.videoGroups}
+        gameGroups={data.gameGroups}
+        totalVideoTags={data.totalVideoTags}
+        totalGameTags={data.totalGameTags}
       />
     </>
   );

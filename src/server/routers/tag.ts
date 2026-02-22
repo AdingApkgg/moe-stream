@@ -3,25 +3,24 @@ import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, adminProcedure } from "../trpc";
 import { getOrSet, deleteCachePattern } from "@/lib/redis";
 
-/** 标签所属内容类型 */
 const tagTypeSchema = z.enum(["video", "game"]).optional();
 
-// 缓存键
 const CACHE_KEYS = {
   tagBySlug: (slug: string, type?: string) => `tag:slug:${slug}:${type || "all"}`,
   tagList: (search: string, limit: number, type?: string) =>
     `tag:list:${search || "all"}:${limit}:${type || "all"}`,
   popularTags: (limit: number, type?: string) => `tag:popular:${limit}:${type || "all"}`,
+  categories: "tag:categories",
+  tagsByCategory: (type?: string) => `tag:by-category:${type || "all"}`,
 };
 
-// 缓存时间（秒）
 const CACHE_TTL = {
   tag: 300,
   list: 300,
   popular: 600,
+  categories: 600,
 };
 
-/** 根据 type 构造 where / orderBy / _count */
 function tagQueryHelpers(type?: "video" | "game") {
   if (type === "game") {
     return {
@@ -37,7 +36,6 @@ function tagQueryHelpers(type?: "video" | "game") {
       orderByCount: { videos: { _count: "desc" as const } },
     };
   }
-  // 不传 type 时返回所有标签，计数取视频数
   return {
     hasContent: {} satisfies Prisma.TagWhereInput,
     countSelect: { videos: true, games: true } as const,
@@ -46,7 +44,6 @@ function tagQueryHelpers(type?: "video" | "game") {
 }
 
 export const tagRouter = router({
-  // 根据 slug 获取标签
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string(), type: z.enum(["video", "game"]).default("video") }))
     .query(async ({ ctx, input }) => {
@@ -54,63 +51,67 @@ export const tagRouter = router({
       return getOrSet(
         CACHE_KEYS.tagBySlug(input.slug, input.type),
         async () => {
-          const tag = await ctx.prisma.tag.findUnique({
+          return ctx.prisma.tag.findUnique({
             where: { slug: input.slug },
             include: {
+              category: true,
               _count: { select: h.countSelect },
             },
           });
-          return tag;
         },
-        CACHE_TTL.tag
+        CACHE_TTL.tag,
       );
     }),
 
-  // 获取所有标签
   list: publicProcedure
     .input(
       z.object({
         search: z.string().optional(),
-        limit: z.number().min(1).max(100).default(50),
+        limit: z.number().min(1).max(200).default(50),
         type: tagTypeSchema,
-      })
+        categoryId: z.string().optional(),
+      }),
     )
     .query(async ({ ctx, input }) => {
       const h = tagQueryHelpers(input.type);
 
+      const where: Prisma.TagWhereInput = {
+        ...h.hasContent,
+        ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+        ...(input.search
+          ? { name: { contains: input.search, mode: "insensitive" } }
+          : {}),
+      };
+
       if (input.search) {
         return ctx.prisma.tag.findMany({
           take: input.limit,
-          where: {
-            name: { contains: input.search, mode: "insensitive" },
-            ...h.hasContent,
-          },
-          include: { _count: { select: h.countSelect } },
+          where,
+          include: { category: true, _count: { select: h.countSelect } },
           orderBy: { name: "asc" },
         });
       }
 
       return getOrSet(
-        CACHE_KEYS.tagList("", input.limit, input.type),
+        CACHE_KEYS.tagList(input.categoryId || "", input.limit, input.type),
         async () => {
           return ctx.prisma.tag.findMany({
             take: input.limit,
-            where: h.hasContent,
-            include: { _count: { select: h.countSelect } },
+            where,
+            include: { category: true, _count: { select: h.countSelect } },
             orderBy: { name: "asc" },
           });
         },
-        CACHE_TTL.list
+        CACHE_TTL.list,
       );
     }),
 
-  // 热门标签
   popular: publicProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(20).default(10),
         type: z.enum(["video", "game"]).default("video"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const h = tagQueryHelpers(input.type);
@@ -120,25 +121,92 @@ export const tagRouter = router({
           return ctx.prisma.tag.findMany({
             take: input.limit,
             where: h.hasContent,
-            include: { _count: { select: h.countSelect } },
+            include: { category: true, _count: { select: h.countSelect } },
             orderBy: h.orderByCount,
           });
         },
-        CACHE_TTL.popular
+        CACHE_TTL.popular,
       );
     }),
 
-  // 创建标签
+  // 获取所有标签分类
+  categories: publicProcedure.query(async ({ ctx }) => {
+    return getOrSet(
+      CACHE_KEYS.categories,
+      async () => {
+        return ctx.prisma.tagCategory.findMany({
+          orderBy: { sortOrder: "asc" },
+          include: { _count: { select: { tags: true } } },
+        });
+      },
+      CACHE_TTL.categories,
+    );
+  }),
+
+  // 按分类分组获取所有标签（用于标签浏览页）
+  groupedByCategory: publicProcedure
+    .input(z.object({ type: tagTypeSchema }))
+    .query(async ({ ctx, input }) => {
+      const h = tagQueryHelpers(input.type);
+
+      return getOrSet(
+        CACHE_KEYS.tagsByCategory(input.type),
+        async () => {
+          const [categories, tags] = await Promise.all([
+            ctx.prisma.tagCategory.findMany({
+              orderBy: { sortOrder: "asc" },
+            }),
+            ctx.prisma.tag.findMany({
+              where: h.hasContent,
+              include: {
+                category: true,
+                _count: { select: h.countSelect },
+              },
+              orderBy: { name: "asc" },
+            }),
+          ]);
+
+          const grouped: {
+            category: { id: string; name: string; slug: string; color: string } | null;
+            tags: typeof tags;
+          }[] = [];
+
+          for (const cat of categories) {
+            const catTags = tags.filter((t) => t.categoryId === cat.id);
+            if (catTags.length > 0) {
+              grouped.push({
+                category: { id: cat.id, name: cat.name, slug: cat.slug, color: cat.color },
+                tags: catTags,
+              });
+            }
+          }
+
+          const uncategorized = tags.filter((t) => !t.categoryId);
+          if (uncategorized.length > 0) {
+            grouped.push({ category: null, tags: uncategorized });
+          }
+
+          return grouped;
+        },
+        CACHE_TTL.categories,
+      );
+    }),
+
   create: adminProcedure
     .input(
       z.object({
         name: z.string().min(1).max(30),
         slug: z.string().min(1).max(30),
-      })
+        categoryId: z.string().optional(),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const tag = await ctx.prisma.tag.create({
-        data: input,
+        data: {
+          name: input.name,
+          slug: input.slug,
+          categoryId: input.categoryId || null,
+        },
       });
 
       await deleteCachePattern("tag:*");
@@ -146,7 +214,6 @@ export const tagRouter = router({
       return tag;
     }),
 
-  // 删除标签
   delete: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

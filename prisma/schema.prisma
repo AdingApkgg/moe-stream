@@ -428,16 +428,32 @@ model GameCommentReaction {
   @@index([commentId])
 }
 
-model Tag {
-  id        String       @id @default(cuid())
-  name      String       @unique
-  slug      String       @unique
-  createdAt DateTime     @default(now())
+model TagCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  color     String   @default("#6366f1")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 
-  videos TagOnVideo[]
-  games  TagOnGame[]
+  tags Tag[]
+
+  @@index([sortOrder])
+}
+
+model Tag {
+  id         String       @id @default(cuid())
+  name       String       @unique
+  slug       String       @unique
+  categoryId String?
+  createdAt  DateTime     @default(now())
+
+  category TagCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  videos   TagOnVideo[]
+  games    TagOnGame[]
 
   @@index([slug])
+  @@index([categoryId])
 }
 
 model TagOnVideo {
