@@ -516,12 +516,14 @@ export const adminRouter = router({
 
       const { page, limit, status, search, sortBy } = input;
 
-      const where = {
+      const where: Prisma.VideoWhereInput = {
         ...(status !== "ALL" && { status }),
         ...(search && {
           OR: [
             { title: { contains: search, mode: "insensitive" as const } },
             { description: { contains: search, mode: "insensitive" as const } },
+            { coverUrl: { contains: search, mode: "insensitive" as const } },
+            { videoUrl: { contains: search, mode: "insensitive" as const } },
           ],
         }),
       };
@@ -570,12 +572,14 @@ export const adminRouter = router({
 
       const { status, search } = input;
 
-      const where = {
+      const where: Prisma.VideoWhereInput = {
         ...(status !== "ALL" && { status }),
         ...(search && {
           OR: [
             { title: { contains: search, mode: "insensitive" as const } },
             { description: { contains: search, mode: "insensitive" as const } },
+            { coverUrl: { contains: search, mode: "insensitive" as const } },
+            { videoUrl: { contains: search, mode: "insensitive" as const } },
           ],
         }),
       };
@@ -2126,6 +2130,7 @@ export const adminRouter = router({
         where.OR = [
           { title: { contains: search, mode: "insensitive" } },
           { description: { contains: search, mode: "insensitive" } },
+          { coverUrl: { contains: search, mode: "insensitive" } },
         ];
       }
       if (gameType) {

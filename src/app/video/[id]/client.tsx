@@ -160,7 +160,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   const seriesEpisodes = useMemo(() => {
     if (!seriesData?.series?.episodes) return [];
-    return [...seriesData.series.episodes].sort((a, b) => a.episodeNum - b.episodeNum);
+    return [...seriesData.series.episodes].sort((a, b) => b.episodeNum - a.episodeNum);
   }, [seriesData]);
 
   const currentEpisodeIndex = useMemo(() => {

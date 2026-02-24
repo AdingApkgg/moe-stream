@@ -184,7 +184,7 @@ export function GameQuickBatch() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <ScrollArea className={entries.length > 3 ? "max-h-[600px]" : ""}>
+          <ScrollArea className={entries.length > 3 ? "h-[600px]" : ""}>
             <div className="space-y-3">
               {entries.map((entry, index) => (
                 <div

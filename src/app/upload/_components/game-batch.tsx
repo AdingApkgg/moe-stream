@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
-import { Download, DownloadCloud, FileText, FileVideo, Image as ImageIcon, Loader2, Tag, Upload } from "lucide-react";
+import { ChevronDown, Download, DownloadCloud, FileText, FileVideo, Image as ImageIcon, Loader2, Tag, Upload } from "lucide-react";
+
+const PREVIEW_LIMIT = 100;
 import { DropZone } from "./drop-zone";
 import { BatchProgressBar, GameBatchResults } from "./batch-results";
 import { parseGameBatchJson, buildGameExtraInfo, downloadTemplate, GAME_BATCH_TEMPLATE } from "../_lib/parsers";
@@ -172,48 +174,71 @@ export function GameBatchUpload() {
 
       {/* 解析预览 */}
       {parsed && parsed.games.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">解析预览</CardTitle>
-            <CardDescription>
-              共 {parsed.games.length} 个游戏{totalChunks > 1 ? `，将分 ${totalChunks} 批处理` : ""}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="max-h-[500px]">
-              <div className="space-y-2">
-                {parsed.games.map((game, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    {game.coverUrl && (
-                      <div className="shrink-0 w-16 h-10 rounded overflow-hidden bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={game.coverUrl} alt={game.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">{i + 1}</span>
-                        <span className="font-medium truncate">{game.title}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap ml-8">
-                        {game.gameType && <Badge variant="default" className="text-[10px] py-0">{game.gameType}</Badge>}
-                        <Badge variant={game.isFree ? "secondary" : "outline"} className="text-[10px] py-0">{game.isFree ? "免费" : "付费"}</Badge>
-                        {game.version && <span className="text-[10px] text-muted-foreground">{game.version}</span>}
-                        {game.downloads?.length > 0 && <span className="text-[10px] text-muted-foreground"><Download className="h-2.5 w-2.5 inline mr-0.5" />{game.downloads.length} 下载</span>}
-                        {game.screenshots?.length > 0 && <span className="text-[10px] text-muted-foreground"><ImageIcon className="h-2.5 w-2.5 inline mr-0.5" />{game.screenshots.length} 截图</span>}
-                        {game.videos?.length > 0 && <span className="text-[10px] text-muted-foreground"><FileVideo className="h-2.5 w-2.5 inline mr-0.5" />{game.videos.length} 视频</span>}
-                        {game.tags?.length > 0 && <span className="text-[10px] text-muted-foreground"><Tag className="h-2.5 w-2.5 inline mr-0.5" />{game.tags.length} 标签</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <GamePreviewCard parsed={parsed} totalChunks={totalChunks} />
       )}
 
       <GameBatchResults results={results} importing={importing} onRetry={handleRetry} />
     </div>
+  );
+}
+
+function GamePreviewCard({ parsed, totalChunks }: { parsed: ParsedGameBatchData; totalChunks: number }) {
+  const [visibleCount, setVisibleCount] = useState(PREVIEW_LIMIT);
+  const displayGames = parsed.games.slice(0, visibleCount);
+  const hasMore = visibleCount < parsed.games.length;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">解析预览</CardTitle>
+        <CardDescription>
+          共 {parsed.games.length} 个游戏{totalChunks > 1 ? `，将分 ${totalChunks} 批处理` : ""}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className={parsed.games.length > 8 ? "h-[500px]" : ""}>
+          <div className="space-y-2">
+            {displayGames.map((game, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                {game.coverUrl && (
+                  <div className="shrink-0 w-16 h-10 rounded overflow-hidden bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={game.coverUrl} alt={game.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">{i + 1}</span>
+                    <span className="font-medium truncate">{game.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap ml-8">
+                    {game.gameType && <Badge variant="default" className="text-[10px] py-0">{game.gameType}</Badge>}
+                    <Badge variant={game.isFree ? "secondary" : "outline"} className="text-[10px] py-0">{game.isFree ? "免费" : "付费"}</Badge>
+                    {game.version && <span className="text-[10px] text-muted-foreground">{game.version}</span>}
+                    {game.downloads?.length > 0 && <span className="text-[10px] text-muted-foreground"><Download className="h-2.5 w-2.5 inline mr-0.5" />{game.downloads.length} 下载</span>}
+                    {game.screenshots?.length > 0 && <span className="text-[10px] text-muted-foreground"><ImageIcon className="h-2.5 w-2.5 inline mr-0.5" />{game.screenshots.length} 截图</span>}
+                    {game.videos?.length > 0 && <span className="text-[10px] text-muted-foreground"><FileVideo className="h-2.5 w-2.5 inline mr-0.5" />{game.videos.length} 视频</span>}
+                    {game.tags?.length > 0 && <span className="text-[10px] text-muted-foreground"><Tag className="h-2.5 w-2.5 inline mr-0.5" />{game.tags.length} 标签</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex justify-center pt-3 pb-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleCount(prev => prev + PREVIEW_LIMIT)}
+              >
+                <ChevronDown className="h-4 w-4 mr-1" />
+                加载更多（已显示 {visibleCount}/{parsed.games.length}）
+              </Button>
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 }

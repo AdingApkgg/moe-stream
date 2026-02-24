@@ -238,7 +238,7 @@ export function VideoQuickBatch() {
           )}
 
           {/* 视频条目列表 */}
-          <ScrollArea className={entries.length > 5 ? "max-h-[500px]" : ""}>
+          <ScrollArea className={entries.length > 5 ? "h-[500px]" : ""}>
             <div className="space-y-3">
               {entries.map((entry, index) => (
                 <div

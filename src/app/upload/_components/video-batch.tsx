@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
-import { Download, DownloadCloud, FileText, FileVideo, Image as ImageIcon, Layers, Loader2, Tag, Upload, User } from "lucide-react";
+import { ChevronDown, Download, DownloadCloud, FileText, FileVideo, Image as ImageIcon, Layers, Loader2, Tag, Upload, User } from "lucide-react";
+
+const PREVIEW_LIMIT = 50;
 import { DropZone } from "./drop-zone";
 import { BatchProgressBar, VideoBatchResults } from "./batch-results";
 import { parseVideoBatchJson, downloadTemplate, VIDEO_BATCH_TEMPLATE } from "../_lib/parsers";
@@ -195,67 +197,90 @@ export function VideoBatchUpload() {
 
       {/* 解析预览 */}
       {parsed && parsed.totalVideos > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">解析预览</CardTitle>
-            <CardDescription>共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="max-h-[500px]">
-              <div className="space-y-4">
-                {parsed.series.map((series, si) => (
-                  <div key={si} className="space-y-2 border rounded-lg p-3">
-                    <div className="flex items-start gap-3">
-                      {series.coverUrl && (
-                        <div className="shrink-0 w-16 h-10 rounded overflow-hidden bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={series.coverUrl} alt={series.seriesTitle || "封面"} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Layers className="h-4 w-4 text-primary shrink-0" />
-                          <span className="font-medium truncate">{series.seriesTitle || "无合集"}</span>
-                          <Badge variant="secondary" className="text-xs shrink-0">{series.videos.length} 个视频</Badge>
-                        </div>
-                        {series.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{series.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="ml-2 space-y-1.5">
-                      {series.videos.map((video, vi) => (
-                        <div key={vi} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-sm">
-                          <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">{vi + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{video.title}</div>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <Badge variant={video.coverUrl ? "outline" : "secondary"} className="text-[10px] py-0">
-                                {video.coverUrl ? <><ImageIcon className="h-2.5 w-2.5 mr-0.5" />自定义封面</> : <><FileVideo className="h-2.5 w-2.5 mr-0.5" />自动封面</>}
-                              </Badge>
-                              {video.extraInfo?.author && (
-                                <span className="text-[10px] text-muted-foreground"><User className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo.author}</span>
-                              )}
-                              {(video.extraInfo?.downloads?.length ?? 0) > 0 && (
-                                <span className="text-[10px] text-muted-foreground"><Download className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo!.downloads!.length} 下载</span>
-                              )}
-                              {video.tags.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground"><Tag className="h-2.5 w-2.5 inline mr-0.5" />{video.tags.length} 标签</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <PreviewCard parsed={parsed} />
       )}
 
       <VideoBatchResults results={results} importing={importing} onRetry={handleRetry} />
     </div>
+  );
+}
+
+function PreviewCard({ parsed }: { parsed: ParsedBatchData }) {
+  const [showAll, setShowAll] = useState(false);
+  const displaySeries = showAll ? parsed.series : parsed.series.slice(0, PREVIEW_LIMIT);
+  const hiddenCount = parsed.series.length - PREVIEW_LIMIT;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">解析预览</CardTitle>
+        <CardDescription>共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className={parsed.series.length > 5 ? "h-[500px]" : ""}>
+          <div className="space-y-4">
+            {displaySeries.map((series, si) => (
+              <div key={si} className="space-y-2 border rounded-lg p-3">
+                <div className="flex items-start gap-3">
+                  {series.coverUrl && (
+                    <div className="shrink-0 w-16 h-10 rounded overflow-hidden bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={series.coverUrl} alt={series.seriesTitle || "封面"} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Layers className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-medium truncate">{series.seriesTitle || "无合集"}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">{series.videos.length} 个视频</Badge>
+                    </div>
+                    {series.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{series.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="ml-2 space-y-1.5">
+                  {series.videos.slice(0, 20).map((video, vi) => (
+                    <div key={vi} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-sm">
+                      <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">{vi + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{video.title}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <Badge variant={video.coverUrl ? "outline" : "secondary"} className="text-[10px] py-0">
+                            {video.coverUrl ? <><ImageIcon className="h-2.5 w-2.5 mr-0.5" />自定义封面</> : <><FileVideo className="h-2.5 w-2.5 mr-0.5" />自动封面</>}
+                          </Badge>
+                          {video.extraInfo?.author && (
+                            <span className="text-[10px] text-muted-foreground"><User className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo.author}</span>
+                          )}
+                          {(video.extraInfo?.downloads?.length ?? 0) > 0 && (
+                            <span className="text-[10px] text-muted-foreground"><Download className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo!.downloads!.length} 下载</span>
+                          )}
+                          {video.tags.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground"><Tag className="h-2.5 w-2.5 inline mr-0.5" />{video.tags.length} 标签</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {series.videos.length > 20 && (
+                    <div className="text-xs text-muted-foreground text-center py-1">
+                      …还有 {series.videos.length - 20} 个视频未显示
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {!showAll && hiddenCount > 0 && (
+            <div className="flex justify-center pt-3 pb-1">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                显示全部（还有 {hiddenCount} 个合集）
+              </Button>
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 }

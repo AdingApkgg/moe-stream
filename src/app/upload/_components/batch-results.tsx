@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle, ChevronDown, RefreshCw, XCircle } from "lucide-react";
 import Link from "next/link";
 import type { BatchProgress } from "../_lib/types";
+
+const PAGE_SIZE = 100;
 
 // ==================== 进度条 ====================
 
@@ -189,13 +192,41 @@ function ResultTabs<T extends { id?: string; error?: string }>({ results, render
       </TabsList>
       {(["all", "success", "failed"] as const).map(tab => (
         <TabsContent key={tab} value={tab}>
-          <ScrollArea className="max-h-[300px]">
-            <div className="space-y-2">
-              {(tab === "all" ? results : tab === "success" ? successList : failedList).map(renderItem)}
-            </div>
-          </ScrollArea>
+          <PaginatedList
+            items={tab === "all" ? results : tab === "success" ? successList : failedList}
+            renderItem={renderItem}
+          />
         </TabsContent>
       ))}
     </Tabs>
+  );
+}
+
+function PaginatedList<T>({ items, renderItem }: { items: T[]; renderItem: (item: T, index: number) => React.ReactNode }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visible = items.slice(0, visibleCount);
+  const hasMore = visibleCount < items.length;
+
+  return (
+    <div>
+      <ScrollArea className={items.length > 10 ? "h-[400px]" : ""}>
+        <div className="space-y-2">
+          {visible.map(renderItem)}
+        </div>
+        {hasMore && (
+          <div className="flex justify-center pt-3 pb-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+            >
+              <ChevronDown className="h-4 w-4 mr-1" />
+              加载更多（已显示 {visibleCount}/{items.length}）
+            </Button>
+          </div>
+        )}
+      </ScrollArea>
+    </div>
   );
 }
