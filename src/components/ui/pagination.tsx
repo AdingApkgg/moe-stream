@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
 
@@ -14,225 +13,248 @@ interface PaginationProps {
   className?: string;
 }
 
-export function Pagination({ currentPage, totalPages, onPageChange, basePath, className }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  basePath,
+  className,
+}: PaginationProps) {
   const router = useRouter();
   const { play } = useSound();
 
-  const handlePageChange = useCallback((page: number) => {
-    if (page < 1 || page > totalPages || page === currentPage) return;
-    play("navigate");
-    if (onPageChange) {
-      onPageChange(page);
-    }
-    if (basePath) {
-      const url = page === 1 ? basePath : `${basePath}/page/${page}`;
-      router.push(url);
-    }
-  }, [totalPages, currentPage, onPageChange, basePath, router, play]);
+  const go = useCallback(
+    (page: number) => {
+      if (page < 1 || page > totalPages || page === currentPage) return;
+      play("navigate");
+      onPageChange?.(page);
+      if (basePath) {
+        router.push(page === 1 ? basePath : `${basePath}/page/${page}`);
+      }
+    },
+    [totalPages, currentPage, onPageChange, basePath, router, play],
+  );
 
+  // keyboard nav
   useEffect(() => {
     if (totalPages <= 1) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      const isEditable = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
-      const isVideo = tag === "VIDEO";
-      if (isEditable || isVideo) return;
-
-      if (e.key === "ArrowLeft" && currentPage > 1) {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (
+        t.tagName === "INPUT" ||
+        t.tagName === "TEXTAREA" ||
+        t.isContentEditable ||
+        t.tagName === "VIDEO"
+      )
+        return;
+      if (e.key === "ArrowLeft") {
         e.preventDefault();
-        handlePageChange(currentPage - 1);
-      } else if (e.key === "ArrowRight" && currentPage < totalPages) {
+        go(currentPage - 1);
+      } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        handlePageChange(currentPage + 1);
+        go(currentPage + 1);
       }
     };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [currentPage, totalPages, handlePageChange]);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [currentPage, totalPages, go]);
 
   if (totalPages <= 1) return null;
 
-  const getPageNumbers = () => {
-    const pages: (number | "ellipsis-start" | "ellipsis-end")[] = [];
-    const siblings = 1;
-
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-      return pages;
-    }
-
-    const leftBound = Math.max(2, currentPage - siblings);
-    const rightBound = Math.min(totalPages - 1, currentPage + siblings);
-
-    pages.push(1);
-
-    if (leftBound > 2) {
-      pages.push("ellipsis-start");
-    } else if (leftBound === 2) {
-      pages.push(2);
-    }
-
-    for (let i = leftBound; i <= rightBound; i++) {
-      if (!pages.includes(i)) pages.push(i);
-    }
-
-    if (rightBound < totalPages - 1) {
-      pages.push("ellipsis-end");
-    } else if (rightBound === totalPages - 1) {
-      pages.push(totalPages - 1);
-    }
-
-    if (!pages.includes(totalPages)) pages.push(totalPages);
-
-    return pages;
-  };
-
-  const pages = getPageNumbers();
+  const pages = buildPages(currentPage, totalPages);
 
   return (
-    <nav className={cn("flex items-center justify-center gap-1 flex-wrap", className)}>
-      <PageButton
-        onClick={() => handlePageChange(currentPage - 1)}
-        disabled={currentPage <= 1}
-        aria-label="上一页"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </PageButton>
+    <div className={cn("flex flex-col items-center gap-3", className)}>
+      {/* 页码按钮行 */}
+      <nav className="flex items-center gap-0.5" aria-label="分页">
+        <PgBtn
+          onClick={() => go(currentPage - 1)}
+          disabled={currentPage <= 1}
+          aria-label="上一页"
+        >
+          ‹
+        </PgBtn>
 
-      {pages.map((page) => {
-        if (page === "ellipsis-start" || page === "ellipsis-end") {
-          return (
-            <EllipsisJump
-              key={page}
-              totalPages={totalPages}
-              onJump={handlePageChange}
-            />
-          );
-        }
+        {pages.map((p, i) =>
+          p === "dots" ? (
+            <span
+              key={`d${i}`}
+              className="inline-flex items-center justify-center h-8 min-w-8 px-1 text-sm text-muted-foreground select-none"
+            >
+              …
+            </span>
+          ) : (
+            <PgBtn
+              key={p}
+              active={p === currentPage}
+              onClick={() => go(p)}
+            >
+              {p}
+            </PgBtn>
+          ),
+        )}
 
-        return (
-          <PageButton
-            key={page}
-            active={currentPage === page}
-            onClick={() => handlePageChange(page)}
-          >
-            {page}
-          </PageButton>
-        );
-      })}
+        <PgBtn
+          onClick={() => go(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+          aria-label="下一页"
+        >
+          ›
+        </PgBtn>
+      </nav>
 
-      <PageButton
-        onClick={() => handlePageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages}
-        aria-label="下一页"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </PageButton>
-
-      {totalPages > 7 && (
-        <span className="text-xs text-muted-foreground ml-1.5 tabular-nums hidden sm:inline">
-          {currentPage}/{totalPages}
-        </span>
+      {/* 跳页输入 */}
+      {totalPages > 5 && (
+        <JumpInput
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onJump={go}
+        />
       )}
-    </nav>
+    </div>
   );
 }
 
-function PageButton({
+/* ------------------------------------------------------------------ */
+/*  页码算法                                                           */
+/* ------------------------------------------------------------------ */
+
+type Slot = number | "dots";
+
+function buildPages(cur: number, total: number): Slot[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const s = new Set<number>();
+  // 始终显示首尾各 2 页
+  s.add(1).add(2);
+  s.add(total - 1).add(total);
+  // 当前页 ± 1
+  for (let i = cur - 1; i <= cur + 1; i++) {
+    if (i >= 1 && i <= total) s.add(i);
+  }
+
+  const sorted = [...s].sort((a, b) => a - b);
+  const out: Slot[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push("dots");
+    out.push(sorted[i]);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
+/*  PgBtn — 页码按钮                                                  */
+/* ------------------------------------------------------------------ */
+
+function PgBtn({
   active,
   disabled,
   onClick,
   children,
-  ...props
+  ...rest
 }: {
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
   children: React.ReactNode;
-} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className">) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
-        "h-9 min-w-9 px-2 select-none",
+        "inline-flex items-center justify-center select-none tabular-nums",
+        "h-8 min-w-8 rounded px-1.5 text-sm font-medium transition-colors",
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "hover:bg-muted text-foreground",
-        disabled && "pointer-events-none opacity-40",
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        disabled && "pointer-events-none opacity-30",
       )}
-      {...props}
+      {...rest}
     >
       {children}
     </button>
   );
 }
 
-function EllipsisJump({
+/* ------------------------------------------------------------------ */
+/*  JumpInput — 跳页输入（hanime1 风格: [input] / total [跳转]）       */
+/* ------------------------------------------------------------------ */
+
+function JumpInput({
+  currentPage,
   totalPages,
   onJump,
 }: {
+  currentPage: number;
   totalPages: number;
-  onJump: (page: number) => void;
+  onJump: (p: number) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState("");
+  const [val, setVal] = useState(String(currentPage));
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 外部 currentPage 变化时同步
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-    }
-  }, [editing]);
+    setVal(String(currentPage));
+  }, [currentPage]);
 
-  const handleSubmit = () => {
-    const page = parseInt(value, 10);
-    if (!isNaN(page) && page >= 1 && page <= totalPages) {
-      onJump(page);
+  const submit = () => {
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 1 && n <= totalPages && n !== currentPage) {
+      onJump(n);
+    } else {
+      setVal(String(currentPage));
     }
-    setEditing(false);
-    setValue("");
   };
 
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        type="number"
-        min={1}
-        max={totalPages}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleSubmit();
-          if (e.key === "Escape") { setEditing(false); setValue(""); }
-        }}
-        onBlur={handleSubmit}
-        placeholder={`1-${totalPages}`}
-        className={cn(
-          "h-9 w-16 rounded-md border bg-background px-1.5 text-center text-sm tabular-nums",
-          "outline-none ring-2 ring-primary focus:ring-primary animate-in zoom-in-95 duration-150",
-          "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-        )}
-      />
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className={cn(
-        "group relative inline-flex items-center justify-center h-9 min-w-9 px-1.5 rounded-md transition-all duration-200 cursor-pointer select-none",
-        "border border-dashed border-muted-foreground/30 hover:border-primary/60 hover:bg-primary/10",
-      )}
-    >
-      <span className="text-sm text-muted-foreground tracking-widest group-hover:hidden">···</span>
-      <span className="text-xs font-medium text-primary hidden group-hover:inline">跳页</span>
-    </button>
+    <div className="flex items-center gap-2">
+      <div className="relative flex items-center">
+        <input
+          ref={inputRef}
+          inputMode="numeric"
+          maxLength={String(totalPages).length}
+          value={val}
+          onFocus={() => inputRef.current?.select()}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, "");
+            if (v === "") {
+              setVal("");
+              return;
+            }
+            const n = parseInt(v, 10);
+            if (n > totalPages) {
+              setVal(String(totalPages));
+            } else {
+              setVal(v);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          className={cn(
+            "h-8 rounded-l-md border border-r-0 bg-background text-center text-sm tabular-nums outline-none",
+            "focus:border-primary focus:ring-1 focus:ring-primary/30",
+          )}
+          style={{ width: `${Math.max(String(totalPages).length, 2) * 0.7 + 1.2}em` }}
+        />
+        <span className="inline-flex items-center h-8 border border-l-0 rounded-r-md bg-muted/50 px-2 text-sm text-muted-foreground tabular-nums select-none">
+          /&nbsp;{totalPages}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={submit}
+        className={cn(
+          "h-8 rounded-md px-3 text-sm font-medium transition-colors",
+          "bg-accent text-accent-foreground hover:bg-accent/80",
+        )}
+      >
+        跳转
+      </button>
+    </div>
   );
 }
