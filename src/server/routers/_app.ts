@@ -7,6 +7,7 @@ import { tagRouter } from "./tag";
 import { adminRouter } from "./admin";
 import { commentRouter } from "./comment";
 import { gameCommentRouter } from "./game-comment";
+import { imagePostCommentRouter } from "./image-comment";
 import { seriesRouter } from "./series";
 import { siteRouter } from "./site";
 
@@ -19,6 +20,7 @@ export const appRouter = router({
   admin: adminRouter,
   comment: commentRouter,
   gameComment: gameCommentRouter,
+  imagePostComment: imagePostCommentRouter,
   series: seriesRouter,
   site: siteRouter,
 });

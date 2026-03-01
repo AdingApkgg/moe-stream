@@ -31,6 +31,11 @@ const getUser = cache(async (id: string) => {
         select: {
           likes: true,
           favorites: true,
+          gameFavorites: true,
+          gameLikes: true,
+          imagePosts: { where: { status: "PUBLISHED" } },
+          imagePostLikes: true,
+          imagePostFavorites: true,
         },
       },
     },

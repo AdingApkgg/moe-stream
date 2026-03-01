@@ -20,6 +20,9 @@ const getImagePost = cache(async (id: string) => {
       tags: {
         include: { tag: { select: { id: true, name: true, slug: true } } },
       },
+      _count: {
+        select: { likes: true, dislikes: true, favorites: true, comments: true },
+      },
     },
   });
 });
@@ -77,6 +80,7 @@ function serializePost(post: NonNullable<Awaited<ReturnType<typeof getImagePost>
     updatedAt: post.updatedAt.toISOString(),
     uploader: post.uploader,
     tags: post.tags,
+    _count: post._count,
   };
 }
 

@@ -78,6 +78,48 @@ export const imageRouter = router({
       };
     }),
 
+  /** 获取指定用户的图片帖子（公开） */
+  getUserPosts: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where: Prisma.ImagePostWhereInput = {
+        uploaderId: input.userId,
+        status: "PUBLISHED",
+      };
+
+      const [posts, totalCount] = await Promise.all([
+        ctx.prisma.imagePost.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            uploader: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            tags: {
+              include: { tag: { select: { id: true, name: true, slug: true } } },
+            },
+          },
+        }),
+        ctx.prisma.imagePost.count({ where }),
+      ]);
+
+      return {
+        posts,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -381,5 +423,233 @@ export const imageRouter = router({
       }
 
       return { success: true };
+    }),
+
+  // ==================== 用户交互 ====================
+
+  toggleReaction: protectedProcedure
+    .input(z.object({
+      imagePostId: z.string(),
+      type: z.enum(["like", "dislike"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { imagePostId, type } = input;
+
+      if (type === "like") {
+        const existing = await ctx.prisma.imagePostLike.findUnique({
+          where: { userId_imagePostId: { userId, imagePostId } },
+        });
+        if (existing) {
+          await ctx.prisma.imagePostLike.delete({ where: { id: existing.id } });
+          return { liked: false, disliked: false };
+        }
+        await ctx.prisma.$transaction([
+          ctx.prisma.imagePostLike.create({ data: { userId, imagePostId } }),
+          ctx.prisma.imagePostDislike.deleteMany({ where: { userId, imagePostId } }),
+        ]);
+        return { liked: true, disliked: false };
+      } else {
+        const existing = await ctx.prisma.imagePostDislike.findUnique({
+          where: { userId_imagePostId: { userId, imagePostId } },
+        });
+        if (existing) {
+          await ctx.prisma.imagePostDislike.delete({ where: { id: existing.id } });
+          return { liked: false, disliked: false };
+        }
+        await ctx.prisma.$transaction([
+          ctx.prisma.imagePostDislike.create({ data: { userId, imagePostId } }),
+          ctx.prisma.imagePostLike.deleteMany({ where: { userId, imagePostId } }),
+        ]);
+        return { liked: false, disliked: true };
+      }
+    }),
+
+  toggleFavorite: protectedProcedure
+    .input(z.object({ imagePostId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const existing = await ctx.prisma.imagePostFavorite.findUnique({
+        where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+      });
+
+      if (existing) {
+        await ctx.prisma.imagePostFavorite.delete({ where: { id: existing.id } });
+        return { favorited: false };
+      }
+
+      await ctx.prisma.imagePostFavorite.create({
+        data: { userId, imagePostId: input.imagePostId },
+      });
+      return { favorited: true };
+    }),
+
+  getUserInteraction: protectedProcedure
+    .input(z.object({ imagePostId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const [liked, disliked, favorited] = await Promise.all([
+        ctx.prisma.imagePostLike.findUnique({
+          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+        }),
+        ctx.prisma.imagePostDislike.findUnique({
+          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+        }),
+        ctx.prisma.imagePostFavorite.findUnique({
+          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+        }),
+      ]);
+      return { liked: !!liked, disliked: !!disliked, favorited: !!favorited };
+    }),
+
+  incrementViews: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.imagePost.update({
+        where: { id: input.id },
+        data: { views: { increment: 1 } },
+      });
+      return { success: true };
+    }),
+
+  recordView: protectedProcedure
+    .input(z.object({ imagePostId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.imagePostViewHistory.upsert({
+        where: {
+          userId_imagePostId: {
+            userId: ctx.session.user.id,
+            imagePostId: input.imagePostId,
+          },
+        },
+        update: { updatedAt: new Date() },
+        create: {
+          userId: ctx.session.user.id,
+          imagePostId: input.imagePostId,
+        },
+      });
+      return { success: true };
+    }),
+
+  // ==================== 公开列表（用户主页用） ====================
+
+  getUserFavorites: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      limit: z.number().min(1).max(50).default(20),
+      page: z.number().min(1).default(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        imagePost: { status: "PUBLISHED" as const },
+      };
+
+      const [favorites, totalCount] = await Promise.all([
+        ctx.prisma.imagePostFavorite.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            imagePost: {
+              include: {
+                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                _count: { select: { likes: true, dislikes: true, favorites: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.imagePostFavorite.count({ where }),
+      ]);
+
+      return {
+        posts: favorites.filter((f) => f.imagePost !== null).map((f) => f.imagePost),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  getUserLiked: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      limit: z.number().min(1).max(50).default(20),
+      page: z.number().min(1).default(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        imagePost: { status: "PUBLISHED" as const },
+      };
+
+      const [likes, totalCount] = await Promise.all([
+        ctx.prisma.imagePostLike.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            imagePost: {
+              include: {
+                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                _count: { select: { likes: true, dislikes: true, favorites: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.imagePostLike.count({ where }),
+      ]);
+
+      return {
+        posts: likes.filter((l) => l.imagePost !== null).map((l) => l.imagePost),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  getUserHistory: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      limit: z.number().min(1).max(50).default(20),
+      page: z.number().min(1).default(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        imagePost: { status: "PUBLISHED" as const },
+      };
+
+      const [history, totalCount] = await Promise.all([
+        ctx.prisma.imagePostViewHistory.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            imagePost: {
+              include: {
+                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                _count: { select: { likes: true, dislikes: true, favorites: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.imagePostViewHistory.count({ where }),
+      ]);
+
+      return {
+        posts: history.filter((h) => h.imagePost !== null).map((h) => h.imagePost),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 });

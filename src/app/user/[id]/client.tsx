@@ -7,7 +7,7 @@ import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Heart, Star, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, type LucideIcon } from "lucide-react";
+import { Calendar, Heart, Star, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, Play, Gamepad2, Images, LayoutGrid, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -15,6 +15,8 @@ import { formatRelativeTime } from "@/lib/format";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
+import { GameCard, type GameCardData } from "@/components/game/game-card";
+import { ImagePostCard } from "@/components/image/image-post-card";
 import type { SerializedUser } from "./page";
 
 // 社交图标组件
@@ -117,9 +119,12 @@ function SocialLinks({ socialLinks }: { socialLinks: Record<string, string> | nu
   );
 }
 
-type ProfileTab = "history" | "favorites" | "liked";
+type ContentZone = "all" | "video" | "image" | "game";
+type VideoSubTab = "history" | "favorites" | "liked";
+type GameSubTab = "history" | "favorites" | "liked";
+type ImageSubTab = "posts" | "history" | "favorites" | "liked";
 
-/** 视频网格（通用） */
+/** 视频网格 */
 function VideoGrid({
   videos, isLoading, emptyIcon, emptyTitle, emptyDescription,
 }: {
@@ -163,6 +168,78 @@ function VideoGrid({
   );
 }
 
+/** 游戏网格 */
+function GameGrid({
+  games, isLoading, emptyTitle, emptyDescription,
+}: {
+  games: GameCardData[];
+  isLoading: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="aspect-video rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (games.length === 0) {
+    return (
+      <EmptyState icon={Gamepad2} title={emptyTitle} description={emptyDescription} />
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {games
+        .filter((g) => g?.id != null)
+        .map((game, index) => (
+          <GameCard key={game.id} game={game} index={index} />
+        ))}
+    </div>
+  );
+}
+
+/** 图片网格 */
+function ImagePostGrid({
+  posts, isLoading, emptyTitle, emptyDescription,
+}: {
+  posts: { id: string; title: string; description?: string | null; images: string[]; views: number; createdAt: Date | string; uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null }; tags?: { tag: { id: string; name: string; slug: string } }[] }[];
+  isLoading: boolean;
+  emptyTitle: string;
+  emptyDescription: string;
+}) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="aspect-square rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <EmptyState icon={Images} title={emptyTitle} description={emptyDescription} />
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {posts
+        .filter((p) => p?.id != null)
+        .map((post, index) => (
+          <ImagePostCard key={post.id} post={post} index={index} />
+        ))}
+    </div>
+  );
+}
+
 interface UserPageClientProps {
   id: string;
   initialUser: SerializedUser | null;
@@ -173,16 +250,25 @@ interface UserPageClientProps {
 export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: UserPageClientProps) {
   const { data: session, status } = useSession();
   const { play } = useSound();
-  const [activeTab, setActiveTab] = useState<ProfileTab>("history");
+  const [activeZone, setActiveZone] = useState<ContentZone>("all");
+  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>("history");
+  const [gameSubTab, setGameSubTab] = useState<GameSubTab>("history");
+  const [imageSubTab, setImageSubTab] = useState<ImageSubTab>("posts");
+
   const [historyPage, setHistoryPage] = useState(1);
   const [favPage, setFavPage] = useState(1);
   const [likedPage, setLikedPage] = useState(1);
+  const [gameFavPage, setGameFavPage] = useState(1);
+  const [gameLikedPage, setGameLikedPage] = useState(1);
+  const [gameHistoryPage, setGameHistoryPage] = useState(1);
+  const [imagePage, setImagePage] = useState(1);
+  const [imageFavPage, setImageFavPage] = useState(1);
+  const [imageLikedPage, setImageLikedPage] = useState(1);
+  const [imageHistoryPage, setImageHistoryPage] = useState(1);
 
-  // 使用服务端预判断作为初始值；客户端 session 加载完成后以客户端结果为准
   const clientIsOwn = status === "authenticated" && session?.user?.id === id;
   const isOwnProfile = status === "loading" ? serverIsOwn : clientIsOwn;
 
-  // 客户端获取用户数据
   const { data: user, isLoading: userLoading } = trpc.user.getProfile.useQuery(
     { id },
     {
@@ -191,30 +277,67 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     }
   );
 
-  // 优先使用客户端数据，然后是服务端数据
   const displayUser = user || initialUser;
 
-  // 观看记录（公开，任何人可查看指定用户的观看记录）
+  // 视频数据
+  const isVideoZone = activeZone === "all" || activeZone === "video";
   const { data: historyData, isLoading: historyLoading } = trpc.video.getUserHistory.useQuery(
     { userId: id, limit: 20, page: historyPage },
-    { enabled: activeTab === "history" }
+    { enabled: isVideoZone && videoSubTab === "history" }
   );
-
-  // 收藏列表（公开，任何人可查看指定用户的收藏）
   const { data: favData, isLoading: favLoading } = trpc.video.getUserFavorites.useQuery(
     { userId: id, limit: 20, page: favPage },
-    { enabled: activeTab === "favorites" }
+    { enabled: isVideoZone && videoSubTab === "favorites" }
   );
-
-  // 喜欢（点赞）列表（公开，任何人可查看指定用户的喜欢）
   const { data: likedData, isLoading: likedLoading } = trpc.video.getUserLiked.useQuery(
     { userId: id, limit: 20, page: likedPage },
-    { enabled: activeTab === "liked" }
+    { enabled: isVideoZone && videoSubTab === "liked" }
+  );
+
+  // 游戏数据
+  const isGameZone = activeZone === "all" || activeZone === "game";
+  const { data: gameHistoryData, isLoading: gameHistoryLoading } = trpc.game.getUserHistory.useQuery(
+    { userId: id, limit: 20, page: gameHistoryPage },
+    { enabled: isGameZone && gameSubTab === "history" }
+  );
+  const { data: gameFavData, isLoading: gameFavLoading } = trpc.game.getUserFavorites.useQuery(
+    { userId: id, limit: 20, page: gameFavPage },
+    { enabled: isGameZone && gameSubTab === "favorites" }
+  );
+  const { data: gameLikedData, isLoading: gameLikedLoading } = trpc.game.getUserLiked.useQuery(
+    { userId: id, limit: 20, page: gameLikedPage },
+    { enabled: isGameZone && gameSubTab === "liked" }
+  );
+
+  // 图片数据
+  const isImageZone = activeZone === "all" || activeZone === "image";
+  const { data: imageData, isLoading: imageLoading } = trpc.image.getUserPosts.useQuery(
+    { userId: id, limit: 20, page: imagePage },
+    { enabled: isImageZone && imageSubTab === "posts" }
+  );
+  const { data: imageHistoryData, isLoading: imageHistoryLoading } = trpc.image.getUserHistory.useQuery(
+    { userId: id, limit: 20, page: imageHistoryPage },
+    { enabled: isImageZone && imageSubTab === "history" }
+  );
+  const { data: imageFavData, isLoading: imageFavLoading } = trpc.image.getUserFavorites.useQuery(
+    { userId: id, limit: 20, page: imageFavPage },
+    { enabled: isImageZone && imageSubTab === "favorites" }
+  );
+  const { data: imageLikedData, isLoading: imageLikedLoading } = trpc.image.getUserLiked.useQuery(
+    { userId: id, limit: 20, page: imageLikedPage },
+    { enabled: isImageZone && imageSubTab === "liked" }
   );
 
   const historyVideos = historyData?.history ?? [];
   const favVideos = favData?.favorites ?? [];
   const likedVideos = likedData?.videos ?? [];
+  const gameHistoryGames = (gameHistoryData?.games ?? []) as GameCardData[];
+  const gameFavGames = (gameFavData?.games ?? []) as GameCardData[];
+  const gameLikedGames = (gameLikedData?.games ?? []) as GameCardData[];
+  const imagePosts = imageData?.posts ?? [];
+  const imageHistoryPosts = imageHistoryData?.posts ?? [];
+  const imageFavPosts = imageFavData?.posts ?? [];
+  const imageLikedPosts = imageLikedData?.posts ?? [];
 
   // 用户不存在
   if (!initialUser && !displayUser && !userLoading) {
@@ -250,11 +373,234 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     );
   }
 
-  const tabs: { key: ProfileTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+  const zones: { key: ContentZone; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { key: "all", label: "综合", icon: LayoutGrid },
+    { key: "video", label: "视频", icon: Play },
+    { key: "image", label: "图片", icon: Images },
+    { key: "game", label: "游戏", icon: Gamepad2 },
+  ];
+
+  const videoTabs: { key: VideoSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
     { key: "history", label: "观看记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.favorites },
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.likes },
   ];
+
+  const gameTabs: { key: GameSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+    { key: "history", label: "浏览记录", icon: Clock },
+    { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.gameFavorites },
+    { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.gameLikes },
+  ];
+
+  const imageTabs: { key: ImageSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+    { key: "posts", label: "作品", icon: Images, count: displayUser._count.imagePosts },
+    { key: "history", label: "浏览记录", icon: Clock },
+    { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.imagePostFavorites },
+    { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.imagePostLikes },
+  ];
+
+  const renderVideoContent = () => (
+    <>
+      {/* 视频子 Tab */}
+      <div className="flex items-center gap-1 border-b mb-6">
+        {videoTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setVideoSubTab(tab.key); play("navigate"); }}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+                videoSubTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+              {tab.count != null && (
+                <span className="text-xs text-muted-foreground">({tab.count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {videoSubTab === "history" && (
+        <>
+          <VideoGrid
+            videos={historyVideos}
+            isLoading={historyLoading}
+            emptyIcon={Clock}
+            emptyTitle="暂无观看记录"
+            emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
+          />
+          <Pagination currentPage={historyPage} totalPages={historyData?.totalPages ?? 1} onPageChange={setHistoryPage} className="mt-6" />
+        </>
+      )}
+      {videoSubTab === "favorites" && (
+        <>
+          <VideoGrid
+            videos={favVideos}
+            isLoading={favLoading}
+            emptyIcon={Star}
+            emptyTitle="暂无收藏"
+            emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
+          />
+          <Pagination currentPage={favPage} totalPages={favData?.totalPages ?? 1} onPageChange={setFavPage} className="mt-6" />
+        </>
+      )}
+      {videoSubTab === "liked" && (
+        <>
+          <VideoGrid
+            videos={likedVideos}
+            isLoading={likedLoading}
+            emptyIcon={ThumbsUp}
+            emptyTitle="暂无喜欢"
+            emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
+          />
+          <Pagination currentPage={likedPage} totalPages={likedData?.totalPages ?? 1} onPageChange={setLikedPage} className="mt-6" />
+        </>
+      )}
+    </>
+  );
+
+  const renderImageContent = () => (
+    <>
+      {/* 图片子 Tab */}
+      <div className="flex items-center gap-1 border-b mb-6">
+        {imageTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setImageSubTab(tab.key); play("navigate"); }}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+                imageSubTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+              {tab.count != null && (
+                <span className="text-xs text-muted-foreground">({tab.count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {imageSubTab === "posts" && (
+        <>
+          <ImagePostGrid
+            posts={imagePosts}
+            isLoading={imageLoading}
+            emptyTitle="暂无作品"
+            emptyDescription={isOwnProfile ? "你还没有发布过图片" : "该用户还没有发布过图片"}
+          />
+          <Pagination currentPage={imagePage} totalPages={imageData?.totalPages ?? 1} onPageChange={setImagePage} className="mt-6" />
+        </>
+      )}
+      {imageSubTab === "history" && (
+        <>
+          <ImagePostGrid
+            posts={imageHistoryPosts}
+            isLoading={imageHistoryLoading}
+            emptyTitle="暂无浏览记录"
+            emptyDescription={isOwnProfile ? "你还没有浏览过任何图片" : "该用户还没有浏览过任何图片"}
+          />
+          <Pagination currentPage={imageHistoryPage} totalPages={imageHistoryData?.totalPages ?? 1} onPageChange={setImageHistoryPage} className="mt-6" />
+        </>
+      )}
+      {imageSubTab === "favorites" && (
+        <>
+          <ImagePostGrid
+            posts={imageFavPosts}
+            isLoading={imageFavLoading}
+            emptyTitle="暂无收藏"
+            emptyDescription={isOwnProfile ? "你还没有收藏过任何图片" : "该用户还没有收藏过任何图片"}
+          />
+          <Pagination currentPage={imageFavPage} totalPages={imageFavData?.totalPages ?? 1} onPageChange={setImageFavPage} className="mt-6" />
+        </>
+      )}
+      {imageSubTab === "liked" && (
+        <>
+          <ImagePostGrid
+            posts={imageLikedPosts}
+            isLoading={imageLikedLoading}
+            emptyTitle="暂无喜欢"
+            emptyDescription={isOwnProfile ? "你还没有点赞过任何图片" : "该用户还没有点赞过任何图片"}
+          />
+          <Pagination currentPage={imageLikedPage} totalPages={imageLikedData?.totalPages ?? 1} onPageChange={setImageLikedPage} className="mt-6" />
+        </>
+      )}
+    </>
+  );
+
+  const renderGameContent = () => (
+    <>
+      {/* 游戏子 Tab */}
+      <div className="flex items-center gap-1 border-b mb-6">
+        {gameTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setGameSubTab(tab.key); play("navigate"); }}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+                gameSubTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+              {tab.count != null && (
+                <span className="text-xs text-muted-foreground">({tab.count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {gameSubTab === "history" && (
+        <>
+          <GameGrid
+            games={gameHistoryGames}
+            isLoading={gameHistoryLoading}
+            emptyTitle="暂无浏览记录"
+            emptyDescription={isOwnProfile ? "你还没有浏览过任何游戏" : "该用户还没有浏览过任何游戏"}
+          />
+          <Pagination currentPage={gameHistoryPage} totalPages={gameHistoryData?.totalPages ?? 1} onPageChange={setGameHistoryPage} className="mt-6" />
+        </>
+      )}
+      {gameSubTab === "favorites" && (
+        <>
+          <GameGrid
+            games={gameFavGames}
+            isLoading={gameFavLoading}
+            emptyTitle="暂无收藏"
+            emptyDescription={isOwnProfile ? "你还没有收藏过任何游戏" : "该用户还没有收藏过任何游戏"}
+          />
+          <Pagination currentPage={gameFavPage} totalPages={gameFavData?.totalPages ?? 1} onPageChange={setGameFavPage} className="mt-6" />
+        </>
+      )}
+      {gameSubTab === "liked" && (
+        <>
+          <GameGrid
+            games={gameLikedGames}
+            isLoading={gameLikedLoading}
+            emptyTitle="暂无喜欢"
+            emptyDescription={isOwnProfile ? "你还没有点赞过任何游戏" : "该用户还没有点赞过任何游戏"}
+          />
+          <Pagination currentPage={gameLikedPage} totalPages={gameLikedData?.totalPages ?? 1} onPageChange={setGameLikedPage} className="mt-6" />
+        </>
+      )}
+    </>
+  );
 
   return (
     <div className="container py-6">
@@ -345,86 +691,64 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
           </div>
       </div>
 
-        {/* 观看记录 / 收藏 / 喜欢 */}
-        {/* Tab 导航 */}
-        <div className="flex items-center gap-1 border-b mb-6">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
+        {/* 分区 Tab */}
+        <div className="flex items-center gap-2 mb-4">
+          {zones.map((zone) => {
+            const Icon = zone.icon;
             return (
               <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); play("navigate"); }}
+                key={zone.key}
+                onClick={() => { setActiveZone(zone.key); play("navigate"); }}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
-                  activeTab === tab.key
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+                  "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-colors",
+                  activeZone === zone.key
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {tab.label}
-                {tab.count != null && (
-                  <span className="text-xs text-muted-foreground">({tab.count})</span>
-                )}
+                {zone.label}
               </button>
             );
           })}
         </div>
 
-        {/* Tab 内容 */}
-        {activeTab === "history" && (
-          <>
-            <VideoGrid
-              videos={historyVideos}
-              isLoading={historyLoading}
-              emptyIcon={Clock}
-              emptyTitle="暂无观看记录"
-              emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
-            />
-            <Pagination
-              currentPage={historyPage}
-              totalPages={historyData?.totalPages ?? 1}
-              onPageChange={setHistoryPage}
-              className="mt-6"
-            />
-          </>
+        {/* 分区内容 */}
+        {activeZone === "all" && (
+          <div className="space-y-8">
+            {/* 综合视图：依次展示三个分区的内容摘要 */}
+            <section>
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                <Play className="h-5 w-5" />
+                视频
+              </h2>
+              {renderVideoContent()}
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                <Images className="h-5 w-5" />
+                图片
+                {displayUser._count.imagePosts > 0 && (
+                  <span className="text-xs text-muted-foreground font-normal">({displayUser._count.imagePosts})</span>
+                )}
+              </h2>
+              {renderImageContent()}
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                <Gamepad2 className="h-5 w-5" />
+                游戏
+              </h2>
+              {renderGameContent()}
+            </section>
+          </div>
         )}
 
-        {activeTab === "favorites" && (
-          <>
-            <VideoGrid
-              videos={favVideos}
-              isLoading={favLoading}
-              emptyIcon={Star}
-              emptyTitle="暂无收藏"
-              emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
-            />
-            <Pagination
-              currentPage={favPage}
-              totalPages={favData?.totalPages ?? 1}
-              onPageChange={setFavPage}
-              className="mt-6"
-            />
-          </>
-        )}
-
-        {activeTab === "liked" && (
-          <>
-            <VideoGrid
-              videos={likedVideos}
-              isLoading={likedLoading}
-              emptyIcon={ThumbsUp}
-              emptyTitle="暂无喜欢"
-              emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
-            />
-            <Pagination
-              currentPage={likedPage}
-              totalPages={likedData?.totalPages ?? 1}
-              onPageChange={setLikedPage}
-              className="mt-6"
-            />
-          </>
-        )}
+        {activeZone === "video" && renderVideoContent()}
+        {activeZone === "image" && renderImageContent()}
+        {activeZone === "game" && renderGameContent()}
     </div>
   );
 }

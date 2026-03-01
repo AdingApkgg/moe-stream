@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useSyncExternalStore } from "react";
+import { useState, useCallback, useEffect, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
@@ -103,6 +103,14 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
       utils.game.getUserInteraction.invalidate({ gameId: id });
     },
   });
+
+  const incrementViews = trpc.game.incrementViews.useMutation();
+  const recordView = trpc.game.recordView.useMutation();
+  useEffect(() => {
+    incrementViews.mutate({ id });
+    recordView.mutate({ gameId: id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleCopyUrl = useCallback((url: string) => {
     navigator.clipboard.writeText(url);

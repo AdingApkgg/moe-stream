@@ -54,13 +54,21 @@ model User {
   searchRecords    SearchRecord[]
 
   // 图片帖子
-  imagePosts         ImagePost[]
+  imagePosts               ImagePost[]
+  imagePostLikes           ImagePostLike[]
+  imagePostDislikes        ImagePostDislike[]
+  imagePostFavorites       ImagePostFavorite[]
+  imagePostViewHistory     ImagePostViewHistory[]
+  imagePostComments        ImagePostComment[]  @relation("ImagePostCommentAuthor")
+  imagePostCommentReplies  ImagePostComment[]  @relation("ImagePostCommentReplyTo")
+  imagePostCommentReactions ImagePostCommentReaction[]
 
   // 游戏相关
   games              Game[]
   gameFavorites      GameFavorite[]
   gameLikes          GameLike[]
   gameDislikes       GameDislike[]
+  gameViewHistory    GameViewHistory[]
   gameComments       GameComment[]    @relation("GameCommentAuthor")
   gameCommentReplies    GameComment[]    @relation("GameCommentReplyTo")
   gameCommentReactions  GameCommentReaction[]
@@ -323,12 +331,29 @@ model Game {
   favorites     GameFavorite[]
   likes         GameLike[]
   dislikes      GameDislike[]
+  viewHistory   GameViewHistory[]
   comments      GameComment[]
 
   @@index([uploaderId])
   @@index([status])
   @@index([createdAt])
   @@index([gameType])
+}
+
+model GameViewHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  gameId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game  Game  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+  @@index([userId])
+  @@index([gameId])
+  @@index([updatedAt])
 }
 
 model GameFavorite {
@@ -491,6 +516,11 @@ model ImagePost {
   status      VideoStatus @default(PENDING)
 
   tags        TagOnImagePost[]
+  likes       ImagePostLike[]
+  dislikes    ImagePostDislike[]
+  favorites   ImagePostFavorite[]
+  viewHistory ImagePostViewHistory[]
+  comments    ImagePostComment[]
 
   uploaderId  String
   uploader    User        @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
@@ -501,6 +531,121 @@ model ImagePost {
   @@index([uploaderId])
   @@index([status])
   @@index([createdAt])
+}
+
+model ImagePostComment {
+  id            String   @id @default(cuid())
+  content       String   @db.Text
+  userId        String?
+  imagePostId   String
+  parentId      String?
+  replyToUserId String?
+
+  guestName     String?
+  guestEmail    String?
+  guestWebsite  String?
+
+  ipv4Address   String?
+  ipv4Location  String?
+  ipv6Address   String?
+  ipv6Location  String?
+  deviceInfo    Json?
+  userAgent     String?
+
+  likes     Int      @default(0)
+  dislikes  Int      @default(0)
+
+  isEdited  Boolean  @default(false)
+  isPinned  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  isHidden  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User?               @relation("ImagePostCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  imagePost   ImagePost           @relation(fields: [imagePostId], references: [id], onDelete: Cascade)
+  parent      ImagePostComment?   @relation("ImagePostCommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies     ImagePostComment[]  @relation("ImagePostCommentReplies")
+  replyToUser User?               @relation("ImagePostCommentReplyTo", fields: [replyToUserId], references: [id], onDelete: SetNull)
+  reactions   ImagePostCommentReaction[]
+
+  @@index([imagePostId, createdAt])
+  @@index([imagePostId, likes])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model ImagePostCommentReaction {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  isLike    Boolean
+  createdAt DateTime @default(now())
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment ImagePostComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+}
+
+model ImagePostLike {
+  id          String   @id @default(cuid())
+  userId      String
+  imagePostId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imagePost ImagePost @relation(fields: [imagePostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, imagePostId])
+  @@index([userId])
+  @@index([imagePostId])
+}
+
+model ImagePostDislike {
+  id          String   @id @default(cuid())
+  userId      String
+  imagePostId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imagePost ImagePost @relation(fields: [imagePostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, imagePostId])
+  @@index([userId])
+  @@index([imagePostId])
+}
+
+model ImagePostFavorite {
+  id          String   @id @default(cuid())
+  userId      String
+  imagePostId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imagePost ImagePost @relation(fields: [imagePostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, imagePostId])
+  @@index([userId])
+  @@index([imagePostId])
+}
+
+model ImagePostViewHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  imagePostId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imagePost ImagePost @relation(fields: [imagePostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, imagePostId])
+  @@index([userId])
+  @@index([imagePostId])
+  @@index([updatedAt])
 }
 
 model TagOnImagePost {

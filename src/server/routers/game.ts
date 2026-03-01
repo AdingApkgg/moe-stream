@@ -536,6 +536,172 @@ export const gameRouter = router({
       }
     }),
 
+  /** 获取指定用户的游戏收藏列表（公开） */
+  getUserFavorites: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        game: { status: "PUBLISHED" as const },
+      };
+
+      const [favorites, totalCount] = await Promise.all([
+        ctx.prisma.gameFavorite.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            game: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.gameFavorite.count({ where }),
+      ]);
+
+      return {
+        games: favorites.filter((f) => f.game !== null).map((f) => f.game),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  /** 获取指定用户喜欢（点赞）的游戏列表（公开） */
+  getUserLiked: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        game: { status: "PUBLISHED" as const },
+      };
+
+      const [likes, totalCount] = await Promise.all([
+        ctx.prisma.gameLike.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            game: {
+              include: {
+                uploader: {
+                  select: { id: true, username: true, nickname: true, avatar: true },
+                },
+                tags: {
+                  include: { tag: { select: { id: true, name: true, slug: true } } },
+                },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.gameLike.count({ where }),
+      ]);
+
+      return {
+        games: likes.filter((l) => l.game !== null).map((l) => l.game),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  /** 增加浏览量 */
+  incrementViews: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.game.update({
+        where: { id: input.id },
+        data: { views: { increment: 1 } },
+      });
+      return { success: true };
+    }),
+
+  /** 记录浏览历史 */
+  recordView: protectedProcedure
+    .input(z.object({ gameId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.gameViewHistory.upsert({
+        where: {
+          userId_gameId: {
+            userId: ctx.session.user.id,
+            gameId: input.gameId,
+          },
+        },
+        update: { updatedAt: new Date() },
+        create: {
+          userId: ctx.session.user.id,
+          gameId: input.gameId,
+        },
+      });
+      return { success: true };
+    }),
+
+  /** 获取指定用户的游戏浏览记录（公开） */
+  getUserHistory: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      limit: z.number().min(1).max(50).default(20),
+      page: z.number().min(1).default(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        userId: input.userId,
+        game: { status: "PUBLISHED" as const },
+      };
+
+      const [history, totalCount] = await Promise.all([
+        ctx.prisma.gameViewHistory.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { updatedAt: "desc" },
+          include: {
+            game: {
+              include: {
+                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+            },
+          },
+        }),
+        ctx.prisma.gameViewHistory.count({ where }),
+      ]);
+
+      return {
+        games: history.filter((h) => h.game !== null).map((h) => h.game),
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
   /** 检查用户交互状态 */
   getUserInteraction: protectedProcedure
     .input(z.object({ gameId: z.string() }))
