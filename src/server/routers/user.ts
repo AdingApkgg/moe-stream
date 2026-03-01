@@ -80,6 +80,7 @@ export const userRouter = router({
               videos: { where: { status: "PUBLISHED" } },
               likes: true,
               favorites: true,
+              games: { where: { status: "PUBLISHED" } },
               gameFavorites: true,
               gameLikes: true,
               imagePosts: { where: { status: "PUBLISHED" } },
@@ -97,39 +98,79 @@ export const userRouter = router({
       return user;
     }),
 
-  // 获取用户发布的视频
   getVideos: publicProcedure
     .input(
       z.object({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
-        cursor: z.string().nullish(),
+        page: z.number().min(1).default(1),
       })
     )
     .query(async ({ ctx, input }) => {
-      const videos = await ctx.prisma.video.findMany({
-        where: {
-          uploaderId: input.userId,
-          status: "PUBLISHED",
-        },
-        take: input.limit + 1,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        orderBy: { createdAt: "desc" },
-        include: {
-          uploader: {
-            select: { id: true, username: true, nickname: true, avatar: true },
+      const { limit, page } = input;
+      const where = { uploaderId: input.userId, status: "PUBLISHED" as const };
+
+      const [videos, totalCount] = await Promise.all([
+        ctx.prisma.video.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            uploader: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
           },
-          _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
-        },
-      });
+        }),
+        ctx.prisma.video.count({ where }),
+      ]);
 
-      let nextCursor: string | undefined = undefined;
-      if (videos.length > input.limit) {
-        const nextItem = videos.pop();
-        nextCursor = nextItem!.id;
-      }
+      return {
+        videos,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
 
-      return { videos, nextCursor };
+  getGames: publicProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = { uploaderId: input.userId, status: "PUBLISHED" as const };
+
+      const [games, totalCount] = await Promise.all([
+        ctx.prisma.game.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            uploader: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            tags: {
+              include: { tag: { select: { id: true, name: true, slug: true } } },
+            },
+            _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+          },
+        }),
+        ctx.prisma.game.count({ where }),
+      ]);
+
+      return {
+        games,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   // 获取当前用户信息

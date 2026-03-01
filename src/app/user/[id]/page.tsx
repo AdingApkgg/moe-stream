@@ -29,8 +29,10 @@ const getUser = cache(async (id: string) => {
       createdAt: true,
       _count: {
         select: {
+          videos: { where: { status: "PUBLISHED" } },
           likes: true,
           favorites: true,
+          games: { where: { status: "PUBLISHED" } },
           gameFavorites: true,
           gameLikes: true,
           imagePosts: { where: { status: "PUBLISHED" } },

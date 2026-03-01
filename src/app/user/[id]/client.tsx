@@ -7,7 +7,25 @@ import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Heart, Star, MapPin, Globe, ExternalLink, Mail, Clock, ThumbsUp, Play, Gamepad2, Images, LayoutGrid, type LucideIcon } from "lucide-react";
+import {
+  Calendar,
+  Heart,
+  Star,
+  MapPin,
+  Globe,
+  ExternalLink,
+  Mail,
+  Clock,
+  ThumbsUp,
+  Play,
+  Gamepad2,
+  Images,
+  LayoutGrid,
+  Settings,
+  Video,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -17,9 +35,12 @@ import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
+import { FadeIn, CountUp } from "@/components/motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { SerializedUser } from "./page";
 
-// 社交图标组件
+// ==================== 社交图标 ====================
+
 function TwitterIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -44,7 +65,6 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
-
 function YouTubeIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -61,34 +81,37 @@ function PixivIcon({ className }: { className?: string }) {
   );
 }
 
-const SOCIAL_CONFIGS: Record<string, { 
-  icon: React.ComponentType<{ className?: string }>;
-  getUrl: (value: string) => string;
-  color: string;
-}> = {
+const SOCIAL_CONFIGS: Record<
+  string,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    getUrl: (value: string) => string;
+    color: string;
+  }
+> = {
   twitter: {
     icon: TwitterIcon,
-    getUrl: (v) => v.startsWith("http") ? v : `https://twitter.com/${v.replace("@", "")}`,
+    getUrl: (v) => (v.startsWith("http") ? v : `https://twitter.com/${v.replace("@", "")}`),
     color: "hover:text-[#1DA1F2]",
   },
   github: {
     icon: GitHubIcon,
-    getUrl: (v) => v.startsWith("http") ? v : `https://github.com/${v}`,
+    getUrl: (v) => (v.startsWith("http") ? v : `https://github.com/${v}`),
     color: "hover:text-[#333] dark:hover:text-white",
   },
   discord: {
     icon: DiscordIcon,
-    getUrl: (v) => v.startsWith("http") ? v : `https://discord.com/users/${v}`,
+    getUrl: (v) => (v.startsWith("http") ? v : `https://discord.com/users/${v}`),
     color: "hover:text-[#5865F2]",
   },
   youtube: {
     icon: YouTubeIcon,
-    getUrl: (v) => v.startsWith("http") ? v : `https://youtube.com/${v}`,
+    getUrl: (v) => (v.startsWith("http") ? v : `https://youtube.com/${v}`),
     color: "hover:text-[#FF0000]",
   },
   pixiv: {
     icon: PixivIcon,
-    getUrl: (v) => v.startsWith("http") ? v : `https://pixiv.net/users/${v}`,
+    getUrl: (v) => (v.startsWith("http") ? v : `https://pixiv.net/users/${v}`),
     color: "hover:text-[#0096FA]",
   },
 };
@@ -119,14 +142,21 @@ function SocialLinks({ socialLinks }: { socialLinks: Record<string, string> | nu
   );
 }
 
+// ==================== 类型定义 ====================
+
 type ContentZone = "all" | "video" | "image" | "game";
-type VideoSubTab = "history" | "favorites" | "liked";
-type GameSubTab = "history" | "favorites" | "liked";
+type VideoSubTab = "uploads" | "history" | "favorites" | "liked";
+type GameSubTab = "uploads" | "history" | "favorites" | "liked";
 type ImageSubTab = "posts" | "history" | "favorites" | "liked";
 
-/** 视频网格 */
+// ==================== 网格组件 ====================
+
 function VideoGrid({
-  videos, isLoading, emptyIcon, emptyTitle, emptyDescription,
+  videos,
+  isLoading,
+  emptyIcon,
+  emptyTitle,
+  emptyDescription,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   videos: any[];
@@ -144,17 +174,9 @@ function VideoGrid({
       </div>
     );
   }
-
   if (videos.length === 0) {
-    return (
-      <EmptyState
-        icon={emptyIcon}
-        title={emptyTitle}
-        description={emptyDescription}
-      />
-    );
+    return <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />;
   }
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {videos
@@ -168,9 +190,11 @@ function VideoGrid({
   );
 }
 
-/** 游戏网格 */
 function GameGrid({
-  games, isLoading, emptyTitle, emptyDescription,
+  games,
+  isLoading,
+  emptyTitle,
+  emptyDescription,
 }: {
   games: GameCardData[];
   isLoading: boolean;
@@ -186,13 +210,9 @@ function GameGrid({
       </div>
     );
   }
-
   if (games.length === 0) {
-    return (
-      <EmptyState icon={Gamepad2} title={emptyTitle} description={emptyDescription} />
-    );
+    return <EmptyState icon={Gamepad2} title={emptyTitle} description={emptyDescription} />;
   }
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {games
@@ -204,11 +224,22 @@ function GameGrid({
   );
 }
 
-/** 图片网格 */
 function ImagePostGrid({
-  posts, isLoading, emptyTitle, emptyDescription,
+  posts,
+  isLoading,
+  emptyTitle,
+  emptyDescription,
 }: {
-  posts: { id: string; title: string; description?: string | null; images: string[]; views: number; createdAt: Date | string; uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null }; tags?: { tag: { id: string; name: string; slug: string } }[] }[];
+  posts: {
+    id: string;
+    title: string;
+    description?: string | null;
+    images: string[];
+    views: number;
+    createdAt: Date | string;
+    uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null };
+    tags?: { tag: { id: string; name: string; slug: string } }[];
+  }[];
   isLoading: boolean;
   emptyTitle: string;
   emptyDescription: string;
@@ -222,13 +253,9 @@ function ImagePostGrid({
       </div>
     );
   }
-
   if (posts.length === 0) {
-    return (
-      <EmptyState icon={Images} title={emptyTitle} description={emptyDescription} />
-    );
+    return <EmptyState icon={Images} title={emptyTitle} description={emptyDescription} />;
   }
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {posts
@@ -240,10 +267,105 @@ function ImagePostGrid({
   );
 }
 
+// ==================== 统计卡片 ====================
+
+function StatItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40">
+      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="flex items-baseline gap-1">
+        <span className="font-semibold text-sm tabular-nums">
+          <CountUp value={value} />
+        </span>
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+    </div>
+  );
+}
+
+// ==================== 子 Tab 渲染器 ====================
+
+function SubTabs<T extends string>({
+  tabs,
+  activeTab,
+  onTabChange,
+  play,
+}: {
+  tabs: { key: T; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[];
+  activeTab: T;
+  onTabChange: (tab: T) => void;
+  play: (sound: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 border-b mb-6 overflow-x-auto scrollbar-none">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        return (
+          <button
+            key={tab.key}
+            onClick={() => {
+              onTabChange(tab.key);
+              play("navigate");
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
+              activeTab === tab.key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {tab.label}
+            {tab.count != null && <span className="text-xs text-muted-foreground">({tab.count})</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ==================== 综合概览区块 ====================
+
+function OverviewSection({
+  icon: Icon,
+  title,
+  count,
+  onViewAll,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  count?: number;
+  onViewAll: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border bg-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <Icon className="h-4.5 w-4.5 text-primary" />
+          {title}
+          {count != null && count > 0 && (
+            <Badge variant="secondary" className="text-xs font-normal ml-1">
+              {count}
+            </Badge>
+          )}
+        </h2>
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-1 h-8" onClick={onViewAll}>
+          查看全部
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// ==================== 主组件 ====================
+
 interface UserPageClientProps {
   id: string;
   initialUser: SerializedUser | null;
-  /** 服务端预判断：当前访问者是否为主页本人 */
   isOwnProfile: boolean;
 }
 
@@ -251,10 +373,12 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
   const { data: session, status } = useSession();
   const { play } = useSound();
   const [activeZone, setActiveZone] = useState<ContentZone>("all");
-  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>("history");
-  const [gameSubTab, setGameSubTab] = useState<GameSubTab>("history");
+  const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>("uploads");
+  const [gameSubTab, setGameSubTab] = useState<GameSubTab>("uploads");
   const [imageSubTab, setImageSubTab] = useState<ImageSubTab>("posts");
 
+  const [videoUploadsPage, setVideoUploadsPage] = useState(1);
+  const [gameUploadsPage, setGameUploadsPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [favPage, setFavPage] = useState(1);
   const [likedPage, setLikedPage] = useState(1);
@@ -271,16 +395,34 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: user, isLoading: userLoading } = trpc.user.getProfile.useQuery(
     { id },
-    {
-      staleTime: initialUser ? 60000 : 0,
-      refetchOnMount: !initialUser,
-    }
+    { staleTime: initialUser ? 60000 : 0, refetchOnMount: !initialUser }
   );
 
   const displayUser = user || initialUser;
 
-  // 视频数据
-  const isVideoZone = activeZone === "all" || activeZone === "video";
+  // ===== 综合概览查询（limit: 4）=====
+  const isOverview = activeZone === "all";
+
+  const { data: overviewVideos, isLoading: overviewVideosLoading } = trpc.user.getVideos.useQuery(
+    { userId: id, limit: 4, page: 1 },
+    { enabled: isOverview }
+  );
+  const { data: overviewImages, isLoading: overviewImagesLoading } = trpc.image.getUserPosts.useQuery(
+    { userId: id, limit: 4, page: 1 },
+    { enabled: isOverview }
+  );
+  const { data: overviewGames, isLoading: overviewGamesLoading } = trpc.user.getGames.useQuery(
+    { userId: id, limit: 4, page: 1 },
+    { enabled: isOverview }
+  );
+
+  // ===== 视频数据 =====
+  const isVideoZone = activeZone === "video";
+
+  const { data: uploadedVideos, isLoading: uploadedLoading } = trpc.user.getVideos.useQuery(
+    { userId: id, limit: 20, page: videoUploadsPage },
+    { enabled: isVideoZone && videoSubTab === "uploads" }
+  );
   const { data: historyData, isLoading: historyLoading } = trpc.video.getUserHistory.useQuery(
     { userId: id, limit: 20, page: historyPage },
     { enabled: isVideoZone && videoSubTab === "history" }
@@ -294,8 +436,13 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     { enabled: isVideoZone && videoSubTab === "liked" }
   );
 
-  // 游戏数据
-  const isGameZone = activeZone === "all" || activeZone === "game";
+  // ===== 游戏数据 =====
+  const isGameZone = activeZone === "game";
+
+  const { data: uploadedGames, isLoading: uploadedGamesLoading } = trpc.user.getGames.useQuery(
+    { userId: id, limit: 20, page: gameUploadsPage },
+    { enabled: isGameZone && gameSubTab === "uploads" }
+  );
   const { data: gameHistoryData, isLoading: gameHistoryLoading } = trpc.game.getUserHistory.useQuery(
     { userId: id, limit: 20, page: gameHistoryPage },
     { enabled: isGameZone && gameSubTab === "history" }
@@ -309,8 +456,9 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     { enabled: isGameZone && gameSubTab === "liked" }
   );
 
-  // 图片数据
-  const isImageZone = activeZone === "all" || activeZone === "image";
+  // ===== 图片数据 =====
+  const isImageZone = activeZone === "image";
+
   const { data: imageData, isLoading: imageLoading } = trpc.image.getUserPosts.useQuery(
     { userId: id, limit: 20, page: imagePage },
     { enabled: isImageZone && imageSubTab === "posts" }
@@ -328,17 +476,6 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     { enabled: isImageZone && imageSubTab === "liked" }
   );
 
-  const historyVideos = historyData?.history ?? [];
-  const favVideos = favData?.favorites ?? [];
-  const likedVideos = likedData?.videos ?? [];
-  const gameHistoryGames = (gameHistoryData?.games ?? []) as GameCardData[];
-  const gameFavGames = (gameFavData?.games ?? []) as GameCardData[];
-  const gameLikedGames = (gameLikedData?.games ?? []) as GameCardData[];
-  const imagePosts = imageData?.posts ?? [];
-  const imageHistoryPosts = imageHistoryData?.posts ?? [];
-  const imageFavPosts = imageFavData?.posts ?? [];
-  const imageLikedPosts = imageLikedData?.posts ?? [];
-
   // 用户不存在
   if (!initialUser && !displayUser && !userLoading) {
     return (
@@ -352,16 +489,17 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     );
   }
 
-  // 如果没有数据且正在加载，显示骨架屏
   if (!displayUser) {
     return (
       <div className="container py-6">
-        <div className="flex items-start gap-6 mb-8">
-          <Skeleton className="h-24 w-24 rounded-full" />
-          <div className="flex-1 space-y-3">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-16 w-full max-w-md" />
+        <div className="rounded-2xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 p-6 sm:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row items-start gap-6">
+            <Skeleton className="h-24 w-24 rounded-full" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-16 w-full max-w-md" />
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -373,6 +511,9 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     );
   }
 
+  const totalLikes = displayUser._count.likes + displayUser._count.gameLikes + displayUser._count.imagePostLikes;
+  const totalFavorites = displayUser._count.favorites + displayUser._count.gameFavorites + displayUser._count.imagePostFavorites;
+
   const zones: { key: ContentZone; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { key: "all", label: "综合", icon: LayoutGrid },
     { key: "video", label: "视频", icon: Play },
@@ -381,12 +522,14 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
   ];
 
   const videoTabs: { key: VideoSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+    { key: "uploads", label: "作品", icon: Video, count: displayUser._count.videos },
     { key: "history", label: "观看记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.favorites },
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.likes },
   ];
 
   const gameTabs: { key: GameSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+    { key: "uploads", label: "作品", icon: Gamepad2, count: displayUser._count.games },
     { key: "history", label: "浏览记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.gameFavorites },
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.gameLikes },
@@ -399,308 +542,379 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.imagePostLikes },
   ];
 
+  const switchToZone = (zone: ContentZone) => {
+    setActiveZone(zone);
+    play("navigate");
+  };
+
+  // ===== 综合概览渲染 =====
+  const renderOverview = () => {
+    const oVideos = overviewVideos?.videos ?? [];
+    const oImages = overviewImages?.posts ?? [];
+    const oGames = (overviewGames?.games ?? []) as GameCardData[];
+
+    return (
+      <div className="space-y-6">
+        <OverviewSection
+          icon={Play}
+          title="视频作品"
+          count={displayUser._count.videos}
+          onViewAll={() => switchToZone("video")}
+        >
+          {overviewVideosLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-video rounded-lg" />
+              ))}
+            </div>
+          ) : oVideos.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">暂无视频作品</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {oVideos.map((video, index) => (
+                <div key={video.id}>
+                  <VideoCard video={video} index={index} />
+                </div>
+              ))}
+            </div>
+          )}
+        </OverviewSection>
+
+        <OverviewSection
+          icon={Images}
+          title="图片作品"
+          count={displayUser._count.imagePosts}
+          onViewAll={() => switchToZone("image")}
+        >
+          {overviewImagesLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          ) : oImages.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">暂无图片作品</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {oImages.map((post, index) => (
+                <ImagePostCard key={post.id} post={post} index={index} />
+              ))}
+            </div>
+          )}
+        </OverviewSection>
+
+        <OverviewSection
+          icon={Gamepad2}
+          title="游戏作品"
+          count={displayUser._count.games}
+          onViewAll={() => switchToZone("game")}
+        >
+          {overviewGamesLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-video rounded-lg" />
+              ))}
+            </div>
+          ) : oGames.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">暂无游戏作品</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {oGames.map((game, index) => (
+                <GameCard key={game.id} game={game} index={index} />
+              ))}
+            </div>
+          )}
+        </OverviewSection>
+      </div>
+    );
+  };
+
+  // ===== 视频内容 =====
   const renderVideoContent = () => (
     <>
-      {/* 视频子 Tab */}
-      <div className="flex items-center gap-1 border-b mb-6">
-        {videoTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => { setVideoSubTab(tab.key); play("navigate"); }}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
-                videoSubTab === tab.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-              {tab.count != null && (
-                <span className="text-xs text-muted-foreground">({tab.count})</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {videoSubTab === "history" && (
-        <>
-          <VideoGrid
-            videos={historyVideos}
-            isLoading={historyLoading}
-            emptyIcon={Clock}
-            emptyTitle="暂无观看记录"
-            emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
-          />
-          <Pagination currentPage={historyPage} totalPages={historyData?.totalPages ?? 1} onPageChange={setHistoryPage} className="mt-6" />
-        </>
-      )}
-      {videoSubTab === "favorites" && (
-        <>
-          <VideoGrid
-            videos={favVideos}
-            isLoading={favLoading}
-            emptyIcon={Star}
-            emptyTitle="暂无收藏"
-            emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
-          />
-          <Pagination currentPage={favPage} totalPages={favData?.totalPages ?? 1} onPageChange={setFavPage} className="mt-6" />
-        </>
-      )}
-      {videoSubTab === "liked" && (
-        <>
-          <VideoGrid
-            videos={likedVideos}
-            isLoading={likedLoading}
-            emptyIcon={ThumbsUp}
-            emptyTitle="暂无喜欢"
-            emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
-          />
-          <Pagination currentPage={likedPage} totalPages={likedData?.totalPages ?? 1} onPageChange={setLikedPage} className="mt-6" />
-        </>
-      )}
+      <SubTabs tabs={videoTabs} activeTab={videoSubTab} onTabChange={setVideoSubTab} play={play} />
+      <AnimatePresence mode="wait">
+        <motion.div key={videoSubTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+          {videoSubTab === "uploads" && (
+            <>
+              <VideoGrid
+                videos={uploadedVideos?.videos ?? []}
+                isLoading={uploadedLoading}
+                emptyIcon={Video}
+                emptyTitle="暂无视频作品"
+                emptyDescription={isOwnProfile ? "你还没有上传过视频" : "该用户还没有上传过视频"}
+              />
+              <Pagination currentPage={videoUploadsPage} totalPages={uploadedVideos?.totalPages ?? 1} onPageChange={setVideoUploadsPage} className="mt-6" />
+            </>
+          )}
+          {videoSubTab === "history" && (
+            <>
+              <VideoGrid
+                videos={historyData?.history ?? []}
+                isLoading={historyLoading}
+                emptyIcon={Clock}
+                emptyTitle="暂无观看记录"
+                emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
+              />
+              <Pagination currentPage={historyPage} totalPages={historyData?.totalPages ?? 1} onPageChange={setHistoryPage} className="mt-6" />
+            </>
+          )}
+          {videoSubTab === "favorites" && (
+            <>
+              <VideoGrid
+                videos={favData?.favorites ?? []}
+                isLoading={favLoading}
+                emptyIcon={Star}
+                emptyTitle="暂无收藏"
+                emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
+              />
+              <Pagination currentPage={favPage} totalPages={favData?.totalPages ?? 1} onPageChange={setFavPage} className="mt-6" />
+            </>
+          )}
+          {videoSubTab === "liked" && (
+            <>
+              <VideoGrid
+                videos={likedData?.videos ?? []}
+                isLoading={likedLoading}
+                emptyIcon={ThumbsUp}
+                emptyTitle="暂无喜欢"
+                emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
+              />
+              <Pagination currentPage={likedPage} totalPages={likedData?.totalPages ?? 1} onPageChange={setLikedPage} className="mt-6" />
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 
+  // ===== 图片内容 =====
   const renderImageContent = () => (
     <>
-      {/* 图片子 Tab */}
-      <div className="flex items-center gap-1 border-b mb-6">
-        {imageTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => { setImageSubTab(tab.key); play("navigate"); }}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
-                imageSubTab === tab.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-              {tab.count != null && (
-                <span className="text-xs text-muted-foreground">({tab.count})</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {imageSubTab === "posts" && (
-        <>
-          <ImagePostGrid
-            posts={imagePosts}
-            isLoading={imageLoading}
-            emptyTitle="暂无作品"
-            emptyDescription={isOwnProfile ? "你还没有发布过图片" : "该用户还没有发布过图片"}
-          />
-          <Pagination currentPage={imagePage} totalPages={imageData?.totalPages ?? 1} onPageChange={setImagePage} className="mt-6" />
-        </>
-      )}
-      {imageSubTab === "history" && (
-        <>
-          <ImagePostGrid
-            posts={imageHistoryPosts}
-            isLoading={imageHistoryLoading}
-            emptyTitle="暂无浏览记录"
-            emptyDescription={isOwnProfile ? "你还没有浏览过任何图片" : "该用户还没有浏览过任何图片"}
-          />
-          <Pagination currentPage={imageHistoryPage} totalPages={imageHistoryData?.totalPages ?? 1} onPageChange={setImageHistoryPage} className="mt-6" />
-        </>
-      )}
-      {imageSubTab === "favorites" && (
-        <>
-          <ImagePostGrid
-            posts={imageFavPosts}
-            isLoading={imageFavLoading}
-            emptyTitle="暂无收藏"
-            emptyDescription={isOwnProfile ? "你还没有收藏过任何图片" : "该用户还没有收藏过任何图片"}
-          />
-          <Pagination currentPage={imageFavPage} totalPages={imageFavData?.totalPages ?? 1} onPageChange={setImageFavPage} className="mt-6" />
-        </>
-      )}
-      {imageSubTab === "liked" && (
-        <>
-          <ImagePostGrid
-            posts={imageLikedPosts}
-            isLoading={imageLikedLoading}
-            emptyTitle="暂无喜欢"
-            emptyDescription={isOwnProfile ? "你还没有点赞过任何图片" : "该用户还没有点赞过任何图片"}
-          />
-          <Pagination currentPage={imageLikedPage} totalPages={imageLikedData?.totalPages ?? 1} onPageChange={setImageLikedPage} className="mt-6" />
-        </>
-      )}
+      <SubTabs tabs={imageTabs} activeTab={imageSubTab} onTabChange={setImageSubTab} play={play} />
+      <AnimatePresence mode="wait">
+        <motion.div key={imageSubTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+          {imageSubTab === "posts" && (
+            <>
+              <ImagePostGrid
+                posts={imageData?.posts ?? []}
+                isLoading={imageLoading}
+                emptyTitle="暂无作品"
+                emptyDescription={isOwnProfile ? "你还没有发布过图片" : "该用户还没有发布过图片"}
+              />
+              <Pagination currentPage={imagePage} totalPages={imageData?.totalPages ?? 1} onPageChange={setImagePage} className="mt-6" />
+            </>
+          )}
+          {imageSubTab === "history" && (
+            <>
+              <ImagePostGrid
+                posts={imageHistoryData?.posts ?? []}
+                isLoading={imageHistoryLoading}
+                emptyTitle="暂无浏览记录"
+                emptyDescription={isOwnProfile ? "你还没有浏览过任何图片" : "该用户还没有浏览过任何图片"}
+              />
+              <Pagination currentPage={imageHistoryPage} totalPages={imageHistoryData?.totalPages ?? 1} onPageChange={setImageHistoryPage} className="mt-6" />
+            </>
+          )}
+          {imageSubTab === "favorites" && (
+            <>
+              <ImagePostGrid
+                posts={imageFavData?.posts ?? []}
+                isLoading={imageFavLoading}
+                emptyTitle="暂无收藏"
+                emptyDescription={isOwnProfile ? "你还没有收藏过任何图片" : "该用户还没有收藏过任何图片"}
+              />
+              <Pagination currentPage={imageFavPage} totalPages={imageFavData?.totalPages ?? 1} onPageChange={setImageFavPage} className="mt-6" />
+            </>
+          )}
+          {imageSubTab === "liked" && (
+            <>
+              <ImagePostGrid
+                posts={imageLikedData?.posts ?? []}
+                isLoading={imageLikedLoading}
+                emptyTitle="暂无喜欢"
+                emptyDescription={isOwnProfile ? "你还没有点赞过任何图片" : "该用户还没有点赞过任何图片"}
+              />
+              <Pagination currentPage={imageLikedPage} totalPages={imageLikedData?.totalPages ?? 1} onPageChange={setImageLikedPage} className="mt-6" />
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 
+  // ===== 游戏内容 =====
   const renderGameContent = () => (
     <>
-      {/* 游戏子 Tab */}
-      <div className="flex items-center gap-1 border-b mb-6">
-        {gameTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => { setGameSubTab(tab.key); play("navigate"); }}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
-                gameSubTab === tab.key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-              {tab.count != null && (
-                <span className="text-xs text-muted-foreground">({tab.count})</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {gameSubTab === "history" && (
-        <>
-          <GameGrid
-            games={gameHistoryGames}
-            isLoading={gameHistoryLoading}
-            emptyTitle="暂无浏览记录"
-            emptyDescription={isOwnProfile ? "你还没有浏览过任何游戏" : "该用户还没有浏览过任何游戏"}
-          />
-          <Pagination currentPage={gameHistoryPage} totalPages={gameHistoryData?.totalPages ?? 1} onPageChange={setGameHistoryPage} className="mt-6" />
-        </>
-      )}
-      {gameSubTab === "favorites" && (
-        <>
-          <GameGrid
-            games={gameFavGames}
-            isLoading={gameFavLoading}
-            emptyTitle="暂无收藏"
-            emptyDescription={isOwnProfile ? "你还没有收藏过任何游戏" : "该用户还没有收藏过任何游戏"}
-          />
-          <Pagination currentPage={gameFavPage} totalPages={gameFavData?.totalPages ?? 1} onPageChange={setGameFavPage} className="mt-6" />
-        </>
-      )}
-      {gameSubTab === "liked" && (
-        <>
-          <GameGrid
-            games={gameLikedGames}
-            isLoading={gameLikedLoading}
-            emptyTitle="暂无喜欢"
-            emptyDescription={isOwnProfile ? "你还没有点赞过任何游戏" : "该用户还没有点赞过任何游戏"}
-          />
-          <Pagination currentPage={gameLikedPage} totalPages={gameLikedData?.totalPages ?? 1} onPageChange={setGameLikedPage} className="mt-6" />
-        </>
-      )}
+      <SubTabs tabs={gameTabs} activeTab={gameSubTab} onTabChange={setGameSubTab} play={play} />
+      <AnimatePresence mode="wait">
+        <motion.div key={gameSubTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+          {gameSubTab === "uploads" && (
+            <>
+              <GameGrid
+                games={(uploadedGames?.games ?? []) as GameCardData[]}
+                isLoading={uploadedGamesLoading}
+                emptyTitle="暂无游戏作品"
+                emptyDescription={isOwnProfile ? "你还没有上传过游戏" : "该用户还没有上传过游戏"}
+              />
+              <Pagination currentPage={gameUploadsPage} totalPages={uploadedGames?.totalPages ?? 1} onPageChange={setGameUploadsPage} className="mt-6" />
+            </>
+          )}
+          {gameSubTab === "history" && (
+            <>
+              <GameGrid
+                games={(gameHistoryData?.games ?? []) as GameCardData[]}
+                isLoading={gameHistoryLoading}
+                emptyTitle="暂无浏览记录"
+                emptyDescription={isOwnProfile ? "你还没有浏览过任何游戏" : "该用户还没有浏览过任何游戏"}
+              />
+              <Pagination currentPage={gameHistoryPage} totalPages={gameHistoryData?.totalPages ?? 1} onPageChange={setGameHistoryPage} className="mt-6" />
+            </>
+          )}
+          {gameSubTab === "favorites" && (
+            <>
+              <GameGrid
+                games={(gameFavData?.games ?? []) as GameCardData[]}
+                isLoading={gameFavLoading}
+                emptyTitle="暂无收藏"
+                emptyDescription={isOwnProfile ? "你还没有收藏过任何游戏" : "该用户还没有收藏过任何游戏"}
+              />
+              <Pagination currentPage={gameFavPage} totalPages={gameFavData?.totalPages ?? 1} onPageChange={setGameFavPage} className="mt-6" />
+            </>
+          )}
+          {gameSubTab === "liked" && (
+            <>
+              <GameGrid
+                games={(gameLikedData?.games ?? []) as GameCardData[]}
+                isLoading={gameLikedLoading}
+                emptyTitle="暂无喜欢"
+                emptyDescription={isOwnProfile ? "你还没有点赞过任何游戏" : "该用户还没有点赞过任何游戏"}
+              />
+              <Pagination currentPage={gameLikedPage} totalPages={gameLikedData?.totalPages ?? 1} onPageChange={setGameLikedPage} className="mt-6" />
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
+
+  const hasSocialLinks =
+    displayUser.socialLinks &&
+    typeof displayUser.socialLinks === "object" &&
+    !Array.isArray(displayUser.socialLinks) &&
+    Object.values(displayUser.socialLinks).some((v) => v);
 
   return (
     <div className="container py-6">
-      {/* 用户信息头部 */}
-      <div className="flex flex-col sm:flex-row items-start gap-6 mb-8">
-          <Avatar className="h-24 w-24 ring-4 ring-primary/20">
-            <AvatarImage src={displayUser.avatar || undefined} />
-            <AvatarFallback className="text-2xl">
-              {(displayUser.nickname || displayUser.username).charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+      {/* ===== 用户信息头部 ===== */}
+      <FadeIn>
+        <div className="rounded-2xl bg-gradient-to-br from-primary/5 via-primary/8 to-accent/5 border p-6 sm:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row items-start gap-6">
+            <Avatar className="h-24 w-24 ring-4 ring-background shadow-lg">
+              <AvatarImage src={displayUser.avatar || undefined} />
+              <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                {(displayUser.nickname || displayUser.username).charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
 
-          <div className="flex-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold">
-                {displayUser.nickname || displayUser.username}
-              </h1>
-              {displayUser.pronouns && (
-                <Badge variant="secondary" className="text-xs">
-                  {displayUser.pronouns}
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground">@{displayUser.username}</p>
-            <a
-              href={`mailto:${displayUser.email}`}
-              className="text-sm text-muted-foreground flex items-center gap-1 mt-1 hover:text-primary transition-colors"
-            >
-              <Mail className="h-3 w-3" />
-              {displayUser.email}
-            </a>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-2xl font-bold">{displayUser.nickname || displayUser.username}</h1>
+                    {displayUser.pronouns && (
+                      <Badge variant="secondary" className="text-xs">
+                        {displayUser.pronouns}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground">@{displayUser.username}</p>
+                </div>
+                {isOwnProfile && (
+                  <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
+                    <Link href="/settings">
+                      <Settings className="h-3.5 w-3.5" />
+                      编辑资料
+                    </Link>
+                  </Button>
+                )}
+              </div>
 
-            {displayUser.bio && (
-              <p className="mt-3 text-sm text-muted-foreground max-w-md">
-                {displayUser.bio}
-              </p>
-            )}
-
-            {/* 位置和网站 */}
-            <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
-              {displayUser.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  {displayUser.location}
-                </span>
-              )}
-              {displayUser.lastIpLocation && (
-                <span className="flex items-center gap-1" title="基于 IP 地址的大致位置，可能不准确">
-                  <Globe className="h-4 w-4" />
-                  IP属地（大致）：{displayUser.lastIpLocation}
-                </span>
-              )}
-              {displayUser.website && (
+              {isOwnProfile && (
                 <a
-                  href={displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
+                  href={`mailto:${displayUser.email}`}
+                  className="text-sm text-muted-foreground flex items-center gap-1 mt-1.5 hover:text-primary transition-colors w-fit"
                 >
-                  <Globe className="h-4 w-4" />
-                  {new URL(displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`).hostname}
-                  <ExternalLink className="h-3 w-3" />
+                  <Mail className="h-3 w-3" />
+                  {displayUser.email}
                 </a>
               )}
-            </div>
 
-            {/* 社交账号 */}
-            {displayUser.socialLinks && typeof displayUser.socialLinks === 'object' && !Array.isArray(displayUser.socialLinks) && Object.values(displayUser.socialLinks).some(v => v) && (
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <SocialLinks socialLinks={displayUser.socialLinks as Record<string, string>} />
+              {displayUser.bio && (
+                <p className="mt-3 text-sm text-foreground/80 max-w-lg leading-relaxed">{displayUser.bio}</p>
+              )}
+
+              <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
+                {displayUser.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {displayUser.location}
+                  </span>
+                )}
+                {displayUser.lastIpLocation && (
+                  <span className="flex items-center gap-1" title="基于 IP 地址的大致位置">
+                    <Globe className="h-3.5 w-3.5" />
+                    IP 属地：{displayUser.lastIpLocation}
+                  </span>
+                )}
+                {displayUser.website && (
+                  <a
+                    href={displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    {new URL(displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`).hostname}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatRelativeTime(displayUser.createdAt)} 加入
+                </span>
               </div>
-            )}
 
-            <div className="flex items-center gap-6 mt-4 text-sm text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-1">
-                <Heart className="h-4 w-4" />
-                {displayUser._count.likes} 点赞
-              </span>
-              <span className="flex items-center gap-1">
-                <Star className="h-4 w-4" />
-                {displayUser._count.favorites} 收藏
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {formatRelativeTime(displayUser.createdAt)} 加入
-              </span>
+              {hasSocialLinks && (
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <SocialLinks socialLinks={displayUser.socialLinks as Record<string, string>} />
+                </div>
+              )}
             </div>
           </div>
-      </div>
 
-        {/* 分区 Tab */}
-        <div className="flex items-center gap-2 mb-4">
+          {/* 统计数据 */}
+          <div className="flex items-center gap-2 mt-5 pt-5 border-t border-border/50 flex-wrap">
+            <StatItem icon={Video} label="视频" value={displayUser._count.videos} />
+            <StatItem icon={Images} label="图片" value={displayUser._count.imagePosts} />
+            <StatItem icon={Gamepad2} label="游戏" value={displayUser._count.games} />
+            <StatItem icon={Heart} label="获赞" value={totalLikes} />
+            <StatItem icon={Star} label="收藏" value={totalFavorites} />
+          </div>
+        </div>
+      </FadeIn>
+
+      {/* ===== 分区 Tab ===== */}
+      <FadeIn delay={0.05}>
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-none">
           {zones.map((zone) => {
             const Icon = zone.icon;
             return (
               <button
                 key={zone.key}
-                onClick={() => { setActiveZone(zone.key); play("navigate"); }}
+                onClick={() => switchToZone(zone.key)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-colors",
+                  "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-all whitespace-nowrap",
                   activeZone === zone.key
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -712,43 +926,25 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
             );
           })}
         </div>
+      </FadeIn>
 
-        {/* 分区内容 */}
-        {activeZone === "all" && (
-          <div className="space-y-8">
-            {/* 综合视图：依次展示三个分区的内容摘要 */}
-            <section>
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <Play className="h-5 w-5" />
-                视频
-              </h2>
-              {renderVideoContent()}
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <Images className="h-5 w-5" />
-                图片
-                {displayUser._count.imagePosts > 0 && (
-                  <span className="text-xs text-muted-foreground font-normal">({displayUser._count.imagePosts})</span>
-                )}
-              </h2>
-              {renderImageContent()}
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                <Gamepad2 className="h-5 w-5" />
-                游戏
-              </h2>
-              {renderGameContent()}
-            </section>
-          </div>
-        )}
-
-        {activeZone === "video" && renderVideoContent()}
-        {activeZone === "image" && renderImageContent()}
-        {activeZone === "game" && renderGameContent()}
+      {/* ===== 分区内容 ===== */}
+      <FadeIn delay={0.1}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeZone}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeZone === "all" && renderOverview()}
+            {activeZone === "video" && renderVideoContent()}
+            {activeZone === "image" && renderImageContent()}
+            {activeZone === "game" && renderGameContent()}
+          </motion.div>
+        </AnimatePresence>
+      </FadeIn>
     </div>
   );
 }
