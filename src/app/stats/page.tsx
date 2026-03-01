@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,210 +14,340 @@ import {
   Heart,
   Star,
   TrendingUp,
-  BarChart3,
   MessageSquare,
   ArrowUpRight,
-  Sparkles,
-  ThumbsDown,
+  Gamepad2,
+  Images,
   Layers,
   Search,
+  type LucideIcon,
 } from "lucide-react";
+import { FadeIn, CountUp } from "@/components/motion";
+import { cn } from "@/lib/utils";
 
 const RANGE_OPTIONS = [
-  { value: 1, label: "一天" },
-  { value: 7, label: "一周" },
-  { value: 30, label: "一月" },
+  { value: 1, label: "24h" },
+  { value: 7, label: "7天" },
+  { value: 30, label: "30天" },
 ] as const;
 
-function formatNumber(num: number | undefined | null): string {
-  if (num == null) return "0";
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + "M";
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + "K";
-  }
+function formatCompact(num: number): string {
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
+  if (num >= 10_000) return (num / 1_000).toFixed(1) + "K";
   return num.toLocaleString();
 }
 
-const totalStatItems = [
-  { key: "userCount", label: "用户", icon: Users, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  { key: "videoCount", label: "视频", icon: Video, color: "text-green-500", bgColor: "bg-green-500/10" },
-  { key: "seriesCount", label: "合集", icon: Layers, color: "text-indigo-500", bgColor: "bg-indigo-500/10" },
-  { key: "tagCount", label: "标签", icon: Tag, color: "text-purple-500", bgColor: "bg-purple-500/10" },
-  { key: "commentCount", label: "评论", icon: MessageSquare, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
-  { key: "totalViews", label: "播放量", icon: Eye, color: "text-orange-500", bgColor: "bg-orange-500/10" },
-  { key: "likeCount", label: "点赞", icon: Heart, color: "text-red-500", bgColor: "bg-red-500/10" },
-  { key: "dislikeCount", label: "踩", icon: ThumbsDown, color: "text-slate-500", bgColor: "bg-slate-500/10" },
-  { key: "favoriteCount", label: "收藏", icon: Star, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
-  { key: "searchCount", label: "搜索次数", icon: Search, color: "text-pink-500", bgColor: "bg-pink-500/10" },
-] as const;
+// ==================== 核心指标卡片 ====================
 
-const growthStatItems = [
-  { key: "newUsers", label: "新增用户", icon: Users, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  { key: "newVideos", label: "新增视频", icon: Video, color: "text-green-500", bgColor: "bg-green-500/10" },
-  { key: "newSeries", label: "新增合集", icon: Layers, color: "text-indigo-500", bgColor: "bg-indigo-500/10" },
-  { key: "newTags", label: "新增标签", icon: Tag, color: "text-purple-500", bgColor: "bg-purple-500/10" },
-  { key: "newComments", label: "新增评论", icon: MessageSquare, color: "text-cyan-500", bgColor: "bg-cyan-500/10" },
-  { key: "newViews", label: "新增播放", icon: Eye, color: "text-orange-500", bgColor: "bg-orange-500/10" },
-  { key: "newLikes", label: "新增点赞", icon: Heart, color: "text-red-500", bgColor: "bg-red-500/10" },
-  { key: "newDislikes", label: "新增踩", icon: ThumbsDown, color: "text-slate-500", bgColor: "bg-slate-500/10" },
-  { key: "newFavorites", label: "新增收藏", icon: Star, color: "text-yellow-500", bgColor: "bg-yellow-500/10" },
-  { key: "newSearches", label: "新增搜索", icon: Search, color: "text-pink-500", bgColor: "bg-pink-500/10" },
-] as const;
-
-function StatCard({
+function HeroStat({
+  icon: Icon,
   label,
   value,
-  icon: Icon,
   color,
-  bgColor,
-  subtitle,
-  trend,
-  formatter,
+  isLoading,
 }: {
+  icon: LucideIcon;
   label: string;
   value: number;
-  icon: typeof Users;
   color: string;
-  bgColor: string;
-  subtitle?: string;
-  trend?: number;
-  formatter?: (v: number) => string;
+  isLoading: boolean;
 }) {
-  const displayValue = formatter ? formatter(value ?? 0) : formatNumber(value);
+  const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
+    blue: { bg: "bg-blue-500/10", text: "text-blue-500", ring: "ring-blue-500/20" },
+    green: { bg: "bg-green-500/10", text: "text-green-500", ring: "ring-green-500/20" },
+    violet: { bg: "bg-violet-500/10", text: "text-violet-500", ring: "ring-violet-500/20" },
+    amber: { bg: "bg-amber-500/10", text: "text-amber-500", ring: "ring-amber-500/20" },
+  };
+  const c = colorMap[color] ?? colorMap.blue;
+
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-card border hover:shadow-sm transition-shadow">
-      <div className={`p-2 rounded-lg ${bgColor} shrink-0`}>
-        <Icon className={`h-4 w-4 ${color}`} />
+    <div className={cn("relative rounded-2xl border p-5 transition-shadow hover:shadow-md", c.ring, "ring-1")}>
+      <div className={cn("inline-flex p-2.5 rounded-xl mb-3", c.bg)}>
+        <Icon className={cn("h-5 w-5", c.text)} />
+      </div>
+      <div>
+        {isLoading ? (
+          <Skeleton className="h-8 w-20 mb-1" />
+        ) : (
+          <p className="text-3xl font-bold tracking-tight tabular-nums">
+            <CountUp value={value} />
+          </p>
+        )}
+        <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// ==================== 互动指标行 ====================
+
+function EngagementRow({
+  items,
+  isLoading,
+}: {
+  items: { icon: LucideIcon; label: string; value: number; color: string }[];
+  isLoading: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
+          <div className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}>
+            <item.icon className={cn("h-4 w-4", item.color)} />
+          </div>
+          <div className="min-w-0">
+            {isLoading ? (
+              <Skeleton className="h-5 w-12 mb-1" />
+            ) : (
+              <p className="text-lg font-bold tabular-nums leading-tight">
+                <CountUp value={item.value} />
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground truncate">{item.label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==================== 分区明细卡片 ====================
+
+function ZoneBreakdown({
+  icon: Icon,
+  title,
+  color,
+  stats: s,
+  views,
+  isLoading,
+}: {
+  icon: LucideIcon;
+  title: string;
+  color: string;
+  stats: { likes: number; dislikes: number; favorites: number; comments: number } | undefined;
+  views: number;
+  isLoading: boolean;
+}) {
+  const items = [
+    { label: "浏览", value: views },
+    { label: "点赞", value: s?.likes ?? 0 },
+    { label: "收藏", value: s?.favorites ?? 0 },
+    { label: "评论", value: s?.comments ?? 0 },
+  ];
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+        <Icon className={cn("h-4 w-4", color)} />
+        <span className="text-sm font-medium">{title}</span>
+      </div>
+      <div className="grid grid-cols-4 divide-x">
+        {items.map((item) => (
+          <div key={item.label} className="px-3 py-3 text-center">
+            {isLoading ? (
+              <Skeleton className="h-5 w-10 mx-auto mb-1" />
+            ) : (
+              <p className="text-base font-bold tabular-nums">{formatCompact(item.value)}</p>
+            )}
+            <p className="text-[11px] text-muted-foreground">{item.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ==================== 增长指标 ====================
+
+function GrowthItem({
+  icon: Icon,
+  label,
+  value,
+  color,
+  isLoading,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  color: string;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-card p-3.5 transition-shadow hover:shadow-sm">
+      <div className={cn("p-2 rounded-lg shrink-0", color.replace("text-", "bg-").replace("500", "500/10"))}>
+        <Icon className={cn("h-4 w-4", color)} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-bold">{displayValue}</span>
-          {trend !== undefined && trend > 0 && (
-            <Badge variant="secondary" className="text-green-600 bg-green-100 dark:bg-green-900/30 text-xs px-1.5 py-0">
-              <ArrowUpRight className="h-3 w-3" />
-              {trend}%
-            </Badge>
+          {isLoading ? (
+            <Skeleton className="h-5 w-12" />
+          ) : (
+            <>
+              <span className="text-lg font-bold tabular-nums">
+                <CountUp value={value} />
+              </span>
+              {value > 0 && (
+                <Badge variant="secondary" className="text-green-600 bg-green-100 dark:bg-green-900/30 text-[10px] px-1.5 py-0 h-4">
+                  <ArrowUpRight className="h-2.5 w-2.5" />
+                  +{value}
+                </Badge>
+              )}
+            </>
           )}
         </div>
-        <div className="text-xs text-muted-foreground truncate">
-          {label}
-          {subtitle && <span className="opacity-70"> · {subtitle}</span>}
-        </div>
+        <p className="text-xs text-muted-foreground truncate">{label}</p>
       </div>
     </div>
   );
 }
 
-function StatCardSkeleton() {
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-card border">
-      <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
-      <div className="space-y-1.5 flex-1">
-        <Skeleton className="h-5 w-16" />
-        <Skeleton className="h-3 w-12" />
-      </div>
-    </div>
-  );
-}
+// ==================== 主页面 ====================
 
 export default function StatsPage() {
   const [rangeDays, setRangeDays] = useState<1 | 7 | 30>(30);
   const { play } = useSound();
 
-  const { data: totalStats, isLoading: totalLoading } =
-    trpc.admin.getPublicStats.useQuery();
-
-  const { data: growthStats, isLoading: growthLoading } =
-    trpc.admin.getGrowthStats.useQuery({ days: rangeDays });
-
-  const rangeLabel = RANGE_OPTIONS.find((r) => r.value === rangeDays)?.label ?? "一月";
+  const { data: stats, isLoading: statsLoading } = trpc.admin.getPublicStats.useQuery();
+  const { data: growth, isLoading: growthLoading } = trpc.admin.getGrowthStats.useQuery({ days: rangeDays });
 
   return (
-    <div className="space-y-6 px-4 md:px-6 py-4">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-primary/10">
-          <Sparkles className="h-5 w-5 text-primary" />
-        </div>
+    <div className="container max-w-5xl py-6 space-y-8">
+      {/* 标题 */}
+      <FadeIn>
         <div>
-          <h1 className="text-xl font-bold">数据总览</h1>
-          <p className="text-muted-foreground text-sm">网站运营数据和增长趋势</p>
+          <h1 className="text-2xl font-bold">数据总览</h1>
+          <p className="text-muted-foreground text-sm mt-1">全站运营数据和增长趋势</p>
         </div>
-      </div>
+      </FadeIn>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              累计数据
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2">
-              {totalLoading
-                ? Array(totalStatItems.length).fill(0).map((_, i) => <StatCardSkeleton key={i} />)
-                : totalStats &&
-                  totalStatItems.map((item) => (
-                    <StatCard
-                      key={item.key}
-                      label={item.label}
-                      value={totalStats[item.key]}
-                      icon={item.icon}
-                      color={item.color}
-                      bgColor={item.bgColor}
-                    />
-                  ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* 核心内容指标 */}
+      <FadeIn delay={0.05}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <HeroStat icon={Users} label="注册用户" value={stats?.userCount ?? 0} color="blue" isLoading={statsLoading} />
+          <HeroStat icon={Video} label="视频" value={stats?.videoCount ?? 0} color="green" isLoading={statsLoading} />
+          <HeroStat icon={Images} label="图片" value={stats?.imagePostCount ?? 0} color="violet" isLoading={statsLoading} />
+          <HeroStat icon={Gamepad2} label="游戏" value={stats?.gameCount ?? 0} color="amber" isLoading={statsLoading} />
+        </div>
+      </FadeIn>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                增量
-              </CardTitle>
-              <Tabs
-                value={rangeDays.toString()}
-                onValueChange={(v) => { setRangeDays(Number(v) as 1 | 7 | 30); play("navigate"); }}
-              >
-                <TabsList className="h-8">
-                  {RANGE_OPTIONS.map((opt) => (
-                    <TabsTrigger
-                      key={opt.value}
-                      value={opt.value.toString()}
-                      className="text-xs px-2.5 h-6"
-                    >
-                      {opt.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2">
-              {growthLoading
-                ? Array(growthStatItems.length).fill(0).map((_, i) => <StatCardSkeleton key={i} />)
-                : growthStats &&
-                  growthStatItems.map((item) => (
-                    <StatCard
-                      key={item.key}
-                      label={item.label}
-                      value={growthStats[item.key]}
-                      icon={item.icon}
-                      color={item.color}
-                      bgColor={item.bgColor}
-                      subtitle={rangeLabel}
-                    />
-                  ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* 全站互动总量 */}
+      <FadeIn delay={0.1}>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-muted-foreground">全站互动</h2>
+          <EngagementRow
+            isLoading={statsLoading}
+            items={[
+              { icon: Eye, label: "总浏览", value: stats?.totalViews ?? 0, color: "text-orange-500" },
+              { icon: Heart, label: "总点赞", value: stats?.totalLikes ?? 0, color: "text-red-500" },
+              { icon: Star, label: "总收藏", value: stats?.totalFavorites ?? 0, color: "text-yellow-500" },
+              { icon: MessageSquare, label: "总评论", value: stats?.totalComments ?? 0, color: "text-cyan-500" },
+            ]}
+          />
+        </div>
+      </FadeIn>
+
+      {/* 分区明细 */}
+      <FadeIn delay={0.15}>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-muted-foreground">分区明细</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            <ZoneBreakdown
+              icon={Video}
+              title="视频区"
+              color="text-green-500"
+              stats={stats?.video}
+              views={stats?.videoViews ?? 0}
+              isLoading={statsLoading}
+            />
+            <ZoneBreakdown
+              icon={Images}
+              title="图片区"
+              color="text-violet-500"
+              stats={stats?.image}
+              views={stats?.imageViews ?? 0}
+              isLoading={statsLoading}
+            />
+            <ZoneBreakdown
+              icon={Gamepad2}
+              title="游戏区"
+              color="text-amber-500"
+              stats={stats?.game}
+              views={stats?.gameViews ?? 0}
+              isLoading={statsLoading}
+            />
+          </div>
+        </div>
+      </FadeIn>
+
+      {/* 其他累计数据 */}
+      <FadeIn delay={0.2}>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold text-muted-foreground">其他数据</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { icon: Tag, label: "标签", value: stats?.tagCount ?? 0, color: "text-purple-500" },
+              { icon: Layers, label: "合集", value: stats?.seriesCount ?? 0, color: "text-indigo-500" },
+              { icon: Search, label: "搜索次数", value: stats?.searchCount ?? 0, color: "text-pink-500" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
+                <div className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}>
+                  <item.icon className={cn("h-4 w-4", item.color)} />
+                </div>
+                <div>
+                  {statsLoading ? (
+                    <Skeleton className="h-5 w-12 mb-1" />
+                  ) : (
+                    <p className="text-lg font-bold tabular-nums leading-tight">
+                      <CountUp value={item.value} />
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      {/* 增长趋势 */}
+      <FadeIn delay={0.25}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              增长趋势
+            </h2>
+            <Tabs
+              value={rangeDays.toString()}
+              onValueChange={(v) => {
+                setRangeDays(Number(v) as 1 | 7 | 30);
+                play("navigate");
+              }}
+            >
+              <TabsList className="h-8">
+                {RANGE_OPTIONS.map((opt) => (
+                  <TabsTrigger key={opt.value} value={opt.value.toString()} className="text-xs px-3 h-6">
+                    {opt.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <GrowthItem icon={Users} label="新增用户" value={growth?.newUsers ?? 0} color="text-blue-500" isLoading={growthLoading} />
+            <GrowthItem icon={Video} label="新增视频" value={growth?.newVideos ?? 0} color="text-green-500" isLoading={growthLoading} />
+            <GrowthItem icon={Images} label="新增图片" value={growth?.newImagePosts ?? 0} color="text-violet-500" isLoading={growthLoading} />
+            <GrowthItem icon={Gamepad2} label="新增游戏" value={growth?.newGames ?? 0} color="text-amber-500" isLoading={growthLoading} />
+            <GrowthItem icon={Eye} label="新增浏览" value={growth?.newViews ?? 0} color="text-orange-500" isLoading={growthLoading} />
+            <GrowthItem icon={Heart} label="新增点赞" value={growth?.newLikes ?? 0} color="text-red-500" isLoading={growthLoading} />
+            <GrowthItem icon={Star} label="新增收藏" value={growth?.newFavorites ?? 0} color="text-yellow-500" isLoading={growthLoading} />
+            <GrowthItem icon={MessageSquare} label="新增评论" value={growth?.newComments ?? 0} color="text-cyan-500" isLoading={growthLoading} />
+            <GrowthItem icon={Tag} label="新增标签" value={growth?.newTags ?? 0} color="text-purple-500" isLoading={growthLoading} />
+            <GrowthItem icon={Layers} label="新增合集" value={growth?.newSeries ?? 0} color="text-indigo-500" isLoading={growthLoading} />
+            <GrowthItem icon={Search} label="新增搜索" value={growth?.newSearches ?? 0} color="text-pink-500" isLoading={growthLoading} />
+          </div>
+        </div>
+      </FadeIn>
     </div>
   );
 }
