@@ -295,7 +295,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const deleteMutation = trpc.video.delete.useMutation({
     onSuccess: () => {
       toast.success("视频已删除");
-      router.push("/my-videos");
+      router.push("/my-works");
     },
     onError: (error) => {
       toast.error("删除失败", { description: error.message });

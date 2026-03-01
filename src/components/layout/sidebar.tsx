@@ -8,7 +8,6 @@ import {
   Upload,
   Heart,
   History,
-  Video,
   User,
   Layers,
   MessageCircle,
@@ -59,8 +58,7 @@ const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: LucideIcon }
 ];
 
 const userNavItems: NavItem[] = [
-  { href: "/my-videos", icon: Video, label: "我的视频", auth: true, requireUpload: true },
-  { href: "/my-series", icon: Layers, label: "我的合集", auth: true, requireUpload: true },
+  { href: "/my-works", icon: Layers, label: "我的作品", auth: true, requireUpload: true },
   { href: "/favorites", icon: Heart, label: "收藏", auth: true },
   { href: "/history", icon: History, label: "历史", auth: true },
 ];

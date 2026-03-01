@@ -328,7 +328,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
           您的账号暂未开通投稿功能，无法编辑视频
         </p>
         <Button asChild variant="outline">
-          <Link href="/my-videos">返回我的视频</Link>
+          <Link href="/my-works">返回我的作品</Link>
         </Button>
       </div>
     );

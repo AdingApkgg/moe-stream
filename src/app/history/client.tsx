@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { History, Loader2, Trash2, X, CheckSquare, Eye, Clock } from "lucide-react";
+import { History, Loader2, Trash2, X, CheckSquare, Eye, Clock, Play, Gamepad2, Images } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
@@ -26,18 +26,46 @@ import Image from "next/image";
 import { formatViews, formatRelativeTime } from "@/lib/format";
 import { getCoverUrl } from "@/lib/cover";
 import { Pagination } from "@/components/ui/pagination";
+import { GameCard, type GameCardData } from "@/components/game/game-card";
+import { ImagePostCard } from "@/components/image/image-post-card";
+import { cn } from "@/lib/utils";
+import { useSound } from "@/hooks/use-sound";
+
+type ContentTab = "video" | "game" | "image";
+
+const contentTabs: { key: ContentTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "video", label: "视频", icon: Play },
+  { key: "game", label: "游戏", icon: Gamepad2 },
+  { key: "image", label: "图片", icon: Images },
+];
 
 export default function HistoryClient({ page }: { page: number }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const { play } = useSound();
 
+  const [activeTab, setActiveTab] = useState<ContentTab>("video");
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [gamePage, setGamePage] = useState(1);
+  const [imagePage, setImagePage] = useState(1);
+
+  const userId = session?.user?.id;
 
   const { data, isLoading } = trpc.video.getHistory.useQuery(
     { limit: 20, page },
-    { enabled: !!session }
+    { enabled: !!session && activeTab === "video" }
+  );
+
+  const { data: gameData, isLoading: gameLoading } = trpc.game.getUserHistory.useQuery(
+    { userId: userId!, limit: 20, page: gamePage },
+    { enabled: !!userId && activeTab === "game" }
+  );
+
+  const { data: imageData, isLoading: imageLoading } = trpc.image.getUserHistory.useQuery(
+    { userId: userId!, limit: 20, page: imagePage },
+    { enabled: !!userId && activeTab === "image" }
   );
 
   const removeHistoryItemMutation = trpc.video.removeHistoryItem.useMutation({
@@ -78,7 +106,15 @@ export default function HistoryClient({ page }: { page: number }) {
     }
   }, [status, router]);
 
-  if (status === "loading" || isLoading) {
+  const handleTabChange = (tab: ContentTab) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    play("navigate");
+  };
+
+  if (status === "loading") {
     return (
       <div className="px-4 md:px-6 py-6">
         <Skeleton className="h-10 w-48 mb-6" />
@@ -167,16 +203,13 @@ export default function HistoryClient({ page }: { page: number }) {
 
   return (
     <div className="px-4 md:px-6 py-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <History className="h-8 w-8 text-blue-500" />
-          <h1 className="text-2xl font-bold">观看历史</h1>
-          {totalCount > 0 && (
-            <span className="text-muted-foreground">({totalCount})</span>
-          )}
+          <h1 className="text-2xl font-bold">浏览历史</h1>
         </div>
 
-        {history.length > 0 && (
+        {activeTab === "video" && history.length > 0 && (
           <div className="flex items-center gap-2">
             {selectMode ? (
               <>
@@ -258,102 +291,213 @@ export default function HistoryClient({ page }: { page: number }) {
         )}
       </div>
 
-      {history.length === 0 && page === 1 ? (
-        <EmptyState
-          icon={History}
-          title="还没有观看任何视频"
-          description="开始探索精彩的 ACGN 内容吧"
-          action={{
-            label: "去发现视频",
-            onClick: () => router.push("/"),
-          }}
-        />
-      ) : (
+      {/* Content Type Tabs */}
+      <div className="flex items-center gap-1 border-b mb-6 overflow-x-auto scrollbar-none">
+        {contentTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
+                activeTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Video Tab */}
+      {activeTab === "video" && (
         <>
-          {groupedHistory.map((group) => (
-            <div key={group.date} className="mb-6">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3 sticky top-16 bg-background py-2 z-10">
-                {group.label}
-              </h2>
-              <div className="space-y-3">
-                {group.items.map((video) => (
-                  <div
-                    key={video.id}
-                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group"
-                  >
-                    {selectMode && (
-                      <Checkbox
-                        checked={selectedIds.has(video.id)}
-                        onCheckedChange={() => toggleSelect(video.id)}
-                        className="shrink-0"
-                      />
-                    )}
-
-                    <Link
-                      href={`/video/${video.id}`}
-                      className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
-                    >
-                      <Image
-                        src={getCoverUrl(video.id, video.coverUrl)}
-                        alt={video.title}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                      {video.duration && (
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-xs rounded">
-                          {Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, "0")}
-                        </div>
-                      )}
-                    </Link>
-
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        href={`/video/${video.id}`}
-                        className="font-medium hover:text-primary line-clamp-2"
-                      >
-                        {video.title}
-                      </Link>
-                      <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                        <Link href={`/user/${video.uploader.id}`} className="hover:text-primary">
-                          {video.uploader.nickname || video.uploader.username}
-                        </Link>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {formatViews(video.views)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatRelativeTime(video.watchedAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {!selectMode && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        onClick={() => removeHistoryItemMutation.mutate({ videoId: video.id })}
-                        disabled={removeHistoryItemMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-lg" />
+              ))}
             </div>
-          ))}
+          ) : history.length === 0 && page === 1 ? (
+            <EmptyState
+              icon={History}
+              title="还没有观看任何视频"
+              description="开始探索精彩的 ACGN 内容吧"
+              action={{
+                label: "去发现视频",
+                onClick: () => router.push("/"),
+              }}
+            />
+          ) : (
+            <>
+              {groupedHistory.map((group) => (
+                <div key={group.date} className="mb-6">
+                  <h2 className="text-sm font-medium text-muted-foreground mb-3 sticky top-16 bg-background py-2 z-10">
+                    {group.label}
+                  </h2>
+                  <div className="space-y-3">
+                    {group.items.map((video) => (
+                      <div
+                        key={video.id}
+                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group"
+                      >
+                        {selectMode && (
+                          <Checkbox
+                            checked={selectedIds.has(video.id)}
+                            onCheckedChange={() => toggleSelect(video.id)}
+                            className="shrink-0"
+                          />
+                        )}
 
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            basePath="/history"
-            className="mt-8"
-          />
+                        <Link
+                          href={`/video/${video.id}`}
+                          className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
+                        >
+                          <Image
+                            src={getCoverUrl(video.id, video.coverUrl)}
+                            alt={video.title}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                          {video.duration && (
+                            <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-xs rounded">
+                              {Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, "0")}
+                            </div>
+                          )}
+                        </Link>
+
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            href={`/video/${video.id}`}
+                            className="font-medium hover:text-primary line-clamp-2"
+                          >
+                            {video.title}
+                          </Link>
+                          <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                            <Link href={`/user/${video.uploader.id}`} className="hover:text-primary">
+                              {video.uploader.nickname || video.uploader.username}
+                            </Link>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              {formatViews(video.views)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatRelativeTime(video.watchedAt)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!selectMode && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            onClick={() => removeHistoryItemMutation.mutate({ videoId: video.id })}
+                            disabled={removeHistoryItemMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                basePath="/history"
+                className="mt-8"
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {/* Game Tab */}
+      {activeTab === "game" && (
+        <>
+          {gameLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-video rounded-lg" />
+              ))}
+            </div>
+          ) : (gameData?.games ?? []).length === 0 ? (
+            <EmptyState
+              icon={Gamepad2}
+              title="还没有浏览过任何游戏"
+              description="去游戏区看看有什么好玩的吧"
+              action={{
+                label: "去发现游戏",
+                onClick: () => router.push("/games"),
+              }}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {(gameData?.games ?? [])
+                  .filter((g): g is NonNullable<typeof g> => g?.id != null)
+                  .map((game, index) => (
+                    <GameCard key={game.id} game={game as GameCardData} index={index} />
+                  ))}
+              </div>
+              <Pagination
+                currentPage={gamePage}
+                totalPages={gameData?.totalPages ?? 1}
+                onPageChange={setGamePage}
+                className="mt-8"
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {/* Image Tab */}
+      {activeTab === "image" && (
+        <>
+          {imageLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          ) : (imageData?.posts ?? []).length === 0 ? (
+            <EmptyState
+              icon={Images}
+              title="还没有浏览过任何图片"
+              description="去图片区看看有什么有趣的吧"
+              action={{
+                label: "去发现图片",
+                onClick: () => router.push("/images"),
+              }}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {(imageData?.posts ?? [])
+                  .filter((p): p is NonNullable<typeof p> => p?.id != null)
+                  .map((post, index) => (
+                    <ImagePostCard key={post.id} post={post as Parameters<typeof ImagePostCard>[0]["post"]} index={index} />
+                  ))}
+              </div>
+              <Pagination
+                currentPage={imagePage}
+                totalPages={imageData?.totalPages ?? 1}
+                onPageChange={setImagePage}
+                className="mt-8"
+              />
+            </>
+          )}
         </>
       )}
     </div>

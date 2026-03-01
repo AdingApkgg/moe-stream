@@ -22,7 +22,6 @@ import {
   LogOut,
   Heart,
   History,
-  Video,
   Shield,
   LogIn,
   UserPlus,
@@ -34,6 +33,7 @@ import {
   Moon,
   Monitor,
   Gamepad2,
+  Layers,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -595,9 +595,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </DropdownMenuItem>
                   {session.user?.canUpload && (
                     <DropdownMenuItem asChild>
-                      <Link href="/my-videos">
-                        <Video className="mr-2 h-4 w-4" />
-                        我的视频
+                      <Link href="/my-works">
+                        <Layers className="mr-2 h-4 w-4" />
+                        我的作品
                       </Link>
                     </DropdownMenuItem>
                   )}

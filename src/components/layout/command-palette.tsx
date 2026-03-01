@@ -20,7 +20,6 @@ import {
   Settings,
   Heart,
   History,
-  Video,
   Tag,
   LogIn,
   LogOut,
@@ -31,6 +30,7 @@ import {
   Shield,
   Keyboard,
   BarChart3,
+  Layers,
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 import { useTheme } from "next-themes";
@@ -172,9 +172,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               </CommandItem>
             )}
             {session.user?.canUpload && (
-              <CommandItem onSelect={() => runCommand(() => router.push("/my-videos"))}>
-                <Video className="mr-2 h-4 w-4" />
-                我的视频
+              <CommandItem onSelect={() => runCommand(() => router.push("/my-works"))}>
+                <Layers className="mr-2 h-4 w-4" />
+                我的作品
               </CommandItem>
             )}
             <CommandItem onSelect={() => runCommand(() => router.push("/favorites"))}>
