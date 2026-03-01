@@ -48,6 +48,7 @@ interface VideoPageClientProps {
 export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClientProps) {
   const { data: session } = useSession();
   const router = useRouter();
+  const siteConfig = useSiteConfig();
   const playerRef = useRef<VideoPlayerRef>(null);
   const currentEpisodeRef = useRef<HTMLButtonElement | null>(null);
   const episodeListRef = useRef<HTMLDivElement | null>(null);
@@ -432,7 +433,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     );
   }
 
-  const siteConfig = useSiteConfig();
   const baseUrl = siteConfig?.siteUrl || "http://localhost:3000";
 
   return (

@@ -3,7 +3,7 @@ import type { Transporter } from "nodemailer";
 import Handlebars from "handlebars";
 import { prisma } from "./prisma";
 import { nanoid } from "nanoid";
-import { getServerConfig, type SmtpConfig } from "./server-config";
+import { getServerConfig } from "./server-config";
 
 async function createTransporter(): Promise<{ transporter: Transporter; from: string } | null> {
   const config = await getServerConfig();

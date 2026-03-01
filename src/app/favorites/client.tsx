@@ -124,7 +124,6 @@ export default function FavoritesClient({ page }: { page: number }) {
   }
 
   const favorites = data?.favorites ?? [];
-  const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
   const toggleSelect = (id: string) => {

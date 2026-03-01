@@ -132,7 +132,6 @@ export default function HistoryClient({ page }: { page: number }) {
   }
 
   const history = data?.history ?? [];
-  const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
   const toggleSelect = (id: string) => {
