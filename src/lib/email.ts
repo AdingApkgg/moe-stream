@@ -1,18 +1,24 @@
 import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import Handlebars from "handlebars";
 import { prisma } from "./prisma";
 import { nanoid } from "nanoid";
+import { getServerConfig, type SmtpConfig } from "./server-config";
 
-// 创建邮件传输器
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || "465"),
-  secure: parseInt(process.env.SMTP_PORT || "465") === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+async function createTransporter(): Promise<{ transporter: Transporter; from: string } | null> {
+  const config = await getServerConfig();
+  if (!config.smtp) return null;
+  const { host, port, user, password, from } = config.smtp;
+  return {
+    transporter: nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass: password },
+    }),
+    from,
+  };
+}
 
 // 邮件模板
 const templates = {
@@ -142,8 +148,13 @@ export async function sendVerificationCode(
       year: new Date().getFullYear(),
     });
 
-    await transporter.sendMail({
-      from: `"${siteName}" <${process.env.SMTP_FROM}>`,
+    const mail = await createTransporter();
+    if (!mail) {
+      return { success: false, message: "邮件服务未配置，请在后台设置 SMTP" };
+    }
+
+    await mail.transporter.sendMail({
+      from: `"${siteName}" <${mail.from}>`,
       to: email,
       subject: `【${siteName}】${config.title} - 验证码: ${code}`,
       html,

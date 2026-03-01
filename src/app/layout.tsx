@@ -9,6 +9,9 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppLayout } from "@/components/layout/app-layout";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { isSetupComplete } from "@/lib/setup";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
@@ -123,8 +126,15 @@ export default function RootLayout({
   );
 }
 
-/** 异步 Server Component：预取站点配置并注入 Providers */
 async function RootProviders({ children }: { children: React.ReactNode }) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+
+  const setupComplete = await isSetupComplete();
+  if (!setupComplete && !pathname.startsWith("/setup") && !pathname.startsWith("/api")) {
+    redirect("/setup");
+  }
+
   const siteConfig = await getPublicSiteConfig();
   return (
     <Providers siteConfig={siteConfig}>

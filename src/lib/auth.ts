@@ -30,36 +30,40 @@ const OAUTH_PROVIDER_KEYS = [
   "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit",
 ] as const;
 
-async function getOAuthConfig(): Promise<OAuthConfig> {
+interface OAuthAndSiteConfig {
+  oauth: OAuthConfig;
+  siteUrl: string | null;
+}
+
+async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
   try {
     return await getOrSet(
       "oauth:config",
       async () => {
-        const select = Object.fromEntries(
-          OAUTH_PROVIDER_KEYS.flatMap((k) => [
-            [`oauth${k}ClientId`, true],
-            [`oauth${k}ClientSecret`, true],
-          ])
-        );
+        const select: Record<string, true> = { siteUrl: true };
+        for (const k of OAUTH_PROVIDER_KEYS) {
+          select[`oauth${k}ClientId`] = true;
+          select[`oauth${k}ClientSecret`] = true;
+        }
         const config = await prisma.siteConfig.findUnique({
           where: { id: "default" },
           select,
         }) as Record<string, string | null> | null;
-        if (!config) return {};
-        const result: OAuthConfig = {};
+        if (!config) return { oauth: {}, siteUrl: null };
+        const oauth: OAuthConfig = {};
         for (const key of OAUTH_PROVIDER_KEYS) {
           const id = config[`oauth${key}ClientId`];
           const secret = config[`oauth${key}ClientSecret`];
           if (id && secret) {
-            (result as Record<string, OAuthProviderCredentials>)[key.toLowerCase()] = { clientId: id, clientSecret: secret };
+            (oauth as Record<string, OAuthProviderCredentials>)[key.toLowerCase()] = { clientId: id, clientSecret: secret };
           }
         }
-        return result;
+        return { oauth, siteUrl: config.siteUrl || null };
       },
       300
     );
   } catch {
-    return {};
+    return { oauth: {}, siteUrl: null };
   }
 }
 
@@ -73,11 +77,12 @@ function buildSocialProviders(cfg: OAuthConfig) {
   return providers;
 }
 
-function createAuthInstance(oauthConfig: OAuthConfig) {
+function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
+  const baseURL = siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return betterAuth({
-    baseURL: process.env.BETTER_AUTH_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+    baseURL,
     trustedOrigins: [
-      process.env.BETTER_AUTH_BASE_URL ?? "http://localhost:3000",
+      baseURL,
       process.env.NEXT_PUBLIC_APP_URL ?? "",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
@@ -203,15 +208,15 @@ let _cachedConfigHash = "";
  * 配置通过 Redis 缓存 5 分钟，admin 保存时主动失效。
  */
 export async function getAuthWithOAuth() {
-  const oauthConfig = await getOAuthConfig();
-  const hash = JSON.stringify(oauthConfig);
+  const { oauth, siteUrl } = await getOAuthAndSiteConfig();
+  const configHash = JSON.stringify({ oauth, siteUrl });
 
-  if (_cachedAuth && _cachedConfigHash === hash) {
+  if (_cachedAuth && _cachedConfigHash === configHash) {
     return _cachedAuth;
   }
 
-  _cachedAuth = createAuthInstance(oauthConfig);
-  _cachedConfigHash = hash;
+  _cachedAuth = createAuthInstance(oauth, siteUrl || undefined);
+  _cachedConfigHash = configHash;
   return _cachedAuth;
 }
 

@@ -17,14 +17,9 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
-
-// 封面存储目录（本地 uploads）
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
-const COVER_DIR = path.join(process.cwd(), UPLOAD_DIR, "cover");
-// 外部图片缓存目录
+import { getServerConfig } from "@/lib/server-config";
 const CACHE_DIR = path.join(process.cwd(), "public", "cache", "covers");
 
-// 确保目录存在
 async function ensureDir(dir: string) {
   try {
     await fs.access(dir);
@@ -37,8 +32,9 @@ async function ensureCacheDir() {
   await ensureDir(CACHE_DIR);
 }
 
-async function ensureCoverDir() {
-  await ensureDir(COVER_DIR);
+async function getCoverDir() {
+  const config = await getServerConfig();
+  return path.join(process.cwd(), config.uploadDir, "cover");
 }
 
 // 生成缓存文件名
@@ -196,17 +192,15 @@ export async function GET(
       }
     }
 
-    // 确保封面目录存在
-    await ensureCoverDir();
+    const coverDir = await getCoverDir();
+    await ensureDir(coverDir);
 
-    // 根据客户端支持的格式选择最佳格式
     const acceptHeader = request.headers.get("accept");
     const preferredFormats = getPreferredFormat(acceptHeader);
 
-    // 检查本地封面是否已存在（按偏好顺序查找）
     for (const format of preferredFormats) {
       const coverFileName = `${videoId}${format.ext}`;
-      const coverFilePath = path.join(COVER_DIR, coverFileName);
+      const coverFilePath = path.join(coverDir, coverFileName);
       try {
         const cached = await fs.readFile(coverFilePath);
         return new Response(new Uint8Array(cached), {
@@ -224,8 +218,7 @@ export async function GET(
     // 方案 1: 尝试从 CDN 获取缩略图（作为后备）
     const cdnThumbnail = await tryFetchThumbnailFromCDN(video.videoUrl);
     if (cdnThumbnail) {
-      // CDN 返回的通常是 JPEG，保存到 uploads/cover/
-      const cdnCoverPath = path.join(COVER_DIR, `${videoId}.jpg`);
+      const cdnCoverPath = path.join(coverDir, `${videoId}.jpg`);
       await fs.writeFile(cdnCoverPath, cdnThumbnail);
       
       return new Response(new Uint8Array(cdnThumbnail), {
@@ -257,11 +250,11 @@ export async function GET(
   const rawImageUrl = pathSegments.join("/");
   const imageUrl = decodeURIComponent(rawImageUrl);
 
-  // 处理本地 uploads 路径：/api/cover//uploads/cover/xxx.jpg
   const normalizedLocalPath = imageUrl.startsWith("/")
     ? imageUrl.slice(1)
     : imageUrl;
-  const uploadsRoot = path.join(process.cwd(), UPLOAD_DIR);
+  const config = await getServerConfig();
+  const uploadsRoot = path.join(process.cwd(), config.uploadDir);
   const candidateLocalPath = path.join(process.cwd(), normalizedLocalPath);
   if (
     normalizedLocalPath.startsWith("uploads/") &&

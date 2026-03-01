@@ -26,6 +26,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
           "/comments",
           "/video/edit/",
           "/dashboard/",
+          "/setup",
         ],
       },
       // OpenAI

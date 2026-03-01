@@ -970,6 +970,21 @@ model SiteConfig {
   oauthRedditClientId      String?
   oauthRedditClientSecret  String?
 
+  // SMTP 邮件
+  smtpHost        String?
+  smtpPort        Int?     @default(465)
+  smtpUser        String?
+  smtpPassword    String?
+  smtpFrom        String?
+
+  // 上传目录
+  uploadDir       String   @default("./uploads")
+
+  // 搜索引擎推送
+  indexNowKey                String?
+  googleServiceAccountEmail  String?
+  googlePrivateKey           String?  @db.Text
+
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份
   backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）

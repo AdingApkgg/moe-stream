@@ -51,6 +51,8 @@ import {
   Sparkles,
   Volume2,
   KeyRound,
+  Mail,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -124,6 +126,21 @@ const configFormSchema = z.object({
     weight: z.number().int().min(1).max(100),
     enabled: z.boolean(),
   })),
+
+  // SMTP 邮件
+  smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
+  smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
+  smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
+  smtpPassword: z.string().max(500).optional().nullable().or(z.literal("")),
+  smtpFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+
+  // 上传目录
+  uploadDir: z.string().max(500).optional(),
+
+  // 搜索引擎推送密钥
+  indexNowKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  googleServiceAccountEmail: z.string().max(500).optional().nullable().or(z.literal("")),
+  googlePrivateKey: z.string().max(10000).optional().nullable().or(z.literal("")),
 
   // 对象存储
   storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]),
@@ -436,6 +453,15 @@ export default function AdminSettingsPage() {
       adGateViewsRequired: 3,
       adGateHours: 12,
       sponsorAds: [],
+      smtpHost: "",
+      smtpPort: 465,
+      smtpUser: "",
+      smtpPassword: "",
+      smtpFrom: "",
+      uploadDir: "./uploads",
+      indexNowKey: "",
+      googleServiceAccountEmail: "",
+      googlePrivateKey: "",
       storageProvider: "local",
       storageEndpoint: "",
       storageBucket: "",
@@ -511,6 +537,15 @@ export default function AdminSettingsPage() {
           weight: item.weight ?? 1,
           enabled: item.enabled !== false,
         })),
+        smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
+        smtpPort: ((config as Record<string, unknown>).smtpPort as number) ?? 465,
+        smtpUser: ((config as Record<string, unknown>).smtpUser as string) || "",
+        smtpPassword: ((config as Record<string, unknown>).smtpPassword as string) || "",
+        smtpFrom: ((config as Record<string, unknown>).smtpFrom as string) || "",
+        uploadDir: ((config as Record<string, unknown>).uploadDir as string) || "./uploads",
+        indexNowKey: ((config as Record<string, unknown>).indexNowKey as string) || "",
+        googleServiceAccountEmail: ((config as Record<string, unknown>).googleServiceAccountEmail as string) || "",
+        googlePrivateKey: ((config as Record<string, unknown>).googlePrivateKey as string) || "",
         storageProvider: ((config as Record<string, unknown>).storageProvider as ConfigFormValues["storageProvider"]) ?? "local",
         storageEndpoint: ((config as Record<string, unknown>).storageEndpoint as string) || "",
         storageBucket: ((config as Record<string, unknown>).storageBucket as string) || "",
@@ -649,7 +684,7 @@ export default function AdminSettingsPage() {
       </AlertDialog>
 
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 sm:grid-cols-9 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 sm:grid-cols-11 lg:w-auto lg:inline-grid">
           <TabsTrigger value="basic" className="gap-2">
             <Info className="h-4 w-4" />
             <span className="hidden sm:inline">基本信息</span>
@@ -665,6 +700,10 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="content" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">内容设置</span>
+          </TabsTrigger>
+          <TabsTrigger value="email" className="gap-2">
+            <Mail className="h-4 w-4" />
+            <span className="hidden sm:inline">邮件</span>
           </TabsTrigger>
           <TabsTrigger value="storage" className="gap-2">
             <HardDrive className="h-4 w-4" />
@@ -1235,6 +1274,134 @@ export default function AdminSettingsPage() {
               </Card>
             </TabsContent>
 
+            {/* 邮件配置 */}
+            <TabsContent value="email">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    邮件配置
+                  </CardTitle>
+                  <CardDescription>
+                    配置 SMTP 邮件服务，用于发送验证码、通知等邮件。所有字段填写完整后邮件功能自动启用。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="smtpHost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SMTP 主机</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="smtp.example.com" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="smtpPort"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SMTP 端口</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={65535}
+                              value={field.value ?? 465}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
+                            />
+                          </FormControl>
+                          <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="smtpUser"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SMTP 用户名</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="user@example.com" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="smtpPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SMTP 密码</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="smtpFrom"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>发件人地址</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                        </FormControl>
+                        <FormDescription>发件人邮箱地址</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />
+                      上传设置
+                    </h4>
+                    <FormField
+                      control={form.control}
+                      name="uploadDir"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>上传目录</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || "./uploads"} placeholder="./uploads" />
+                          </FormControl>
+                          <FormDescription>本地文件上传的存储路径，相对于项目根目录</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* 对象存储 */}
             <TabsContent value="storage">
               <Card>
@@ -1754,6 +1921,62 @@ export default function AdminSettingsPage() {
                     )}
                   />
 
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-3">搜索引擎推送配置</h4>
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="indexNowKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>IndexNow Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="your-indexnow-key" />
+                            </FormControl>
+                            <FormDescription>IndexNow 密钥，用于向 Bing/Yandex 等搜索引擎推送更新</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="googleServiceAccountEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Google Service Account Email</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="xxx@xxx.iam.gserviceaccount.com" />
+                            </FormControl>
+                            <FormDescription>Google Search Console 服务账号邮箱</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="googlePrivateKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Google Private Key</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                value={field.value || ""}
+                                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                                rows={4}
+                                className="font-mono text-xs"
+                              />
+                            </FormControl>
+                            <FormDescription>Google 服务账号私钥（PEM 格式）</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
                   <Button type="submit" disabled={updateConfig.isPending}>
                     {updateConfig.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1895,10 +2118,10 @@ export default function AdminSettingsPage() {
 
               {!engineStatus?.indexnow.configured && !engineStatus?.google.configured && (
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>请在 .env 中配置：</p>
+                  <p>请在上方「SEO 设置」卡片中配置搜索引擎推送密钥：</p>
                   <ul className="list-disc list-inside text-xs">
-                    <li>IndexNow: INDEXNOW_KEY + 对应密钥文件</li>
-                    <li>Google: GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY</li>
+                    <li>IndexNow: 填写 IndexNow Key</li>
+                    <li>Google: 填写 Service Account Email + Private Key</li>
                   </ul>
                 </div>
               )}

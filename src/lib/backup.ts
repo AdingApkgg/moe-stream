@@ -11,10 +11,10 @@ import {
   type StorageConfig,
 } from "@/lib/s3-client";
 import type { BackupType } from "@/generated/prisma/client";
+import { getServerConfig } from "@/lib/server-config";
 
 const execAsync = promisify(exec);
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 const TEMP_DIR = path.join(process.cwd(), ".backup-tmp");
 
 function log(msg: string, ...args: unknown[]) {
@@ -100,7 +100,8 @@ async function dumpDatabase(outputPath: string): Promise<void> {
 }
 
 async function packUploads(outputPath: string): Promise<void> {
-  const uploadsDir = path.resolve(process.cwd(), UPLOAD_DIR);
+  const config = await getServerConfig();
+  const uploadsDir = path.resolve(process.cwd(), config.uploadDir);
   try {
     await fs.access(uploadsDir);
   } catch {
@@ -350,7 +351,8 @@ async function restoreDatabase(dumpPath: string): Promise<void> {
 }
 
 async function restoreUploads(archivePath: string): Promise<void> {
-  const uploadsDir = path.resolve(process.cwd(), UPLOAD_DIR);
+  const config = await getServerConfig();
+  const uploadsDir = path.resolve(process.cwd(), config.uploadDir);
   const parentDir = path.dirname(uploadsDir);
   await fs.mkdir(parentDir, { recursive: true }).catch(() => {});
   await execAsync(`tar -xzf "${archivePath}" -C "${parentDir}"`, {

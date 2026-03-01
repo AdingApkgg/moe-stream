@@ -36,6 +36,7 @@ import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
 import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getCoverUrl } from "@/lib/cover";
+import { useSiteConfig } from "@/contexts/site-config";
 import { AdSlot } from "@/components/ads/ad-slot";
 import type { SerializedVideo } from "./page";
 
@@ -431,7 +432,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const siteConfig = useSiteConfig();
+  const baseUrl = siteConfig?.siteUrl || "http://localhost:3000";
 
   return (
     <>

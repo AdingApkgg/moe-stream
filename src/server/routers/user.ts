@@ -604,7 +604,7 @@ export const userRouter = router({
     // 2. 从文件系统读取已上传的头像
     const fs = await import("fs/promises");
     const path = await import("path");
-    const uploadDir = process.env.UPLOAD_DIR || "./uploads";
+    const { uploadDir } = await (await import("@/lib/server-config")).getServerConfig();
     const avatarDir = path.join(uploadDir, "avatar");
 
     try {

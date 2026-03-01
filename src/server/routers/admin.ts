@@ -1861,6 +1861,21 @@ export const adminRouter = router({
       storageCustomDomain: z.string().max(500).optional().nullable().or(z.literal("")),
       storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
 
+      // SMTP 邮件
+      smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
+      smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
+      smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
+      smtpPassword: z.string().max(500).optional().nullable().or(z.literal("")),
+      smtpFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+
+      // 上传目录
+      uploadDir: z.string().max(500).optional(),
+
+      // 搜索引擎推送
+      indexNowKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      googleServiceAccountEmail: z.string().max(500).optional().nullable().or(z.literal("")),
+      googlePrivateKey: z.string().max(10000).optional().nullable().or(z.literal("")),
+
       // 数据备份
       backupEnabled: z.boolean().optional(),
       backupIntervalHours: z.number().int().min(1).max(720).optional(),
@@ -1918,6 +1933,8 @@ export const adminRouter = router({
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
@@ -1963,6 +1980,7 @@ export const adminRouter = router({
 
       // 清除站点配置缓存，使更改立即生效
       await deleteCache("site:config");
+      await deleteCache("server:config");
 
       // OAuth 配置变更时清除 OAuth 缓存，触发 auth 实例重建
       const oauthChanged = Object.keys(input).some((k) => k.startsWith("oauth"));
@@ -2039,6 +2057,8 @@ export const adminRouter = router({
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",

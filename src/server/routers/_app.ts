@@ -10,6 +10,7 @@ import { gameCommentRouter } from "./game-comment";
 import { imagePostCommentRouter } from "./image-comment";
 import { seriesRouter } from "./series";
 import { siteRouter } from "./site";
+import { setupRouter } from "./setup";
 
 export const appRouter = router({
   user: userRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   imagePostComment: imagePostCommentRouter,
   series: seriesRouter,
   site: siteRouter,
+  setup: setupRouter,
 });
 
 export type AppRouter = typeof appRouter;

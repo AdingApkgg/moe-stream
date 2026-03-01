@@ -4,8 +4,8 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
 import sharp from "sharp";
+import { getServerConfig } from "@/lib/server-config";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // 允许的文件类型
@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 确定上传目录
+    const config = await getServerConfig();
     const uploadType = type || "misc";
-    const uploadPath = join(UPLOAD_DIR, uploadType);
+    const uploadPath = join(config.uploadDir, uploadType);
     if (!existsSync(uploadPath)) {
       await mkdir(uploadPath, { recursive: true });
     }

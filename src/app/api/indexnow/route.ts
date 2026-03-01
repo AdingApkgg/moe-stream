@@ -3,26 +3,15 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { submitVideosToIndexNow, submitGamesToIndexNow, submitSitePages, submitToIndexNow } from "@/lib/indexnow";
 import { submitSitemapToGoogle, isGoogleConfigured } from "@/lib/google-indexing";
-import { env } from "@/env";
+import { getServerConfig } from "@/lib/server-config";
 
-/**
- * POST /api/indexnow - 手动触发 IndexNow 批量提交
- * 需要管理员权限
- * 
- * Body:
- * - type: "all" | "recent" | "site" | "urls"
- * - days?: number (recent 模式下的天数，默认7)
- * - urls?: string[] (urls 模式下的自定义 URL 列表)
- */
 export async function POST(request: NextRequest) {
   try {
-    // 验证管理员权限
     const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "需要登录" }, { status: 401 });
     }
 
-    // 从数据库查询用户角色
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { role: true },
@@ -35,8 +24,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type = "recent", days = 7, urls } = body;
 
-    const hasIndexNow = !!env.INDEXNOW_KEY;
-    const hasGoogle = isGoogleConfigured();
+    const config = await getServerConfig();
+    const hasIndexNow = !!config.indexNowKey;
+    const hasGoogle = await isGoogleConfigured();
 
     if (!hasIndexNow && !hasGoogle) {
       return NextResponse.json({ error: "未配置任何搜索引擎推送" }, { status: 400 });
@@ -45,7 +35,6 @@ export async function POST(request: NextRequest) {
     const results: { indexnow?: { success: number; failed: number } | boolean; google?: boolean } = {};
     const messages: string[] = [];
 
-    // 获取视频和游戏 ID 列表
     let videoIds: string[] = [];
     let gameIds: string[] = [];
 
@@ -99,7 +88,6 @@ export async function POST(request: NextRequest) {
       }
 
       case "site": {
-        // 站点页面
         if (hasIndexNow) {
           results.indexnow = await submitSitePages();
           messages.push(results.indexnow ? "IndexNow: 已提交站点页面" : "IndexNow: 提交失败");
@@ -108,7 +96,6 @@ export async function POST(request: NextRequest) {
       }
 
       case "sitemap": {
-        // 提交 sitemap 到 Google
         if (hasGoogle) {
           results.google = await submitSitemapToGoogle();
           messages.push(results.google ? "Google: Sitemap 已提交" : "Google: 提交失败");
@@ -133,7 +120,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "无效的 type 参数" }, { status: 400 });
     }
 
-    // 提交视频和游戏到 IndexNow
     if (hasIndexNow) {
       const [videoResult, gameResult] = await Promise.all([
         submitVideosToIndexNow(videoIds),
@@ -149,7 +135,6 @@ export async function POST(request: NextRequest) {
       messages.push(`IndexNow: ${parts.join("、") || "0 条内容"}`);
     }
 
-    // 同时通知 Google 更新 sitemap
     if (hasGoogle) {
       results.google = await submitSitemapToGoogle();
       messages.push(results.google ? "Google: Sitemap 已通知" : "Google: 通知失败");
@@ -166,22 +151,20 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * GET /api/indexnow - 获取搜索引擎推送配置状态
- */
 export async function GET() {
-  const indexNowConfigured = !!env.INDEXNOW_KEY;
-  const googleConfigured = isGoogleConfigured();
+  const config = await getServerConfig();
+  const indexNowConfigured = !!config.indexNowKey;
+  const googleConfigured = await isGoogleConfigured();
   
   return NextResponse.json({
     indexnow: {
       configured: indexNowConfigured,
-      keyFile: indexNowConfigured ? `/${env.INDEXNOW_KEY}.txt` : null,
+      keyFile: indexNowConfigured ? `/${config.indexNowKey}.txt` : null,
     },
     google: {
       configured: googleConfigured,
       type: "Search Console API (Sitemap)",
-      note: googleConfigured ? null : "需配置 GOOGLE_SERVICE_ACCOUNT_EMAIL 和 GOOGLE_PRIVATE_KEY",
+      note: googleConfigured ? null : "请在后台设置中配置 Google Service Account",
     },
   });
 }

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
 import { resolve } from "path";
 import { existsSync } from "fs";
-
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
+import { getServerConfig } from "@/lib/server-config";
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -28,7 +27,8 @@ export async function GET(
       }
     }
 
-    const baseDir = resolve(process.cwd(), UPLOAD_DIR);
+    const config = await getServerConfig();
+    const baseDir = resolve(process.cwd(), config.uploadDir);
     const filePath = resolve(baseDir, ...pathSegments);
 
     // 确保文件路径在上传目录内

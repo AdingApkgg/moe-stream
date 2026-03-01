@@ -5,9 +5,7 @@ import { redis } from "@/lib/redis";
 import { COVER_CONFIG } from "@/lib/cover-config";
 import { generateCoverForVideo } from "@/lib/cover-generator";
 import { addToQueue, addToQueueBatch, processQueue } from "@/lib/cover-queue";
-
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
-const COVER_DIR = path.join(process.cwd(), UPLOAD_DIR, "cover");
+import { getServerConfig } from "@/lib/server-config";
 
 function log(msg: string, ...args: unknown[]) {
   const ts = new Date().toISOString();
@@ -16,9 +14,19 @@ function log(msg: string, ...args: unknown[]) {
 
 // 封面目录只需创建一次
 let coverDirReady = false;
+let coverDirPath: string | null = null;
+
+async function getCoverDir(): Promise<string> {
+  if (coverDirPath) return coverDirPath;
+  const config = await getServerConfig();
+  coverDirPath = path.join(process.cwd(), config.uploadDir, "cover");
+  return coverDirPath;
+}
+
 async function ensureCoverDir() {
   if (coverDirReady) return;
-  await fs.mkdir(COVER_DIR, { recursive: true }).catch(() => {});
+  const dir = await getCoverDir();
+  await fs.mkdir(dir, { recursive: true }).catch(() => {});
   coverDirReady = true;
 }
 
@@ -27,8 +35,9 @@ async function ensureCoverDir() {
  * 优化: 使用 Promise.all 并行检查所有格式
  */
 async function findExistingCover(videoId: string): Promise<string | null> {
+  const coverDir = await getCoverDir();
   const checks = COVER_CONFIG.formats.map(async (format) => {
-    const filePath = path.join(COVER_DIR, `${videoId}.${format}`);
+    const filePath = path.join(coverDir, `${videoId}.${format}`);
     try {
       const stat = await fs.stat(filePath);
       if (stat.size > 0) {
@@ -79,11 +88,11 @@ async function processVideo(videoId: string): Promise<boolean> {
 
   log(`视频 ${videoId} URL: ${video.videoUrl.slice(0, 80)}...`);
 
-  // 使用优化后的封面生成流程
+  const coverDir = await getCoverDir();
   const coverUrl = await generateCoverForVideo(
     video.videoUrl,
     videoId,
-    COVER_DIR,
+    coverDir,
     {
       width: COVER_CONFIG.width,
       timeoutMs: COVER_CONFIG.timeout,
