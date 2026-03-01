@@ -25,12 +25,28 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const resetTransform = useCallback(() => {
+    setScale(1);
+    setRotation(0);
+    setTranslate({ x: 0, y: 0 });
+  }, []);
+
+  const goTo = useCallback((index: number) => {
+    if (index < 0 || index >= images.length) return;
+    setCurrentIndex(index);
+    resetTransform();
+  }, [images.length, resetTransform]);
+
+  const zoomIn = useCallback(() => setScale((s) => Math.min(s * 1.3, 5)), []);
+  const zoomOut = useCallback(() => setScale((s) => Math.max(s / 1.3, 0.3)), []);
+  const rotate = useCallback(() => setRotation((r) => (r + 90) % 360), []);
+
   useEffect(() => {
     if (open) {
       setCurrentIndex(initialIndex);
       resetTransform();
     }
-  }, [open, initialIndex]);
+  }, [open, initialIndex, resetTransform]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,23 +75,7 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, currentIndex]);
-
-  const resetTransform = () => {
-    setScale(1);
-    setRotation(0);
-    setTranslate({ x: 0, y: 0 });
-  };
-
-  const goTo = useCallback((index: number) => {
-    if (index < 0 || index >= images.length) return;
-    setCurrentIndex(index);
-    resetTransform();
-  }, [images.length]);
-
-  const zoomIn = () => setScale((s) => Math.min(s * 1.3, 5));
-  const zoomOut = () => setScale((s) => Math.max(s / 1.3, 0.3));
-  const rotate = () => setRotation((r) => (r + 90) % 360);
+  }, [open, currentIndex, onClose, goTo, zoomIn, zoomOut, rotate]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
