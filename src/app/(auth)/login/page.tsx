@@ -15,6 +15,7 @@ import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
 import { CaptchaInput } from "@/components/ui/captcha-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, "请输入邮箱或用户名"),
@@ -157,6 +158,8 @@ function LoginForm() {
               </Button>
             </form>
           </Form>
+
+          <SocialLoginButtons callbackURL={callbackUrl} />
 
           <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
             <div>

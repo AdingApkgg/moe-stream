@@ -1876,6 +1876,14 @@ export const adminRouter = router({
       effectOpacity: z.number().min(0).max(1).optional(),
       effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
       soundDefaultEnabled: z.boolean().optional(),
+
+      // OAuth 社交登录
+      oauthGoogleClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthGoogleClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthGithubClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthGithubClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthDiscordClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthDiscordClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
     }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
@@ -1898,6 +1906,9 @@ export const adminRouter = router({
         "backupIncludeUploads", "backupIncludeConfig",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
+        "oauthGoogleClientId", "oauthGoogleClientSecret",
+        "oauthGithubClientId", "oauthGithubClientSecret",
+        "oauthDiscordClientId", "oauthDiscordClientSecret",
       ]);
       const cleaned = Object.fromEntries(
         Object.entries(input)
@@ -1925,6 +1936,19 @@ export const adminRouter = router({
 
       // 清除站点配置缓存，使更改立即生效
       await deleteCache("site:config");
+
+      // OAuth 配置变更时清除 OAuth 缓存，触发 auth 实例重建
+      if (
+        input.oauthGoogleClientId !== undefined ||
+        input.oauthGoogleClientSecret !== undefined ||
+        input.oauthGithubClientId !== undefined ||
+        input.oauthGithubClientSecret !== undefined ||
+        input.oauthDiscordClientId !== undefined ||
+        input.oauthDiscordClientSecret !== undefined
+      ) {
+        const { invalidateOAuthConfig } = await import("@/lib/auth");
+        await invalidateOAuthConfig();
+      }
 
       // 备份配置变更时热更新调度器
       if (
@@ -2000,6 +2024,9 @@ export const adminRouter = router({
         "backupIncludeUploads", "backupIncludeConfig",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
+        "oauthGoogleClientId", "oauthGoogleClientSecret",
+        "oauthGithubClientId", "oauthGithubClientSecret",
+        "oauthDiscordClientId", "oauthDiscordClientSecret",
       ]);
 
       const cleaned = Object.fromEntries(

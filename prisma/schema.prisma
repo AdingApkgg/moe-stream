@@ -944,6 +944,14 @@ model SiteConfig {
   effectColor         String? @default("")         // 自定义颜色（空/null=使用预设）
   soundDefaultEnabled Boolean @default(true)       // 新用户音效默认开启
 
+  // OAuth 社交登录
+  oauthGoogleClientId     String?
+  oauthGoogleClientSecret String?
+  oauthGithubClientId     String?
+  oauthGithubClientSecret String?
+  oauthDiscordClientId    String?
+  oauthDiscordClientSecret String?
+
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份
   backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）

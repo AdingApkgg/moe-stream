@@ -41,12 +41,16 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
   const zoomOut = useCallback(() => setScale((s) => Math.max(s / 1.3, 0.3)), []);
   const rotate = useCallback(() => setRotation((r) => (r + 90) % 360), []);
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setCurrentIndex(initialIndex);
-      resetTransform();
+      setScale(1);
+      setRotation(0);
+      setTranslate({ x: 0, y: 0 });
     }
-  }, [open, initialIndex, resetTransform]);
+  }
 
   useEffect(() => {
     if (!open) return;

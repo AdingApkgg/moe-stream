@@ -14,6 +14,7 @@ import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EmailCodeInput } from "@/components/ui/email-code-input";
+import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 
 const registerSchema = z.object({
   email: z.string().email("请输入有效的邮箱地址"),
@@ -175,6 +176,8 @@ export default function RegisterPage() {
               </Button>
             </form>
           </Form>
+
+          <SocialLoginButtons callbackURL="/" />
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             已有账户？{" "}

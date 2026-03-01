@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Auto-generated code
+    "src/generated/**",
     // Auto-generated service worker
     "public/sw.js",
     // Third-party libraries

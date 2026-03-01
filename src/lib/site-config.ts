@@ -38,6 +38,7 @@ export interface PublicSiteConfig {
   effectOpacity: number;
   effectColor: string;
   soundDefaultEnabled: boolean;
+  oauthProviders: string[];
 }
 
 const selectFields = {
@@ -74,6 +75,12 @@ const selectFields = {
   effectOpacity: true,
   effectColor: true,
   soundDefaultEnabled: true,
+  oauthGoogleClientId: true,
+  oauthGoogleClientSecret: true,
+  oauthGithubClientId: true,
+  oauthGithubClientSecret: true,
+  oauthDiscordClientId: true,
+  oauthDiscordClientSecret: true,
 } as const;
 
 const defaultConfig: PublicSiteConfig = {
@@ -110,6 +117,7 @@ const defaultConfig: PublicSiteConfig = {
   effectOpacity: 0.8,
   effectColor: "",
   soundDefaultEnabled: true,
+  oauthProviders: [],
 };
 
 /**
@@ -150,6 +158,11 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
 
         if (!config) return defaultConfig;
 
+        const oauthProviders: string[] = [];
+        if (config.oauthGoogleClientId && config.oauthGoogleClientSecret) oauthProviders.push("google");
+        if (config.oauthGithubClientId && config.oauthGithubClientSecret) oauthProviders.push("github");
+        if (config.oauthDiscordClientId && config.oauthDiscordClientSecret) oauthProviders.push("discord");
+
         return {
           ...defaultConfig,
           ...Object.fromEntries(
@@ -159,6 +172,7 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
           socialLinks: config.socialLinks as Record<string, string> | null,
           footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
           sponsorAds: config.sponsorAds as Ad[] | null,
+          oauthProviders,
         };
       },
       300 // 5 minutes TTL

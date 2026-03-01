@@ -259,7 +259,7 @@ function ChartLegendContent({
   verticalAlign = "bottom",
   nameKey,
 }: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  Partial<Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign">> & {
     hideIcon?: boolean
     nameKey?: string
   }) {
