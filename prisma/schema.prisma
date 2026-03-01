@@ -945,12 +945,30 @@ model SiteConfig {
   soundDefaultEnabled Boolean @default(true)       // 新用户音效默认开启
 
   // OAuth 社交登录
-  oauthGoogleClientId     String?
-  oauthGoogleClientSecret String?
-  oauthGithubClientId     String?
-  oauthGithubClientSecret String?
-  oauthDiscordClientId    String?
+  oauthGoogleClientId      String?
+  oauthGoogleClientSecret  String?
+  oauthGithubClientId      String?
+  oauthGithubClientSecret  String?
+  oauthDiscordClientId     String?
   oauthDiscordClientSecret String?
+  oauthAppleClientId       String?
+  oauthAppleClientSecret   String?
+  oauthTwitterClientId     String?
+  oauthTwitterClientSecret String?
+  oauthFacebookClientId    String?
+  oauthFacebookClientSecret String?
+  oauthMicrosoftClientId   String?
+  oauthMicrosoftClientSecret String?
+  oauthTwitchClientId      String?
+  oauthTwitchClientSecret  String?
+  oauthSpotifyClientId     String?
+  oauthSpotifyClientSecret String?
+  oauthLinkedinClientId    String?
+  oauthLinkedinClientSecret String?
+  oauthGitlabClientId      String?
+  oauthGitlabClientSecret  String?
+  oauthRedditClientId      String?
+  oauthRedditClientSecret  String?
 
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份

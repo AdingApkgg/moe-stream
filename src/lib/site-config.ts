@@ -81,6 +81,24 @@ const selectFields = {
   oauthGithubClientSecret: true,
   oauthDiscordClientId: true,
   oauthDiscordClientSecret: true,
+  oauthAppleClientId: true,
+  oauthAppleClientSecret: true,
+  oauthTwitterClientId: true,
+  oauthTwitterClientSecret: true,
+  oauthFacebookClientId: true,
+  oauthFacebookClientSecret: true,
+  oauthMicrosoftClientId: true,
+  oauthMicrosoftClientSecret: true,
+  oauthTwitchClientId: true,
+  oauthTwitchClientSecret: true,
+  oauthSpotifyClientId: true,
+  oauthSpotifyClientSecret: true,
+  oauthLinkedinClientId: true,
+  oauthLinkedinClientSecret: true,
+  oauthGitlabClientId: true,
+  oauthGitlabClientSecret: true,
+  oauthRedditClientId: true,
+  oauthRedditClientSecret: true,
 } as const;
 
 const defaultConfig: PublicSiteConfig = {
@@ -158,10 +176,18 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
 
         if (!config) return defaultConfig;
 
+        const oauthProviderPairs = [
+          ["Google", "google"], ["Github", "github"], ["Discord", "discord"],
+          ["Apple", "apple"], ["Twitter", "twitter"], ["Facebook", "facebook"],
+          ["Microsoft", "microsoft"], ["Twitch", "twitch"], ["Spotify", "spotify"],
+          ["Linkedin", "linkedin"], ["Gitlab", "gitlab"], ["Reddit", "reddit"],
+        ] as const;
         const oauthProviders: string[] = [];
-        if (config.oauthGoogleClientId && config.oauthGoogleClientSecret) oauthProviders.push("google");
-        if (config.oauthGithubClientId && config.oauthGithubClientSecret) oauthProviders.push("github");
-        if (config.oauthDiscordClientId && config.oauthDiscordClientSecret) oauthProviders.push("discord");
+        for (const [key, id] of oauthProviderPairs) {
+          if (config[`oauth${key}ClientId` as keyof typeof config] && config[`oauth${key}ClientSecret` as keyof typeof config]) {
+            oauthProviders.push(id);
+          }
+        }
 
         return {
           ...defaultConfig,

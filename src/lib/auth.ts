@@ -5,40 +5,56 @@ import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { getOrSet, deleteCache } from "@/lib/redis";
 
-interface OAuthConfig {
-  googleClientId?: string | null;
-  googleClientSecret?: string | null;
-  githubClientId?: string | null;
-  githubClientSecret?: string | null;
-  discordClientId?: string | null;
-  discordClientSecret?: string | null;
+interface OAuthProviderCredentials {
+  clientId?: string | null;
+  clientSecret?: string | null;
 }
+
+interface OAuthConfig {
+  google?: OAuthProviderCredentials;
+  github?: OAuthProviderCredentials;
+  discord?: OAuthProviderCredentials;
+  apple?: OAuthProviderCredentials;
+  twitter?: OAuthProviderCredentials;
+  facebook?: OAuthProviderCredentials;
+  microsoft?: OAuthProviderCredentials;
+  twitch?: OAuthProviderCredentials;
+  spotify?: OAuthProviderCredentials;
+  linkedin?: OAuthProviderCredentials;
+  gitlab?: OAuthProviderCredentials;
+  reddit?: OAuthProviderCredentials;
+}
+
+const OAUTH_PROVIDER_KEYS = [
+  "Google", "Github", "Discord", "Apple", "Twitter", "Facebook",
+  "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit",
+] as const;
 
 async function getOAuthConfig(): Promise<OAuthConfig> {
   try {
     return await getOrSet(
       "oauth:config",
       async () => {
+        const select = Object.fromEntries(
+          OAUTH_PROVIDER_KEYS.flatMap((k) => [
+            [`oauth${k}ClientId`, true],
+            [`oauth${k}ClientSecret`, true],
+          ])
+        );
         const config = await prisma.siteConfig.findUnique({
           where: { id: "default" },
-          select: {
-            oauthGoogleClientId: true,
-            oauthGoogleClientSecret: true,
-            oauthGithubClientId: true,
-            oauthGithubClientSecret: true,
-            oauthDiscordClientId: true,
-            oauthDiscordClientSecret: true,
-          },
-        });
+          select,
+        }) as Record<string, string | null> | null;
         if (!config) return {};
-        return {
-          googleClientId: config.oauthGoogleClientId,
-          googleClientSecret: config.oauthGoogleClientSecret,
-          githubClientId: config.oauthGithubClientId,
-          githubClientSecret: config.oauthGithubClientSecret,
-          discordClientId: config.oauthDiscordClientId,
-          discordClientSecret: config.oauthDiscordClientSecret,
-        };
+        const result: OAuthConfig = {};
+        for (const key of OAUTH_PROVIDER_KEYS) {
+          const id = config[`oauth${key}ClientId`];
+          const secret = config[`oauth${key}ClientSecret`];
+          if (id && secret) {
+            (result as Record<string, OAuthProviderCredentials>)[key.toLowerCase()] = { clientId: id, clientSecret: secret };
+          }
+        }
+        return result;
       },
       300
     );
@@ -49,14 +65,10 @@ async function getOAuthConfig(): Promise<OAuthConfig> {
 
 function buildSocialProviders(cfg: OAuthConfig) {
   const providers: Record<string, { clientId: string; clientSecret: string }> = {};
-  if (cfg.googleClientId && cfg.googleClientSecret) {
-    providers.google = { clientId: cfg.googleClientId, clientSecret: cfg.googleClientSecret };
-  }
-  if (cfg.githubClientId && cfg.githubClientSecret) {
-    providers.github = { clientId: cfg.githubClientId, clientSecret: cfg.githubClientSecret };
-  }
-  if (cfg.discordClientId && cfg.discordClientSecret) {
-    providers.discord = { clientId: cfg.discordClientId, clientSecret: cfg.discordClientSecret };
+  for (const [name, creds] of Object.entries(cfg)) {
+    if (creds?.clientId && creds?.clientSecret) {
+      providers[name] = { clientId: creds.clientId, clientSecret: creds.clientSecret };
+    }
   }
   return providers;
 }
@@ -159,7 +171,10 @@ function createAuthInstance(oauthConfig: OAuthConfig) {
       },
       accountLinking: {
         enabled: true,
-        trustedProviders: ["google", "github", "discord"],
+        trustedProviders: [
+        "google", "github", "discord", "apple", "twitter", "facebook",
+        "microsoft", "twitch", "spotify", "linkedin", "gitlab", "reddit",
+      ],
       },
     },
     verification: {

@@ -1884,6 +1884,24 @@ export const adminRouter = router({
       oauthGithubClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
       oauthDiscordClientId: z.string().max(500).optional().nullable().or(z.literal("")),
       oauthDiscordClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthAppleClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthAppleClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthTwitterClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthTwitterClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthFacebookClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthFacebookClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthMicrosoftClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthMicrosoftClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthTwitchClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthTwitchClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthSpotifyClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthSpotifyClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthLinkedinClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthLinkedinClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthGitlabClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthGitlabClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthRedditClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+      oauthRedditClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
     }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
@@ -1909,6 +1927,15 @@ export const adminRouter = router({
         "oauthGoogleClientId", "oauthGoogleClientSecret",
         "oauthGithubClientId", "oauthGithubClientSecret",
         "oauthDiscordClientId", "oauthDiscordClientSecret",
+        "oauthAppleClientId", "oauthAppleClientSecret",
+        "oauthTwitterClientId", "oauthTwitterClientSecret",
+        "oauthFacebookClientId", "oauthFacebookClientSecret",
+        "oauthMicrosoftClientId", "oauthMicrosoftClientSecret",
+        "oauthTwitchClientId", "oauthTwitchClientSecret",
+        "oauthSpotifyClientId", "oauthSpotifyClientSecret",
+        "oauthLinkedinClientId", "oauthLinkedinClientSecret",
+        "oauthGitlabClientId", "oauthGitlabClientSecret",
+        "oauthRedditClientId", "oauthRedditClientSecret",
       ]);
       const cleaned = Object.fromEntries(
         Object.entries(input)
@@ -1938,14 +1965,8 @@ export const adminRouter = router({
       await deleteCache("site:config");
 
       // OAuth 配置变更时清除 OAuth 缓存，触发 auth 实例重建
-      if (
-        input.oauthGoogleClientId !== undefined ||
-        input.oauthGoogleClientSecret !== undefined ||
-        input.oauthGithubClientId !== undefined ||
-        input.oauthGithubClientSecret !== undefined ||
-        input.oauthDiscordClientId !== undefined ||
-        input.oauthDiscordClientSecret !== undefined
-      ) {
+      const oauthChanged = Object.keys(input).some((k) => k.startsWith("oauth"));
+      if (oauthChanged) {
         const { invalidateOAuthConfig } = await import("@/lib/auth");
         await invalidateOAuthConfig();
       }
@@ -2027,6 +2048,15 @@ export const adminRouter = router({
         "oauthGoogleClientId", "oauthGoogleClientSecret",
         "oauthGithubClientId", "oauthGithubClientSecret",
         "oauthDiscordClientId", "oauthDiscordClientSecret",
+        "oauthAppleClientId", "oauthAppleClientSecret",
+        "oauthTwitterClientId", "oauthTwitterClientSecret",
+        "oauthFacebookClientId", "oauthFacebookClientSecret",
+        "oauthMicrosoftClientId", "oauthMicrosoftClientSecret",
+        "oauthTwitchClientId", "oauthTwitchClientSecret",
+        "oauthSpotifyClientId", "oauthSpotifyClientSecret",
+        "oauthLinkedinClientId", "oauthLinkedinClientSecret",
+        "oauthGitlabClientId", "oauthGitlabClientSecret",
+        "oauthRedditClientId", "oauthRedditClientSecret",
       ]);
 
       const cleaned = Object.fromEntries(
