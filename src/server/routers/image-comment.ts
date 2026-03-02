@@ -167,6 +167,19 @@ export const imagePostCommentRouter = router({
       const { imagePostId, content, parentId, replyToUserId, guestName, guestEmail, guestWebsite, deviceInfo } = input;
       const userId = ctx.session?.user?.id;
 
+      const siteConfig = await ctx.prisma.siteConfig.findUnique({
+        where: { id: "default" },
+        select: { allowComment: true, requireLoginToComment: true },
+      });
+
+      if (siteConfig && !siteConfig.allowComment) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "评论功能已关闭" });
+      }
+
+      if (siteConfig?.requireLoginToComment && !userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "请登录后再发表评论" });
+      }
+
       if (!userId && !guestName) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "请填写昵称" });
       }

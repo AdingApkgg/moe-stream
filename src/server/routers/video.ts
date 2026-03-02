@@ -642,24 +642,24 @@ export const videoRouter = router({
       z.object({
         seriesTitle: z.string().max(100).optional(),
         seriesDescription: z.string().max(5000).optional(),
-        seriesCoverUrl: z.string().url().optional().or(z.literal("")),
+        seriesCoverUrl: z.string().optional(),
         videos: z.array(z.object({
           title: z.string().min(1).max(100),
           description: z.string().max(5000).optional(),
-          coverUrl: z.string().url().optional().or(z.literal("")),
-          videoUrl: z.string().url(),
+          coverUrl: z.string().optional(),
+          videoUrl: z.string().min(1),
           tagNames: z.array(z.string()).optional(),
           extraInfo: z.object({
             intro: z.string().optional(),
             episodes: z.array(z.object({
               title: z.string(),
-              content: z.string(),
+              content: z.string().optional().default(""),
             })).optional(),
             author: z.string().optional(),
             authorIntro: z.string().optional(),
             keywords: z.array(z.string()).optional(),
             downloads: z.array(z.object({
-              name: z.string(),
+              name: z.string().optional().default(""),
               url: z.string(),
               password: z.string().optional(),
             })).optional(),
@@ -668,7 +668,7 @@ export const videoRouter = router({
               type: z.enum(['info', 'success', 'warning', 'error']),
               content: z.string(),
             })).optional(),
-          }).optional(),
+          }).passthrough().optional(),
         })).min(1).max(200),
       })
     )

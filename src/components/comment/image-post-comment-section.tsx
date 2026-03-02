@@ -16,11 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageSquare, ArrowUpDown, User } from "lucide-react";
+import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import { ImagePostCommentItem } from "./image-post-comment-item";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useIsMounted } from "@/components/motion";
+import { useSiteConfig } from "@/contexts/site-config";
 
 interface ImagePostCommentSectionProps {
   imagePostId: string;
@@ -30,11 +31,14 @@ type SortType = "newest" | "oldest" | "popular";
 
 export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSectionProps) {
   const { data: session } = useSession();
+  const siteConfig = useSiteConfig();
   const [sort, setSort] = useState<SortType>("newest");
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMounted = useIsMounted();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+
+  const requireLogin = siteConfig?.requireLoginToComment ?? false;
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -153,6 +157,12 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
         )}
       </div>
 
+      {isMounted && requireLogin && !session ? (
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-muted-foreground">
+          <LogIn className="h-4 w-4" />
+          <span>请<a href="/login" className="text-primary underline underline-offset-4 mx-0.5">登录</a>后发表评论</span>
+        </div>
+      ) : (
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 shrink-0">
           {!isMounted ? (
@@ -240,6 +250,7 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
           </div>
         </div>
       </div>
+      )}
 
       <div className="space-y-4">
         {isLoading ? (
