@@ -12,7 +12,7 @@ interface ImagePostCardProps {
     id: string;
     title: string;
     description?: string | null;
-    images: string[];
+    images: unknown;
     views: number;
     createdAt: Date | string;
     uploader: {

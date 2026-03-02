@@ -200,7 +200,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
 export const auth = createAuthInstance({});
 
 // 动态 auth 实例缓存（含 DB 中的 OAuth 配置）
-let _cachedAuth: ReturnType<typeof betterAuth> | null = null;
+let _cachedAuth: ReturnType<typeof createAuthInstance> | null = null;
 let _cachedConfigHash = "";
 
 /**

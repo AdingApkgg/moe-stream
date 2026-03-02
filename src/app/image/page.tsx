@@ -42,7 +42,6 @@ function serializePosts(posts: Awaited<ReturnType<typeof getInitialData>>["posts
     id: post.id,
     title: post.title,
     description: post.description,
-    coverUrl: post.coverUrl,
     images: post.images as string[],
     views: post.views,
     createdAt: post.createdAt.toISOString(),

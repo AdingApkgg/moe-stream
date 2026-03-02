@@ -33,6 +33,7 @@ import { formatRelativeTime } from "@/lib/format";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
+import type { SoundType } from "@/lib/audio";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { FadeIn, CountUp } from "@/components/motion";
@@ -234,7 +235,7 @@ function ImagePostGrid({
     id: string;
     title: string;
     description?: string | null;
-    images: string[];
+    images: unknown;
     views: number;
     createdAt: Date | string;
     uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null };
@@ -294,7 +295,7 @@ function SubTabs<T extends string>({
   tabs: { key: T; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[];
   activeTab: T;
   onTabChange: (tab: T) => void;
-  play: (sound: string) => void;
+  play: (sound: SoundType) => void;
 }) {
   return (
     <div className="flex items-center gap-1 border-b mb-6 overflow-x-auto scrollbar-none">

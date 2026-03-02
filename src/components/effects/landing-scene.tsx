@@ -6,7 +6,7 @@ import { Float, MeshDistortMaterial, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 
 interface LandingSceneProps {
-  hoveredMode: "video" | "game" | null;
+  hoveredMode: "video" | "image" | "game" | null;
   mouse: React.RefObject<{ x: number; y: number }>;
 }
 

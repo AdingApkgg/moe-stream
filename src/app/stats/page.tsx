@@ -38,7 +38,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Pie,
   PieChart,
   XAxis,
@@ -183,11 +182,7 @@ function ContentDistributionChart({
       <ChartContainer config={contentPieConfig} className="mx-auto aspect-square max-h-[220px]">
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} strokeWidth={2} stroke="hsl(var(--background))">
-            {data.map((entry) => (
-              <Cell key={entry.name} fill={entry.fill} />
-            ))}
-          </Pie>
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} strokeWidth={2} stroke="hsl(var(--background))" />
           <text x="50%" y="48%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-2xl font-bold">
             {formatCompact(total)}
           </text>
