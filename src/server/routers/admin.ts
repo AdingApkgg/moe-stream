@@ -2144,6 +2144,8 @@ export const adminRouter = router({
       videoIds: z.array(z.string()).optional(),
       // 重置所有没有自动生成封面的视频（coverUrl 非空且不是本地路径）
       nonLocalOnly: z.boolean().optional(),
+      // 仅重置本地生成的封面（coverUrl 以 /uploads/cover/ 开头）
+      localOnly: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
@@ -2164,8 +2166,9 @@ export const adminRouter = router({
 
       if (input.urlPattern) {
         where.coverUrl = { contains: input.urlPattern };
+      } else if (input.localOnly) {
+        where.coverUrl = { startsWith: "/uploads/cover/" };
       } else if (input.nonLocalOnly) {
-        // 非本地路径：排除本地自动生成的封面（/uploads/cover/ 开头）
         where.AND = [
           { coverUrl: { not: null } },
           { coverUrl: { not: "" } },

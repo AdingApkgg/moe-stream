@@ -651,6 +651,34 @@ export default function CoversPage() {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm">
+                  <HardDrive className="h-4 w-4 mr-1" />
+                  重置本地封面
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认重置所有本地生成的封面？</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    将清除所有本地自动生成的封面（/uploads/cover/ 开头），包括封面 URL 和模糊占位图，并触发自动重新生成。
+                    不影响外部链接封面。最多处理 500 个视频。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => resetCoversMut.mutate({ localOnly: true })}
+                    disabled={resetCoversMut.isPending}
+                  >
+                    {resetCoversMut.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    确认重置
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
                   <ExternalLink className="h-4 w-4 mr-1" />
                   重置外部封面
                 </Button>
