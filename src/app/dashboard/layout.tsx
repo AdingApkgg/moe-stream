@@ -32,6 +32,7 @@ import {
   ChevronLeft,
   Link2,
   DatabaseBackup,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const menuItems = [
@@ -76,6 +77,12 @@ const menuItems = [
     label: "评论管理",
     icon: MessageSquare,
     scope: "comment:manage",
+  },
+  {
+    href: "/dashboard/covers",
+    label: "封面管理",
+    icon: ImageIcon,
+    scope: "video:manage",
   },
   {
     href: "/dashboard/links",

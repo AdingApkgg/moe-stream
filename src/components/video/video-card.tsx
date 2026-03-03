@@ -13,6 +13,7 @@ interface VideoCardProps {
     id: string;
     title: string;
     coverUrl?: string | null;
+    coverBlurHash?: string | null;
     duration?: number | null;
     views: number;
     createdAt: Date | string;
@@ -61,6 +62,7 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
           <VideoCover
             videoId={video.id}
             coverUrl={video.coverUrl}
+            blurDataURL={video.coverBlurHash}
             title={video.title}
             className="transition-transform duration-500 ease-out group-hover:scale-105"
           />

@@ -183,8 +183,7 @@ async function main() {
       const progress = `[${index + 1}/${videos.length}]`;
       console.log(`${progress} 处理: ${video.title}`);
 
-      // 使用优化后的封面生成（并行采样 + sharp 转码）
-      const coverUrl = await generateCoverForVideo(
+      const result = await generateCoverForVideo(
         video.videoUrl,
         video.id,
         COVER_DIR,
@@ -196,19 +195,22 @@ async function main() {
         }
       );
 
-      if (coverUrl) {
+      if (result) {
         await prisma.video.update({
           where: { id: video.id },
-          data: { coverUrl },
+          data: {
+            coverUrl: result.coverUrl,
+            coverBlurHash: result.blurDataURL,
+          },
         });
-        console.log(`  ✅ 成功: ${coverUrl}`);
+        console.log(`  ✅ 成功: ${result.coverUrl}`);
         successCount++;
       } else {
         console.log("  ❌ 失败: 无法生成封面");
         errorCount++;
       }
 
-      await markProgress(video.id, !!coverUrl);
+      await markProgress(video.id, !!result);
     },
     concurrency
   );

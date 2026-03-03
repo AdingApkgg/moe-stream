@@ -18,33 +18,37 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { getServerConfig } from "@/lib/server-config";
+
 const CACHE_DIR = path.join(process.cwd(), "public", "cache", "covers");
 
-async function ensureDir(dir: string) {
-  try {
-    await fs.access(dir);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
+// 延迟初始化：仅首次调用时创建目录
+let cacheDirPromise: Promise<void> | null = null;
+function ensureCacheDir(): Promise<void> {
+  if (!cacheDirPromise) {
+    cacheDirPromise = fs.mkdir(CACHE_DIR, { recursive: true }).then(() => {}).catch(() => {});
   }
+  return cacheDirPromise;
 }
 
-async function ensureCacheDir() {
-  await ensureDir(CACHE_DIR);
-}
-
+let coverDirPromise: Promise<string> | null = null;
 async function getCoverDir() {
-  const config = await getServerConfig();
-  return path.join(process.cwd(), config.uploadDir, "cover");
+  if (!coverDirPromise) {
+    coverDirPromise = (async () => {
+      const config = await getServerConfig();
+      const dir = path.join(process.cwd(), config.uploadDir, "cover");
+      await fs.mkdir(dir, { recursive: true }).catch(() => {});
+      return dir;
+    })();
+  }
+  return coverDirPromise;
 }
 
-// 生成缓存文件名
 function getCacheFileName(url: string): string {
   const hash = crypto.createHash("md5").update(url).digest("hex");
   const ext = getExtension(url);
   return `${hash}${ext}`;
 }
 
-// 获取文件扩展名
 function getExtension(url: string): string {
   try {
     const urlObj = new URL(url);
@@ -56,10 +60,9 @@ function getExtension(url: string): string {
   } catch {
     // ignore
   }
-  return ".jpg"; // 默认
+  return ".jpg";
 }
 
-// 获取 Content-Type
 function getContentType(ext: string): string {
   const types: Record<string, string> = {
     ".jpg": "image/jpeg",
@@ -72,54 +75,79 @@ function getContentType(ext: string): string {
   return types[ext] || "image/jpeg";
 }
 
-// 根据 Accept 头确定客户端支持的最佳格式
 function getPreferredFormat(acceptHeader: string | null): { ext: string; contentType: string }[] {
   const formats: { ext: string; contentType: string; priority: number }[] = [];
   
-  // 检查 AVIF 支持
   if (acceptHeader?.includes("image/avif")) {
     formats.push({ ext: ".avif", contentType: "image/avif", priority: 1 });
   }
-  
-  // 检查 WebP 支持
   if (acceptHeader?.includes("image/webp")) {
     formats.push({ ext: ".webp", contentType: "image/webp", priority: 2 });
   }
-  
-  // JPEG 总是支持的
   formats.push({ ext: ".jpg", contentType: "image/jpeg", priority: 3 });
   
-  // 按优先级排序
   return formats.sort((a, b) => a.priority - b.priority);
 }
 
-
-// 尝试常见的缩略图 URL 模式（某些 CDN 支持）
+/**
+ * 并行尝试常见 CDN 缩略图 URL 模式，返回第一个成功的结果
+ * 支持 .mp4 和 .m3u8 两种 URL 格式
+ */
 async function tryFetchThumbnailFromCDN(videoUrl: string): Promise<Buffer | null> {
-  const thumbPatterns = [
-    videoUrl.replace(/\.mp4$/i, "_thumb.jpg"),
-    videoUrl.replace(/\.mp4$/i, ".jpg"),
-    videoUrl.replace(/\.mp4$/i, "_poster.jpg"),
-    `${videoUrl}?x-oss-process=video/snapshot,t_1000,m_fast`,
-  ];
+  const thumbPatterns: string[] = [];
 
-  for (const thumbUrl of thumbPatterns) {
-    try {
-      const response = await fetch(thumbUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(5000), // 5 秒超时
-      });
-      if (response.ok) {
-        const contentType = response.headers.get("content-type") || "";
-        if (contentType.startsWith("image/")) {
-          return Buffer.from(await response.arrayBuffer());
-        }
-      }
-    } catch {
-      // 继续尝试下一个模式
-    }
+  if (/\.m3u8$/i.test(videoUrl)) {
+    const base = videoUrl.replace(/\.m3u8$/i, "");
+    thumbPatterns.push(
+      `${base}.jpg`,
+      `${base}_thumb.jpg`,
+      `${base}_poster.jpg`,
+      `${base}.png`,
+      `${base}.webp`,
+    );
+  } else {
+    thumbPatterns.push(
+      videoUrl.replace(/\.mp4$/i, "_thumb.jpg"),
+      videoUrl.replace(/\.mp4$/i, ".jpg"),
+      videoUrl.replace(/\.mp4$/i, "_poster.jpg"),
+      `${videoUrl}?x-oss-process=video/snapshot,t_1000,m_fast`,
+    );
   }
-  return null;
+
+  const fetchOne = async (thumbUrl: string): Promise<Buffer> => {
+    const response = await fetch(thumbUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error("not ok");
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) throw new Error("not image");
+    return Buffer.from(await response.arrayBuffer());
+  };
+
+  try {
+    return await Promise.any(thumbPatterns.map(fetchOne));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 读取本地文件并返回 Response（处理 /uploads/ 开头的本地路径）
+ */
+async function serveLocalFile(localPath: string): Promise<Response | null> {
+  try {
+    const data = await fs.readFile(localPath);
+    const ext = path.extname(localPath);
+    return new Response(new Uint8Array(data), {
+      headers: {
+        "Content-Type": getContentType(ext),
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(
@@ -132,13 +160,10 @@ export async function GET(
     return NextResponse.json({ error: "Missing path" }, { status: 400 });
   }
 
-  await ensureCacheDir();
-
   // 处理视频封面请求：/api/cover/video/123456
   if (pathSegments[0] === "video" && pathSegments[1]) {
     const videoId = pathSegments[1];
     
-    // 查询视频信息
     const video = await prisma.video.findUnique({
       where: { id: videoId },
       select: { coverUrl: true, videoUrl: true },
@@ -148,59 +173,66 @@ export async function GET(
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
 
-    // 如果有封面 URL，代理它
+    // coverUrl 已存在：按类型分发
     if (video.coverUrl) {
-      const cacheFile = path.join(CACHE_DIR, getCacheFileName(video.coverUrl));
-      
-      // 检查缓存
-      try {
-        const cached = await fs.readFile(cacheFile);
-        const ext = path.extname(cacheFile);
-        return new Response(new Uint8Array(cached), {
-          headers: {
-            "Content-Type": getContentType(ext),
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      } catch {
-        // 缓存不存在，获取并缓存
-      }
-
-      // 获取外部图片
-      try {
-        const response = await fetch(video.coverUrl, {
-          headers: { "User-Agent": "Mozilla/5.0" },
-        });
-
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          
-          // 保存到缓存
-          await fs.writeFile(cacheFile, buffer);
-
-          const contentType = response.headers.get("content-type") || "image/jpeg";
-          return new Response(new Uint8Array(arrayBuffer), {
+      // 本地路径：直接读取文件
+      if (video.coverUrl.startsWith("/uploads/") || video.coverUrl.startsWith("/api/cover/")) {
+        const localPath = video.coverUrl.startsWith("/uploads/")
+          ? path.join(process.cwd(), video.coverUrl.slice(1))
+          : null;
+        if (localPath) {
+          const resp = await serveLocalFile(localPath);
+          if (resp) return resp;
+        }
+      } else {
+        // 外部 URL：缓存代理
+        await ensureCacheDir();
+        const cacheFile = path.join(CACHE_DIR, getCacheFileName(video.coverUrl));
+        
+        try {
+          const cached = await fs.readFile(cacheFile);
+          const ext = path.extname(cacheFile);
+          return new Response(new Uint8Array(cached), {
             headers: {
-              "Content-Type": contentType,
+              "Content-Type": getContentType(ext),
               "Cache-Control": "public, max-age=31536000, immutable",
             },
           });
+        } catch {
+          // 缓存不存在
         }
-      } catch {
-        // 继续尝试从视频生成
+
+        try {
+          const response = await fetch(video.coverUrl, {
+            headers: { "User-Agent": "Mozilla/5.0" },
+          });
+
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            await fs.writeFile(cacheFile, buffer).catch(() => {});
+
+            const contentType = response.headers.get("content-type") || "image/jpeg";
+            return new Response(new Uint8Array(arrayBuffer), {
+              headers: {
+                "Content-Type": contentType,
+                "Cache-Control": "public, max-age=31536000, immutable",
+              },
+            });
+          }
+        } catch {
+          // 继续尝试本地文件
+        }
       }
     }
 
+    // 尝试本地已生成的封面文件（按客户端支持的格式优先级）
     const coverDir = await getCoverDir();
-    await ensureDir(coverDir);
-
     const acceptHeader = request.headers.get("accept");
     const preferredFormats = getPreferredFormat(acceptHeader);
 
     for (const format of preferredFormats) {
-      const coverFileName = `${videoId}${format.ext}`;
-      const coverFilePath = path.join(coverDir, coverFileName);
+      const coverFilePath = path.join(coverDir, `${videoId}${format.ext}`);
       try {
         const cached = await fs.readFile(coverFilePath);
         return new Response(new Uint8Array(cached), {
@@ -215,11 +247,11 @@ export async function GET(
       }
     }
 
-    // 方案 1: 尝试从 CDN 获取缩略图（作为后备）
+    // 尝试从 CDN 获取缩略图（并行请求，快速返回）
     const cdnThumbnail = await tryFetchThumbnailFromCDN(video.videoUrl);
     if (cdnThumbnail) {
       const cdnCoverPath = path.join(coverDir, `${videoId}.jpg`);
-      await fs.writeFile(cdnCoverPath, cdnThumbnail);
+      await fs.writeFile(cdnCoverPath, cdnThumbnail).catch(() => {});
       
       return new Response(new Uint8Array(cdnThumbnail), {
         headers: {
@@ -230,7 +262,7 @@ export async function GET(
       });
     }
 
-    // 加入队列异步生成（Worker 由 instrumentation.ts 启动）
+    // 加入队列异步生成
     await enqueueCoverForVideo(videoId);
 
     return NextResponse.json(
@@ -245,8 +277,7 @@ export async function GET(
     );
   }
 
-  // 代理外部图片：/api/cover/https://example.com/image.jpg
-  // 注意：前端可能 encodeURIComponent 了整个路径，需要解码
+  // 代理外部图片或本地 uploads
   const rawImageUrl = pathSegments.join("/");
   const imageUrl = decodeURIComponent(rawImageUrl);
 
@@ -260,21 +291,11 @@ export async function GET(
     normalizedLocalPath.startsWith("uploads/") &&
     candidateLocalPath.startsWith(uploadsRoot)
   ) {
-    try {
-      const cached = await fs.readFile(candidateLocalPath);
-      const ext = path.extname(candidateLocalPath);
-      return new Response(new Uint8Array(cached), {
-        headers: {
-          "Content-Type": getContentType(ext),
-          "Cache-Control": "public, max-age=31536000, immutable",
-        },
-      });
-    } catch {
-      return NextResponse.json({ error: "Local image not found" }, { status: 404 });
-    }
+    const resp = await serveLocalFile(candidateLocalPath);
+    if (resp) return resp;
+    return NextResponse.json({ error: "Local image not found" }, { status: 404 });
   }
   
-  // 验证 URL
   let url: URL;
   try {
     url = new URL(imageUrl);
@@ -282,9 +303,9 @@ export async function GET(
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
+  await ensureCacheDir();
   const cacheFile = path.join(CACHE_DIR, getCacheFileName(imageUrl));
   
-  // 检查缓存
   try {
     const cached = await fs.readFile(cacheFile);
     const ext = path.extname(cacheFile);
@@ -298,7 +319,6 @@ export async function GET(
     // 缓存不存在
   }
 
-  // 获取外部图片
   try {
     const response = await fetch(url.toString(), {
       headers: {
@@ -317,9 +337,7 @@ export async function GET(
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
-    // 保存到缓存
-    await fs.writeFile(cacheFile, buffer);
+    await fs.writeFile(cacheFile, buffer).catch(() => {});
 
     return new Response(new Uint8Array(arrayBuffer), {
       headers: {

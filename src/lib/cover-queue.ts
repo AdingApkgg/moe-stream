@@ -11,11 +11,42 @@ type ProcessOptions = {
 
 function log(msg: string, ...args: unknown[]) {
   const ts = new Date().toISOString();
-  console.log(`[${ts}][CoverQueue] ${msg}`, ...args);
+  const full = `[${ts}][CoverQueue] ${msg}${args.length ? " " + args.map(String).join(" ") : ""}`;
+  console.log(full);
+  appendCoverLog(full);
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ========== 日志存储 ==========
+
+const LOG_KEY = "cover:logs";
+const LOG_MAX_ENTRIES = 200;
+
+function appendCoverLog(line: string): void {
+  redis.lpush(LOG_KEY, line).then(() => {
+    redis.ltrim(LOG_KEY, 0, LOG_MAX_ENTRIES - 1).catch(() => {});
+  }).catch(() => {});
+}
+
+/**
+ * 向封面日志追加一条记录（供外部模块调用）
+ */
+export function pushCoverLog(tag: string, msg: string, ...args: unknown[]): void {
+  const ts = new Date().toISOString();
+  const full = `[${ts}][${tag}] ${msg}${args.length ? " " + args.map(String).join(" ") : ""}`;
+  console.log(full);
+  appendCoverLog(full);
+}
+
+export async function getCoverLogs(limit = 100): Promise<string[]> {
+  return redis.lrange(LOG_KEY, 0, limit - 1);
+}
+
+export async function clearCoverLogs(): Promise<void> {
+  await redis.del(LOG_KEY);
 }
 
 function lockKey(videoId: string) {
@@ -137,6 +168,103 @@ async function cleanupAfterDone(videoId: string): Promise<void> {
   await pipeline.exec();
 }
 
+// ========== 统计计数 ==========
+
+const STATS_KEY = "cover:stats";
+
+async function recordStats(ok: boolean, elapsedMs: number): Promise<void> {
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.hincrby(STATS_KEY, ok ? "success" : "failure", 1);
+    pipeline.hincrby(STATS_KEY, "total_ms", elapsedMs);
+    pipeline.hincrby(STATS_KEY, "count", 1);
+    await pipeline.exec();
+  } catch {
+    // 统计失败不影响主流程
+  }
+}
+
+export interface CoverStats {
+  success: number;
+  failure: number;
+  totalMs: number;
+  count: number;
+  avgMs: number;
+  queueLength: number;
+}
+
+export async function getCoverStats(): Promise<CoverStats> {
+  const pipeline = redis.pipeline();
+  pipeline.hgetall(STATS_KEY);
+  pipeline.llen(COVER_CONFIG.queueName);
+  const results = await pipeline.exec();
+
+  const raw = (results?.[0]?.[1] as Record<string, string>) || {};
+  const queueLength = (results?.[1]?.[1] as number) || 0;
+
+  const success = parseInt(raw.success || "0", 10);
+  const failure = parseInt(raw.failure || "0", 10);
+  const totalMs = parseInt(raw.total_ms || "0", 10);
+  const count = parseInt(raw.count || "0", 10);
+
+  return {
+    success,
+    failure,
+    totalMs,
+    count,
+    avgMs: count > 0 ? Math.round(totalMs / count) : 0,
+    queueLength,
+  };
+}
+
+export async function resetCoverStats(): Promise<void> {
+  await redis.del(STATS_KEY);
+}
+
+// ========== 永久失败追踪 ==========
+
+const FAILED_SET_KEY = "cover:failed";
+const FAIL_COUNT_PREFIX = "cover:failcount:";
+const MAX_TOTAL_FAILURES = 5;
+
+/**
+ * 记录视频的总失败次数（跨 backfill 周期累计）
+ * 当总失败次数超过阈值时，加入永久失败集合
+ */
+export async function recordFailure(videoId: string): Promise<boolean> {
+  const countKey = `${FAIL_COUNT_PREFIX}${videoId}`;
+  const pipeline = redis.pipeline();
+  pipeline.incr(countKey);
+  pipeline.expire(countKey, 86400 * 7); // 7 天后自动清除计数
+  const results = await pipeline.exec();
+  const count = (results?.[0]?.[1] as number) ?? 0;
+
+  if (count >= MAX_TOTAL_FAILURES) {
+    await redis.sadd(FAILED_SET_KEY, videoId);
+    await redis.del(countKey);
+    log(`视频 ${videoId} 已失败 ${count} 次，标记为永久失败`);
+    return true;
+  }
+  return false;
+}
+
+export async function isPermFailedVideo(videoId: string): Promise<boolean> {
+  return (await redis.sismember(FAILED_SET_KEY, videoId)) === 1;
+}
+
+export async function getPermFailedVideos(): Promise<string[]> {
+  return redis.smembers(FAILED_SET_KEY);
+}
+
+export async function clearPermFailed(videoIds?: string[]): Promise<number> {
+  if (!videoIds || videoIds.length === 0) {
+    const count = await redis.scard(FAILED_SET_KEY);
+    await redis.del(FAILED_SET_KEY);
+    return count;
+  }
+  return redis.srem(FAILED_SET_KEY, ...videoIds);
+}
+
 export async function processQueue(
   processor: (videoId: string) => Promise<boolean>,
   options: ProcessOptions = {}
@@ -188,8 +316,9 @@ export async function processQueue(
       const elapsed = Date.now() - startTime;
       processed += 1;
 
+      await recordStats(ok, elapsed);
+
       if (ok) {
-        // 成功：清除重试计数 + 释放锁（1 次网络往返）
         await cleanupAfterDone(videoId);
         log(`Worker ${workerId} 完成: ${videoId} (${elapsed}ms)`);
       } else {
@@ -202,6 +331,7 @@ export async function processQueue(
         } else {
           log(`Worker ${workerId} 放弃: ${videoId} (已重试 ${maxRetries} 次)`);
           await cleanupAfterDone(videoId);
+          await recordFailure(videoId);
         }
       }
 

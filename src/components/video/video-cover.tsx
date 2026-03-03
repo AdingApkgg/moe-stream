@@ -7,11 +7,11 @@ import { useEffect, useRef, useState } from "react";
 interface VideoCoverProps {
   videoId?: string;
   coverUrl?: string | null;
+  blurDataURL?: string | null;
   title: string;
   className?: string;
 }
 
-// 占位符组件
 function CoverPlaceholder({ className = "" }: { className?: string }) {
   return (
     <div 
@@ -28,14 +28,17 @@ function CoverPlaceholder({ className = "" }: { className?: string }) {
   );
 }
 
-export function VideoCover({ videoId, coverUrl, title, className = "" }: VideoCoverProps) {
-  const [retryIndex, setRetryIndex] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
+export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = "" }: VideoCoverProps) {
+  const [retryKey, setRetryKey] = useState(0);
   const [giveUp, setGiveUp] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldRetry = Boolean(videoId && !coverUrl);
   const maxRetries = 12;
   const retryDelayMs = 5000;
+
+  // 稳定的本地封面无需 unoptimized，可享受 Next.js 图片优化
+  const isStableLocal = Boolean(coverUrl?.startsWith("/uploads/"));
 
   useEffect(() => {
     return () => {
@@ -45,12 +48,10 @@ export function VideoCover({ videoId, coverUrl, title, className = "" }: VideoCo
     };
   }, []);
 
-  // 获取封面 URL
   const getCoverSrc = () => {
     if (giveUp) return null;
     
     if (coverUrl) {
-      // 本地路径直接访问，外部 URL 走代理
       if (coverUrl.startsWith("/uploads/")) {
         return coverUrl;
       }
@@ -58,7 +59,6 @@ export function VideoCover({ videoId, coverUrl, title, className = "" }: VideoCo
     }
     
     if (videoId) {
-      // 自动从视频生成封面（使用 ffmpeg）
       return `/api/cover/video/${videoId}`;
     }
     
@@ -67,44 +67,51 @@ export function VideoCover({ videoId, coverUrl, title, className = "" }: VideoCo
 
   const coverSrc = getCoverSrc();
   const coverSrcWithRetry =
-    coverSrc && shouldRetry ? `${coverSrc}?r=${retryIndex}` : coverSrc;
+    coverSrc && shouldRetry ? `${coverSrc}?r=${retryKey}` : coverSrc;
 
-  // 无法获取封面时显示占位符
-  if (!coverSrcWithRetry || isRetrying) {
+  if (!coverSrcWithRetry) {
     return <CoverPlaceholder className={className} />;
   }
 
+  const placeholderProps = blurDataURL
+    ? ({ placeholder: "blur" as const, blurDataURL })
+    : {};
+
   return (
-    <Image
-      src={coverSrcWithRetry}
-      alt={title}
-      fill
-      className={`object-cover ${className}`}
-      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-      onError={() => {
-        if (!shouldRetry) {
-          setGiveUp(true);
-          return;
-        }
+    <>
+      {/* 底层始终渲染占位符，避免重试时闪烁 */}
+      {!loaded && <CoverPlaceholder className={className} />}
+      <Image
+        key={retryKey}
+        src={coverSrcWithRetry}
+        alt={title}
+        fill
+        className={`object-cover ${className}`}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        unoptimized={!isStableLocal}
+        {...placeholderProps}
+        onError={() => {
+          if (!shouldRetry) {
+            setGiveUp(true);
+            return;
+          }
 
-        if (retryIndex >= maxRetries) {
-          setGiveUp(true);
-          return;
-        }
+          if (retryKey >= maxRetries) {
+            setGiveUp(true);
+            return;
+          }
 
-        setIsRetrying(true);
-        if (retryTimerRef.current) {
-          clearTimeout(retryTimerRef.current);
-        }
-        retryTimerRef.current = setTimeout(() => {
-          setRetryIndex((value) => value + 1);
-          setIsRetrying(false);
-        }, retryDelayMs);
-      }}
-      onLoad={() => {
-        setIsRetrying(false);
-      }}
-      unoptimized // 跳过 Next.js 图片优化，因为 API 可能返回 404
-    />
+          if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+          }
+          retryTimerRef.current = setTimeout(() => {
+            setRetryKey((v) => v + 1);
+          }, retryDelayMs);
+        }}
+        onLoad={() => {
+          setLoaded(true);
+        }}
+      />
+    </>
   );
 }

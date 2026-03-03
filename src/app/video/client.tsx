@@ -32,6 +32,7 @@ interface Video {
   id: string;
   title: string;
   coverUrl: string | null;
+  coverBlurHash?: string | null;
   duration: number | null;
   views: number;
   createdAt: string;

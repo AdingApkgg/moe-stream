@@ -9,9 +9,10 @@ export type CoverFormat = (typeof COVER_CONFIG.formats)[number];
 
 // ========== 结构化日志 ==========
 
+import { pushCoverLog } from "@/lib/cover-queue";
+
 function log(tag: string, msg: string, ...args: unknown[]) {
-  const ts = new Date().toISOString();
-  console.log(`[${ts}][${tag}] ${msg}`, ...args);
+  pushCoverLog(tag, msg, ...args);
 }
 
 // ========== ffmpeg / ffprobe ==========
@@ -22,14 +23,35 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isHlsUrl(url: string): boolean {
+  return /\.m3u8(\?|$)/i.test(url);
+}
+
 /**
  * 获取用于限制远程 URL 流分析开销的 ffmpeg 参数
+ * HLS 流需要更大的分析窗口和协议白名单
  */
-function getStreamHints(): string[] {
+function getStreamHints(videoUrl?: string): string[] {
+  const hls = videoUrl && isHlsUrl(videoUrl);
   return [
-    "-analyzeduration", String(COVER_CONFIG.analyzeDuration),
-    "-probesize", String(COVER_CONFIG.probeSize),
+    "-analyzeduration", String(hls ? COVER_CONFIG.analyzeDuration * 3 : COVER_CONFIG.analyzeDuration),
+    "-probesize", String(hls ? COVER_CONFIG.probeSize * 3 : COVER_CONFIG.probeSize),
   ];
+}
+
+/**
+ * 获取远程 URL 的 HTTP 头和协议参数
+ * 对 HLS 流添加协议白名单，对所有远程 URL 添加 User-Agent
+ */
+function getRemoteInputArgs(videoUrl: string): string[] {
+  const args: string[] = [];
+  if (/^https?:\/\//i.test(videoUrl)) {
+    args.push("-headers", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n");
+  }
+  if (isHlsUrl(videoUrl)) {
+    args.push("-protocol_whitelist", "file,http,https,tcp,tls,crypto");
+  }
+  return args;
 }
 
 function runFfmpeg(args: string[], timeoutMs: number): Promise<FfmpegResult> {
@@ -72,13 +94,16 @@ function runFfmpeg(args: string[], timeoutMs: number): Promise<FfmpegResult> {
  */
 export function getVideoDuration(videoUrl: string): Promise<number | null> {
   return new Promise((resolve) => {
+    const hls = isHlsUrl(videoUrl);
     const args = [
-      ...getStreamHints(),
+      ...getStreamHints(videoUrl),
+      ...getRemoteInputArgs(videoUrl),
       "-v", "error",
       "-show_entries", "format=duration",
       "-of", "default=noprint_wrappers=1:nokey=1",
       videoUrl,
     ];
+    const probeTimeout = hls ? COVER_CONFIG.probeTimeout * 3 : COVER_CONFIG.probeTimeout;
     log("ffprobe", `获取视频时长: ${videoUrl.slice(0, 80)}...`);
     const proc = spawn("ffprobe", args);
     let stdout = "";
@@ -88,10 +113,10 @@ export function getVideoDuration(videoUrl: string): Promise<number | null> {
       if (!settled) {
         settled = true;
         proc.kill("SIGKILL");
-        log("ffprobe", `超时 (${COVER_CONFIG.probeTimeout}ms)，使用默认采样点`);
+        log("ffprobe", `超时 (${probeTimeout}ms)，使用默认采样点`);
         resolve(null);
       }
-    }, COVER_CONFIG.probeTimeout);
+    }, probeTimeout);
 
     proc.stdout.on("data", (data: Buffer) => {
       stdout += data.toString();
@@ -138,9 +163,9 @@ export function computeSamplePoints(duration: number | null, count: number): num
     );
   }
 
-  // 正常/长视频: 从 5% 到 60% 区间均匀分布
+  // 正常/长视频: 从 5% 到 75% 区间均匀分布
   const start = duration * 0.05;
-  const end = duration * 0.6;
+  const end = duration * 0.75;
   const step = count > 1 ? (end - start) / (count - 1) : 0;
   return Array.from({ length: count }, (_, i) =>
     Math.round((start + i * step) * 10) / 10
@@ -156,9 +181,11 @@ async function extractFrame(
   width: number,
   timeoutMs: number
 ): Promise<boolean> {
+  const hls = isHlsUrl(videoUrl);
   const args = [
     "-ss", String(timeSec),
-    ...getStreamHints(),
+    ...getStreamHints(videoUrl),
+    ...getRemoteInputArgs(videoUrl),
     "-i", videoUrl,
     "-vframes", "1",
     "-vf", `scale=${width}:-2`,
@@ -166,31 +193,29 @@ async function extractFrame(
     "-y",
     outputPath,
   ];
-  const result = await runFfmpeg(args, timeoutMs);
+  const effectiveTimeout = hls ? Math.max(timeoutMs, 45000) : timeoutMs;
+  const result = await runFfmpeg(args, effectiveTimeout);
   return result.ok;
 }
 
 /**
- * 分析帧质量：亮度、对比度、锐度
- * 评分公式: brightness * 0.4 + contrast * 0.3 + sharpness * 0.3
- *
- * 优化: 先用 sharp 缩放到 analysisWidth 再分析，显著减少 CPU 开销
+ * 分析帧质量：亮度、对比度、锐度、饱和度
+ * 评分公式: brightness * 0.3 + contrast * 0.25 + sharpness * 0.25 + saturation * 0.2
  */
 async function analyzeFrame(filePath: string): Promise<{
   brightness: number;
   contrast: number;
   sharpness: number;
+  saturation: number;
   score: number;
   valid: boolean;
 }> {
-  // 缩放到分析尺寸，避免在全分辨率图像上做卷积
   const analysisWidth = COVER_CONFIG.analysisWidth;
   const resized = sharp(filePath).resize(analysisWidth, undefined, {
     withoutEnlargement: true,
     fastShrinkOnLoad: true,
   });
 
-  // 并行执行统计分析和锐度分析
   const [stats, sharpnessRaw] = await Promise.all([
     resized.clone().stats(),
     resized
@@ -203,7 +228,7 @@ async function analyzeFrame(filePath: string): Promise<{
       })
       .stats()
       .then((s) => s.channels[0]?.stdev ?? 0)
-      .catch(() => 0), // 回退：卷积失败时锐度为 0
+      .catch(() => 0),
   ]);
 
   const channels = stats.channels;
@@ -220,22 +245,26 @@ async function analyzeFrame(filePath: string): Promise<{
       ? (red.stdev + green.stdev + blue.stdev) / 3
       : channels[0]?.stdev ?? 0;
 
-  // 如果锐度分析失败，使用对比度作为近似值
   const finalSharpness = sharpnessRaw || stddev;
+
+  // HSV 饱和度近似：利用 RGB 通道均值计算
+  const maxCh = red && green && blue ? Math.max(red.mean, green.mean, blue.mean) : 0;
+  const minCh = red && green && blue ? Math.min(red.mean, green.mean, blue.mean) : 0;
+  const rawSaturation = maxCh > 0 ? (maxCh - minCh) / maxCh : 0;
 
   const tooDark = mean < 10;
   const tooBright = mean > 245;
   const valid = !tooDark && !tooBright;
 
-  // 归一化到 0-1
   const brightness = 1 - Math.min(1, Math.abs(mean - 128) / 128);
   const contrast = Math.min(1, stddev / 64);
   const sharpness = Math.min(1, finalSharpness / 50);
+  const saturation = Math.min(1, rawSaturation);
 
-  // 加权评分: 亮度 40% + 对比度 30% + 锐度 30%
-  const score = brightness * 0.4 + contrast * 0.3 + sharpness * 0.3;
+  const score =
+    brightness * 0.3 + contrast * 0.25 + sharpness * 0.25 + saturation * 0.2;
 
-  return { brightness, contrast, sharpness, score, valid };
+  return { brightness, contrast, sharpness, saturation, score, valid };
 }
 
 // ========== 智能选帧 ==========
@@ -282,7 +311,7 @@ export async function selectBestFrame(
   try {
     // 串行提取采样帧（避免并发请求冲击 CDN 导致 Connection reset）
     // 每帧之间交错 300ms，并支持早停（得分 >= 0.7 即可跳过剩余帧）
-    const EARLY_STOP_SCORE = 0.7;
+    const EARLY_STOP_SCORE = 0.8;
     const STAGGER_DELAY_MS = 300;
 
     type FrameResult = { timeSec: number; framePath: string; analysis: Awaited<ReturnType<typeof analyzeFrame>> };
@@ -309,7 +338,7 @@ export async function selectBestFrame(
         const analysis = await analyzeFrame(framePath);
         log(
           "CoverGen",
-          `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`
+          `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 饱和=${analysis.saturation.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`
         );
         frameResults.push({ timeSec, framePath, analysis });
 
@@ -408,6 +437,25 @@ export async function convertFrameToCover(
   }
 }
 
+// ========== blurDataURL 生成 ==========
+
+/**
+ * 从帧图片生成极小的模糊占位图 data URL
+ * 用于 Next.js Image 的 blurDataURL prop，实现即时加载预览
+ */
+export async function generateBlurDataURL(input: string | Buffer): Promise<string | null> {
+  try {
+    const tiny = await sharp(input)
+      .resize(32, 18, { fit: "cover" })
+      .blur(8)
+      .jpeg({ quality: 30 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${tiny.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 // ========== 高级 API ==========
 
 export interface GenerateCoverOptions {
@@ -418,33 +466,31 @@ export interface GenerateCoverOptions {
   retryDelayMs?: number;
 }
 
+export interface GenerateCoverResult {
+  coverUrl: string;
+  blurDataURL: string | null;
+}
+
 /**
  * 为视频生成封面（完整流程）
  *
- * 性能优化:
- * 1. 串行采样帧 + 交错延迟（避免 CDN 限流），支持早停
- * 2. ffprobe 超时 5s → 快速回退到固定采样点
- * 3. ffmpeg -analyzeduration/-probesize 限制远程流探测开销
- * 4. 帧分析在 480px 低分辨率下进行（减少 sharp 计算量）
- * 5. 统计分析 + 锐度分析并行执行
- * 6. AVIF effort=2（比 effort=4 快 2-3 倍，质量损失极小）
- * 7. 重试仅重试转换步骤，不重复采样
- *
- * @returns coverUrl 路径（如 /uploads/cover/videoId.avif），失败返回 null
+ * 1. 智能选帧（串行提取 + 质量分析 + 早停）
+ * 2. 并行生成 AVIF/WebP/JPEG 三种格式（确保所有浏览器都有最优格式）
+ * 3. 生成 blurDataURL 占位图
+ * 4. 返回最高优先级的成功格式作为 coverUrl
  */
 export async function generateCoverForVideo(
   videoUrl: string,
   videoId: string,
   coverDir: string,
   options?: GenerateCoverOptions
-): Promise<string | null> {
+): Promise<GenerateCoverResult | null> {
   const maxRetries = options?.maxRetries ?? COVER_CONFIG.maxRetries;
   const retryDelayMs = options?.retryDelayMs ?? COVER_CONFIG.retryDelay;
   const startTime = Date.now();
 
   log("CoverGen", `开始生成封面: videoId=${videoId}`);
 
-  // Step 1: 智能选帧（耗时操作，仅执行一次）
   const best = await selectBestFrame(videoUrl, {
     samplePoints: options?.samplePoints,
     width: options?.width ?? COVER_CONFIG.width,
@@ -457,31 +503,46 @@ export async function generateCoverForVideo(
   }
 
   try {
-    // Step 2: 按格式优先级尝试转换（sharp 转码，极快，可重试）
-    for (const format of COVER_CONFIG.formats) {
+    // 并行生成所有格式 + blurDataURL
+    const formatTasks = COVER_CONFIG.formats.map(async (format) => {
       const coverFileName = `${videoId}.${format}`;
       const coverFilePath = path.join(coverDir, coverFileName);
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         const ok = await convertFrameToCover(best.framePath, coverFilePath, format);
-        if (ok) {
-          const elapsed = Date.now() - startTime;
-          log("CoverGen", `✓ 封面生成成功: videoId=${videoId}, 格式=${format}, 耗时=${elapsed}ms`);
-          return `/uploads/cover/${coverFileName}`;
-        }
-        if (attempt < maxRetries) {
-          log("CoverGen", `转换重试 ${attempt + 1}/${maxRetries}: ${format}`);
-          await sleep(retryDelayMs);
-        }
+        if (ok) return { format, coverFileName };
+        if (attempt < maxRetries) await sleep(retryDelayMs);
       }
-      log("CoverGen", `${format} 格式全部重试失败，尝试下一格式`);
+      return null;
+    });
+
+    const [blurDataURL, ...formatResults] = await Promise.all([
+      generateBlurDataURL(best.framePath),
+      ...formatTasks,
+    ]);
+
+    const successFormats = formatResults.filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
+    const elapsed = Date.now() - startTime;
+
+    if (successFormats.length === 0) {
+      log("CoverGen", `✗ 封面生成失败: videoId=${videoId}, 所有格式失败, 耗时=${elapsed}ms`);
+      return null;
     }
 
-    const elapsed = Date.now() - startTime;
-    log("CoverGen", `✗ 封面生成失败: videoId=${videoId}, 所有格式失败, 耗时=${elapsed}ms`);
-    return null;
+    // 返回最高优先级格式（formats 数组已按优先级排序）
+    const primary = successFormats[0];
+    log(
+      "CoverGen",
+      `✓ 封面生成成功: videoId=${videoId}, 格式=${successFormats.map((f) => f.format).join("+")}, 耗时=${elapsed}ms`
+    );
+
+    return {
+      coverUrl: `/uploads/cover/${primary.coverFileName}`,
+      blurDataURL,
+    };
   } finally {
-    // 清理临时目录
     await fs.rm(best.tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }

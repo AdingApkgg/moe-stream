@@ -8,7 +8,7 @@ export const COVER_CONFIG = {
   /** 默认采样点（秒），会被动态采样覆盖 */
   samplePoints: [1, 3, 5, 10] as const,
   /** 动态采样数量 */
-  sampleCount: 4,
+  sampleCount: 5,
   /** 最大并发 worker 数 */
   maxConcurrency: 4,
   /** 单次 ffmpeg 超时（ms） */

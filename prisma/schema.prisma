@@ -200,8 +200,9 @@ model Video {
   id          String      @id // 随机 6 位数字 ID (000000-999999)
   title       String
   description String?     @db.Text
-  coverUrl    String?     // 可选，不填则显示默认封面
-  videoUrl    String
+  coverUrl      String?     // 可选，不填则显示默认封面
+  coverBlurHash String?     // 封面模糊占位图 (base64 data URL)
+  videoUrl      String
   duration    Int?
   views       Int         @default(0)
   status      VideoStatus @default(PENDING)
