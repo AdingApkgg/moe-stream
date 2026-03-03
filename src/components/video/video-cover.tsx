@@ -37,8 +37,8 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
   const maxRetries = 12;
   const retryDelayMs = 5000;
 
-  // 稳定的本地封面无需 unoptimized，可享受 Next.js 图片优化
-  const isStableLocal = Boolean(coverUrl?.startsWith("/uploads/"));
+  // 封面已经是优化后的 AVIF/WebP，且 /uploads/ 通过 rewrite 到 API route，
+  // Next.js Image 优化器无法处理，统一使用 unoptimized
 
   useEffect(() => {
     return () => {
@@ -88,7 +88,7 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
         fill
         className={`object-cover ${className}`}
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        unoptimized={!isStableLocal}
+        unoptimized
         {...placeholderProps}
         onError={() => {
           if (!shouldRetry) {
