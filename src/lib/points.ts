@@ -80,13 +80,12 @@ async function getPointsRules(): Promise<PointsRulesConfig> {
   return cachedRules;
 }
 
-/**
- * Returns the Redis key for tracking daily action count.
- * Key expires at midnight UTC+8 (or at end of the user's calendar day).
- */
+function localDateString(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function dailyKey(userId: string, action: PointsAction): string {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  return `pts:${userId}:${action}:${today}`;
+  return `pts:${userId}:${action}:${localDateString()}`;
 }
 
 /**
@@ -134,21 +133,23 @@ export async function awardPoints(
       }
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { points: { increment: rule.points } },
-      select: { points: true },
-    });
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { points: { increment: rule.points } },
+        select: { points: true },
+      });
 
-    await prisma.pointsTransaction.create({
-      data: {
-        userId,
-        amount: rule.points,
-        balance: user.points,
-        type: action as PointsTransactionType,
-        description: description || ACTION_LABELS[action],
-        relatedId: relatedId || null,
-      },
+      await tx.pointsTransaction.create({
+        data: {
+          userId,
+          amount: rule.points,
+          balance: user.points,
+          type: action as PointsTransactionType,
+          description: description || ACTION_LABELS[action],
+          relatedId: relatedId || null,
+        },
+      });
     });
 
     return rule.points;
@@ -200,9 +201,10 @@ export async function awardCheckin(userId: string): Promise<number> {
 
     if (!config?.checkinEnabled) return 0;
 
-    const todayKey = `checkin:${userId}:${new Date().toISOString().slice(0, 10)}`;
+    const today = localDateString();
+    const redisKey = `checkin:${userId}:${today}`;
     try {
-      const already = await redis.get(todayKey);
+      const already = await redis.get(redisKey);
       if (already) return 0;
     } catch {
       // Redis down — fall through to DB check
@@ -219,24 +221,26 @@ export async function awardCheckin(userId: string): Promise<number> {
     const points = normalDistributionPoints(config.checkinPointsMin, config.checkinPointsMax);
     if (points <= 0) return 0;
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { points: { increment: points } },
-      select: { points: true },
-    });
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { points: { increment: points } },
+        select: { points: true },
+      });
 
-    await prisma.pointsTransaction.create({
-      data: {
-        userId,
-        amount: points,
-        balance: user.points,
-        type: "CHECKIN",
-        description: `每日签到 +${points}`,
-      },
+      await tx.pointsTransaction.create({
+        data: {
+          userId,
+          amount: points,
+          balance: user.points,
+          type: "CHECKIN",
+          description: `每日签到 +${points}`,
+        },
+      });
     });
 
     try {
-      await redis.set(todayKey, "1", "EX", 86400);
+      await redis.set(redisKey, "1", "EX", 86400);
     } catch {
       // Redis down — acceptable
     }

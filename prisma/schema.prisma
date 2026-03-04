@@ -83,6 +83,7 @@ model User {
   referralsMade      ReferralRecord[] @relation("Referrer")
   referralReceived   ReferralRecord?  @relation("ReferredUser")
   pointsTransactions PointsTransaction[]
+  redeemCodeRedemptions RedeemCodeRedemption[]
 
   @@index([email])
   @@index([username])
@@ -1164,6 +1165,43 @@ enum PointsTransactionType {
   LIKE_IMAGE
   FAVORITE_IMAGE
   COMMENT_IMAGE
+  REDEEM_CODE
+}
+
+// ==================== 兑换码 ====================
+
+model RedeemCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  description   String?
+  pointsAmount  Int       @default(0)
+  grantUpload   Boolean   @default(false)
+  maxUses       Int       @default(1)
+  usedCount     Int       @default(0)
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+  batchId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  redemptions RedeemCodeRedemption[]
+
+  @@index([batchId])
+  @@index([isActive, expiresAt])
+}
+
+model RedeemCodeRedemption {
+  id         String   @id @default(cuid())
+  codeId     String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  code RedeemCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([codeId, userId])
+  @@index([codeId])
+  @@index([userId])
 }
 
 // ==================== 友情链接 ====================

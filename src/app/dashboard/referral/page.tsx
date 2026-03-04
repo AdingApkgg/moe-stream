@@ -48,6 +48,7 @@ import {
   History,
   CalendarCheck,
   Gift,
+  Ticket,
 } from "lucide-react";
 import { useSiteConfig } from "@/contexts/site-config";
 
@@ -543,6 +544,19 @@ function PointsHistory() {
     POINTS_CONSUME: "积分消耗",
     CHECKIN: "每日签到",
     DAILY_LOGIN: "每日登录",
+    WATCH_VIDEO: "观看视频",
+    LIKE_VIDEO: "点赞视频",
+    FAVORITE_VIDEO: "收藏视频",
+    COMMENT_VIDEO: "评论视频",
+    VIEW_GAME: "浏览游戏",
+    LIKE_GAME: "点赞游戏",
+    FAVORITE_GAME: "收藏游戏",
+    COMMENT_GAME: "评论游戏",
+    VIEW_IMAGE: "浏览图片",
+    LIKE_IMAGE: "点赞图片",
+    FAVORITE_IMAGE: "收藏图片",
+    COMMENT_IMAGE: "评论图片",
+    REDEEM_CODE: "兑换码兑换",
   };
 
   if (isLoading) {
@@ -635,6 +649,63 @@ function PointsHistory() {
   );
 }
 
+function RedeemCodeCard() {
+  const [code, setCode] = useState("");
+  const utils = trpc.useUtils();
+
+  const redeemMutation = trpc.redeem.redeem.useMutation({
+    onSuccess: (data) => {
+      const rewardText = data.rewards.join("、");
+      toast.success(`兑换成功！获得: ${rewardText}`);
+      setCode("");
+      utils.referral.getMyStats.invalidate();
+      utils.referral.getPointsHistory.invalidate();
+      utils.user.me.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Ticket className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm mb-1.5">兑换码</div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="输入兑换码"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && code.trim()) {
+                    redeemMutation.mutate({ code: code.trim() });
+                  }
+                }}
+                className="h-8 text-sm font-mono"
+              />
+              <Button
+                size="sm"
+                disabled={!code.trim() || redeemMutation.isPending}
+                onClick={() => redeemMutation.mutate({ code: code.trim() })}
+                className="shrink-0"
+              >
+                {redeemMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "兑换"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ReferralPage() {
   return (
     <div className="space-y-6">
@@ -649,6 +720,8 @@ export default function ReferralPage() {
       </div>
 
       <CheckinCard />
+
+      <RedeemCodeCard />
 
       <StatsCards />
 
