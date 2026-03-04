@@ -62,16 +62,13 @@ function getContentHref(type: ContentType, id: string): string {
   return `/image/${id}`;
 }
 
-function getMetricIcon(metric: Metric): LucideIcon {
-  const map: Record<Metric, LucideIcon> = {
-    views: Eye, likes: Heart, favorites: Star, comments: MessageSquare, uploads: Upload,
-  };
-  return map[metric];
-}
+const METRIC_ICON_MAP: Record<Metric, LucideIcon> = {
+  views: Eye, likes: Heart, favorites: Star, comments: MessageSquare, uploads: Upload,
+};
 
-function getUserTypeIcon(type: UserType): LucideIcon {
-  return USER_TYPES.find((t) => t.id === type)?.icon ?? Users;
-}
+const USER_TYPE_ICON_MAP: Record<UserType, LucideIcon> = {
+  points: Coins, uploader: Upload, commentator: MessageSquare, liker: Heart, collector: Star,
+};
 
 // ==================== 排名徽章 ====================
 
@@ -132,7 +129,7 @@ function ContentRankItem({
   type: ContentType;
   metric: Metric;
 }) {
-  const MetricIcon = getMetricIcon(metric);
+  const Icon = METRIC_ICON_MAP[metric];
   const href = getContentHref(type, item.id);
 
   return (
@@ -146,7 +143,8 @@ function ContentRankItem({
       <RankBadge rank={rank} />
 
       {item.coverUrl && (
-        <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
+        <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0 relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={item.coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
       )}
@@ -167,7 +165,7 @@ function ContentRankItem({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        <MetricIcon className="h-3.5 w-3.5 text-muted-foreground" />
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <span className={cn("text-sm tabular-nums", rank <= 3 ? "font-bold" : "font-semibold")}>
           {formatValue(item.value)}
         </span>
@@ -194,17 +192,8 @@ function UserRankItem({
   };
   userType: UserType;
 }) {
-  const TypeIcon = getUserTypeIcon(userType);
+  const Icon = USER_TYPE_ICON_MAP[userType];
   const detail = item.detail ?? (item.extra as { video?: number; game?: number; image?: number } | undefined);
-
-  const unitLabel: Record<UserType, string> = {
-    points: "积分",
-    uploader: "投稿",
-    commentator: "评论",
-    collector: "收藏",
-    liker: "点赞",
-  };
-
   const showBreakdown = userType !== "points" && detail;
 
   return (
@@ -253,7 +242,7 @@ function UserRankItem({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        <TypeIcon className={cn("h-3.5 w-3.5", userType === "points" ? "text-amber-500" : "text-muted-foreground")} />
+        <Icon className={cn("h-3.5 w-3.5", userType === "points" ? "text-amber-500" : "text-muted-foreground")} />
         <span className={cn("text-sm tabular-nums", rank <= 3 ? "font-bold" : "font-semibold")}>
           {formatValue(item.value)}
         </span>
