@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { AccountSwitcher } from "@/components/auth/account-switcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import {
@@ -440,7 +439,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                 alt={siteConfig?.siteName || "ACGN Site"}
                 width={108}
                 height={28}
-                className="h-7 w-auto"
+                className="h-7"
+                style={{ width: "auto" }}
                 priority
                 unoptimized
               />
@@ -619,8 +619,6 @@ export function Header({ onMenuClick }: HeaderProps) {
                       管理面板
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <AccountSwitcher />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600"

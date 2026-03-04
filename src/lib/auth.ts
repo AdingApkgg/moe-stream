@@ -245,9 +245,16 @@ export interface AppSession {
 }
 
 /** 服务端获取当前 session（用于 tRPC、API 等） */
-export async function getSession(): Promise<AppSession | null> {
-  const { headers } = await import("next/headers");
-  const result = await auth.api.getSession({ headers: await headers() });
+export async function getSession(req?: Request): Promise<AppSession | null> {
+  let reqHeaders: Headers;
+  if (req) {
+    reqHeaders = req.headers;
+  } else {
+    const { headers } = await import("next/headers");
+    reqHeaders = await headers();
+  }
+  const authInstance = await getAuthWithOAuth();
+  const result = await authInstance.api.getSession({ headers: reqHeaders });
   if (!result?.user) return null;
   const { user, session } = result as { user: { id: string; email: string; name?: string | null; image?: string | null }; session: { id: string; token: string; expiresAt: Date } };
   const dbUser = await prisma.user.findUnique({

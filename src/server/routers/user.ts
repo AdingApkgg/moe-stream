@@ -2,8 +2,6 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, ownerProcedure, adminProcedure } from "../trpc";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";
-import { nanoid } from "nanoid";
-import { SignJWT, jwtVerify } from "jose";
 
 export const userRouter = router({
   // 注册
@@ -200,62 +198,6 @@ export const userRouter = router({
 
     return user;
   }),
-
-  // 生成账号切换令牌（类似 GitHub 的快速切换）
-  generateSwitchToken: protectedProcedure.mutation(async ({ ctx }) => {
-    const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
-    if (!secret.length) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "BETTER_AUTH_SECRET not configured" });
-    const tokenId = nanoid(16);
-    
-    // 创建一个短期令牌，包含用户ID和随机标识
-    const token = await new SignJWT({
-      sub: ctx.session.user.id,
-      jti: tokenId,
-      type: "switch",
-    })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("30d") // 30天有效期
-      .sign(secret);
-
-    return { token };
-  }),
-
-  // 验证切换令牌并返回用户信息（用于快速登录）
-  verifySwitchToken: publicProcedure
-    .input(z.object({ token: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
-        const { payload } = await jwtVerify(input.token, secret);
-
-        if (payload.type !== "switch" || !payload.sub) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "无效的令牌" });
-        }
-
-        const user = await ctx.prisma.user.findUnique({
-          where: { id: payload.sub },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            nickname: true,
-            avatar: true,
-          },
-        });
-
-        if (!user) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-        }
-
-        return {
-          valid: true,
-          user,
-        };
-      } catch {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "令牌已过期或无效" });
-      }
-    }),
 
   // 更新个人信息
   updateProfile: protectedProcedure

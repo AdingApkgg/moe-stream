@@ -17,9 +17,10 @@ info:
     ## 主要功能
     - 浏览 ACGN 相关视频内容
     - 浏览 ACGN 相关游戏资源
-    - 按标签分类查找视频和游戏（视频和游戏标签独立管理）
+    - 浏览 ACGN 相关图片内容（插画、同人图、壁纸等）
+    - 按标签分类查找视频、游戏和图片（各类内容标签独立管理）
     - 查看用户主页和上传内容
-    - 搜索视频
+    - 搜索内容
     
     ## 数据源
     - RSS Feed: ${baseUrl}/feed.xml
@@ -107,6 +108,41 @@ paths:
         '404':
           description: 游戏不存在
 
+  /image:
+    get:
+      operationId: getImageList
+      summary: 图片列表
+      description: 获取图片帖子列表，支持按标签筛选
+      responses:
+        '200':
+          description: 图片列表页面
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /image/{id}:
+    get:
+      operationId: getImagePost
+      summary: 图片详情页
+      description: 获取单个图片帖子的详细信息，包括标题、描述、图片列表、标签等
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 图片帖子唯一标识符
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 图片详情页面
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: 图片帖子不存在
+
   /video/tag/{slug}:
     get:
       operationId: getVideoTagList
@@ -187,11 +223,24 @@ paths:
               schema:
                 type: string
 
+  /links:
+    get:
+      operationId: getLinks
+      summary: 友情链接
+      description: 获取友情链接页面
+      responses:
+        '200':
+          description: 友链页面
+          content:
+            text/html:
+              schema:
+                type: string
+
   /tags:
     get:
       operationId: getAllTags
       summary: 标签列表
-      description: 获取所有可用标签，分为视频标签和游戏标签两类
+      description: 获取所有可用标签，分为视频标签、游戏标签和图片标签
       responses:
         '200':
           description: 标签列表页面
@@ -309,6 +358,39 @@ components:
           type: string
           nullable: true
           description: 游戏版本号
+        views:
+          type: integer
+          description: 浏览次数
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        uploader:
+          $ref: '#/components/schemas/User'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+
+    ImagePost:
+      type: object
+      description: 图片帖子对象
+      properties:
+        id:
+          type: string
+          description: 唯一标识符（6 位数字）
+        title:
+          type: string
+          description: 图片帖子标题
+        description:
+          type: string
+          nullable: true
+          description: 图片帖子描述
+        images:
+          type: array
+          items:
+            type: string
+          description: 图片 URL 列表
         views:
           type: integer
           description: 浏览次数

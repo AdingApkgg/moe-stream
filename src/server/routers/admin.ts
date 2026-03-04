@@ -1882,6 +1882,14 @@ export const adminRouter = router({
         enabled: z.boolean().optional().default(true),
       })).max(50).optional().nullable(),
 
+      // 验证码 / 人机验证
+      captchaLogin: z.enum(["none", "math", "turnstile"]).optional(),
+      captchaRegister: z.enum(["none", "math", "turnstile"]).optional(),
+      captchaComment: z.enum(["none", "math", "turnstile"]).optional(),
+      captchaForgotPassword: z.enum(["none", "math", "turnstile"]).optional(),
+      turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+
       // 对象存储
       storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).optional(),
       storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -1971,6 +1979,8 @@ export const adminRouter = router({
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",
+        "turnstileSiteKey", "turnstileSecretKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
@@ -2096,6 +2106,8 @@ export const adminRouter = router({
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
+        "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",
+        "turnstileSiteKey", "turnstileSecretKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",

@@ -59,7 +59,7 @@ function extractIpAddresses(ips: string[]): { ipv4: string | null; ipv6: string 
 
 // 创建 Context
 export async function createContext(opts?: { req?: Request }): Promise<Context> {
-  const session = await getSession();
+  const session = await getSession(opts?.req);
   const headers = opts?.req?.headers;
   
   // 从多个头部收集所有可能的 IP

@@ -11,7 +11,9 @@ export async function GET() {
   const urls = [
     { loc: baseUrl, changefreq: "daily", priority: "1.0" },
     { loc: `${baseUrl}/game`, changefreq: "daily", priority: "0.9" },
+    { loc: `${baseUrl}/image`, changefreq: "daily", priority: "0.9" },
     { loc: `${baseUrl}/tags`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${baseUrl}/links`, changefreq: "monthly", priority: "0.5" },
     { loc: `${baseUrl}/search`, changefreq: "weekly", priority: "0.7" },
   ];
 

@@ -31,7 +31,7 @@ export async function GET() {
   let rssItems = "";
 
   try {
-    const [videos, games] = await Promise.all([
+    const [videos, games, images] = await Promise.all([
       prisma.video.findMany({
         where: { status: "PUBLISHED" },
         orderBy: { createdAt: "desc" },
@@ -42,6 +42,15 @@ export async function GET() {
         },
       }),
       prisma.game.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+        include: {
+          uploader: { select: { username: true, nickname: true } },
+          tags: { include: { tag: { select: { name: true } } } },
+        },
+      }),
+      prisma.imagePost.findMany({
         where: { status: "PUBLISHED" },
         orderBy: { createdAt: "desc" },
         take: 30,
@@ -97,6 +106,27 @@ export async function GET() {
     </item>`;
     });
 
+    // 图片 items
+    const imageItems = images.map((image) => {
+      const imageUrls = image.images as string[];
+      const thumbUrl = imageUrls.length > 0
+        ? escapeXml(imageUrls[0].startsWith("http") ? imageUrls[0] : `${baseUrl}${imageUrls[0]}`)
+        : `${baseUrl}/icon`;
+
+      return `
+    <item>
+      <title>${escapeXml(`[图片] ${image.title}`)}</title>
+      <link>${baseUrl}/image/${image.id}</link>
+      <guid isPermaLink="true">${baseUrl}/image/${image.id}</guid>
+      <description><![CDATA[${image.description || image.title}（共 ${imageUrls.length} 张图片）]]></description>
+      <pubDate>${new Date(image.createdAt).toUTCString()}</pubDate>
+      <author>${escapeXml(image.uploader.nickname || image.uploader.username)}</author>
+      <category>图片</category>
+      ${image.tags.map((t) => `<category>${escapeXml(t.tag.name)}</category>`).join("\n      ")}
+      <media:thumbnail url="${thumbUrl}" />
+    </item>`;
+    });
+
     // 按时间混合排序
     interface FeedItem {
       xml: string;
@@ -105,6 +135,7 @@ export async function GET() {
     const allItems: FeedItem[] = [
       ...videoItems.map((xml, i) => ({ xml, date: videos[i].createdAt })),
       ...gameItems.map((xml, i) => ({ xml, date: games[i].createdAt })),
+      ...imageItems.map((xml, i) => ({ xml, date: images[i].createdAt })),
     ];
     allItems.sort((a, b) => b.date.getTime() - a.date.getTime());
 
@@ -122,7 +153,7 @@ export async function GET() {
   <channel>
     <title>${escapeXml(siteName)}</title>
     <link>${baseUrl}</link>
-    <description>${siteName} - ACGN 流式媒体内容分享平台，分享动画、漫画、游戏、轻小说相关视频和游戏资源</description>
+    <description>${siteName} - ACGN 流式媒体内容分享平台，分享动画、漫画、游戏、轻小说相关视频、游戏资源和图片</description>
     <language>zh-CN</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${baseUrl}/feed.xml" rel="self" type="application/rss+xml" />

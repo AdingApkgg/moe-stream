@@ -9,27 +9,22 @@ export async function GET() {
   const baseUrl = config.siteUrl;
 
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        OR: [
-          { videos: { some: { status: "PUBLISHED" } } },
-          { games: { some: { status: "PUBLISHED" } } },
-          { imagePosts: { some: { status: "PUBLISHED" } } },
-        ],
-      },
+    const images = await prisma.imagePost.findMany({
+      where: { status: "PUBLISHED" },
       select: { id: true, updatedAt: true },
-      take: 1000,
+      orderBy: { updatedAt: "desc" },
+      take: 5000,
     });
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${users
+${images
   .map(
-    (user) => `  <url>
-    <loc>${baseUrl}/user/${user.id}</loc>
-    <lastmod>${user.updatedAt.toISOString()}</lastmod>
+    (image) => `  <url>
+    <loc>${baseUrl}/image/${image.id}</loc>
+    <lastmod>${image.updatedAt.toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.8</priority>
   </url>`
   )
   .join("\n")}
@@ -42,7 +37,7 @@ ${users
       },
     });
   } catch (error) {
-    console.error("Users sitemap error:", error);
+    console.error("Images sitemap error:", error);
     return new NextResponse(
       `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
       {

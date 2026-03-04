@@ -598,6 +598,7 @@ export default function AdminSettingsPage() {
 
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configFormSchema),
+    shouldUnregister: false,
     defaultValues: {
       siteName: "",
       siteUrl: "",
@@ -805,6 +806,13 @@ export default function AdminSettingsPage() {
     updateConfig.mutate(values);
   };
 
+  const onFormError = (errors: Record<string, unknown>) => {
+    const keys = Object.keys(errors);
+    if (keys.length > 0) {
+      toast.error(`表单验证失败：${keys.join(", ")} 字段有误`);
+    }
+  };
+
   if (!permissions?.scopes.includes("settings:manage")) {
     return (
       <div className="flex items-center justify-center h-[400px] text-muted-foreground">
@@ -933,9 +941,9 @@ export default function AdminSettingsPage() {
         </TabsList>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
             {/* 基本信息 */}
-            <TabsContent value="basic">
+            <TabsContent value="basic" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle>基本信息</CardTitle>
@@ -1104,7 +1112,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 功能开关 */}
-            <TabsContent value="features">
+            <TabsContent value="features" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle>功能开关</CardTitle>
@@ -1204,7 +1212,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 个性化样式 */}
-            <TabsContent value="theme">
+            <TabsContent value="theme" forceMount className="data-[state=inactive]:hidden">
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 {/* 左侧：设置控件 */}
                 <div className="xl:col-span-2 space-y-4">
@@ -1607,7 +1615,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 验证码设置 */}
-            <TabsContent value="captcha">
+            <TabsContent value="captcha" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1774,7 +1782,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 视觉效果 */}
-            <TabsContent value="effects">
+            <TabsContent value="effects" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle>视觉效果</CardTitle>
@@ -1948,7 +1956,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 内容设置 */}
-            <TabsContent value="content">
+            <TabsContent value="content" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle>内容设置</CardTitle>
@@ -2050,7 +2058,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 邮件配置 */}
-            <TabsContent value="email">
+            <TabsContent value="email" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2178,7 +2186,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 对象存储 */}
-            <TabsContent value="storage">
+            <TabsContent value="storage" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2344,7 +2352,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 页脚备案 */}
-            <TabsContent value="footer">
+            <TabsContent value="footer" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2429,7 +2437,7 @@ export default function AdminSettingsPage() {
             </TabsContent>
 
             {/* 广告 */}
-            <TabsContent value="ads">
+            <TabsContent value="ads" forceMount className="data-[state=inactive]:hidden">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2551,9 +2559,9 @@ export default function AdminSettingsPage() {
         </Form>
 
         {/* OAuth 社交登录 */}
-        <TabsContent value="oauth">
+        <TabsContent value="oauth" forceMount className="data-[state=inactive]:hidden">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2652,9 +2660,9 @@ export default function AdminSettingsPage() {
         </TabsContent>
 
         {/* SEO 搜索引擎 */}
-        <TabsContent value="seo">
+        <TabsContent value="seo" forceMount className="data-[state=inactive]:hidden">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
               <Card className="mb-4">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

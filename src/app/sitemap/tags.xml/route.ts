@@ -10,7 +10,7 @@ export async function GET() {
   const now = new Date().toISOString();
 
   try {
-    const [videoTags, gameTags] = await Promise.all([
+    const [videoTags, gameTags, imageTags] = await Promise.all([
       prisma.tag.findMany({
         where: { videos: { some: {} } },
         select: { slug: true },
@@ -18,6 +18,11 @@ export async function GET() {
       }),
       prisma.tag.findMany({
         where: { games: { some: {} } },
+        select: { slug: true },
+        take: 1000,
+      }),
+      prisma.tag.findMany({
+        where: { imagePosts: { some: {} } },
         select: { slug: true },
         take: 1000,
       }),
@@ -41,9 +46,18 @@ export async function GET() {
   </url>`
     );
 
+    const imageTagUrls = imageTags.map(
+      (tag) => `  <url>
+    <loc>${baseUrl}/tag/${tag.slug}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>`
+    );
+
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${[...videoTagUrls, ...gameTagUrls].join("\n")}
+${[...videoTagUrls, ...gameTagUrls, ...imageTagUrls].join("\n")}
 </urlset>`;
 
     return new NextResponse(xml, {

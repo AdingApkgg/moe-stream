@@ -43,7 +43,7 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const rawCaptchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
-  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
+  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "math" : rawCaptchaType;
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaValue, setCaptchaValue] = useState("");

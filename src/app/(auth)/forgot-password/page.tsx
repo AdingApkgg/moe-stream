@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const rawCaptchaType = (siteConfig?.captchaForgotPassword as CaptchaType) || "none";
-  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
+  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "math" : rawCaptchaType;
 
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
