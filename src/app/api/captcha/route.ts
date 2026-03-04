@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { verifyCaptcha, type CaptchaType } from "@/lib/captcha";
+import { verifyCaptcha, signMathAnswer, type CaptchaType } from "@/lib/captcha";
 
 function generateMathCaptcha() {
   const num1 = Math.floor(Math.random() * 10) + 1;
@@ -48,7 +48,7 @@ export async function GET() {
     const { svg, answer } = generateMathCaptcha();
 
     const cookieStore = await cookies();
-    cookieStore.set("captcha", answer, {
+    cookieStore.set("captcha", signMathAnswer(answer), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
@@ -85,7 +85,6 @@ export async function POST(request: Request) {
       return NextResponse.json(result);
     }
 
-    // math captcha
     const cookieStore = await cookies();
     const storedCaptcha = cookieStore.get("captcha")?.value;
 

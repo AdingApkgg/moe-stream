@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 declare global {
@@ -76,40 +76,42 @@ export function TurnstileWidget({
   const widgetIdRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile) return;
-
-    if (widgetIdRef.current) {
-      window.turnstile.remove(widgetIdRef.current);
-    }
-
-    widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: siteKey,
-      callback: (token: string) => {
-        onVerify(token);
-      },
-      "expired-callback": () => {
-        onExpire?.();
-      },
-      "error-callback": () => {
-        onError?.();
-      },
-      theme,
-      size,
-    });
-    setIsLoading(false);
-  }, [siteKey, onVerify, onExpire, onError, theme, size]);
+  const onVerifyRef = useRef(onVerify);
+  const onExpireRef = useRef(onExpire);
+  const onErrorRef = useRef(onError);
+  onVerifyRef.current = onVerify;
+  onExpireRef.current = onExpire;
+  onErrorRef.current = onError;
 
   useEffect(() => {
-    loadTurnstileScript().then(renderWidget);
+    let cancelled = false;
+
+    loadTurnstileScript().then(() => {
+      if (cancelled || !containerRef.current || !window.turnstile) return;
+
+      if (widgetIdRef.current) {
+        window.turnstile!.remove(widgetIdRef.current);
+      }
+
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: siteKey,
+        callback: (token: string) => onVerifyRef.current(token),
+        "expired-callback": () => onExpireRef.current?.(),
+        "error-callback": () => onErrorRef.current?.(),
+        theme,
+        size,
+      });
+      setIsLoading(false);
+    });
 
     return () => {
+      cancelled = true;
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
       }
     };
-  }, [renderWidget]);
+  }, [siteKey, theme, size]);
 
   return (
     <div className="space-y-2">

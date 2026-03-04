@@ -55,6 +55,8 @@ import {
   FolderOpen,
   Palette,
   ShieldCheck,
+  TriangleAlert,
+  Copy,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -596,6 +598,9 @@ export default function AdminSettingsPage() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
 
+  const validEnum = <T extends string>(value: unknown, valid: readonly T[], fallback: T): T =>
+    valid.includes(value as T) ? (value as T) : fallback;
+
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configFormSchema),
     shouldUnregister: false,
@@ -724,10 +729,10 @@ export default function AdminSettingsPage() {
           weight: item.weight ?? 1,
           enabled: item.enabled !== false,
         })),
-        captchaLogin: ((config as Record<string, unknown>).captchaLogin as ConfigFormValues["captchaLogin"]) ?? "math",
-        captchaRegister: ((config as Record<string, unknown>).captchaRegister as ConfigFormValues["captchaRegister"]) ?? "none",
-        captchaComment: ((config as Record<string, unknown>).captchaComment as ConfigFormValues["captchaComment"]) ?? "none",
-        captchaForgotPassword: ((config as Record<string, unknown>).captchaForgotPassword as ConfigFormValues["captchaForgotPassword"]) ?? "none",
+        captchaLogin: validEnum((config as Record<string, unknown>).captchaLogin, ["none", "math", "turnstile"] as const, "math"),
+        captchaRegister: validEnum((config as Record<string, unknown>).captchaRegister, ["none", "math", "turnstile"] as const, "none"),
+        captchaComment: validEnum((config as Record<string, unknown>).captchaComment, ["none", "math", "turnstile"] as const, "none"),
+        captchaForgotPassword: validEnum((config as Record<string, unknown>).captchaForgotPassword, ["none", "math", "turnstile"] as const, "none"),
         turnstileSiteKey: ((config as Record<string, unknown>).turnstileSiteKey as string) || "",
         turnstileSecretKey: ((config as Record<string, unknown>).turnstileSecretKey as string) || "",
         smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
@@ -739,7 +744,7 @@ export default function AdminSettingsPage() {
         indexNowKey: ((config as Record<string, unknown>).indexNowKey as string) || "",
         googleServiceAccountEmail: ((config as Record<string, unknown>).googleServiceAccountEmail as string) || "",
         googlePrivateKey: ((config as Record<string, unknown>).googlePrivateKey as string) || "",
-        storageProvider: ((config as Record<string, unknown>).storageProvider as ConfigFormValues["storageProvider"]) ?? "local",
+        storageProvider: validEnum((config as Record<string, unknown>).storageProvider, ["local", "s3", "r2", "minio", "oss", "cos"] as const, "local"),
         storageEndpoint: ((config as Record<string, unknown>).storageEndpoint as string) || "",
         storageBucket: ((config as Record<string, unknown>).storageBucket as string) || "",
         storageRegion: ((config as Record<string, unknown>).storageRegion as string) || "",
@@ -753,7 +758,7 @@ export default function AdminSettingsPage() {
         themeGlassOpacity: (config as Record<string, unknown>).themeGlassOpacity as number ?? 0.7,
         themeAnimations: (config as Record<string, unknown>).themeAnimations as boolean ?? true,
         effectEnabled: (config as Record<string, unknown>).effectEnabled as boolean ?? true,
-        effectType: ((config as Record<string, unknown>).effectType as ConfigFormValues["effectType"]) ?? "sakura",
+        effectType: validEnum((config as Record<string, unknown>).effectType, ["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"] as const, "sakura"),
         effectDensity: (config as Record<string, unknown>).effectDensity as number ?? 50,
         effectSpeed: (config as Record<string, unknown>).effectSpeed as number ?? 1.0,
         effectOpacity: (config as Record<string, unknown>).effectOpacity as number ?? 0.8,
@@ -1627,102 +1632,75 @@ export default function AdminSettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* 快速统一设置 */}
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+                    <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">统一设置所有场景</span>
+                    <Select onValueChange={(v) => {
+                      const val = v as "none" | "math" | "turnstile";
+                      form.setValue("captchaLogin", val, { shouldDirty: true });
+                      form.setValue("captchaRegister", val, { shouldDirty: true });
+                      form.setValue("captchaComment", val, { shouldDirty: true });
+                      form.setValue("captchaForgotPassword", val, { shouldDirty: true });
+                    }}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="选择类型..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">全部关闭</SelectItem>
+                        <SelectItem value="math">全部数学验证码</SelectItem>
+                        <SelectItem value="turnstile">全部 Turnstile</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Turnstile 密钥缺失警告 */}
+                  {[form.watch("captchaLogin"), form.watch("captchaRegister"), form.watch("captchaComment"), form.watch("captchaForgotPassword")].includes("turnstile") &&
+                    (!form.watch("turnstileSiteKey")?.trim() || !form.watch("turnstileSecretKey")?.trim()) && (
+                    <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
+                      <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>已选择 Turnstile 验证方式，但密钥尚未配置。未配置密钥时前端将自动跳过验证，请在下方填写 Cloudflare Turnstile 密钥。</span>
+                    </div>
+                  )}
+
+                  {/* 各场景验证码选择器 */}
                   <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="captchaLogin"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>登录验证码</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择验证码类型" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">无验证</SelectItem>
-                              <SelectItem value="math">数学验证码</SelectItem>
-                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>用户登录时需要完成的验证</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="captchaRegister"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>注册验证码</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择验证码类型" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">无验证</SelectItem>
-                              <SelectItem value="math">数学验证码</SelectItem>
-                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>用户注册时需要完成的验证（邮箱验证码独立于此设置）</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="captchaComment"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>评论验证码</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择验证码类型" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">无验证</SelectItem>
-                              <SelectItem value="math">数学验证码</SelectItem>
-                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>用户发表评论时需要完成的验证</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="captchaForgotPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>忘记密码验证码</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择验证码类型" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">无验证</SelectItem>
-                              <SelectItem value="math">数学验证码</SelectItem>
-                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>用户重置密码时需要完成的验证</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {([
+                      { name: "captchaLogin" as const, label: "登录", desc: "用户登录时需要完成的验证" },
+                      { name: "captchaRegister" as const, label: "注册", desc: "用户注册时需要完成的验证（邮箱验证码独立于此设置）" },
+                      { name: "captchaComment" as const, label: "评论", desc: "用户发表评论时需要完成的验证" },
+                      { name: "captchaForgotPassword" as const, label: "忘记密码", desc: "用户重置密码时需要完成的验证" },
+                    ]).map(({ name, label, desc }) => (
+                      <FormField
+                        key={name}
+                        control={form.control}
+                        name={name}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              {label}
+                              <Badge variant={field.value === "none" ? "outline" : "default"} className="text-[10px] px-1.5 py-0 font-normal">
+                                {field.value === "none" ? "关闭" : field.value === "math" ? "数学" : "Turnstile"}
+                              </Badge>
+                            </FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="选择验证码类型" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">无验证</SelectItem>
+                                <SelectItem value="math">数学验证码</SelectItem>
+                                <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>{desc}</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
                   </div>
 
                   <div className="border-t pt-6 space-y-4">
@@ -1764,7 +1742,7 @@ export default function AdminSettingsPage() {
                     <p className="font-medium mb-1">验证码类型说明</p>
                     <ul className="list-disc list-inside text-xs space-y-0.5">
                       <li><strong>无验证</strong>：不需要任何额外验证</li>
-                      <li><strong>数学验证码</strong>：用户需要计算简单的数学题（如 3 + 5 = ?）</li>
+                      <li><strong>数学验证码</strong>：答案通过 HMAC 签名存储，防止自动化绕过</li>
                       <li><strong>Cloudflare Turnstile</strong>：无感人机验证，需要配置 Cloudflare 密钥</li>
                     </ul>
                   </div>

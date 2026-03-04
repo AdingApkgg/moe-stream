@@ -21,6 +21,11 @@ import { getServerConfig } from "@/lib/server-config";
 
 const CACHE_DIR = path.join(process.cwd(), "public", "cache", "covers");
 
+const PLACEHOLDER_GIF = Buffer.from(
+  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+  "base64"
+);
+
 // 延迟初始化：仅首次调用时创建目录
 let cacheDirPromise: Promise<void> | null = null;
 function ensureCacheDir(): Promise<void> {
@@ -183,6 +188,10 @@ export async function GET(
         if (localPath) {
           const resp = await serveLocalFile(localPath);
           if (resp) return resp;
+          // 本地文件丢失，异步清除 DB 中的旧路径，让后续请求直接走生成流程
+          prisma.video
+            .update({ where: { id: videoId }, data: { coverUrl: null } })
+            .catch(() => {});
         }
       } else {
         // 外部 URL：缓存代理
@@ -265,16 +274,15 @@ export async function GET(
     // 加入队列异步生成
     await enqueueCoverForVideo(videoId);
 
-    return NextResponse.json(
-      { status: "queued" },
-      {
-        status: 202,
-        headers: {
-          "Cache-Control": "no-store",
-          "Retry-After": "5",
-        },
-      }
-    );
+    // 返回 1x1 透明 GIF 占位图，避免 <img> 显示为破碎图标
+    return new Response(PLACEHOLDER_GIF, {
+      status: 202,
+      headers: {
+        "Content-Type": "image/gif",
+        "Cache-Control": "no-store",
+        "Retry-After": "5",
+      },
+    });
   }
 
   // 代理外部图片或本地 uploads
@@ -293,6 +301,19 @@ export async function GET(
   ) {
     const resp = await serveLocalFile(candidateLocalPath);
     if (resp) return resp;
+
+    // 封面文件丢失时，重定向到 /api/cover/video/{videoId} 触发回退+重新生成
+    const coverMatch = normalizedLocalPath.match(
+      /^uploads\/cover\/([^/]+)\.\w+$/
+    );
+    if (coverMatch) {
+      const videoId = coverMatch[1];
+      return NextResponse.redirect(
+        new URL(`/api/cover/video/${videoId}`, request.url),
+        307
+      );
+    }
+
     return NextResponse.json({ error: "Local image not found" }, { status: 404 });
   }
   

@@ -49,6 +49,10 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
   const [captchaValue, setCaptchaValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
+
   const insertAtCursor = useCallback((text: string) => {
     const el = textareaRef.current;
     if (!el) {
@@ -297,7 +301,7 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
               mathValue={captchaValue}
               onMathChange={setCaptchaValue}
               onTurnstileVerify={setTurnstileToken}
-              onTurnstileExpire={() => setTurnstileToken("")}
+              onTurnstileExpire={handleTurnstileExpire}
               refreshKey={captchaKey}
             />
           )}

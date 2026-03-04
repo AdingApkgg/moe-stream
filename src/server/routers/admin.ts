@@ -2003,10 +2003,14 @@ export const adminRouter = router({
         "oauthGitlabClientId", "oauthGitlabClientSecret",
         "oauthRedditClientId", "oauthRedditClientSecret",
       ]);
+      const nonNullableKeys = new Set([
+        "siteName", "storageProvider",
+        "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",
+      ]);
       const cleaned = Object.fromEntries(
         Object.entries(input)
           .filter(([key]) => allowedKeys.has(key))
-          .map(([key, value]) => [key, value === "" ? null : value])
+          .map(([key, value]) => [key, value === "" && !nonNullableKeys.has(key) ? null : value])
           .filter(([, value]) => value !== undefined)
       ) as Record<string, unknown>;
 
