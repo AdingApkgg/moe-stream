@@ -53,6 +53,8 @@ import {
   KeyRound,
   Mail,
   FolderOpen,
+  Palette,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -127,6 +129,14 @@ const configFormSchema = z.object({
     enabled: z.boolean(),
   })),
 
+  // 验证码 / 人机验证
+  captchaLogin: z.enum(["none", "math", "turnstile"]),
+  captchaRegister: z.enum(["none", "math", "turnstile"]),
+  captchaComment: z.enum(["none", "math", "turnstile"]),
+  captchaForgotPassword: z.enum(["none", "math", "turnstile"]),
+  turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+
   // SMTP 邮件
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
@@ -151,6 +161,13 @@ const configFormSchema = z.object({
   storageSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
   storageCustomDomain: z.string().max(500).optional().nullable().or(z.literal("")),
   storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
+
+  // 个性化样式
+  themeHue: z.number().int().min(0).max(360),
+  themeColorTemp: z.number().int().min(-100).max(100),
+  themeBorderRadius: z.number().min(0).max(2),
+  themeGlassOpacity: z.number().min(0).max(1),
+  themeAnimations: z.boolean(),
 
   // 视觉效果
   effectEnabled: z.boolean(),
@@ -325,6 +342,164 @@ function AdsFieldArray({ control, fields, append, remove }: AdsFieldArrayProps) 
   );
 }
 
+function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animations }: {
+  hue: number;
+  colorTemp: number;
+  borderRadius: number;
+  glassOpacity: number;
+  animations: boolean;
+}) {
+  const accentHue = (hue + 45) % 360;
+  let neutralHue = hue;
+  if (colorTemp > 0) neutralHue = hue + (50 - hue) * (colorTemp / 100);
+  else if (colorTemp < 0) neutralHue = hue + (220 - hue) * (-colorTemp / 100);
+
+  const p = `oklch(0.55 0.24 ${hue})`;
+  const pDark = `oklch(0.7 0.2 ${hue})`;
+  const bg = `oklch(0.99 0.005 ${neutralHue})`;
+  const bgDark = `oklch(0.13 0.02 ${neutralHue})`;
+  const cardDarkAlpha = (a: number) => `oklch(0.18 0.025 ${hue} / ${a}%)`;
+  const mutedFg = `oklch(0.5 0.03 ${hue})`;
+  const mutedFgDark = `oklch(0.65 0.03 ${hue})`;
+  const accent = `oklch(0.92 0.05 ${accentHue})`;
+  const border = `oklch(0.9 0.02 ${hue})`;
+  const borderDark = `oklch(1 0 0 / 12%)`;
+  const r = `${borderRadius}rem`;
+  const rSm = `${Math.max(0, borderRadius - 0.25)}rem`;
+
+  return (
+    <div className="sticky top-6 space-y-3">
+      <p className="text-sm font-medium text-muted-foreground">实时预览</p>
+
+      {/* Light mode preview */}
+      <div
+        className="overflow-hidden border shadow-sm"
+        style={{ background: bg, borderRadius: r, borderColor: border }}
+      >
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${border}` }}>
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded-full" style={{ background: p }} />
+            <span className="text-xs font-medium" style={{ color: `oklch(0.15 0.02 ${hue})` }}>浅色模式</span>
+          </div>
+          <div className="flex gap-1">
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#eab308" }} />
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#22c55e" }} />
+          </div>
+        </div>
+        <div className="p-3 space-y-2.5">
+          <div className="flex gap-2">
+            <div
+              className={`px-3 py-1.5 text-[10px] text-white font-medium ${animations ? "transition-all" : ""}`}
+              style={{ background: p, borderRadius: rSm }}
+            >
+              主要按钮
+            </div>
+            <div
+              className="px-3 py-1.5 text-[10px] font-medium"
+              style={{ background: accent, borderRadius: rSm, color: `oklch(0.25 0.1 ${accentHue})` }}
+            >
+              次要按钮
+            </div>
+            <div
+              className="px-3 py-1.5 text-[10px]"
+              style={{ border: `1px solid ${border}`, borderRadius: rSm, color: mutedFg }}
+            >
+              描边按钮
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 h-7 px-2 flex items-center text-[10px]"
+              style={{ border: `1px solid ${border}`, borderRadius: rSm, color: mutedFg, background: `oklch(0.92 0.02 ${hue})` }}
+            >
+              输入框...
+            </div>
+            <div className="h-4 w-8 rounded-full" style={{ background: p }} />
+          </div>
+          <div
+            className="p-2.5"
+            style={{ background: `oklch(1 0 0 / ${Math.round(glassOpacity * 100)}%)`, borderRadius: rSm, border: `1px solid ${border}`, backdropFilter: "blur(8px)" }}
+          >
+            <div className="h-2 w-3/4 rounded-full mb-1.5" style={{ background: `oklch(0.15 0.02 ${hue})`, opacity: 0.7 }} />
+            <div className="h-2 w-1/2 rounded-full" style={{ background: mutedFg, opacity: 0.4 }} />
+          </div>
+          <div className="flex gap-1.5">
+            {[hue, accentHue, (hue + 85) % 360, (hue + 135) % 360].map((ch, i) => (
+              <div key={i} className="flex-1 h-6 rounded-sm" style={{ background: `oklch(0.65 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Dark mode preview */}
+      <div
+        className="overflow-hidden border shadow-sm"
+        style={{ background: bgDark, borderRadius: r, borderColor: borderDark }}
+      >
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${borderDark}` }}>
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded-full" style={{ background: pDark }} />
+            <span className="text-xs font-medium" style={{ color: `oklch(0.95 0.01 ${hue})` }}>深色模式</span>
+          </div>
+          <div className="flex gap-1">
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#eab308" }} />
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#22c55e" }} />
+          </div>
+        </div>
+        <div className="p-3 space-y-2.5">
+          <div className="flex gap-2">
+            <div
+              className={`px-3 py-1.5 text-[10px] font-medium ${animations ? "transition-all" : ""}`}
+              style={{ background: pDark, borderRadius: rSm, color: `oklch(0.13 0.02 ${hue})` }}
+            >
+              主要按钮
+            </div>
+            <div
+              className="px-3 py-1.5 text-[10px] font-medium"
+              style={{ background: `oklch(0.35 0.1 ${accentHue})`, borderRadius: rSm, color: `oklch(0.92 0.05 ${accentHue})` }}
+            >
+              次要按钮
+            </div>
+            <div
+              className="px-3 py-1.5 text-[10px]"
+              style={{ border: `1px solid ${borderDark}`, borderRadius: rSm, color: mutedFgDark }}
+            >
+              描边按钮
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 h-7 px-2 flex items-center text-[10px]"
+              style={{ border: `1px solid ${borderDark}`, borderRadius: rSm, color: mutedFgDark, background: `oklch(1 0 0 / 15%)` }}
+            >
+              输入框...
+            </div>
+            <div className="h-4 w-8 rounded-full" style={{ background: pDark }} />
+          </div>
+          <div
+            className="p-2.5"
+            style={{ background: cardDarkAlpha(Math.round(glassOpacity * 100)), borderRadius: rSm, border: `1px solid ${borderDark}`, backdropFilter: "blur(8px)" }}
+          >
+            <div className="h-2 w-3/4 rounded-full mb-1.5" style={{ background: `oklch(0.95 0.01 ${hue})`, opacity: 0.7 }} />
+            <div className="h-2 w-1/2 rounded-full" style={{ background: mutedFgDark, opacity: 0.4 }} />
+          </div>
+          <div className="flex gap-1.5">
+            {[hue, accentHue, (hue + 85) % 360, (hue + 135) % 360].map((ch, i) => (
+              <div key={i} className="flex-1 h-6 rounded-sm" style={{ background: `oklch(0.7 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground text-center">
+        保存后全站生效，刷新页面查看完整效果
+      </p>
+    </div>
+  );
+}
+
 interface SearchEngineStatus {
   indexnow: { configured: boolean; keyFile: string | null };
   google: { configured: boolean; note: string | null };
@@ -453,6 +628,12 @@ export default function AdminSettingsPage() {
       adGateViewsRequired: 3,
       adGateHours: 12,
       sponsorAds: [],
+      captchaLogin: "math",
+      captchaRegister: "none",
+      captchaComment: "none",
+      captchaForgotPassword: "none",
+      turnstileSiteKey: "",
+      turnstileSecretKey: "",
       smtpHost: "",
       smtpPort: 465,
       smtpUser: "",
@@ -470,6 +651,11 @@ export default function AdminSettingsPage() {
       storageSecretKey: "",
       storageCustomDomain: "",
       storagePathPrefix: "",
+      themeHue: 285,
+      themeColorTemp: 0,
+      themeBorderRadius: 0.625,
+      themeGlassOpacity: 0.7,
+      themeAnimations: true,
       effectEnabled: true,
       effectType: "sakura",
       effectDensity: 50,
@@ -537,6 +723,12 @@ export default function AdminSettingsPage() {
           weight: item.weight ?? 1,
           enabled: item.enabled !== false,
         })),
+        captchaLogin: ((config as Record<string, unknown>).captchaLogin as ConfigFormValues["captchaLogin"]) ?? "math",
+        captchaRegister: ((config as Record<string, unknown>).captchaRegister as ConfigFormValues["captchaRegister"]) ?? "none",
+        captchaComment: ((config as Record<string, unknown>).captchaComment as ConfigFormValues["captchaComment"]) ?? "none",
+        captchaForgotPassword: ((config as Record<string, unknown>).captchaForgotPassword as ConfigFormValues["captchaForgotPassword"]) ?? "none",
+        turnstileSiteKey: ((config as Record<string, unknown>).turnstileSiteKey as string) || "",
+        turnstileSecretKey: ((config as Record<string, unknown>).turnstileSecretKey as string) || "",
         smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
         smtpPort: ((config as Record<string, unknown>).smtpPort as number) ?? 465,
         smtpUser: ((config as Record<string, unknown>).smtpUser as string) || "",
@@ -554,6 +746,11 @@ export default function AdminSettingsPage() {
         storageSecretKey: ((config as Record<string, unknown>).storageSecretKey as string) || "",
         storageCustomDomain: ((config as Record<string, unknown>).storageCustomDomain as string) || "",
         storagePathPrefix: ((config as Record<string, unknown>).storagePathPrefix as string) || "",
+        themeHue: (config as Record<string, unknown>).themeHue as number ?? 285,
+        themeColorTemp: (config as Record<string, unknown>).themeColorTemp as number ?? 0,
+        themeBorderRadius: (config as Record<string, unknown>).themeBorderRadius as number ?? 0.625,
+        themeGlassOpacity: (config as Record<string, unknown>).themeGlassOpacity as number ?? 0.7,
+        themeAnimations: (config as Record<string, unknown>).themeAnimations as boolean ?? true,
         effectEnabled: (config as Record<string, unknown>).effectEnabled as boolean ?? true,
         effectType: ((config as Record<string, unknown>).effectType as ConfigFormValues["effectType"]) ?? "sakura",
         effectDensity: (config as Record<string, unknown>).effectDensity as number ?? 50,
@@ -684,7 +881,7 @@ export default function AdminSettingsPage() {
       </AlertDialog>
 
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 sm:grid-cols-11 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 sm:grid-cols-12 lg:w-auto lg:inline-grid">
           <TabsTrigger value="basic" className="gap-2">
             <Info className="h-4 w-4" />
             <span className="hidden sm:inline">基本信息</span>
@@ -692,6 +889,14 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="features" className="gap-2">
             <ToggleLeft className="h-4 w-4" />
             <span className="hidden sm:inline">功能开关</span>
+          </TabsTrigger>
+          <TabsTrigger value="captcha" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">验证码</span>
+          </TabsTrigger>
+          <TabsTrigger value="theme" className="gap-2">
+            <Palette className="h-4 w-4" />
+            <span className="hidden sm:inline">个性化样式</span>
           </TabsTrigger>
           <TabsTrigger value="effects" className="gap-2">
             <Sparkles className="h-4 w-4" />
@@ -985,6 +1190,576 @@ export default function AdminSettingsPage() {
                       </FormItem>
                     )}
                   />
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 个性化样式 */}
+            <TabsContent value="theme">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                {/* 左侧：设置控件 */}
+                <div className="xl:col-span-2 space-y-4">
+                  {/* 主题色 */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-base">主题色</CardTitle>
+                      <CardDescription>选择全站主色调，影响按钮、链接、高亮等所有主色元素</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="themeHue"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="h-6 w-6 rounded-full border shadow-sm"
+                                  style={{ background: `oklch(0.6 0.24 ${field.value})` }}
+                                />
+                                <span className="text-sm font-medium">{field.value}°</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => field.onChange(285)}
+                              >
+                                重置
+                              </Button>
+                            </div>
+                            <FormControl>
+                              <div
+                                className="relative h-3 rounded-full cursor-pointer"
+                                style={{
+                                  background: "linear-gradient(to right, oklch(0.6 0.24 0), oklch(0.6 0.24 30), oklch(0.6 0.24 60), oklch(0.6 0.24 90), oklch(0.6 0.24 120), oklch(0.6 0.24 150), oklch(0.6 0.24 180), oklch(0.6 0.24 210), oklch(0.6 0.24 240), oklch(0.6 0.24 270), oklch(0.6 0.24 300), oklch(0.6 0.24 330), oklch(0.6 0.24 360))",
+                                }}
+                              >
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={360}
+                                  value={field.value}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md pointer-events-none"
+                                  style={{
+                                    left: `calc(${(field.value / 360) * 100}% - 10px)`,
+                                    background: `oklch(0.6 0.24 ${field.value})`,
+                                  }}
+                                />
+                              </div>
+                            </FormControl>
+                            <div className="flex flex-wrap gap-1.5 pt-3">
+                              {([
+                                { hue: 0, label: "红", emoji: "🔴" },
+                                { hue: 25, label: "橙", emoji: "🟠" },
+                                { hue: 60, label: "黄", emoji: "🟡" },
+                                { hue: 145, label: "绿", emoji: "🟢" },
+                                { hue: 200, label: "蓝", emoji: "🔵" },
+                                { hue: 270, label: "紫", emoji: "🟣" },
+                                { hue: 285, label: "默认", emoji: "💜" },
+                                { hue: 330, label: "粉", emoji: "🩷" },
+                              ] as const).map(({ hue, label }) => (
+                                <button
+                                  key={hue}
+                                  type="button"
+                                  onClick={() => field.onChange(hue)}
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border transition-all ${
+                                    field.value === hue
+                                      ? "border-foreground/30 bg-foreground/5 font-medium"
+                                      : "border-transparent hover:border-border hover:bg-muted/50"
+                                  }`}
+                                >
+                                  <span
+                                    className="h-3 w-3 rounded-full shrink-0"
+                                    style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                                  />
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* 色温 & 圆角 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base">色温</CardTitle>
+                        <CardDescription>调节背景和中性面的冷暖色调</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={form.control}
+                          name="themeColorTemp"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">
+                                  {field.value === 0 ? "中性" : field.value > 0 ? `偏暖 +${field.value}` : `偏冷 ${field.value}`}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => field.onChange(0)}
+                                >
+                                  重置
+                                </Button>
+                              </div>
+                              <FormControl>
+                                <div
+                                  className="relative h-3 rounded-full cursor-pointer"
+                                  style={{
+                                    background: "linear-gradient(to right, oklch(0.7 0.12 220), oklch(0.92 0.005 0), oklch(0.75 0.12 50))",
+                                  }}
+                                >
+                                  <input
+                                    type="range"
+                                    min={-100}
+                                    max={100}
+                                    value={field.value}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  />
+                                  <div
+                                    className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md bg-background pointer-events-none"
+                                    style={{
+                                      left: `calc(${((field.value + 100) / 200) * 100}% - 10px)`,
+                                    }}
+                                  />
+                                </div>
+                              </FormControl>
+                              <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
+                                <span>冷色调</span>
+                                <span>中性</span>
+                                <span>暖色调</span>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base">圆角</CardTitle>
+                        <CardDescription>控制按钮、卡片等组件圆角大小</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={form.control}
+                          name="themeBorderRadius"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">{field.value.toFixed(2)} rem</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => field.onChange(0.625)}
+                                >
+                                  重置
+                                </Button>
+                              </div>
+                              <FormControl>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={2}
+                                  step={0.05}
+                                  value={field.value}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="w-full accent-primary h-1.5"
+                                />
+                              </FormControl>
+                              <div className="flex items-center gap-2 pt-3">
+                                {([
+                                  { v: 0, label: "直角" },
+                                  { v: 0.375, label: "小" },
+                                  { v: 0.625, label: "默认" },
+                                  { v: 1.0, label: "大" },
+                                  { v: 1.5, label: "超大" },
+                                ] as const).map(({ v, label }) => (
+                                  <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => field.onChange(v)}
+                                    className={`flex-1 h-8 border text-[10px] transition-all ${
+                                      Math.abs(field.value - v) < 0.01
+                                        ? "border-primary bg-primary/10 text-primary font-medium"
+                                        : "border-border hover:border-primary/50"
+                                    }`}
+                                    style={{ borderRadius: `${v}rem` }}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* 透明度 & 动画 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base">玻璃态透明度</CardTitle>
+                        <CardDescription>毛玻璃效果背景的通透程度</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={form.control}
+                          name="themeGlassOpacity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium">{Math.round(field.value * 100)}%</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => field.onChange(0.7)}
+                                >
+                                  重置
+                                </Button>
+                              </div>
+                              <FormControl>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={1}
+                                  step={0.05}
+                                  value={field.value}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="w-full accent-primary h-1.5"
+                                />
+                              </FormControl>
+                              <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
+                                <span>全透明</span>
+                                <span>半透明</span>
+                                <span>不透明</span>
+                              </div>
+                              {/* 玻璃态预览 */}
+                              <div
+                                className="mt-3 relative overflow-hidden rounded-lg h-16"
+                                style={{
+                                  background: "linear-gradient(135deg, oklch(0.6 0.24 285), oklch(0.5 0.2 330))",
+                                }}
+                              >
+                                <div
+                                  className="absolute inset-2 rounded-md flex items-center justify-center text-xs text-foreground"
+                                  style={{
+                                    background: `oklch(1 0 0 / ${Math.round(field.value * 100)}%)`,
+                                    backdropFilter: "blur(12px)",
+                                    WebkitBackdropFilter: "blur(12px)",
+                                  }}
+                                >
+                                  玻璃态预览
+                                </div>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base">动画</CardTitle>
+                        <CardDescription>控制全站界面过渡与关键帧动画</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={form.control}
+                          name="themeAnimations"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-sm">启用界面动画</FormLabel>
+                                  <FormDescription className="text-xs">关闭后禁用所有过渡和关键帧动画</FormDescription>
+                                </div>
+                                <FormControl>
+                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                              </div>
+                              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                                <div className={`h-3 w-3 rounded-full bg-primary ${field.value ? "animate-pulse" : ""}`} />
+                                <span>{field.value ? "动画已启用 — 界面元素将展示过渡效果" : "动画已禁用 — 所有过渡和动画将被移除"}</span>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* 预设主题 */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-base">预设主题</CardTitle>
+                      <CardDescription>一键应用预设的配色方案</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {([
+                          { label: "默认紫", hue: 285, temp: 0, radius: 0.625, desc: "经典 ACGN 紫" },
+                          { label: "海洋蓝", hue: 210, temp: -30, radius: 0.75, desc: "冷色调科技感" },
+                          { label: "樱花粉", hue: 340, temp: 20, radius: 1.0, desc: "温暖少女风" },
+                          { label: "森林绿", hue: 145, temp: 15, radius: 0.5, desc: "自然清新感" },
+                          { label: "极光紫", hue: 270, temp: -15, radius: 0.875, desc: "梦幻冷紫" },
+                          { label: "琥珀橙", hue: 30, temp: 50, radius: 0.625, desc: "活力暖色调" },
+                          { label: "赛博青", hue: 185, temp: -40, radius: 0.25, desc: "赛博朋克风" },
+                          { label: "薰衣草", hue: 295, temp: 10, radius: 1.25, desc: "优雅柔和紫" },
+                        ] as const).map(({ label, hue, temp, radius, desc }) => (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => {
+                              form.setValue("themeHue", hue, { shouldDirty: true });
+                              form.setValue("themeColorTemp", temp, { shouldDirty: true });
+                              form.setValue("themeBorderRadius", radius, { shouldDirty: true });
+                            }}
+                            className={`group relative overflow-hidden rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
+                              form.watch("themeHue") === hue && form.watch("themeColorTemp") === temp
+                                ? "border-primary ring-1 ring-primary/30"
+                                : "border-border hover:border-primary/40"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div
+                                className="h-4 w-4 rounded-full shrink-0"
+                                style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                              />
+                              <span className="text-sm font-medium">{label}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
+                            <div
+                              className="absolute top-0 right-0 h-full w-1"
+                              style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex items-center gap-3">
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        form.setValue("themeHue", 285, { shouldDirty: true });
+                        form.setValue("themeColorTemp", 0, { shouldDirty: true });
+                        form.setValue("themeBorderRadius", 0.625, { shouldDirty: true });
+                        form.setValue("themeGlassOpacity", 0.7, { shouldDirty: true });
+                        form.setValue("themeAnimations", true, { shouldDirty: true });
+                      }}
+                    >
+                      全部重置为默认
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 右侧：实时预览 */}
+                <div className="xl:col-span-1">
+                  <ThemePreviewPanel
+                    hue={form.watch("themeHue")}
+                    colorTemp={form.watch("themeColorTemp")}
+                    borderRadius={form.watch("themeBorderRadius")}
+                    glassOpacity={form.watch("themeGlassOpacity")}
+                    animations={form.watch("themeAnimations")}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* 验证码设置 */}
+            <TabsContent value="captcha">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    验证码 / 人机验证
+                  </CardTitle>
+                  <CardDescription>
+                    为不同场景配置验证码方式。支持无验证、数学验证码和 Cloudflare Turnstile 人机验证。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="captchaLogin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>登录验证码</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择验证码类型" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">无验证</SelectItem>
+                              <SelectItem value="math">数学验证码</SelectItem>
+                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>用户登录时需要完成的验证</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="captchaRegister"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>注册验证码</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择验证码类型" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">无验证</SelectItem>
+                              <SelectItem value="math">数学验证码</SelectItem>
+                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>用户注册时需要完成的验证（邮箱验证码独立于此设置）</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="captchaComment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>评论验证码</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择验证码类型" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">无验证</SelectItem>
+                              <SelectItem value="math">数学验证码</SelectItem>
+                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>用户发表评论时需要完成的验证</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="captchaForgotPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>忘记密码验证码</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择验证码类型" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">无验证</SelectItem>
+                              <SelectItem value="math">数学验证码</SelectItem>
+                              <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>用户重置密码时需要完成的验证</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium">Cloudflare Turnstile 配置</h4>
+                    <FormDescription className="mt-0">
+                      在 <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Cloudflare Dashboard</a> 创建 Turnstile 站点后获取密钥。选择了 Turnstile 验证方式时才需要填写。
+                    </FormDescription>
+                    <FormField
+                      control={form.control}
+                      name="turnstileSiteKey"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Site Key</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="0x..." />
+                          </FormControl>
+                          <FormDescription>前端展示验证组件使用</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="turnstileSecretKey"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Secret Key</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} type="password" placeholder="0x..." />
+                          </FormControl>
+                          <FormDescription>服务端验证 Token 使用</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
+                    <p className="font-medium mb-1">验证码类型说明</p>
+                    <ul className="list-disc list-inside text-xs space-y-0.5">
+                      <li><strong>无验证</strong>：不需要任何额外验证</li>
+                      <li><strong>数学验证码</strong>：用户需要计算简单的数学题（如 3 + 5 = ?）</li>
+                      <li><strong>Cloudflare Turnstile</strong>：无感人机验证，需要配置 Cloudflare 密钥</li>
+                    </ul>
+                  </div>
 
                   <Button type="submit" disabled={updateConfig.isPending}>
                     {updateConfig.isPending ? (

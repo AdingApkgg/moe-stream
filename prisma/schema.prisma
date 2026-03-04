@@ -936,6 +936,13 @@ model SiteConfig {
   storageCustomDomain String?  // 自定义域名（公开访问地址）
   storagePathPrefix   String?  // 存储路径前缀
 
+  // 个性化样式
+  themeHue            Int     @default(285)         // 主题色相 0-360（OKLCH hue）
+  themeColorTemp      Int     @default(0)           // 色温 -100(冷色调) 到 100(暖色调)
+  themeBorderRadius   Float   @default(0.625)       // 全局圆角基准值 (rem)
+  themeGlassOpacity   Float   @default(0.7)         // 玻璃态透明度 0-1
+  themeAnimations     Boolean @default(true)        // 启用界面动画
+
   // 视觉效果
   effectEnabled       Boolean @default(true)
   effectType          String  @default("sakura")  // sakura | firefly | snow | stars | aurora | cyber | none
@@ -985,6 +992,14 @@ model SiteConfig {
   indexNowKey                String?
   googleServiceAccountEmail  String?
   googlePrivateKey           String?  @db.Text
+
+  // 验证码 / 人机验证
+  captchaLogin          String  @default("math")    // 登录验证码类型：none | math | turnstile
+  captchaRegister       String  @default("none")    // 注册验证码类型：none | math | turnstile
+  captchaComment        String  @default("none")    // 评论验证码类型：none | math | turnstile
+  captchaForgotPassword String  @default("none")    // 忘记密码验证码类型：none | math | turnstile
+  turnstileSiteKey      String?                      // Cloudflare Turnstile Site Key
+  turnstileSecretKey    String?                      // Cloudflare Turnstile Secret Key
 
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -14,22 +14,32 @@ import { toast } from "@/lib/toast-with-sound";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EmailCodeInput } from "@/components/ui/email-code-input";
-
-const resetPasswordSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
-  emailCode: z.string().length(6, "请输入6位验证码"),
-  newPassword: z.string().min(6, "密码至少6个字符"),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "两次密码不一致",
-  path: ["confirmPassword"],
-});
-
-type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
+import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
+import { useSiteConfig } from "@/contexts/site-config";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const siteConfig = useSiteConfig();
   const [isLoading, setIsLoading] = useState(false);
+
+  const captchaType = (siteConfig?.captchaForgotPassword as CaptchaType) || "none";
+  const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  const resetPasswordSchema = z.object({
+    email: z.string().email("请输入有效的邮箱地址"),
+    emailCode: z.string().length(6, "请输入6位验证码"),
+    newPassword: z.string().min(6, "密码至少6个字符"),
+    confirmPassword: z.string(),
+    captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "两次密码不一致",
+    path: ["confirmPassword"],
+  });
+
+  type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
   const resetPasswordMutation = trpc.user.resetPassword.useMutation({
     onSuccess: () => {
@@ -41,21 +51,53 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const form = useForm<ResetPasswordForm>({
+  const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
       email: "",
       emailCode: "",
       newPassword: "",
       confirmPassword: "",
+      captcha: "",
     },
   });
 
   const email = form.watch("email");
 
-  async function onSubmit(data: ResetPasswordForm) {
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
+
+  async function onSubmit(data: ResetPasswordFormValues) {
     setIsLoading(true);
     try {
+      // 验证验证码
+      if (captchaType !== "none") {
+        const captchaRes = await fetch("/api/captcha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            captchaType === "turnstile"
+              ? { type: "turnstile", turnstileToken }
+              : { captcha: data.captcha, type: "math" }
+          ),
+        });
+        const captchaResult = await captchaRes.json();
+
+        if (!captchaResult.valid) {
+          toast.error(captchaResult.message || "验证失败");
+          setCaptchaKey((k) => k + 1);
+          setTurnstileToken("");
+          form.setValue("captcha", "");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // 验证邮箱验证码
       const verifyRes = await fetch("/api/email/verify-code", {
         method: "POST",
@@ -153,7 +195,42 @@ export default function ForgotPasswordPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {captchaType === "math" && (
+                <FormField
+                  control={form.control}
+                  name="captcha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>验证码</FormLabel>
+                      <FormControl>
+                        <UnifiedCaptcha
+                          type="math"
+                          mathValue={field.value || ""}
+                          onMathChange={field.onChange}
+                          mathError={form.formState.errors.captcha?.message}
+                          refreshKey={captchaKey}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+              {captchaType === "turnstile" && (
+                <div className="space-y-2">
+                  <UnifiedCaptcha
+                    type="turnstile"
+                    turnstileSiteKey={turnstileSiteKey}
+                    onTurnstileVerify={handleTurnstileVerify}
+                    onTurnstileExpire={handleTurnstileExpire}
+                    refreshKey={captchaKey}
+                  />
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || (captchaType === "turnstile" && !turnstileToken)}
+              >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 重置密码
               </Button>

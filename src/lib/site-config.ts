@@ -31,6 +31,11 @@ export interface PublicSiteConfig {
   adGateViewsRequired: number;
   adGateHours: number;
   sponsorAds: Ad[] | null;
+  themeHue: number;
+  themeColorTemp: number;
+  themeBorderRadius: number;
+  themeGlassOpacity: number;
+  themeAnimations: boolean;
   effectEnabled: boolean;
   effectType: string;
   effectDensity: number;
@@ -39,6 +44,11 @@ export interface PublicSiteConfig {
   effectColor: string;
   soundDefaultEnabled: boolean;
   oauthProviders: string[];
+  captchaLogin: string;
+  captchaRegister: string;
+  captchaComment: string;
+  captchaForgotPassword: string;
+  turnstileSiteKey: string | null;
 }
 
 const selectFields = {
@@ -68,6 +78,11 @@ const selectFields = {
   adGateViewsRequired: true,
   adGateHours: true,
   sponsorAds: true,
+  themeHue: true,
+  themeColorTemp: true,
+  themeBorderRadius: true,
+  themeGlassOpacity: true,
+  themeAnimations: true,
   effectEnabled: true,
   effectType: true,
   effectDensity: true,
@@ -75,6 +90,11 @@ const selectFields = {
   effectOpacity: true,
   effectColor: true,
   soundDefaultEnabled: true,
+  captchaLogin: true,
+  captchaRegister: true,
+  captchaComment: true,
+  captchaForgotPassword: true,
+  turnstileSiteKey: true,
   oauthGoogleClientId: true,
   oauthGoogleClientSecret: true,
   oauthGithubClientId: true,
@@ -128,6 +148,11 @@ const defaultConfig: PublicSiteConfig = {
   adGateViewsRequired: 3,
   adGateHours: 12,
   sponsorAds: null,
+  themeHue: 285,
+  themeColorTemp: 0,
+  themeBorderRadius: 0.625,
+  themeGlassOpacity: 0.7,
+  themeAnimations: true,
   effectEnabled: true,
   effectType: "sakura",
   effectDensity: 50,
@@ -136,6 +161,11 @@ const defaultConfig: PublicSiteConfig = {
   effectColor: "",
   soundDefaultEnabled: true,
   oauthProviders: [],
+  captchaLogin: "math",
+  captchaRegister: "none",
+  captchaComment: "none",
+  captchaForgotPassword: "none",
+  turnstileSiteKey: null,
 };
 
 /**

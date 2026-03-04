@@ -9,6 +9,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppLayout } from "@/components/layout/app-layout";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { generateThemeCSS } from "@/lib/theme-styles";
 import { isSetupComplete } from "@/lib/setup";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -136,9 +137,13 @@ async function RootProviders({ children }: { children: React.ReactNode }) {
   }
 
   const siteConfig = await getPublicSiteConfig();
+  const themeCSS = generateThemeCSS(siteConfig);
   return (
-    <Providers siteConfig={siteConfig}>
-      <AppLayout>{children}</AppLayout>
-    </Providers>
+    <>
+      {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
+      <Providers siteConfig={siteConfig}>
+        <AppLayout>{children}</AppLayout>
+      </Providers>
+    </>
   );
 }

@@ -234,9 +234,9 @@ function SessionCard({
   const osInfo = [s.os, s.osVersion].filter(Boolean).join(" ");
   const browserInfo = [s.browser, s.browserVersion].filter(Boolean).join(" ");
 
-  // 5 分钟内活跃 → "正在查看"
+  const [now] = useState(() => Date.now());
   const lastActive = new Date(s.lastActiveAt);
-  const isOnline = isCurrent || (Date.now() - lastActive.getTime() < 5 * 60 * 1000);
+  const isOnline = isCurrent || (now - lastActive.getTime() < 5 * 60 * 1000);
 
   return (
     <div className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${isCurrent ? "border-primary/30 bg-primary/5" : "hover:bg-muted/50"}`}>

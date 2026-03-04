@@ -23,6 +23,7 @@ import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useIsMounted } from "@/components/motion";
 import { useSiteConfig } from "@/contexts/site-config";
+import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
 
 interface GameCommentSectionProps {
   gameId: string;
@@ -40,6 +41,11 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
+  const captchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
+  const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [captchaValue, setCaptchaValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const insertAtCursor = useCallback((text: string) => {
@@ -122,6 +128,33 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
     }
     
     setIsSubmitting(true);
+
+    if (captchaType !== "none") {
+      try {
+        const captchaRes = await fetch("/api/captcha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            captchaType === "turnstile"
+              ? { type: "turnstile", turnstileToken }
+              : { captcha: captchaValue, type: "math" }
+          ),
+        });
+        const captchaResult = await captchaRes.json();
+        if (!captchaResult.valid) {
+          toast.error(captchaResult.message || "验证失败");
+          setCaptchaKey((k) => k + 1);
+          setTurnstileToken("");
+          setCaptchaValue("");
+          setIsSubmitting(false);
+          return;
+        }
+      } catch {
+        toast.error("验证失败");
+        setIsSubmitting(false);
+        return;
+      }
+    }
     
     let currentDeviceInfo = deviceInfo;
     if (!currentDeviceInfo || currentDeviceInfo.osVersion === "10.15.7") {
@@ -147,7 +180,11 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
         guestWebsite: guestWebsite.trim() || undefined,
       }),
     });
-  }, [newComment, isSubmitting, createMutation, gameId, deviceInfo, session, guestName, guestEmail, guestWebsite]);
+
+    setCaptchaKey((k) => k + 1);
+    setTurnstileToken("");
+    setCaptchaValue("");
+  }, [newComment, isSubmitting, createMutation, gameId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 
@@ -252,6 +289,17 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
             className="min-h-[80px] resize-none"
             maxLength={2000}
           />
+          {captchaType !== "none" && (
+            <UnifiedCaptcha
+              type={captchaType}
+              turnstileSiteKey={turnstileSiteKey}
+              mathValue={captchaValue}
+              onMathChange={setCaptchaValue}
+              onTurnstileVerify={setTurnstileToken}
+              onTurnstileExpire={() => setTurnstileToken("")}
+              refreshKey={captchaKey}
+            />
+          )}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1">
               <EmojiStickerPicker
@@ -275,7 +323,11 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
               <Button
                 size="sm"
                 onClick={handleSubmit}
-                disabled={!newComment.trim() || isSubmitting || (!session && !guestName.trim())}
+                disabled={
+                  !newComment.trim() || isSubmitting || (!session && !guestName.trim()) ||
+                  (captchaType === "math" && !captchaValue.trim()) ||
+                  (captchaType === "turnstile" && !turnstileToken)
+                }
               >
                 {isSubmitting ? "发表中..." : "发表评论"}
               </Button>

@@ -42,7 +42,7 @@ import {
   GripVertical,
   Link2,
   BarChart3,
-  Eye,
+
   Replace,
   Download,
   Loader2,
@@ -101,6 +101,7 @@ export default function StickersPage() {
   const [editPack, setEditPack] = useState<PackData | null>(null);
   const [expandedPack, setExpandedPack] = useState<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
+  const [urlImportOpen, setUrlImportOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
 
@@ -165,7 +166,7 @@ export default function StickersPage() {
   );
 
   const autoSlug = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-").replace(/^-|-$/g, "");
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   const totalStickers = packs?.reduce((s, p) => s + p._count.stickers, 0) ?? 0;
 
@@ -178,6 +179,10 @@ export default function StickersPage() {
           <p className="text-muted-foreground text-sm mt-1">管理评论区可用的贴图包和贴图</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setUrlImportOpen(true)}>
+            <Link2 className="h-4 w-4 mr-2" />
+            链接导入
+          </Button>
           <Button variant="outline" onClick={() => setPresetOpen(true)}>
             <Download className="h-4 w-4 mr-2" />
             从预设导入
@@ -320,6 +325,12 @@ export default function StickersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* External URL Import Dialog */}
+      <ExternalUrlImportDialog
+        open={urlImportOpen}
+        onOpenChange={setUrlImportOpen}
+      />
+
       {/* Preset Import Dialog */}
       <PresetImportDialog
         open={presetOpen}
@@ -412,7 +423,7 @@ function SortablePackCard({
       </CardHeader>
       {isExpanded && (
         <CardContent className="pt-0">
-          <StickerGrid packId={pack.id} packSlug={pack.slug} usageMap={usageMap} />
+          <StickerGrid packId={pack.id} usageMap={usageMap} />
         </CardContent>
       )}
     </Card>
@@ -435,7 +446,6 @@ function EditPackForm({
   const [coverUrl, setCoverUrl] = useState(pack.coverUrl);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  const utils = trpc.useUtils();
 
   const { data: stickers } = trpc.admin.listStickers.useQuery({ packId: pack.id });
 
@@ -558,7 +568,7 @@ function SortableStickerItem({
         </Badge>
       )}
 
-      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity flex items-center justify-center gap-1">
         <button
           className="cursor-grab active:cursor-grabbing touch-none p-1 text-white hover:text-primary"
           {...attributes}
@@ -585,11 +595,9 @@ function SortableStickerItem({
 
 function StickerGrid({
   packId,
-  packSlug,
   usageMap,
 }: {
   packId: string;
-  packSlug: string;
   usageMap?: Record<string, number>;
 }) {
   const utils = trpc.useUtils();
@@ -1046,6 +1054,148 @@ function PreviewStickerDialog({
             </div>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ==================== Preset Import Dialog ====================
+
+// ==================== External URL Import Dialog ====================
+
+function ExternalUrlImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const utils = trpc.useUtils();
+  const [url, setUrl] = useState("");
+  const [slugPrefix, setSlugPrefix] = useState("");
+  const [result, setResult] = useState<{
+    packs: { packName: string; total: number; success: number; failed: number; errors: string[] }[];
+    totalPacks: number;
+    totalItems: number;
+    totalSuccess: number;
+    totalFailed: number;
+  } | null>(null);
+
+  const importMut = trpc.admin.importFromExternalUrl.useMutation({
+    onSuccess: (data) => {
+      utils.admin.listStickerPacks.invalidate();
+      setResult(data);
+      toast.success(`导入完成：${data.totalPacks} 个合集，${data.totalSuccess}/${data.totalItems} 个贴图`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleImport = () => {
+    setResult(null);
+    importMut.mutate({
+      url: url.trim(),
+      slugPrefix: slugPrefix.trim() || undefined,
+    });
+  };
+
+  const handleClose = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setUrl("");
+      setSlugPrefix("");
+      setResult(null);
+    }
+    onOpenChange(nextOpen);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>从链接导入表情包</DialogTitle>
+          <DialogDescription>
+            支持 Waline、Twikoo (OwO)、Artalk 格式。含多组表情的链接会自动拆分为多个合集。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>表情包链接</Label>
+            <Input
+              placeholder="粘贴 info.json 或 OwO.json 或 Artalk JSON 链接"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={importMut.isPending}
+            />
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <p>示例：</p>
+              <p className="font-mono text-[11px]">https://unpkg.com/@waline/emojis@1.2.0/bilibili</p>
+              <p className="font-mono text-[11px]">https://registry.npmmirror.com/js-asuna/latest/files/json/owo.json</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Slug 前缀（可选）</Label>
+            <Input
+              placeholder="留空则自动根据组名生成"
+              value={slugPrefix}
+              onChange={(e) => setSlugPrefix(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              disabled={importMut.isPending}
+              className="h-8"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              设置后各合集 slug 为 &quot;前缀-组名&quot;，如 owo-qq、owo-tieba
+            </p>
+          </div>
+
+          {result && (
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                {result.totalFailed === 0 ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-amber-500" />
+                )}
+                <span className="text-sm font-medium">
+                  导入完成：{result.totalPacks} 个合集，{result.totalSuccess}/{result.totalItems} 个贴图
+                </span>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1.5">
+                {result.packs.map((p, i) => (
+                  <div key={i} className="text-xs border-l-2 pl-2 py-0.5" style={{ borderColor: p.failed > 0 ? "var(--amber-500, #f59e0b)" : "var(--green-500, #22c55e)" }}>
+                    <span className="font-medium">{p.packName}</span>
+                    <span className="text-muted-foreground ml-1.5">{p.success}/{p.total}</span>
+                    {p.errors.length > 0 && (
+                      <div className="text-destructive mt-0.5">
+                        {p.errors.map((err, j) => <p key={j}>{err}</p>)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleClose(false)}>
+            {result ? "关闭" : "取消"}
+          </Button>
+          {!result && (
+            <Button
+              onClick={handleImport}
+              disabled={!url.trim() || importMut.isPending}
+            >
+              {importMut.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  导入中...
+                </>
+              ) : (
+                "开始导入"
+              )}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

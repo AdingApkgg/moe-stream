@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -13,29 +13,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
-import { CaptchaInput } from "@/components/ui/captcha-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
-
-const loginSchema = z.object({
-  identifier: z.string().min(1, "请输入邮箱或用户名"),
-  password: z.string().min(6, "密码至少6个字符"),
-  captcha: z.string().min(1, "请输入计算结果"),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
+import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
+import { useSiteConfig } from "@/contexts/site-config";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const siteConfig = useSiteConfig();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const prefillAccount = searchParams.get("account") || "";
   const isNewAccount = searchParams.get("new") === "1";
   const [isLoading, setIsLoading] = useState(false);
 
-  const [captchaKey, setCaptchaKey] = useState(0);
+  const captchaType = (siteConfig?.captchaLogin as CaptchaType) || "math";
+  const turnstileSiteKey = siteConfig?.turnstileSiteKey;
 
-  const form = useForm<LoginForm>({
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  const loginSchema = z.object({
+    identifier: z.string().min(1, "请输入邮箱或用户名"),
+    password: z.string().min(6, "密码至少6个字符"),
+    captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+  });
+
+  type LoginFormValues = z.infer<typeof loginSchema>;
+
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       identifier: prefillAccount,
@@ -44,23 +50,37 @@ function LoginForm() {
     },
   });
 
-  async function onSubmit(data: LoginForm) {
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
+
+  async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
     try {
-      // 验证验证码
-      const captchaRes = await fetch("/api/captcha", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ captcha: data.captcha }),
-      });
-      const captchaResult = await captchaRes.json();
+      if (captchaType !== "none") {
+        const captchaRes = await fetch("/api/captcha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            captchaType === "turnstile"
+              ? { type: "turnstile", turnstileToken }
+              : { captcha: data.captcha, type: "math" }
+          ),
+        });
+        const captchaResult = await captchaRes.json();
 
-      if (!captchaResult.valid) {
-        toast.error("验证码错误");
-        setCaptchaKey((k) => k + 1);
-        form.setValue("captcha", "");
-        setIsLoading(false);
-        return;
+        if (!captchaResult.valid) {
+          toast.error(captchaResult.message || "验证失败");
+          setCaptchaKey((k) => k + 1);
+          setTurnstileToken("");
+          form.setValue("captcha", "");
+          setIsLoading(false);
+          return;
+        }
       }
 
       const isEmail = data.identifier.includes("@");
@@ -71,6 +91,7 @@ function LoginForm() {
       if (result?.error) {
         toast.error("登录失败", { description: result.error.message ?? "账号或密码错误" });
         setCaptchaKey((k) => k + 1);
+        setTurnstileToken("");
         form.setValue("captcha", "");
       } else {
         toast.success("登录成功");
@@ -135,24 +156,42 @@ function LoginForm() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="captcha"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>验证码</FormLabel>
-                    <FormControl>
-                      <CaptchaInput
-                        key={captchaKey}
-                        value={field.value}
-                        onChange={field.onChange}
-                        error={form.formState.errors.captcha?.message}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {captchaType === "math" && (
+                <FormField
+                  control={form.control}
+                  name="captcha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>验证码</FormLabel>
+                      <FormControl>
+                        <UnifiedCaptcha
+                          type="math"
+                          mathValue={field.value || ""}
+                          onMathChange={field.onChange}
+                          mathError={form.formState.errors.captcha?.message}
+                          refreshKey={captchaKey}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+              {captchaType === "turnstile" && (
+                <div className="space-y-2">
+                  <UnifiedCaptcha
+                    type="turnstile"
+                    turnstileSiteKey={turnstileSiteKey}
+                    onTurnstileVerify={handleTurnstileVerify}
+                    onTurnstileExpire={handleTurnstileExpire}
+                    refreshKey={captchaKey}
+                  />
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || (captchaType === "turnstile" && !turnstileToken)}
+              >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 登录
               </Button>

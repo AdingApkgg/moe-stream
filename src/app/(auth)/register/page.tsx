@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -15,23 +15,33 @@ import { Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { EmailCodeInput } from "@/components/ui/email-code-input";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
-
-const registerSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
-  username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线"),
-  password: z.string().min(6, "密码至少6个字符"),
-  confirmPassword: z.string(),
-  emailCode: z.string().length(6, "请输入6位验证码"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "两次密码不一致",
-  path: ["confirmPassword"],
-});
-
-type RegisterForm = z.infer<typeof registerSchema>;
+import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
+import { useSiteConfig } from "@/contexts/site-config";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const siteConfig = useSiteConfig();
   const [isLoading, setIsLoading] = useState(false);
+
+  const captchaType = (siteConfig?.captchaRegister as CaptchaType) || "none";
+  const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  const registerSchema = z.object({
+    email: z.string().email("请输入有效的邮箱地址"),
+    username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线"),
+    password: z.string().min(6, "密码至少6个字符"),
+    confirmPassword: z.string(),
+    emailCode: z.string().length(6, "请输入6位验证码"),
+    captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: "两次密码不一致",
+    path: ["confirmPassword"],
+  });
+
+  type RegisterFormValues = z.infer<typeof registerSchema>;
 
   const registerMutation = trpc.user.register.useMutation({
     onSuccess: () => {
@@ -43,7 +53,7 @@ export default function RegisterPage() {
     },
   });
 
-  const form = useForm<RegisterForm>({
+  const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
@@ -51,14 +61,46 @@ export default function RegisterPage() {
       password: "",
       confirmPassword: "",
       emailCode: "",
+      captcha: "",
     },
   });
 
   const email = form.watch("email");
 
-  async function onSubmit(data: RegisterForm) {
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
+
+  async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
+      // 验证验证码
+      if (captchaType !== "none") {
+        const captchaRes = await fetch("/api/captcha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            captchaType === "turnstile"
+              ? { type: "turnstile", turnstileToken }
+              : { captcha: data.captcha, type: "math" }
+          ),
+        });
+        const captchaResult = await captchaRes.json();
+
+        if (!captchaResult.valid) {
+          toast.error(captchaResult.message || "验证失败");
+          setCaptchaKey((k) => k + 1);
+          setTurnstileToken("");
+          form.setValue("captcha", "");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // 验证邮箱验证码
       const verifyRes = await fetch("/api/email/verify-code", {
         method: "POST",
@@ -170,7 +212,42 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {captchaType === "math" && (
+                <FormField
+                  control={form.control}
+                  name="captcha"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>验证码</FormLabel>
+                      <FormControl>
+                        <UnifiedCaptcha
+                          type="math"
+                          mathValue={field.value || ""}
+                          onMathChange={field.onChange}
+                          mathError={form.formState.errors.captcha?.message}
+                          refreshKey={captchaKey}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+              {captchaType === "turnstile" && (
+                <div className="space-y-2">
+                  <UnifiedCaptcha
+                    type="turnstile"
+                    turnstileSiteKey={turnstileSiteKey}
+                    onTurnstileVerify={handleTurnstileVerify}
+                    onTurnstileExpire={handleTurnstileExpire}
+                    refreshKey={captchaKey}
+                  />
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || (captchaType === "turnstile" && !turnstileToken)}
+              >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 注册
               </Button>

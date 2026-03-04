@@ -18,6 +18,7 @@ export interface ServerConfig {
   indexNowKey: string | null;
   googleServiceAccountEmail: string | null;
   googlePrivateKey: string | null;
+  turnstileSecretKey: string | null;
 }
 
 const selectFields = {
@@ -32,6 +33,7 @@ const selectFields = {
   indexNowKey: true,
   googleServiceAccountEmail: true,
   googlePrivateKey: true,
+  turnstileSecretKey: true,
 } as const;
 
 const defaultConfig: ServerConfig = {
@@ -42,6 +44,7 @@ const defaultConfig: ServerConfig = {
   indexNowKey: null,
   googleServiceAccountEmail: null,
   googlePrivateKey: null,
+  turnstileSecretKey: null,
 };
 
 /**
@@ -99,6 +102,7 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
           googleServiceAccountEmail:
             (row.googleServiceAccountEmail as string) || null,
           googlePrivateKey: (row.googlePrivateKey as string) || null,
+          turnstileSecretKey: (row.turnstileSecretKey as string) || null,
         };
       },
       300

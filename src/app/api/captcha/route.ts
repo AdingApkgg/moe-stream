@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { verifyCaptcha, type CaptchaType } from "@/lib/captcha";
 
-// 生成简单的数学验证码 SVG
 function generateMathCaptcha() {
   const num1 = Math.floor(Math.random() * 10) + 1;
   const num2 = Math.floor(Math.random() * 10) + 1;
@@ -26,7 +26,6 @@ function generateMathCaptcha() {
 
   const text = `${num1} ${operator} ${num2} = ?`;
 
-  // 生成 SVG
   const colors = ["#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#f39c12"];
   const bgColor = "#f5f5f5";
   const textColor = colors[Math.floor(Math.random() * colors.length)];
@@ -48,13 +47,12 @@ export async function GET() {
   try {
     const { svg, answer } = generateMathCaptcha();
 
-    // 将答案存储到 cookie 中
     const cookieStore = await cookies();
     cookieStore.set("captcha", answer, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 5, // 5 分钟有效
+      maxAge: 60 * 5,
       path: "/",
     });
 
@@ -75,28 +73,29 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { captcha } = await request.json();
+    const body = await request.json();
+    const { captcha, type = "math", turnstileToken } = body as {
+      captcha?: string;
+      type?: CaptchaType;
+      turnstileToken?: string;
+    };
+
+    if (type === "turnstile") {
+      const result = await verifyCaptcha("turnstile", turnstileToken, undefined);
+      return NextResponse.json(result);
+    }
+
+    // math captcha
     const cookieStore = await cookies();
     const storedCaptcha = cookieStore.get("captcha")?.value;
 
-    if (!storedCaptcha) {
-      return NextResponse.json(
-        { valid: false, message: "验证码已过期" },
-        { status: 400 }
-      );
-    }
+    const result = await verifyCaptcha("math", captcha, storedCaptcha);
 
-    const isValid = captcha?.toString().trim() === storedCaptcha;
-
-    if (isValid) {
-      // 验证成功后删除 cookie
+    if (result.valid) {
       cookieStore.delete("captcha");
     }
 
-    return NextResponse.json({
-      valid: isValid,
-      message: isValid ? "验证成功" : "验证码错误",
-    });
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json(
       { valid: false, message: "验证失败" },

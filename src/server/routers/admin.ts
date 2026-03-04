@@ -14,7 +14,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
 import { getServerConfig } from "@/lib/server-config";
-import { STICKER_PRESETS, resolvePresetItems } from "@/lib/sticker-presets";
+import { STICKER_PRESETS, resolvePresetItems, resolveExternalUrl } from "@/lib/sticker-presets";
 
 // 检查用户是否有特定权限
 async function hasScope(
@@ -1889,6 +1889,13 @@ export const adminRouter = router({
       backupIncludeUploads: z.boolean().optional(),
       backupIncludeConfig: z.boolean().optional(),
 
+      // 个性化样式
+      themeHue: z.number().int().min(0).max(360).optional(),
+      themeColorTemp: z.number().int().min(-100).max(100).optional(),
+      themeBorderRadius: z.number().min(0).max(2).optional(),
+      themeGlassOpacity: z.number().min(0).max(1).optional(),
+      themeAnimations: z.boolean().optional(),
+
       // 视觉效果
       effectEnabled: z.boolean().optional(),
       effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]).optional(),
@@ -1945,6 +1952,7 @@ export const adminRouter = router({
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
+        "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
         "oauthGoogleClientId", "oauthGoogleClientSecret",
@@ -2069,6 +2077,7 @@ export const adminRouter = router({
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
+        "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
         "oauthGoogleClientId", "oauthGoogleClientSecret",
@@ -4073,6 +4082,125 @@ export const adminRouter = router({
         success,
         failed: errors.length,
         errors: errors.slice(0, 10),
+      };
+    }),
+
+  importFromExternalUrl: adminProcedure
+    .input(z.object({
+      url: z.string().url(),
+      slugPrefix: z.string().min(1).max(30).regex(/^[a-z0-9-]+$/).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const resolvedPacks = await resolveExternalUrl(input.url);
+      const totalItems = resolvedPacks.reduce((s, p) => s + p.items.length, 0);
+      if (totalItems === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "未检测到有效贴图" });
+      }
+
+      const config = await getServerConfig();
+      const stickerDir = join(config.uploadDir, "sticker");
+      if (!existsSync(stickerDir)) {
+        await mkdir(stickerDir, { recursive: true });
+      }
+
+      const existingSlugs = new Set(
+        (await ctx.prisma.stickerPack.findMany({ select: { slug: true } })).map((p) => p.slug),
+      );
+
+      const autoSlug = (name: string, idx: number): string => {
+        const base = (input.slugPrefix ? `${input.slugPrefix}-` : "") +
+          (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `pack-${idx}`);
+        let slug = base;
+        let n = 2;
+        while (existingSlugs.has(slug)) {
+          slug = `${base}-${n++}`;
+        }
+        existingSlugs.add(slug);
+        return slug;
+      };
+
+      const packResults: {
+        packName: string;
+        total: number;
+        success: number;
+        failed: number;
+        errors: string[];
+      }[] = [];
+
+      for (let pi = 0; pi < resolvedPacks.length; pi++) {
+        const rp = resolvedPacks[pi];
+        const packSlug = autoSlug(rp.packName, pi);
+
+        const pack = await ctx.prisma.stickerPack.create({
+          data: { name: rp.packName, slug: packSlug, isActive: true, sortOrder: 0 },
+        });
+
+        let success = 0;
+        const errors: string[] = [];
+
+        for (let i = 0; i < rp.items.length; i++) {
+          const item = rp.items[i];
+          try {
+            const res = await fetch(item.url, { signal: AbortSignal.timeout(15000) });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const buffer = Buffer.from(await res.arrayBuffer());
+
+            const processed = await sharp(buffer)
+              .resize(256, 256, { fit: "inside", withoutEnlargement: true })
+              .webp({ quality: 90 })
+              .toBuffer();
+
+            const meta = await sharp(processed).metadata();
+            const filename = `ext-${Date.now()}-${nanoid(6)}.webp`;
+            await writeFile(join(stickerDir, filename), processed);
+
+            await ctx.prisma.sticker.create({
+              data: {
+                packId: pack.id,
+                name: item.name.slice(0, 50),
+                imageUrl: `/uploads/sticker/${filename}`,
+                width: meta.width,
+                height: meta.height,
+                sortOrder: i,
+              },
+            });
+            success++;
+          } catch (e) {
+            errors.push(`${item.name}: ${e instanceof Error ? e.message : "未知错误"}`);
+          }
+        }
+
+        if (success > 0) {
+          const firstSticker = await ctx.prisma.sticker.findFirst({
+            where: { packId: pack.id },
+            orderBy: { sortOrder: "asc" },
+          });
+          if (firstSticker) {
+            await ctx.prisma.stickerPack.update({
+              where: { id: pack.id },
+              data: { coverUrl: firstSticker.imageUrl },
+            });
+          }
+        }
+
+        packResults.push({
+          packName: rp.packName,
+          total: rp.items.length,
+          success,
+          failed: errors.length,
+          errors: errors.slice(0, 5),
+        });
+      }
+
+      const totalSuccess = packResults.reduce((s, p) => s + p.success, 0);
+      const totalFailed = packResults.reduce((s, p) => s + p.failed, 0);
+
+      return {
+        packs: packResults,
+        totalPacks: packResults.length,
+        totalItems,
+        totalSuccess,
+        totalFailed,
       };
     }),
 
