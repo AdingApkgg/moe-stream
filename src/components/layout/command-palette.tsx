@@ -30,6 +30,7 @@ import {
   Shield,
   Keyboard,
   BarChart3,
+  Trophy,
   Layers,
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
@@ -156,6 +157,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           <CommandItem onSelect={() => runCommand(() => router.push("/stats"))}>
             <BarChart3 className="mr-2 h-4 w-4" />
             数据总览
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => router.push("/ranking"))}>
+            <Trophy className="mr-2 h-4 w-4" />
+            排名榜
           </CommandItem>
         </CommandGroup>
 

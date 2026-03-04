@@ -12,6 +12,7 @@ import {
   Layers,
   MessageCircle,
   BarChart3,
+  Trophy,
   Image,
   Gamepad2,
   Play,
@@ -48,6 +49,7 @@ const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/comments", icon: MessageCircle, label: "评论动态" },
   { href: "/stats", icon: BarChart3, label: "数据总览" },
+  { href: "/ranking", icon: Trophy, label: "排名榜" },
 ];
 
 /** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
