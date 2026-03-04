@@ -16,6 +16,31 @@ import { existsSync } from "fs";
 import { getServerConfig } from "@/lib/server-config";
 import { STICKER_PRESETS, resolvePresetItems, resolveExternalUrl } from "@/lib/sticker-presets";
 
+async function processSticker(
+  buffer: Buffer,
+  prefix: string,
+): Promise<{ data: Buffer; filename: string; width?: number; height?: number }> {
+  const meta = await sharp(buffer).metadata();
+  const isAnimated = (meta.pages ?? 1) > 1;
+
+  let processed: Buffer;
+  if (isAnimated) {
+    processed = await sharp(buffer, { animated: true })
+      .resize(256, 256, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 90 })
+      .toBuffer();
+  } else {
+    processed = await sharp(buffer)
+      .resize(256, 256, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 90 })
+      .toBuffer();
+  }
+
+  const outMeta = await sharp(processed).metadata();
+  const filename = `${prefix}-${Date.now()}-${nanoid(6)}.webp`;
+  return { data: processed, filename, width: outMeta.width, height: outMeta.height };
+}
+
 // 检查用户是否有特定权限
 async function hasScope(
   prisma: typeof import("@/lib/prisma").prisma,
@@ -3958,13 +3983,7 @@ export const adminRouter = router({
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buffer = Buffer.from(await res.arrayBuffer());
 
-          const processed = await sharp(buffer)
-            .resize(256, 256, { fit: "inside", withoutEnlargement: true })
-            .webp({ quality: 90 })
-            .toBuffer();
-
-          const meta = await sharp(processed).metadata();
-          const filename = `import-${Date.now()}-${nanoid(6)}.webp`;
+          const { data: processed, filename, width, height } = await processSticker(buffer, "import");
           await writeFile(join(stickerDir, filename), processed);
 
           const stickerName = item.name || item.url.split("/").pop()?.replace(/\.[^.]+$/, "") || "sticker";
@@ -3973,8 +3992,8 @@ export const adminRouter = router({
               packId: input.packId,
               name: stickerName.slice(0, 50),
               imageUrl: `/uploads/sticker/${filename}`,
-              width: meta.width,
-              height: meta.height,
+              width,
+              height,
               sortOrder: nextSort++,
             },
           });
@@ -4037,13 +4056,7 @@ export const adminRouter = router({
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const buffer = Buffer.from(await res.arrayBuffer());
 
-          const processed = await sharp(buffer)
-            .resize(256, 256, { fit: "inside", withoutEnlargement: true })
-            .webp({ quality: 90 })
-            .toBuffer();
-
-          const meta = await sharp(processed).metadata();
-          const filename = `preset-${Date.now()}-${nanoid(6)}.webp`;
+          const { data: processed, filename, width, height } = await processSticker(buffer, "preset");
           await writeFile(join(stickerDir, filename), processed);
 
           await ctx.prisma.sticker.create({
@@ -4051,8 +4064,8 @@ export const adminRouter = router({
               packId: pack.id,
               name: item.name.slice(0, 50),
               imageUrl: `/uploads/sticker/${filename}`,
-              width: meta.width,
-              height: meta.height,
+              width,
+              height,
               sortOrder: i,
             },
           });
@@ -4145,13 +4158,7 @@ export const adminRouter = router({
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const buffer = Buffer.from(await res.arrayBuffer());
 
-            const processed = await sharp(buffer)
-              .resize(256, 256, { fit: "inside", withoutEnlargement: true })
-              .webp({ quality: 90 })
-              .toBuffer();
-
-            const meta = await sharp(processed).metadata();
-            const filename = `ext-${Date.now()}-${nanoid(6)}.webp`;
+            const { data: processed, filename, width, height } = await processSticker(buffer, "ext");
             await writeFile(join(stickerDir, filename), processed);
 
             await ctx.prisma.sticker.create({
@@ -4159,8 +4166,8 @@ export const adminRouter = router({
                 packId: pack.id,
                 name: item.name.slice(0, 50),
                 imageUrl: `/uploads/sticker/${filename}`,
-                width: meta.width,
-                height: meta.height,
+                width,
+                height,
                 sortOrder: i,
               },
             });

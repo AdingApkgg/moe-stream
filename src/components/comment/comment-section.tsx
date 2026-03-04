@@ -41,8 +41,9 @@ export function CommentSection({ videoId }: CommentSectionProps) {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
-  const captchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const rawCaptchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
+  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaValue, setCaptchaValue] = useState("");

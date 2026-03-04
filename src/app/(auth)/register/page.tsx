@@ -23,8 +23,9 @@ export default function RegisterPage() {
   const siteConfig = useSiteConfig();
   const [isLoading, setIsLoading] = useState(false);
 
-  const captchaType = (siteConfig?.captchaRegister as CaptchaType) || "none";
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const rawCaptchaType = (siteConfig?.captchaRegister as CaptchaType) || "none";
+  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
 
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");

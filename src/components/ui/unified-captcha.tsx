@@ -41,7 +41,14 @@ export function UnifiedCaptcha({
     );
   }
 
-  if (type === "turnstile" && turnstileSiteKey) {
+  if (type === "turnstile") {
+    if (!turnstileSiteKey) {
+      return (
+        <p className="text-xs text-destructive">
+          Turnstile 未配置 Site Key，验证码已跳过
+        </p>
+      );
+    }
     return (
       <TurnstileWidget
         key={refreshKey}

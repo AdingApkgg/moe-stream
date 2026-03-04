@@ -100,11 +100,20 @@ export async function POST(request: NextRequest) {
     const signedValue = await signCookieValue(session.token, ctx.secret);
 
     const isSecure = cookieAttrs.secure ?? false;
-    const baseCookieParts = [
+    const tokenCookieParts = [
       `Path=${cookieAttrs.path ?? "/"}`,
       cookieAttrs.httpOnly !== false ? "HttpOnly" : "",
       isSecure ? "Secure" : "",
       `SameSite=${cookieAttrs.sameSite ?? "Lax"}`,
+    ].filter(Boolean);
+
+    // session_data 的属性可能与 session_token 不同（如非 httpOnly），必须分别构建
+    const dataAttrs = ctx.authCookies.sessionData.attributes;
+    const dataCookieParts = [
+      `Path=${dataAttrs.path ?? "/"}`,
+      dataAttrs.httpOnly ? "HttpOnly" : "",
+      (dataAttrs.secure ?? false) ? "Secure" : "",
+      `SameSite=${dataAttrs.sameSite ?? "Lax"}`,
     ].filter(Boolean);
 
     // 设置新的 session_token cookie
@@ -113,7 +122,7 @@ export async function POST(request: NextRequest) {
       [
         `${cookieName}=${signedValue}`,
         `Max-Age=${ctx.sessionConfig.expiresIn}`,
-        ...baseCookieParts,
+        ...tokenCookieParts,
       ].join("; ")
     );
 
@@ -124,7 +133,7 @@ export async function POST(request: NextRequest) {
       [
         `${sessionDataName}=`,
         `Max-Age=0`,
-        ...baseCookieParts,
+        ...dataCookieParts,
       ].join("; ")
     );
 
@@ -135,7 +144,7 @@ export async function POST(request: NextRequest) {
         [
           `${sessionDataName}.${i}=`,
           `Max-Age=0`,
-          ...baseCookieParts,
+          ...dataCookieParts,
         ].join("; ")
       );
     }

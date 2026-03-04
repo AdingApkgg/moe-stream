@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useState, useEffect, lazy, Suspense, type ReactNode, type ErrorInfo } from "react";
+import { Component, useState, useEffect, type ReactNode, type ErrorInfo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { trpc } from "@/lib/trpc";
@@ -9,8 +9,12 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteConfigProvider } from "@/contexts/site-config";
 import type { PublicSiteConfig } from "@/lib/site-config";
+import dynamic from "next/dynamic";
 
-const ParticleBackground = lazy(() => import("@/components/effects/particle-background"));
+const ParticleBackground = dynamic(
+  () => import("@/components/effects/particle-background"),
+  { ssr: false },
+);
 
 class EffectErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -135,17 +139,15 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
                 <ServiceWorkerRegistration />
                 {siteConfig.effectEnabled && siteConfig.effectType !== "none" && (
                   <EffectErrorBoundary>
-                    <Suspense fallback={null}>
-                      <ParticleBackground
-                        config={{
-                          type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
-                          density: siteConfig.effectDensity,
-                          speed: siteConfig.effectSpeed,
-                          opacity: siteConfig.effectOpacity,
-                          color: siteConfig.effectColor,
-                        }}
-                      />
-                    </Suspense>
+                    <ParticleBackground
+                      config={{
+                        type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
+                        density: siteConfig.effectDensity,
+                        speed: siteConfig.effectSpeed,
+                        opacity: siteConfig.effectOpacity,
+                        color: siteConfig.effectColor,
+                      }}
+                    />
                   </EffectErrorBoundary>
                 )}
                 {children}

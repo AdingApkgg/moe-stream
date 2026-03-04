@@ -27,8 +27,9 @@ function LoginForm() {
   const isNewAccount = searchParams.get("new") === "1";
   const [isLoading, setIsLoading] = useState(false);
 
-  const captchaType = (siteConfig?.captchaLogin as CaptchaType) || "math";
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const rawCaptchaType = (siteConfig?.captchaLogin as CaptchaType) || "math";
+  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
 
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");

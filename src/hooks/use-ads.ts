@@ -45,10 +45,11 @@ export function useAds() {
 
   const siteAdsOn = siteConfig?.adsEnabled === true;
   const userAllowsAds =
-    status !== "loading" &&
-    (session === null
+    status === "loading"
       ? true
-      : (session.user as { adsEnabled?: boolean })?.adsEnabled !== false);
+      : session === null
+        ? true
+        : (session.user as { adsEnabled?: boolean })?.adsEnabled !== false;
 
   const showAds = siteAdsOn && userAllowsAds;
 

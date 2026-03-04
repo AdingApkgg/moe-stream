@@ -147,9 +147,9 @@ function StickerTab({
 
   return (
     <div className="flex flex-col h-[350px]">
-      {/* 贴图包选项卡 */}
-      <ScrollArea className="w-full border-b">
-        <div className="flex gap-1 p-1.5">
+      {/* 贴图包选项卡 — 水平滚动 */}
+      <div className="shrink-0 overflow-x-auto overflow-y-hidden border-b scrollbar-hide">
+        <div className="flex gap-1 p-1.5 w-max">
           {packs.map((pack) => (
             <button
               key={pack.id}
@@ -164,10 +164,10 @@ function StickerTab({
             </button>
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* 贴图网格 */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {currentPack && (
           <div className="grid grid-cols-5 gap-1.5 p-2">
             {currentPack.stickers.map((sticker) => (
