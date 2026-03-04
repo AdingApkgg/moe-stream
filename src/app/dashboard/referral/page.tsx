@@ -46,6 +46,8 @@ import {
   TrendingUp,
   ExternalLink,
   History,
+  CalendarCheck,
+  Gift,
 } from "lucide-react";
 import { useSiteConfig } from "@/contexts/site-config";
 
@@ -67,6 +69,73 @@ function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).then(() => {
     toast.success("已复制到剪贴板");
   });
+}
+
+function CheckinCard() {
+  const utils = trpc.useUtils();
+  const { data: status, isLoading } = trpc.referral.getCheckinStatus.useQuery();
+  const checkinMutation = trpc.referral.checkin.useMutation({
+    onSuccess: (res) => {
+      if (res.awarded) {
+        toast.success(`签到成功！获得 ${res.points} 积分`);
+      } else {
+        toast.info("今天已经签到过了");
+      }
+      utils.referral.getCheckinStatus.invalidate();
+      utils.referral.getMyStats.invalidate();
+      utils.referral.getPointsHistory.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!status?.enabled) return null;
+
+  return (
+    <Card className={status.checkedInToday ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20" : ""}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${status.checkedInToday ? "bg-green-100 dark:bg-green-900/50" : "bg-primary/10"}`}>
+              <CalendarCheck className={`h-5 w-5 ${status.checkedInToday ? "text-green-600 dark:text-green-400" : "text-primary"}`} />
+            </div>
+            <div>
+              <div className="font-medium">
+                {status.checkedInToday ? "今日已签到" : "每日签到"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {status.checkedInToday
+                  ? `今日获得 ${status.todayPoints} 积分`
+                  : `签到可获得 ${status.pointsMin}~${status.pointsMax} 积分`}
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={status.checkedInToday ? "outline" : "default"}
+            disabled={status.checkedInToday || checkinMutation.isPending}
+            onClick={() => checkinMutation.mutate()}
+          >
+            {checkinMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <Gift className="h-4 w-4 mr-1" />
+            )}
+            {status.checkedInToday ? "已签到" : "签到"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function StatsCards() {
@@ -472,6 +541,8 @@ function PointsHistory() {
     REFERRAL_REWARD: "推广奖励",
     ADMIN_ADJUST: "管理员调整",
     POINTS_CONSUME: "积分消耗",
+    CHECKIN: "每日签到",
+    DAILY_LOGIN: "每日登录",
   };
 
   if (isLoading) {
@@ -576,6 +647,8 @@ export default function ReferralPage() {
           创建推广链接，邀请新用户注册赚取积分
         </p>
       </div>
+
+      <CheckinCard />
 
       <StatsCards />
 

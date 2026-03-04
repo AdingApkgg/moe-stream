@@ -494,8 +494,8 @@ export const gameRouter = router({
         await ctx.prisma.gameFavorite.create({
           data: { userId, gameId: input.gameId },
         });
-        awardPoints(userId, "FAVORITE_GAME", undefined, input.gameId);
-        return { favorited: true };
+        const pointsAwarded = await awardPoints(userId, "FAVORITE_GAME", undefined, input.gameId, { firstTimeOnly: true });
+        return { favorited: true, pointsAwarded };
       }
     }),
 
@@ -521,8 +521,8 @@ export const gameRouter = router({
           ctx.prisma.gameLike.create({ data: { userId, gameId } }),
           ctx.prisma.gameDislike.deleteMany({ where: { userId, gameId } }),
         ]);
-        awardPoints(userId, "LIKE_GAME", undefined, gameId);
-        return { liked: true, disliked: false };
+        const pointsAwarded = await awardPoints(userId, "LIKE_GAME", undefined, gameId, { firstTimeOnly: true });
+        return { liked: true, disliked: false, pointsAwarded };
       } else {
         const existing = await ctx.prisma.gameDislike.findUnique({
           where: { userId_gameId: { userId, gameId } },
@@ -672,10 +672,11 @@ export const gameRouter = router({
         },
       });
 
+      let pointsAwarded = 0;
       if (!existing) {
-        awardPoints(ctx.session.user.id, "VIEW_GAME", undefined, input.gameId);
+        pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_GAME", undefined, input.gameId);
       }
-      return { success: true };
+      return { success: true, pointsAwarded };
     }),
 
   /** 获取指定用户的游戏浏览记录（公开） */

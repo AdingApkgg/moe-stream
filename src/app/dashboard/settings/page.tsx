@@ -59,6 +59,7 @@ import {
   Copy,
   TrendingUp,
   Coins,
+  CalendarCheck,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -125,6 +126,11 @@ const configFormSchema = z.object({
     points: z.number().int().min(0).max(10000),
     dailyLimit: z.number().int().min(0).max(1000),
   })),
+
+  // 签到系统
+  checkinEnabled: z.boolean(),
+  checkinPointsMin: z.number().int().min(1).max(100000),
+  checkinPointsMax: z.number().int().min(1).max(100000),
 
   // 广告系统
   adsEnabled: z.boolean(),
@@ -757,6 +763,9 @@ export default function AdminSettingsPage() {
         FAVORITE_IMAGE: { enabled: false, points: 2,   dailyLimit: 10 },
         COMMENT_IMAGE:  { enabled: false, points: 3,   dailyLimit: 5 },
       },
+      checkinEnabled: false,
+      checkinPointsMin: 1,
+      checkinPointsMax: 10,
       adsEnabled: false,
       adGateEnabled: false,
       adGateViewsRequired: 3,
@@ -863,6 +872,9 @@ export default function AdminSettingsPage() {
           COMMENT_IMAGE:  { enabled: false, points: 3,   dailyLimit: 5 },
           ...((config as { pointsRules?: Record<string, unknown> }).pointsRules || {}),
         },
+        checkinEnabled: (config as { checkinEnabled?: boolean }).checkinEnabled ?? false,
+        checkinPointsMin: (config as { checkinPointsMin?: number }).checkinPointsMin ?? 1,
+        checkinPointsMax: (config as { checkinPointsMax?: number }).checkinPointsMax ?? 10,
         adsEnabled: (config as { adsEnabled?: boolean }).adsEnabled ?? false,
         adGateEnabled: (config as { adGateEnabled?: boolean }).adGateEnabled ?? false,
         adGateViewsRequired: (config as { adGateViewsRequired?: number }).adGateViewsRequired ?? 3,
@@ -1407,6 +1419,71 @@ export default function AdminSettingsPage() {
                                 onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 20)}
                               />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 签到系统 */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <CalendarCheck className="h-4 w-4" />
+                      每日签到
+                    </h4>
+                    <FormField
+                      control={form.control}
+                      name="checkinEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>启用每日签到</FormLabel>
+                            <FormDescription>开启后用户每天可手动签到一次，获得随机积分奖励（正态分布）</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="checkinPointsMin"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>签到积分下限</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={100000}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                              />
+                            </FormControl>
+                            <FormDescription>签到获得积分的最小值</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="checkinPointsMax"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>签到积分上限</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={100000}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 10)}
+                              />
+                            </FormControl>
+                            <FormDescription>签到获得积分的最大值，积分在上下限之间正态分布</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

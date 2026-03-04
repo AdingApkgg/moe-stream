@@ -51,6 +51,7 @@ import { playSound } from "@/lib/audio";
 import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/contexts/site-config";
+import { showPointsToast } from "@/lib/toast-with-sound";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -217,7 +218,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   });
 
   // 每日登录积分
-  const dailyLoginMutation = trpc.referral.claimDailyLogin.useMutation();
+  const dailyLoginMutation = trpc.referral.claimDailyLogin.useMutation({
+    onSuccess: (data) => {
+      if (data.awarded) showPointsToast(data.points);
+    },
+  });
   const dailyLoginCalledRef = useRef(false);
   useEffect(() => {
     if (session?.user && !dailyLoginCalledRef.current) {

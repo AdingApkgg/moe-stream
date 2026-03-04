@@ -1156,8 +1156,8 @@ export const videoRouter = router({
         },
       });
 
-      awardPoints(ctx.session.user.id, "LIKE_VIDEO", undefined, input.videoId);
-      return { liked: true };
+      const pointsAwarded = await awardPoints(ctx.session.user.id, "LIKE_VIDEO", undefined, input.videoId, { firstTimeOnly: true });
+      return { liked: true, pointsAwarded };
     }),
 
   // 踩
@@ -1267,8 +1267,8 @@ export const videoRouter = router({
         },
       });
 
-      awardPoints(ctx.session.user.id, "FAVORITE_VIDEO", undefined, input.videoId);
-      return { favorited: true };
+      const pointsAwarded = await awardPoints(ctx.session.user.id, "FAVORITE_VIDEO", undefined, input.videoId, { firstTimeOnly: true });
+      return { favorited: true, pointsAwarded };
     }),
 
   // 检查点赞/踩/疑惑/收藏状态
@@ -1675,10 +1675,11 @@ export const videoRouter = router({
         },
       });
 
+      let pointsAwarded = 0;
       if (!existing) {
-        awardPoints(ctx.session.user.id, "WATCH_VIDEO", undefined, input.videoId);
+        pointsAwarded = await awardPoints(ctx.session.user.id, "WATCH_VIDEO", undefined, input.videoId);
       }
-      return { success: true };
+      return { success: true, pointsAwarded };
     }),
 
   // 清空观看历史

@@ -1927,6 +1927,11 @@ export const adminRouter = router({
         dailyLimit: z.number().int().min(0).max(1000),
       })).optional().nullable(),
 
+      // 签到系统
+      checkinEnabled: z.boolean().optional(),
+      checkinPointsMin: z.number().int().min(1).max(100000).optional(),
+      checkinPointsMax: z.number().int().min(1).max(100000).optional(),
+
       // 数据备份
       backupEnabled: z.boolean().optional(),
       backupIntervalHours: z.number().int().min(1).max(720).optional(),
@@ -1998,6 +2003,7 @@ export const adminRouter = router({
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "referralEnabled", "referralPointsPerUser", "referralMaxLinksPerUser", "pointsRules",
+        "checkinEnabled", "checkinPointsMin", "checkinPointsMax",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
         "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",
@@ -2139,6 +2145,7 @@ export const adminRouter = router({
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
         "referralEnabled", "referralPointsPerUser", "referralMaxLinksPerUser", "pointsRules",
+        "checkinEnabled", "checkinPointsMin", "checkinPointsMax",
         "backupEnabled", "backupIntervalHours", "backupRetentionDays",
         "backupIncludeUploads", "backupIncludeConfig",
         "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",

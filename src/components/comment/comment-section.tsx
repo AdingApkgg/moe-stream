@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { CommentItem } from "./comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
@@ -119,11 +119,12 @@ export function CommentSection({ videoId }: CommentSectionProps) {
 
   // 发表评论
   const createMutation = trpc.comment.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setNewComment("");
       utils.comment.list.invalidate({ videoId });
       utils.comment.getCount.invalidate({ videoId });
       toast.success("评论发表成功");
+      showPointsToast(data?.pointsAwarded);
     },
     onError: (error) => {
       toast.error(error.message || "发表失败");

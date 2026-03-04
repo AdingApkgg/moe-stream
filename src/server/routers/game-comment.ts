@@ -320,6 +320,7 @@ export const gameCommentRouter = router({
         },
       });
 
+      let pointsAwarded = 0;
       if (userId) {
         const lastIpLocation = ipv4Location || ipv6Location;
         await ctx.prisma.user.update({
@@ -328,12 +329,13 @@ export const gameCommentRouter = router({
             lastIpLocation: lastIpLocation || undefined,
           },
         });
-        awardPoints(userId, "COMMENT_GAME", undefined, comment.id);
+        pointsAwarded = await awardPoints(userId, "COMMENT_GAME", undefined, comment.id);
       }
 
       return {
         ...comment,
         userReaction: null,
+        pointsAwarded,
       };
     }),
 

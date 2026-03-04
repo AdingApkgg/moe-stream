@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
-import { awardDailyLogin } from "@/lib/points";
+import { awardDailyLogin, awardCheckin } from "@/lib/points";
 import { redis } from "@/lib/redis";
 
 async function generateUniqueCode(
@@ -255,6 +255,36 @@ export const referralRouter = router({
   claimDailyLogin: protectedProcedure.mutation(async ({ ctx }) => {
     const points = await awardDailyLogin(ctx.session.user.id);
     return { awarded: points > 0, points };
+  }),
+
+  checkin: protectedProcedure.mutation(async ({ ctx }) => {
+    const points = await awardCheckin(ctx.session.user.id);
+    return { awarded: points > 0, points };
+  }),
+
+  getCheckinStatus: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [config, todayTx] = await Promise.all([
+      ctx.prisma.siteConfig.findUnique({
+        where: { id: "default" },
+        select: { checkinEnabled: true, checkinPointsMin: true, checkinPointsMax: true },
+      }),
+      ctx.prisma.pointsTransaction.findFirst({
+        where: { userId, type: "CHECKIN", createdAt: { gte: todayStart } },
+        select: { amount: true },
+      }),
+    ]);
+
+    return {
+      enabled: config?.checkinEnabled ?? false,
+      checkedInToday: !!todayTx,
+      todayPoints: todayTx?.amount ?? 0,
+      pointsMin: config?.checkinPointsMin ?? 1,
+      pointsMax: config?.checkinPointsMax ?? 10,
+    };
   }),
 
   // ========== 管理端 ==========

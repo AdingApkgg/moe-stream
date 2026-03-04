@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatViews, formatRelativeTime } from "@/lib/format";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { useSound } from "@/hooks/use-sound";
 import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
@@ -215,6 +215,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       }
       return { prev };
     },
+    onSuccess: (data) => showPointsToast(data?.pointsAwarded),
     onSettled: (_data, _err, vars) => {
       utils.video.getById.invalidate({ id: vars.videoId });
       utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
@@ -284,12 +285,14 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       }
       return { prev };
     },
+    onSuccess: (data) => showPointsToast(data?.pointsAwarded),
     onSettled: (_data, _err, vars) => {
       utils.video.getById.invalidate({ id: vars.videoId });
       utils.video.getInteractionStatus.invalidate({ videoId: vars.videoId });
     },
   });
   const recordHistoryMutation = trpc.video.recordHistory.useMutation({
+    onSuccess: (data) => showPointsToast(data?.pointsAwarded),
     onError: (error) => {
       console.error("记录观看历史失败:", error.message);
     },

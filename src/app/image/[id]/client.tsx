@@ -10,7 +10,7 @@ import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { useSound } from "@/hooks/use-sound";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ImagePostCommentSection } from "@/components/comment/image-post-comment-section";
@@ -44,21 +44,25 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
   const utils = trpc.useUtils();
 
   const toggleReaction = trpc.image.toggleReaction.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       play("like");
+      showPointsToast(data?.pointsAwarded);
       utils.image.getUserInteraction.invalidate({ imagePostId: post.id });
     },
   });
 
   const toggleFavorite = trpc.image.toggleFavorite.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       play("favorite");
+      showPointsToast(data?.pointsAwarded);
       utils.image.getUserInteraction.invalidate({ imagePostId: post.id });
     },
   });
 
   const incrementViews = trpc.image.incrementViews.useMutation();
-  const recordView = trpc.image.recordView.useMutation();
+  const recordView = trpc.image.recordView.useMutation({
+    onSuccess: (data) => showPointsToast(data?.pointsAwarded),
+  });
   useEffect(() => {
     incrementViews.mutate({ id: post.id });
     recordView.mutate({ imagePostId: post.id });

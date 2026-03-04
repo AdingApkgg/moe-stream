@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { ImagePostCommentItem } from "./image-post-comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
@@ -108,11 +108,12 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
   );
 
   const createMutation = trpc.imagePostComment.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setNewComment("");
       utils.imagePostComment.list.invalidate({ imagePostId });
       utils.imagePostComment.getCount.invalidate({ imagePostId });
       toast.success("评论发表成功");
+      showPointsToast(data?.pointsAwarded);
     },
     onError: (error) => {
       toast.error(error.message || "发表失败");

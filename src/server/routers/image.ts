@@ -449,8 +449,8 @@ export const imageRouter = router({
           ctx.prisma.imagePostLike.create({ data: { userId, imagePostId } }),
           ctx.prisma.imagePostDislike.deleteMany({ where: { userId, imagePostId } }),
         ]);
-        awardPoints(userId, "LIKE_IMAGE", undefined, imagePostId);
-        return { liked: true, disliked: false };
+        const pointsAwarded = await awardPoints(userId, "LIKE_IMAGE", undefined, imagePostId, { firstTimeOnly: true });
+        return { liked: true, disliked: false, pointsAwarded };
       } else {
         const existing = await ctx.prisma.imagePostDislike.findUnique({
           where: { userId_imagePostId: { userId, imagePostId } },
@@ -483,8 +483,8 @@ export const imageRouter = router({
       await ctx.prisma.imagePostFavorite.create({
         data: { userId, imagePostId: input.imagePostId },
       });
-      awardPoints(userId, "FAVORITE_IMAGE", undefined, input.imagePostId);
-      return { favorited: true };
+      const pointsAwarded = await awardPoints(userId, "FAVORITE_IMAGE", undefined, input.imagePostId, { firstTimeOnly: true });
+      return { favorited: true, pointsAwarded };
     }),
 
   getUserInteraction: protectedProcedure
@@ -542,10 +542,11 @@ export const imageRouter = router({
         },
       });
 
+      let pointsAwarded = 0;
       if (!existing) {
-        awardPoints(ctx.session.user.id, "VIEW_IMAGE", undefined, input.imagePostId);
+        pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_IMAGE", undefined, input.imagePostId);
       }
-      return { success: true };
+      return { success: true, pointsAwarded };
     }),
 
   // ==================== 公开列表（用户主页用） ====================

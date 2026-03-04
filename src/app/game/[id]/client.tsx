@@ -28,7 +28,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { useSession } from "@/lib/auth-client";
 import { useSound } from "@/hooks/use-sound";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import type { SerializedGame } from "./page";
 import type { GameExtraInfo } from "./page";
 
@@ -92,20 +92,24 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
   const utils = trpc.useUtils();
 
   const toggleReaction = trpc.game.toggleReaction.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       play("like");
+      showPointsToast(data?.pointsAwarded);
       utils.game.getUserInteraction.invalidate({ gameId: id });
     },
   });
   const toggleFavorite = trpc.game.toggleFavorite.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       play("favorite");
+      showPointsToast(data?.pointsAwarded);
       utils.game.getUserInteraction.invalidate({ gameId: id });
     },
   });
 
   const incrementViews = trpc.game.incrementViews.useMutation();
-  const recordView = trpc.game.recordView.useMutation();
+  const recordView = trpc.game.recordView.useMutation({
+    onSuccess: (data) => showPointsToast(data?.pointsAwarded),
+  });
   useEffect(() => {
     incrementViews.mutate({ id });
     recordView.mutate({ gameId: id });

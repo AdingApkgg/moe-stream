@@ -47,7 +47,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getAvatarUrlClient } from "@/lib/avatar";
@@ -196,7 +196,7 @@ export function CommentItem({
 
   // 发表回复
   const createReplyMutation = trpc.comment.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setReplyContent("");
       setIsReplying(false);
       setReplyToUser(null);
@@ -204,6 +204,7 @@ export function CommentItem({
       utils.comment.getReplies.invalidate({ commentId: topLevelParentId });
       utils.comment.list.invalidate({ videoId });
       toast.success("回复成功");
+      showPointsToast(data?.pointsAwarded);
     },
     onError: (error) => {
       toast.error(error.message || "回复失败");

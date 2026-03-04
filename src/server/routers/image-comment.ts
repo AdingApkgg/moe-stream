@@ -259,16 +259,17 @@ export const imagePostCommentRouter = router({
         },
       });
 
+      let pointsAwarded = 0;
       if (userId) {
         const lastIpLocation = ipv4Location || ipv6Location;
         await ctx.prisma.user.update({
           where: { id: userId },
           data: { lastIpLocation: lastIpLocation || undefined },
         });
-        awardPoints(userId, "COMMENT_IMAGE", undefined, comment.id);
+        pointsAwarded = await awardPoints(userId, "COMMENT_IMAGE", undefined, comment.id);
       }
 
-      return { ...comment, userReaction: null };
+      return { ...comment, userReaction: null, pointsAwarded };
     }),
 
   update: protectedProcedure

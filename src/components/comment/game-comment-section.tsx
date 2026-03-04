@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
-import { toast } from "@/lib/toast-with-sound";
+import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { GameCommentItem } from "./game-comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
@@ -110,11 +110,12 @@ export function GameCommentSection({ gameId }: GameCommentSectionProps) {
   );
 
   const createMutation = trpc.gameComment.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setNewComment("");
       utils.gameComment.list.invalidate({ gameId });
       utils.gameComment.getCount.invalidate({ gameId });
       toast.success("评论发表成功");
+      showPointsToast(data?.pointsAwarded);
     },
     onError: (error) => {
       toast.error(error.message || "发表失败");

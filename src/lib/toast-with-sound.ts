@@ -40,3 +40,11 @@ export const toast = {
     return sonnerToast.message(message, data);
   },
 };
+
+export function showPointsToast(pointsAwarded: number | undefined | null) {
+  if (!pointsAwarded || pointsAwarded <= 0) return;
+  sonnerToast(`积分 +${pointsAwarded}`, {
+    duration: 2000,
+    icon: "🪙",
+  });
+}

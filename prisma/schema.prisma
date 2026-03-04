@@ -1020,6 +1020,11 @@ model SiteConfig {
   // 积分规则 (JSON: Record<ActionType, { enabled, points, dailyLimit }>)
   pointsRules             Json?
 
+  // 签到系统
+  checkinEnabled        Boolean @default(false)
+  checkinPointsMin      Int     @default(1)
+  checkinPointsMax      Int     @default(10)
+
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份
   backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）
@@ -1146,6 +1151,7 @@ enum PointsTransactionType {
   ADMIN_ADJUST
   POINTS_CONSUME
   DAILY_LOGIN
+  CHECKIN
   WATCH_VIDEO
   LIKE_VIDEO
   FAVORITE_VIDEO
