@@ -32,8 +32,8 @@ const passwordSchema = z.object({
 
 interface LinkedAccount {
   id: string;
-  provider: string;
-  accountId?: string;
+  providerId: string;
+  accountId: string;
 }
 
 function OAuthAccountSection() {
@@ -64,19 +64,20 @@ function OAuthAccountSection() {
   }, [fetchAccounts]);
 
   const linkedProviderIds = new Set(
-    linkedAccounts.map((a) => a.provider)
+    linkedAccounts.map((a) => a.providerId)
   );
 
   const hasCredentialAccount = linkedAccounts.some(
-    (a) => a.provider === "credential"
+    (a) => a.providerId === "credential"
   );
 
   async function handleLink(provider: OAuthProvider) {
     setActionLoading(provider);
     try {
+      const callbackURL = `${window.location.origin}/settings/account`;
       await authClient.linkSocial({
         provider,
-        callbackURL: "/settings/account",
+        callbackURL,
       });
     } catch {
       toast.error("绑定失败", { description: "无法连接到登录服务" });
