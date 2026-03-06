@@ -7,11 +7,11 @@ import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
 import { useSiteConfig } from "@/contexts/site-config";
 
-type OAuthProvider =
+export type OAuthProvider =
   | "google" | "github" | "discord" | "apple" | "twitter" | "facebook"
   | "microsoft" | "twitch" | "spotify" | "linkedin" | "gitlab" | "reddit";
 
-const PROVIDER_CONFIG: Record<OAuthProvider, { label: string; icon: React.ReactNode }> = {
+export const PROVIDER_CONFIG: Record<OAuthProvider, { label: string; icon: React.ReactNode }> = {
   google: {
     label: "Google",
     icon: (

@@ -1,8 +1,8 @@
 "use client";
 
-import { useSession } from "@/lib/auth-client";
+import { useSession, authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, Link2, Unlink } from "lucide-react";
+import { PROVIDER_CONFIG, type OAuthProvider } from "@/components/auth/social-login-buttons";
+import { useSiteConfig } from "@/contexts/site-config";
 
 const accountSchema = z.object({
   username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
@@ -27,6 +29,155 @@ const passwordSchema = z.object({
   message: "两次输入的密码不一致",
   path: ["confirmPassword"],
 });
+
+interface LinkedAccount {
+  id: string;
+  provider: string;
+  accountId?: string;
+}
+
+function OAuthAccountSection() {
+  const siteConfig = useSiteConfig();
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const availableProviders = (siteConfig?.oauthProviders ?? []).filter(
+    (p): p is OAuthProvider => p in PROVIDER_CONFIG
+  );
+
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const res = await authClient.listAccounts();
+      if (res.data) {
+        setLinkedAccounts(res.data as unknown as LinkedAccount[]);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  const linkedProviderIds = new Set(
+    linkedAccounts.map((a) => a.provider)
+  );
+
+  const hasCredentialAccount = linkedAccounts.some(
+    (a) => a.provider === "credential"
+  );
+
+  async function handleLink(provider: OAuthProvider) {
+    setActionLoading(provider);
+    try {
+      await authClient.linkSocial({
+        provider,
+        callbackURL: "/settings/account",
+      });
+    } catch {
+      toast.error("绑定失败", { description: "无法连接到登录服务" });
+      setActionLoading(null);
+    }
+  }
+
+  async function handleUnlink(providerId: string) {
+    const totalLinked = linkedAccounts.length;
+    if (totalLinked <= 1) {
+      toast.error("无法解绑", { description: "至少需要保留一种登录方式" });
+      return;
+    }
+    if (!hasCredentialAccount && totalLinked <= 1) {
+      toast.error("无法解绑", { description: "请先设置密码登录，再解绑第三方账号" });
+      return;
+    }
+
+    setActionLoading(providerId);
+    try {
+      const res = await authClient.unlinkAccount({ providerId });
+      if (res.error) {
+        toast.error("解绑失败", { description: res.error.message || "请稍后重试" });
+      } else {
+        toast.success("已解绑");
+        await fetchAccounts();
+      }
+    } catch {
+      toast.error("解绑失败", { description: "请稍后重试" });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  if (availableProviders.length === 0) return null;
+
+  return (
+    <div className="pb-6 border-b">
+      <h3 className="font-medium mb-1">第三方账号绑定</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        绑定后可使用第三方账号快捷登录
+      </p>
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-12 w-full max-w-sm" />
+          <Skeleton className="h-12 w-full max-w-sm" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {availableProviders.map((provider) => {
+            const config = PROVIDER_CONFIG[provider];
+            const isLinked = linkedProviderIds.has(provider);
+            const loading = actionLoading === provider;
+
+            return (
+              <div
+                key={provider}
+                className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="shrink-0">{config.icon}</span>
+                  <span className="text-sm font-medium">{config.label}</span>
+                </div>
+                {isLinked ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    disabled={loading}
+                    onClick={() => handleUnlink(provider)}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Unlink className="h-4 w-4 mr-1" />
+                    )}
+                    解绑
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => handleLink(provider)}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="h-4 w-4 mr-1" />
+                    )}
+                    绑定
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AccountSettingsPage() {
   const { data: session, status } = useSession();
@@ -177,6 +328,9 @@ export default function AccountSettingsPage() {
           </form>
         </Form>
       </div>
+
+      {/* 第三方账号绑定 */}
+      <OAuthAccountSection />
 
       {/* 修改密码 */}
       <div>
