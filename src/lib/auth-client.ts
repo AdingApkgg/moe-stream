@@ -8,18 +8,25 @@ export const authClient = createAuthClient({
   plugins: [usernameClient()],
 });
 
+interface CustomSessionUser {
+  role?: string;
+  canUpload?: boolean;
+  adsEnabled?: boolean;
+}
+
 /**
- * 兼容原 next-auth useSession 的 hook：返回 { data, status }，data 含 user（含 role/canUpload 需服务端）
- * 前端 session 只有基础 user 字段；role/canUpload 在服务端 getSession() 中补全。
+ * 兼容原 next-auth useSession 的 hook：返回 { data, status }。
+ * customSession 插件已在服务端注入 role/canUpload/adsEnabled，
+ * cookie cache 会将这些字段传给客户端。
  */
 export function useSession() {
   const { data, error, isPending, refetch } = authClient.useSession();
   const status = isPending ? "loading" : error || !data?.user ? "unauthenticated" : "authenticated";
-  const role = (data?.user as { role?: string } | undefined)?.role as "USER" | "ADMIN" | "OWNER" | undefined;
-  const rawCanUpload = (data?.user as { canUpload?: boolean } | undefined)?.canUpload;
-  const adsEnabled = (data?.user as { adsEnabled?: boolean } | undefined)?.adsEnabled ?? true;
-  // ADMIN/OWNER 始终拥有投稿权限，与服务端 getSession() 逻辑一致
-  const canUpload = role === "ADMIN" || role === "OWNER" || rawCanUpload === true;
+
+  const customUser = data?.user as NonNullable<typeof data>["user"] & CustomSessionUser | undefined;
+  const role = customUser?.role as "USER" | "ADMIN" | "OWNER" | undefined;
+  const canUpload = role === "ADMIN" || role === "OWNER" || customUser?.canUpload === true;
+  const adsEnabled = customUser?.adsEnabled ?? true;
 
   const session = data?.user
     ? {

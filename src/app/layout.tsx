@@ -13,6 +13,7 @@ import { generateThemeCSS } from "@/lib/theme-styles";
 import { isSetupComplete } from "@/lib/setup";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { AnalyticsScripts, GtmNoscript } from "@/components/analytics-scripts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
@@ -84,7 +85,12 @@ export async function generateMetadata(): Promise<Metadata> {
         "application/rss+xml": "/feed.xml",
       },
     },
-    ...(config.googleVerification ? { verification: { google: config.googleVerification } } : {}),
+    ...((config.googleVerification || config.analyticsBingVerification) ? {
+      verification: {
+        ...(config.googleVerification ? { google: config.googleVerification } : {}),
+        ...(config.analyticsBingVerification ? { other: { "msvalidate.01": config.analyticsBingVerification } } : {}),
+      },
+    } : {}),
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
@@ -121,10 +127,16 @@ export default function RootLayout({
         <link rel="help" href="/llms-full.txt" />
       </head>
       <body className="font-sans" suppressHydrationWarning>
+        <GtmNoscriptWrapper />
         <RootProviders>{children}</RootProviders>
       </body>
     </html>
   );
+}
+
+async function GtmNoscriptWrapper() {
+  const siteConfig = await getPublicSiteConfig();
+  return <GtmNoscript gtmId={siteConfig.analyticsGtmId} />;
 }
 
 async function RootProviders({ children }: { children: React.ReactNode }) {
@@ -141,6 +153,7 @@ async function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <>
       {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
+      <AnalyticsScripts config={siteConfig} />
       <Providers siteConfig={siteConfig}>
         <AppLayout>{children}</AppLayout>
       </Providers>

@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "未登录" }, { status: 401 });
     }
 
-    await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({}));
+    const fingerprint = typeof body?.fingerprint === "string" ? body.fingerprint : null;
     const userAgent = request.headers.get("user-agent") || "";
     const deviceInfo = parseDeviceInfo(userAgent);
     const forwardedFor = request.headers.get("x-forwarded-for");
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
         brand: deviceInfo.brand,
         model: deviceInfo.model,
         userAgent,
+        fingerprint,
         ipv4Address,
         ipv4Location,
         ipv6Address,
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
       },
       update: {
         lastActiveAt: new Date(),
+        ...(fingerprint ? { fingerprint } : {}),
         ipv4Address,
         ipv4Location,
         ipv6Address,

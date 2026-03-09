@@ -218,7 +218,7 @@ function AdminOverview() {
           { label: "总推广人数", value: data?.totalReferrals ?? 0, icon: Users, color: "text-blue-500" },
           { label: "推广链接数", value: data?.totalLinks ?? 0, icon: Link2, color: "text-green-500" },
           { label: "累计奖励积分", value: data?.totalPointsAwarded ?? 0, icon: Coins, color: "text-amber-500" },
-          { label: "今日新增", value: data?.todayReferrals ?? 0, icon: TrendingUp, color: "text-purple-500" },
+          { label: "今日新增", value: data?.todayRegisters ?? 0, icon: TrendingUp, color: "text-purple-500" },
         ].map((item) => (
           <Card key={item.label}>
             <CardContent className="p-4">

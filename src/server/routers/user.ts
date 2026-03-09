@@ -13,6 +13,7 @@ export const userRouter = router({
         password: z.string().min(6),
         nickname: z.string().optional(),
         referralCode: z.string().optional(),
+        fingerprint: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -27,6 +28,19 @@ export const userRouter = router({
           code: "CONFLICT",
           message: "邮箱或用户名已存在",
         });
+      }
+
+      // 基于浏览器指纹的注册频率限制（同设备 24h 内限 3 个账号）
+      if (input.fingerprint) {
+        const regKey = `reg_fp:${input.fingerprint}`;
+        const count = await ctx.redis.incr(regKey);
+        if (count === 1) await ctx.redis.expire(regKey, 86400);
+        if (count > 3) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "该设备注册次数过多，请稍后再试",
+          });
+        }
       }
 
       const hashedPassword = await hash(input.password, 10);
@@ -104,6 +118,14 @@ export const userRouter = router({
             await tx.referralLink.update({
               where: { id: referralLink.id },
               data: { registers: { increment: 1 } },
+            });
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            await tx.referralDailyStat.upsert({
+              where: { referralLinkId_date: { referralLinkId: referralLink.id, date: today } },
+              create: { referralLinkId: referralLink.id, userId: referralLink.userId, date: today, registers: 1 },
+              update: { registers: { increment: 1 } },
             });
           }
         }
@@ -462,10 +484,18 @@ export const userRouter = router({
       const userId = ctx.session.user.id;
       const user = await ctx.prisma.user.findUnique({
         where: { id: userId },
+        select: { password: true },
       });
 
-      if (!user || !user.password) {
-        throw new TRPCError({ code: "NOT_FOUND" });
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+      }
+
+      if (!user.password) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "当前账号通过第三方登录创建，请先通过「忘记密码」设置密码",
+        });
       }
 
       const isValid = await compare(input.currentPassword, user.password);
@@ -477,16 +507,16 @@ export const userRouter = router({
       }
 
       const hashedPassword = await hash(input.newPassword, 10);
-      await ctx.prisma.user.update({
-        where: { id: userId },
-        data: { password: hashedPassword },
-      });
-
-      // 同步更新 Better Auth credential Account
-      await ctx.prisma.account.updateMany({
-        where: { userId, provider: "credential" },
-        data: { password: hashedPassword },
-      });
+      await ctx.prisma.$transaction([
+        ctx.prisma.user.update({
+          where: { id: userId },
+          data: { password: hashedPassword },
+        }),
+        ctx.prisma.account.updateMany({
+          where: { userId, provider: "credential" },
+          data: { password: hashedPassword },
+        }),
+      ]);
 
       return { success: true };
     }),
@@ -526,18 +556,26 @@ export const userRouter = router({
       return { success: true };
     }),
 
+  // 查询当前用户是否有密码（用于前端判断注销时是否需要输入密码）
+  hasPassword: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { password: true },
+    });
+    return { hasPassword: !!user?.password };
+  }),
+
   // 注销账号（删除账号，视频转移给站长）
   deleteAccount: protectedProcedure
     .input(
       z.object({
-        password: z.string().min(1, "请输入密码确认"),
+        password: z.string().optional(),
         confirmText: z.literal("DELETE", { message: "请输入 DELETE 确认" }),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // 获取当前用户
       const user = await ctx.prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, password: true, role: true },
@@ -547,7 +585,6 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      // 站长不能注销自己的账号
       if (user.role === "OWNER") {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -555,14 +592,13 @@ export const userRouter = router({
         });
       }
 
-      // 验证密码
       if (user.password) {
+        if (!input.password) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "请输入密码确认" });
+        }
         const isValid = await compare(input.password, user.password);
         if (!isValid) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "密码错误",
-          });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "密码错误" });
         }
       }
 

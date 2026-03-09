@@ -18,6 +18,7 @@ import { EmailCodeInput } from "@/components/ui/email-code-input";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
 import { useSiteConfig } from "@/contexts/site-config";
+import { getFingerprint } from "@/hooks/use-fingerprint";
 
 function getReferralCode(): string | undefined {
   if (typeof document === "undefined") return undefined;
@@ -131,11 +132,14 @@ export default function RegisterPage() {
         return;
       }
 
+      const fp = await getFingerprint().catch(() => "");
+
       await registerMutation.mutateAsync({
         email: data.email,
         username: data.username,
         password: data.password,
         referralCode,
+        fingerprint: fp || undefined,
       });
 
       const { error } = await authClient.signIn.email({
@@ -148,6 +152,13 @@ export default function RegisterPage() {
         router.push("/login");
       } else {
         toast.success("注册成功", { description: "已自动登录" });
+        if (fp) {
+          fetch("/api/auth/session-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fingerprint: fp }),
+          }).catch(() => {});
+        }
         router.push("/");
         router.refresh();
       }

@@ -37,6 +37,7 @@ import { CommentSection } from "@/components/comment/comment-section";
 import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getCoverUrl } from "@/lib/cover";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 import { AdSlot } from "@/components/ads/ad-slot";
 import type { SerializedVideo } from "./page";
 
@@ -194,6 +195,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   );
 
   const incrementViews = trpc.video.incrementViews.useMutation();
+  const { getVisitorId } = useFingerprint();
   const utils = trpc.useUtils();
   const { play } = useSound();
 
@@ -334,9 +336,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   useEffect(() => setHasMounted(true), []);
   const isOwner = hasMounted && session?.user?.id === displayVideo?.uploader?.id;
 
-  // 增加观看次数
   useEffect(() => {
-    incrementViews.mutate({ id: currentVideoId });
+    getVisitorId()
+      .then((vid) => incrementViews.mutate({ id: currentVideoId, visitorId: vid }))
+      .catch(() => incrementViews.mutate({ id: currentVideoId }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentVideoId]);
 

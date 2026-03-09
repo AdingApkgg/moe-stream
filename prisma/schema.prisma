@@ -82,6 +82,7 @@ model User {
   referralLinks      ReferralLink[]
   referralsMade      ReferralRecord[] @relation("Referrer")
   referralReceived   ReferralRecord?  @relation("ReferredUser")
+  referralDailyStats ReferralDailyStat[]
   pointsTransactions PointsTransaction[]
   redeemCodeRedemptions RedeemCodeRedemption[]
 
@@ -139,7 +140,7 @@ model LoginSession {
   id             String   @id @default(cuid())
   userId         String
   jti            String   @unique // JWT ID，用于撤销
-  
+
   // 登录信息
   deviceType     String?  // desktop, mobile, tablet
   os             String?  // Windows, iOS, Android
@@ -149,23 +150,25 @@ model LoginSession {
   brand          String?  // Apple, Samsung
   model          String?  // iPhone 15
   userAgent      String?
+  fingerprint    String?  // FingerprintJS visitorId
   ipv4Address    String?
   ipv4Location   String?
   ipv6Address    String?
   ipv6Location   String?
-  
+
   isRevoked      Boolean  @default(false) // 是否已撤销
   revokedAt      DateTime?
-  
+
   expiresAt      DateTime
   createdAt      DateTime @default(now())
   lastActiveAt   DateTime @default(now())
-  
+
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([jti])
   @@index([lastActiveAt])
+  @@index([fingerprint])
 }
 
 model VerificationToken {
@@ -1035,6 +1038,13 @@ model SiteConfig {
   checkinPointsMin      Int     @default(1)
   checkinPointsMax      Int     @default(10)
 
+  // 统计分析
+  analyticsGoogleId       String?  // Google Analytics 4 Measurement ID (G-XXXXXXXXXX)
+  analyticsGtmId          String?  // Google Tag Manager Container ID (GTM-XXXXXXX)
+  analyticsCfToken        String?  // Cloudflare Web Analytics beacon token
+  analyticsClarityId      String?  // Microsoft Clarity project ID
+  analyticsBingVerification String? // Bing Webmaster Tools 验证码
+
   // 数据备份
   backupEnabled         Boolean @default(false)  // 是否启用自动备份
   backupIntervalHours   Int     @default(24)     // 自动备份间隔（小时）
@@ -1107,22 +1117,58 @@ model Sticker {
 // ==================== 推广系统 ====================
 
 model ReferralLink {
-  id          String   @id @default(cuid())
-  userId      String
-  code        String   @unique
-  label       String?
-  channel     String?
-  targetUrl   String?
-  clicks      Int      @default(0)
-  registers   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  code         String   @unique
+  label        String?
+  channel      String?
+  targetUrl    String?
+  clicks       Int      @default(0) // 总点击（含重复）
+  uniqueClicks Int      @default(0) // 去重点击（同一访客同日仅计一次）
+  registers    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  records ReferralRecord[]
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records    ReferralRecord[]
+  dailyStats ReferralDailyStat[]
+  clickLogs  ReferralClick[]
 
   @@index([userId])
+}
+
+model ReferralClick {
+  id             String   @id @default(cuid())
+  referralLinkId String
+  visitorHash    String   // SHA-256(IP + UserAgent) 用于去重
+  ip             String?  // 原始 IP（可供管理员审计）
+  referer        String?  // HTTP Referer
+  date           DateTime @db.Date
+  createdAt      DateTime @default(now())
+
+  referralLink ReferralLink @relation(fields: [referralLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([referralLinkId, visitorHash, date])
+  @@index([referralLinkId, date])
+  @@index([date])
+}
+
+model ReferralDailyStat {
+  id             String   @id @default(cuid())
+  referralLinkId String
+  userId         String
+  date           DateTime @db.Date
+  clicks         Int      @default(0) // 总点击
+  uniqueClicks   Int      @default(0) // 去重点击
+  registers      Int      @default(0)
+
+  referralLink ReferralLink @relation(fields: [referralLinkId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([referralLinkId, date])
+  @@index([userId, date])
+  @@index([date])
 }
 
 model ReferralRecord {

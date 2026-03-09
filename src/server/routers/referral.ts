@@ -3,7 +3,6 @@ import { router, protectedProcedure, adminProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { awardDailyLogin, awardCheckin } from "@/lib/points";
-import { redis } from "@/lib/redis";
 
 async function generateUniqueCode(
   prisma: typeof import("@/lib/prisma").prisma
@@ -16,16 +15,26 @@ async function generateUniqueCode(
   throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "无法生成唯一推广码" });
 }
 
+function getDateOnly(d: Date = new Date()): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export const referralRouter = router({
   // ========== 用户端 ==========
 
   getMyStats: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
+    const today = getDateOnly();
+    const yesterdayStart = getDateOnly();
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyClickKey = `ref_daily_clicks:${userId}:${today}`;
-
-    const [user, linkCount, todayClicksStr] = await Promise.all([
+    const [user, linkAgg, todayDailyStat, yesterdayDailyStat, referralPoints] = await Promise.all([
       ctx.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -34,22 +43,145 @@ export const referralRouter = router({
           _count: { select: { referralsMade: true, referralLinks: true } },
         },
       }),
-      ctx.prisma.referralLink.count({ where: { userId } }),
-      redis.get(dailyClickKey).catch(() => null),
+      ctx.prisma.referralLink.aggregate({
+        where: { userId },
+        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _count: true,
+      }),
+      ctx.prisma.referralDailyStat.aggregate({
+        where: { userId, date: today },
+        _sum: { clicks: true, uniqueClicks: true, registers: true },
+      }),
+      ctx.prisma.referralDailyStat.aggregate({
+        where: { userId, date: yesterdayStart },
+        _sum: { clicks: true, uniqueClicks: true, registers: true },
+      }),
+      ctx.prisma.referralRecord.aggregate({
+        where: { referrerId: userId },
+        _sum: { pointsAwarded: true },
+      }),
     ]);
 
-    const todayClicks = todayClicksStr ? parseInt(todayClicksStr, 10) : 0;
-
     if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+
+    const totalClicks = linkAgg._sum.clicks || 0;
+    const totalUniqueClicks = linkAgg._sum.uniqueClicks || 0;
+    const totalRegisters = linkAgg._sum.registers || 0;
+    const todayClicks = todayDailyStat._sum.clicks || 0;
+    const todayUniqueClicks = todayDailyStat._sum.uniqueClicks || 0;
+    const todayRegisters = todayDailyStat._sum.registers || 0;
+    const yesterdayUniqueClicks = yesterdayDailyStat._sum.uniqueClicks || 0;
+    const yesterdayRegisters = yesterdayDailyStat._sum.registers || 0;
 
     return {
       points: user.points,
       referralCode: user.referralCode,
       totalReferrals: user._count.referralsMade,
-      totalLinks: linkCount,
+      totalLinks: linkAgg._count,
       todayClicks,
+      todayUniqueClicks,
+      todayRegisters,
+      yesterdayUniqueClicks,
+      yesterdayRegisters,
+      totalClicks,
+      totalUniqueClicks,
+      totalRegisters,
+      conversionRate: totalUniqueClicks > 0 ? Math.round((totalRegisters / totalUniqueClicks) * 10000) / 100 : 0,
+      earnedPoints: referralPoints._sum.pointsAwarded || 0,
     };
   }),
+
+  getMyTrendStats: protectedProcedure
+    .input(z.object({ days: z.number().min(7).max(90).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { days } = input;
+
+      const startDate = getDateOnly();
+      startDate.setDate(startDate.getDate() - days + 1);
+
+      const stats = await ctx.prisma.referralDailyStat.findMany({
+        where: { userId, date: { gte: startDate } },
+        select: { date: true, clicks: true, uniqueClicks: true, registers: true },
+        orderBy: { date: "asc" },
+      });
+
+      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number }>();
+      for (let i = 0; i < days; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0 });
+      }
+
+      for (const s of stats) {
+        const key = dateKey(s.date);
+        const entry = dateMap.get(key);
+        if (entry) {
+          entry.clicks += s.clicks;
+          entry.uniqueClicks += s.uniqueClicks;
+          entry.registers += s.registers;
+        }
+      }
+
+      return Array.from(dateMap.entries()).map(([date, data]) => ({
+        date,
+        ...data,
+      }));
+    }),
+
+  getChannelStats: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    const links = await ctx.prisma.referralLink.findMany({
+      where: { userId },
+      select: { channel: true, clicks: true, uniqueClicks: true, registers: true },
+    });
+
+    const channelMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; linkCount: number }>();
+    for (const link of links) {
+      const ch = link.channel || "direct";
+      const entry = channelMap.get(ch) || { clicks: 0, uniqueClicks: 0, registers: 0, linkCount: 0 };
+      entry.clicks += link.clicks;
+      entry.uniqueClicks += link.uniqueClicks;
+      entry.registers += link.registers;
+      entry.linkCount++;
+      channelMap.set(ch, entry);
+    }
+
+    return Array.from(channelMap.entries())
+      .map(([channel, data]) => ({
+        channel,
+        ...data,
+        conversionRate: data.uniqueClicks > 0
+          ? Math.round((data.registers / data.uniqueClicks) * 10000) / 100
+          : 0,
+      }))
+      .sort((a, b) => b.registers - a.registers);
+  }),
+
+  getTopLinks: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(20).default(5), sortBy: z.enum(["uniqueClicks", "registers", "conversionRate"]).default("registers") }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { limit, sortBy } = input;
+
+      const links = await ctx.prisma.referralLink.findMany({
+        where: { userId },
+        select: { id: true, code: true, label: true, channel: true, clicks: true, uniqueClicks: true, registers: true, createdAt: true },
+      });
+
+      const ranked = links.map((l) => ({
+        ...l,
+        conversionRate: l.uniqueClicks > 0 ? Math.round((l.registers / l.uniqueClicks) * 10000) / 100 : 0,
+      }));
+
+      ranked.sort((a, b) => {
+        if (sortBy === "conversionRate") return b.conversionRate - a.conversionRate;
+        return (b[sortBy] as number) - (a[sortBy] as number);
+      });
+
+      return ranked.slice(0, limit);
+    }),
 
   ensureReferralCode: protectedProcedure.mutation(async ({ ctx }) => {
     const userId = ctx.session.user.id;
@@ -290,12 +422,27 @@ export const referralRouter = router({
   // ========== 管理端 ==========
 
   adminGetOverview: adminProcedure.query(async ({ ctx }) => {
-    const [totalReferrals, totalLinks, totalPointsAwarded, todayReferrals] = await Promise.all([
+    const today = getDateOnly();
+    const yesterdayStart = getDateOnly();
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const [
+      totalReferrals, totalLinks, totalPointsAwarded,
+      todayAgg, yesterdayAgg, totalClicksAgg,
+    ] = await Promise.all([
       ctx.prisma.referralRecord.count(),
       ctx.prisma.referralLink.count(),
       ctx.prisma.referralRecord.aggregate({ _sum: { pointsAwarded: true } }),
-      ctx.prisma.referralRecord.count({
-        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      ctx.prisma.referralDailyStat.aggregate({
+        where: { date: today },
+        _sum: { clicks: true, uniqueClicks: true, registers: true },
+      }),
+      ctx.prisma.referralDailyStat.aggregate({
+        where: { date: yesterdayStart },
+        _sum: { clicks: true, uniqueClicks: true, registers: true },
+      }),
+      ctx.prisma.referralLink.aggregate({
+        _sum: { clicks: true, uniqueClicks: true },
       }),
     ]);
 
@@ -303,9 +450,47 @@ export const referralRouter = router({
       totalReferrals,
       totalLinks,
       totalPointsAwarded: totalPointsAwarded._sum.pointsAwarded || 0,
-      todayReferrals,
+      totalClicks: totalClicksAgg._sum.clicks || 0,
+      totalUniqueClicks: totalClicksAgg._sum.uniqueClicks || 0,
+      todayClicks: todayAgg._sum.clicks || 0,
+      todayUniqueClicks: todayAgg._sum.uniqueClicks || 0,
+      todayRegisters: todayAgg._sum.registers || 0,
+      yesterdayUniqueClicks: yesterdayAgg._sum.uniqueClicks || 0,
+      yesterdayRegisters: yesterdayAgg._sum.registers || 0,
     };
   }),
+
+  adminGetTrendStats: adminProcedure
+    .input(z.object({ days: z.number().min(7).max(90).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const { days } = input;
+      const startDate = getDateOnly();
+      startDate.setDate(startDate.getDate() - days + 1);
+
+      const stats = await ctx.prisma.referralDailyStat.findMany({
+        where: { date: { gte: startDate } },
+        select: { date: true, clicks: true, uniqueClicks: true, registers: true },
+      });
+
+      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number }>();
+      for (let i = 0; i < days; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0 });
+      }
+
+      for (const s of stats) {
+        const key = dateKey(s.date);
+        const entry = dateMap.get(key);
+        if (entry) {
+          entry.clicks += s.clicks;
+          entry.uniqueClicks += s.uniqueClicks;
+          entry.registers += s.registers;
+        }
+      }
+
+      return Array.from(dateMap.entries()).map(([date, data]) => ({ date, ...data }));
+    }),
 
   adminGetTopReferrers: adminProcedure
     .input(z.object({ limit: z.number().min(1).max(50).default(10) }))

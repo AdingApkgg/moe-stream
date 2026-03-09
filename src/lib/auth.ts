@@ -10,20 +10,7 @@ interface OAuthProviderCredentials {
   clientSecret?: string | null;
 }
 
-interface OAuthConfig {
-  google?: OAuthProviderCredentials;
-  github?: OAuthProviderCredentials;
-  discord?: OAuthProviderCredentials;
-  apple?: OAuthProviderCredentials;
-  twitter?: OAuthProviderCredentials;
-  facebook?: OAuthProviderCredentials;
-  microsoft?: OAuthProviderCredentials;
-  twitch?: OAuthProviderCredentials;
-  spotify?: OAuthProviderCredentials;
-  linkedin?: OAuthProviderCredentials;
-  gitlab?: OAuthProviderCredentials;
-  reddit?: OAuthProviderCredentials;
-}
+type OAuthConfig = Partial<Record<string, OAuthProviderCredentials>>;
 
 const OAUTH_PROVIDER_KEYS = [
   "Google", "Github", "Discord", "Apple", "Twitter", "Facebook",
@@ -55,7 +42,7 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
           const id = config[`oauth${key}ClientId`];
           const secret = config[`oauth${key}ClientSecret`];
           if (id && secret) {
-            (oauth as Record<string, OAuthProviderCredentials>)[key.toLowerCase()] = { clientId: id, clientSecret: secret };
+            oauth[key.toLowerCase()] = { clientId: id, clientSecret: secret };
           }
         }
         return { oauth, siteUrl: config.siteUrl || null };
@@ -77,18 +64,25 @@ function buildSocialProviders(cfg: OAuthConfig) {
   return providers;
 }
 
+const LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+
 function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
   const baseURL = siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const staticOrigins = new Set(
+    [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v)
+  );
+
   return betterAuth({
     baseURL,
-    trustedOrigins: [
-      baseURL,
-      process.env.NEXT_PUBLIC_APP_URL ?? "",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://192.168.*:3000",
-      "http://10.*:3000",
-    ].filter(Boolean),
+    trustedOrigins: (request?: Request) => {
+      const origins = [...staticOrigins];
+      const origin = request?.headers?.get("origin");
+      if (origin && LOCAL_ORIGIN_RE.test(origin)) {
+        origins.push(origin);
+      }
+      return origins;
+    },
     database: prismaAdapter(prisma, { provider: "postgresql" }),
     emailAndPassword: {
       enabled: true,
@@ -122,7 +116,14 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         if (!user?.id) return { user, session };
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { role: true, canUpload: true, adsEnabled: true },
+          select: {
+            role: true,
+            canUpload: true,
+            adsEnabled: true,
+            nickname: true,
+            username: true,
+            avatar: true,
+          },
         });
         if (!dbUser) return { user, session };
         const canUpload =
@@ -133,6 +134,8 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
           session,
           user: {
             ...user,
+            name: dbUser.nickname || dbUser.username || user.name,
+            image: dbUser.avatar || user.image,
             role: dbUser.role,
             canUpload,
             adsEnabled: dbUser.adsEnabled ?? true,
@@ -173,11 +176,11 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         token: "sessionToken",
         expiresAt: "expires",
       },
-      expiresIn: 60 * 60 * 24 * 30, // 30 天
-      updateAge: 60 * 60 * 24, // 1 天更新一次
+      expiresIn: 60 * 60 * 24 * 30,
+      updateAge: 60 * 60 * 24,
       cookieCache: {
         enabled: true,
-        maxAge: 60 * 5, // 5 分钟
+        maxAge: 60 * 5,
       },
     },
     account: {
@@ -192,9 +195,9 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       accountLinking: {
         enabled: true,
         trustedProviders: [
-        "google", "github", "discord", "apple", "twitter", "facebook",
-        "microsoft", "twitch", "spotify", "linkedin", "gitlab", "reddit",
-      ],
+          "google", "github", "discord", "apple", "twitter", "facebook",
+          "microsoft", "twitch", "spotify", "linkedin", "gitlab", "reddit",
+        ],
       },
     },
     verification: {
@@ -211,16 +214,13 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
   });
 }
 
-// 静态 auth 实例用于不涉及 OAuth 的操作（session 读取等）
-export const auth = createAuthInstance({});
-
-// 动态 auth 实例缓存（含 DB 中的 OAuth 配置）
 let _cachedAuth: ReturnType<typeof createAuthInstance> | null = null;
 let _cachedConfigHash = "";
+let _pendingInit: Promise<ReturnType<typeof createAuthInstance>> | null = null;
 
 /**
  * 获取包含最新 OAuth 配置的 auth 实例。
- * 配置通过 Redis 缓存 5 分钟，admin 保存时主动失效。
+ * 使用 Promise 锁防止并发初始化创建多个实例。
  */
 export async function getAuthWithOAuth() {
   const { oauth, siteUrl } = await getOAuthAndSiteConfig();
@@ -230,19 +230,26 @@ export async function getAuthWithOAuth() {
     return _cachedAuth;
   }
 
-  _cachedAuth = createAuthInstance(oauth, siteUrl || undefined);
-  _cachedConfigHash = configHash;
-  return _cachedAuth;
+  if (!_pendingInit) {
+    _pendingInit = Promise.resolve().then(() => {
+      const instance = createAuthInstance(oauth, siteUrl || undefined);
+      _cachedAuth = instance;
+      _cachedConfigHash = configHash;
+      _pendingInit = null;
+      return instance;
+    });
+  }
+
+  return _pendingInit;
 }
 
-/** admin 保存 OAuth 配置后调用，清除缓存强制下次请求重建实例 */
 export async function invalidateOAuthConfig() {
   _cachedAuth = null;
   _cachedConfigHash = "";
+  _pendingInit = null;
   await deleteCache("oauth:config");
 }
 
-/** 应用内使用的 Session 类型（与 next-auth 兼容的 shape） */
 export interface AppSession {
   user: {
     id: string;
@@ -251,15 +258,17 @@ export interface AppSession {
     image?: string | null;
     role?: "USER" | "ADMIN" | "OWNER";
     canUpload?: boolean;
-    /** 是否加载广告；false 表示站长/管理员已关闭该用户的广告 */
     adsEnabled?: boolean;
   };
-  /** Better Auth 使用 session.token；兼容旧逻辑用 jti 表示同一值 */
   jti?: string;
   session: { id: string; token: string; expiresAt: Date };
 }
 
-/** 服务端获取当前 session（用于 tRPC、API 等） */
+/**
+ * 服务端获取当前 session（用于 tRPC、API 等）。
+ * customSession 插件已在 session 读取时注入 role/canUpload/adsEnabled/nickname/avatar，
+ * 此处直接使用插件返回的数据，避免二次查库。
+ */
 export async function getSession(req?: Request): Promise<AppSession | null> {
   let reqHeaders: Headers;
   if (req) {
@@ -271,29 +280,36 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
   const authInstance = await getAuthWithOAuth();
   const result = await authInstance.api.getSession({ headers: reqHeaders });
   if (!result?.user) return null;
-  const { user, session } = result as { user: { id: string; email: string; name?: string | null; image?: string | null }; session: { id: string; token: string; expiresAt: Date } };
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { role: true, canUpload: true, adsEnabled: true, nickname: true, username: true, avatar: true },
-  });
-  const canUpload =
-    dbUser?.role === "ADMIN" ||
-    dbUser?.role === "OWNER" ||
-    dbUser?.canUpload === true;
-  const sessionPayload = session
-    ? { id: session.id, token: session.token, expiresAt: session.expiresAt }
-    : { id: "", token: "", expiresAt: new Date(0) };
+
+  const { user, session } = result as {
+    user: {
+      id: string;
+      email: string;
+      name?: string | null;
+      image?: string | null;
+      role?: string;
+      canUpload?: boolean;
+      adsEnabled?: boolean;
+    };
+    session: { id: string; token: string; expiresAt: Date };
+  };
+
+  const role = (user.role as "USER" | "ADMIN" | "OWNER") ?? "USER";
+  const canUpload = role === "ADMIN" || role === "OWNER" || user.canUpload === true;
+
   return {
     jti: session?.token ?? undefined,
     user: {
       id: user.id,
       email: user.email,
-      name: (dbUser?.nickname || dbUser?.username) ?? user.name ?? null,
-      image: dbUser?.avatar ?? user.image ?? null,
-      role: (dbUser?.role as "USER" | "ADMIN" | "OWNER") ?? "USER",
+      name: user.name ?? null,
+      image: user.image ?? null,
+      role,
       canUpload,
-      adsEnabled: dbUser?.adsEnabled ?? true,
+      adsEnabled: user.adsEnabled ?? true,
     },
-    session: sessionPayload,
+    session: session
+      ? { id: session.id, token: session.token, expiresAt: session.expiresAt }
+      : { id: "", token: "", expiresAt: new Date(0) },
   };
 }

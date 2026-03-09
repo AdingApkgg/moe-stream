@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime, formatDate } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
+import { getFingerprint } from "@/hooks/use-fingerprint";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,14 +82,26 @@ export default function SessionsPage() {
 
   useEffect(() => {
     if (session?.user && !hasRecorded) {
-      fetch("/api/auth/session-info", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      }).then(() => {
-        setHasRecorded(true);
-        utils.user.getLoginSessions.invalidate();
-      }).catch(console.error);
+      getFingerprint()
+        .then((fp) =>
+          fetch("/api/auth/session-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fingerprint: fp || undefined }),
+          })
+        )
+        .catch(() =>
+          fetch("/api/auth/session-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          })
+        )
+        .then(() => {
+          setHasRecorded(true);
+          utils.user.getLoginSessions.invalidate();
+        })
+        .catch(console.error);
     }
   }, [session?.user, hasRecorded, utils.user.getLoginSessions]);
 

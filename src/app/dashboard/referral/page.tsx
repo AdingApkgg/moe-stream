@@ -49,8 +49,28 @@ import {
   CalendarCheck,
   Gift,
   Ticket,
+  BarChart3,
+  Target,
+  Award,
+  ArrowUpRight,
+  UserPlus,
 } from "lucide-react";
 import { useSiteConfig } from "@/contexts/site-config";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const CHANNEL_OPTIONS = [
   { value: "", label: "无渠道" },
@@ -139,6 +159,18 @@ function CheckinCard() {
   );
 }
 
+function TrendBadge({ today, yesterday }: { today: number; yesterday: number }) {
+  if (yesterday === 0 && today === 0) return null;
+  if (yesterday === 0) return today > 0 ? <Badge variant="secondary" className="text-[10px] text-green-600">NEW</Badge> : null;
+  const pct = Math.round(((today - yesterday) / yesterday) * 100);
+  if (pct === 0) return null;
+  return (
+    <Badge variant="secondary" className={`text-[10px] ${pct > 0 ? "text-green-600" : "text-red-500"}`}>
+      {pct > 0 ? "+" : ""}{pct}%
+    </Badge>
+  );
+}
+
 function StatsCards() {
   const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery();
 
@@ -157,23 +189,51 @@ function StatsCards() {
     );
   }
 
-  const items = [
-    { label: "推广人数", value: stats?.totalReferrals ?? 0, icon: Users, color: "text-blue-500" },
-    { label: "当前积分", value: stats?.points ?? 0, icon: Coins, color: "text-amber-500" },
-    { label: "推广链接", value: stats?.totalLinks ?? 0, icon: Link2, color: "text-green-500" },
-    { label: "今日点击", value: stats?.todayClicks ?? 0, icon: MousePointerClick, color: "text-purple-500" },
+  const primaryItems = [
+    {
+      label: "推广人数", value: stats?.totalReferrals ?? 0,
+      icon: Users, color: "text-blue-500",
+      today: stats?.todayRegisters ?? 0, yesterday: stats?.yesterdayRegisters ?? 0,
+      sub: stats?.todayRegisters ? `今日 +${stats.todayRegisters}` : undefined,
+    },
+    {
+      label: "独立访客", value: stats?.totalUniqueClicks ?? 0,
+      icon: MousePointerClick, color: "text-purple-500",
+      today: stats?.todayUniqueClicks ?? 0, yesterday: stats?.yesterdayUniqueClicks ?? 0,
+      sub: `总点击 ${stats?.totalClicks ?? 0}（含重复）`,
+    },
+    {
+      label: "转化率", value: stats?.conversionRate ?? 0,
+      icon: Target, color: "text-green-500", suffix: "%",
+      sub: `${stats?.totalRegisters ?? 0} 注册 / ${stats?.totalUniqueClicks ?? 0} 独立访客`,
+    },
+    {
+      label: "推广积分", value: stats?.earnedPoints ?? 0,
+      icon: Award, color: "text-amber-500",
+      sub: `当前余额 ${stats?.points ?? 0}`,
+    },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {items.map((item) => (
+      {primaryItems.map((item) => (
         <Card key={item.label}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <item.icon className={`h-4 w-4 ${item.color}`} />
-              {item.label}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <item.icon className={`h-4 w-4 ${item.color}`} />
+                {item.label}
+              </div>
+              {"today" in item && item.today !== undefined && item.yesterday !== undefined && (
+                <TrendBadge today={item.today} yesterday={item.yesterday} />
+              )}
             </div>
-            <div className="text-2xl font-bold">{item.value.toLocaleString()}</div>
+            <div className="text-2xl font-bold tabular-nums">
+              {item.value.toLocaleString()}{item.suffix || ""}
+            </div>
+            {item.sub && (
+              <div className="text-xs text-muted-foreground mt-1">{item.sub}</div>
+            )}
           </CardContent>
         </Card>
       ))}
@@ -280,14 +340,14 @@ function LinksManager() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <MousePointerClick className="h-3 w-3" />
-                        {link.clicks} 点击
+                        {link.uniqueClicks} 独立 / {link.clicks} 总
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
                         {link.registers} 注册
                       </span>
                       <span>
-                        转化率 {link.clicks > 0 ? ((link.registers / link.clicks) * 100).toFixed(1) : "0"}%
+                        转化率 {link.uniqueClicks > 0 ? ((link.registers / link.uniqueClicks) * 100).toFixed(1) : "0"}%
                       </span>
                     </div>
                   </div>
@@ -649,6 +709,296 @@ function PointsHistory() {
   );
 }
 
+const TREND_RANGE_OPTIONS = [
+  { value: 7, label: "7天" },
+  { value: 14, label: "14天" },
+  { value: 30, label: "30天" },
+] as const;
+
+const trendChartConfig = {
+  uniqueClicks: { label: "独立访客", color: "hsl(var(--chart-1))" },
+  registers: { label: "注册", color: "hsl(var(--chart-2))" },
+} satisfies ChartConfig;
+
+const channelChartConfig = {
+  clicks: { label: "点击", color: "hsl(var(--chart-1))" },
+  registers: { label: "注册", color: "hsl(var(--chart-2))" },
+} satisfies ChartConfig;
+
+const CHANNEL_LABELS: Record<string, string> = {
+  direct: "直接访问",
+  bilibili: "B站",
+  twitter: "Twitter/X",
+  telegram: "Telegram",
+  discord: "Discord",
+  wechat: "微信",
+  qq: "QQ",
+  youtube: "YouTube",
+  reddit: "Reddit",
+  blog: "博客",
+  other: "其他",
+};
+
+function formatTrendDate(v: string) {
+  const d = new Date(v);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function formatTooltipDate(v: unknown) {
+  const d = new Date(v as string);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function TrendSummary({ data }: { data: { uniqueClicks: number; registers: number }[] }) {
+  const total = data.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
+  const half = Math.floor(data.length / 2);
+  const recent = data.slice(half);
+  const earlier = data.slice(0, half);
+  const recentSum = recent.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
+  const earlierSum = earlier.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
+
+  const uvTrend = earlierSum.uv > 0 ? Math.round(((recentSum.uv - earlierSum.uv) / earlierSum.uv) * 100) : (recentSum.uv > 0 ? 100 : 0);
+  const regTrend = earlierSum.reg > 0 ? Math.round(((recentSum.reg - earlierSum.reg) / earlierSum.reg) * 100) : (recentSum.reg > 0 ? 100 : 0);
+
+  return (
+    <div className="flex items-center gap-6 text-sm flex-wrap">
+      <div className="flex items-center gap-2">
+        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--color-uniqueClicks)" }} />
+        <span className="text-muted-foreground">独立访客 {total.uv}</span>
+        {uvTrend !== 0 && (
+          <span className={uvTrend > 0 ? "text-green-600 text-xs" : "text-red-500 text-xs"}>
+            {uvTrend > 0 ? "+" : ""}{uvTrend}%
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--color-registers)" }} />
+        <span className="text-muted-foreground">注册 {total.reg}</span>
+        {regTrend !== 0 && (
+          <span className={regTrend > 0 ? "text-green-600 text-xs" : "text-red-500 text-xs"}>
+            {regTrend > 0 ? "+" : ""}{regTrend}%
+          </span>
+        )}
+      </div>
+      <div className="text-muted-foreground">
+        转化 {total.uv > 0 ? ((total.reg / total.uv) * 100).toFixed(1) : "0"}%
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsPanel() {
+  const [trendDays, setTrendDays] = useState<number>(14);
+  const [linkSortBy, setLinkSortBy] = useState<"uniqueClicks" | "registers" | "conversionRate">("registers");
+  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ days: trendDays });
+  const { data: channelData, isLoading: channelLoading } = trpc.referral.getChannelStats.useQuery();
+  const { data: topLinks, isLoading: linksLoading } = trpc.referral.getTopLinks.useQuery({ limit: 5, sortBy: linkSortBy });
+
+  return (
+    <div className="space-y-6">
+      {/* Trend Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-500" />
+              推广趋势
+            </CardTitle>
+            <CardDescription>每日点击与注册变化</CardDescription>
+          </div>
+          <div className="flex gap-1">
+            {TREND_RANGE_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                variant={trendDays === opt.value ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={() => setTrendDays(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {trendLoading ? (
+            <Skeleton className="h-[220px] w-full" />
+          ) : !trendData?.length ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>暂无趋势数据</p>
+            </div>
+          ) : (
+            <>
+              <TrendSummary data={trendData} />
+              <ChartContainer config={trendChartConfig} className="h-[220px] w-full">
+                <AreaChart data={trendData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="fillUniqueClicks" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-uniqueClicks)" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="var(--color-uniqueClicks)" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="fillRegisters" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-registers)" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="var(--color-registers)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={formatTrendDate}
+                    minTickGap={24}
+                  />
+                  <YAxis tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={formatTooltipDate} />} />
+                  <Area
+                    type="monotone"
+                    dataKey="uniqueClicks"
+                    stroke="var(--color-uniqueClicks)"
+                    fill="url(#fillUniqueClicks)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="registers"
+                    stroke="var(--color-registers)"
+                    fill="url(#fillRegisters)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ChartContainer>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Channel Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-green-500" />
+              渠道分析
+            </CardTitle>
+            <CardDescription>各渠道推广效果对比</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {channelLoading ? (
+              <Skeleton className="h-[200px] w-full" />
+            ) : !channelData?.length ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>暂无渠道数据</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <ChartContainer config={channelChartConfig} className="h-[180px] w-full">
+                  <BarChart
+                    data={channelData.map((c) => ({
+                      ...c,
+                      channelLabel: CHANNEL_LABELS[c.channel] || c.channel,
+                    }))}
+                    margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="channelLabel" tickLine={false} axisLine={false} tickMargin={8} />
+                    <YAxis tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="clicks" fill="var(--color-clicks)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="registers" fill="var(--color-registers)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+                <div className="space-y-2">
+                  {channelData.map((ch) => (
+                    <div key={ch.channel} className="flex items-center gap-3 text-sm">
+                      <Badge variant="secondary" className="text-xs min-w-[60px] justify-center">
+                        {CHANNEL_LABELS[ch.channel] || ch.channel}
+                      </Badge>
+                      <div className="flex-1 flex items-center gap-4 text-muted-foreground">
+                        <span>{ch.uniqueClicks} 独立访客</span>
+                        <span>{ch.registers} 注册</span>
+                        <span className="text-foreground font-medium">{ch.conversionRate}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Links */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ArrowUpRight className="h-5 w-5 text-purple-500" />
+                链接排行
+              </CardTitle>
+              <CardDescription>表现最佳的推广链接</CardDescription>
+            </div>
+            <Select value={linkSortBy} onValueChange={(v) => setLinkSortBy(v as typeof linkSortBy)}>
+              <SelectTrigger className="w-[100px] h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="registers">按注册</SelectItem>
+                <SelectItem value="uniqueClicks">按访客</SelectItem>
+                <SelectItem value="conversionRate">按转化</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CardContent>
+            {linksLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : !topLinks?.length ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>暂无链接数据</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {topLinks.map((link, idx) => (
+                  <div key={link.id} className="flex items-center gap-3 p-2.5 rounded-lg border">
+                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{link.label || link.code}</div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {link.channel && (
+                          <span>{CHANNEL_LABELS[link.channel] || link.channel}</span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <MousePointerClick className="h-3 w-3" />
+                          {link.uniqueClicks} 访客
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <UserPlus className="h-3 w-3" />
+                          {link.registers} 注册
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold">{link.conversionRate}%</div>
+                      <div className="text-xs text-muted-foreground">转化率</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function RedeemCodeCard() {
   const [code, setCode] = useState("");
   const utils = trpc.useUtils();
@@ -725,12 +1075,19 @@ export default function ReferralPage() {
 
       <StatsCards />
 
-      <Tabs defaultValue="links">
+      <Tabs defaultValue="analytics">
         <TabsList>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="h-4 w-4 mr-1" />
+            数据分析
+          </TabsTrigger>
           <TabsTrigger value="links">推广链接</TabsTrigger>
           <TabsTrigger value="referrals">推广用户</TabsTrigger>
           <TabsTrigger value="points">积分流水</TabsTrigger>
         </TabsList>
+        <TabsContent value="analytics" className="mt-4">
+          <AnalyticsPanel />
+        </TabsContent>
         <TabsContent value="links" className="mt-4">
           <LinksManager />
         </TabsContent>

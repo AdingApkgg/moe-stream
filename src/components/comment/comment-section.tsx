@@ -21,6 +21,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { CommentItem } from "./comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useIsMounted } from "@/components/motion";
 import { useSiteConfig } from "@/contexts/site-config";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
@@ -39,7 +40,8 @@ export function CommentSection({ videoId }: CommentSectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMounted = useIsMounted();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-  
+  const { getVisitorId } = useFingerprint();
+
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const rawCaptchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
@@ -184,11 +186,13 @@ export function CommentSection({ videoId }: CommentSectionProps) {
       currentDeviceInfo = mergeDeviceInfo(baseInfo, highEntropyInfo);
       setDeviceInfo(currentDeviceInfo);
     }
+
+    const visitorId = await getVisitorId().catch(() => undefined);
     
     createMutation.mutate({ 
       videoId, 
       content: newComment.trim(),
-      deviceInfo: currentDeviceInfo || undefined,
+      deviceInfo: currentDeviceInfo ? { ...currentDeviceInfo, visitorId } : undefined,
       ...(session ? {} : {
         guestName: guestName.trim(),
         guestEmail: guestEmail.trim() || undefined,
@@ -199,7 +203,7 @@ export function CommentSection({ videoId }: CommentSectionProps) {
     setCaptchaKey((k) => k + 1);
     setTurnstileToken("");
     setCaptchaValue("");
-  }, [newComment, isSubmitting, createMutation, videoId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue]);
+  }, [newComment, isSubmitting, createMutation, videoId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue, getVisitorId]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 

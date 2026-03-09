@@ -1,4 +1,5 @@
 import { getServerConfig } from "@/lib/server-config";
+import { hmacSha256 } from "@/lib/wasm-hash";
 import * as crypto from "crypto";
 
 export type CaptchaType = "none" | "math" | "turnstile";
@@ -9,20 +10,17 @@ const MATH_CAPTCHA_TTL_MS = 5 * 60 * 1000; // 5 min
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 /**
- * HMAC-sign a math captcha answer so the cookie never leaks the plaintext.
+ * HMAC-sign a math captcha answer (WASM 加速)
  * Format: `hmac:nonce:timestamp`
  */
-export function signMathAnswer(answer: string): string {
+export async function signMathAnswer(answer: string): Promise<string> {
   const nonce = crypto.randomBytes(8).toString("hex");
   const ts = Date.now().toString();
-  const mac = crypto
-    .createHmac("sha256", CAPTCHA_SECRET)
-    .update(`${answer}:${nonce}:${ts}`)
-    .digest("hex");
+  const mac = await hmacSha256(CAPTCHA_SECRET, `${answer}:${nonce}:${ts}`);
   return `${mac}:${nonce}:${ts}`;
 }
 
-function verifyMathSigned(userInput: string, signedCookie: string): boolean {
+async function verifyMathSigned(userInput: string, signedCookie: string): Promise<boolean> {
   const parts = signedCookie.split(":");
   if (parts.length !== 3) return false;
   const [mac, nonce, ts] = parts;
@@ -30,10 +28,7 @@ function verifyMathSigned(userInput: string, signedCookie: string): boolean {
   const elapsed = Date.now() - parseInt(ts, 10);
   if (isNaN(elapsed) || elapsed > MATH_CAPTCHA_TTL_MS || elapsed < 0) return false;
 
-  const expected = crypto
-    .createHmac("sha256", CAPTCHA_SECRET)
-    .update(`${userInput.trim()}:${nonce}:${ts}`)
-    .digest("hex");
+  const expected = await hmacSha256(CAPTCHA_SECRET, `${userInput.trim()}:${nonce}:${ts}`);
 
   try {
     return crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected));
@@ -82,7 +77,7 @@ export async function verifyCaptcha(
     if (!token || !mathCookieValue) {
       return { valid: false, message: "验证码已过期" };
     }
-    const isValid = verifyMathSigned(token, mathCookieValue);
+    const isValid = await verifyMathSigned(token, mathCookieValue);
     return {
       valid: isValid,
       message: isValid ? "验证成功" : "验证码错误",

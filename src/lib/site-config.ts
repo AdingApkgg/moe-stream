@@ -53,6 +53,11 @@ export interface PublicSiteConfig {
   captchaForgotPassword: string;
   turnstileSiteKey: string | null;
   referralEnabled: boolean;
+  analyticsGoogleId: string | null;
+  analyticsGtmId: string | null;
+  analyticsCfToken: string | null;
+  analyticsClarityId: string | null;
+  analyticsBingVerification: string | null;
 }
 
 const selectFields = {
@@ -103,6 +108,11 @@ const selectFields = {
   captchaForgotPassword: true,
   turnstileSiteKey: true,
   referralEnabled: true,
+  analyticsGoogleId: true,
+  analyticsGtmId: true,
+  analyticsCfToken: true,
+  analyticsClarityId: true,
+  analyticsBingVerification: true,
   oauthGoogleClientId: true,
   oauthGoogleClientSecret: true,
   oauthGithubClientId: true,
@@ -178,6 +188,11 @@ const defaultConfig: PublicSiteConfig = {
   captchaForgotPassword: "none",
   turnstileSiteKey: null,
   referralEnabled: false,
+  analyticsGoogleId: null,
+  analyticsGtmId: null,
+  analyticsCfToken: null,
+  analyticsClarityId: null,
+  analyticsBingVerification: null,
 };
 
 /**

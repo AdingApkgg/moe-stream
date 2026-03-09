@@ -2347,6 +2347,13 @@ export const adminRouter = router({
       effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
       soundDefaultEnabled: z.boolean().optional(),
 
+      // 统计分析
+      analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
+      analyticsGtmId: z.string().max(200).optional().nullable().or(z.literal("")),
+      analyticsCfToken: z.string().max(200).optional().nullable().or(z.literal("")),
+      analyticsClarityId: z.string().max(200).optional().nullable().or(z.literal("")),
+      analyticsBingVerification: z.string().max(200).optional().nullable().or(z.literal("")),
+
       // OAuth 社交登录
       oauthGoogleClientId: z.string().max(500).optional().nullable().or(z.literal("")),
       oauthGoogleClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -2402,6 +2409,7 @@ export const adminRouter = router({
         "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
+        "analyticsGoogleId", "analyticsGtmId", "analyticsCfToken", "analyticsClarityId", "analyticsBingVerification",
         "oauthGoogleClientId", "oauthGoogleClientSecret",
         "oauthGithubClientId", "oauthGithubClientSecret",
         "oauthDiscordClientId", "oauthDiscordClientSecret",
@@ -2544,6 +2552,7 @@ export const adminRouter = router({
         "themeHue", "themeColorTemp", "themeBorderRadius", "themeGlassOpacity", "themeAnimations",
         "effectEnabled", "effectType", "effectDensity", "effectSpeed",
         "effectOpacity", "effectColor", "soundDefaultEnabled",
+        "analyticsGoogleId", "analyticsGtmId", "analyticsCfToken", "analyticsClarityId", "analyticsBingVerification",
         "oauthGoogleClientId", "oauthGoogleClientSecret",
         "oauthGithubClientId", "oauthGithubClientSecret",
         "oauthDiscordClientId", "oauthDiscordClientSecret",

@@ -44,6 +44,11 @@ export default function DangerPage() {
     { enabled: !!session }
   );
 
+  const { data: passwordInfo } = trpc.user.hasPassword.useQuery(
+    undefined,
+    { enabled: !!session }
+  );
+
   const deleteAccountMutation = trpc.user.deleteAccount.useMutation({
     onSuccess: () => {
       toast.success("账号已注销");
@@ -65,21 +70,23 @@ export default function DangerPage() {
     authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } });
   };
 
+  const needsPassword = passwordInfo?.hasPassword !== false;
+
   const handleDeleteAccount = useCallback(async () => {
     if (deleteConfirmText !== "DELETE") {
       toast.error("请输入 DELETE 确认");
       return;
     }
-    if (!deletePassword) {
+    if (needsPassword && !deletePassword) {
       toast.error("请输入密码");
       return;
     }
     setIsDeleting(true);
     await deleteAccountMutation.mutateAsync({
-      password: deletePassword,
+      password: needsPassword ? deletePassword : undefined,
       confirmText: "DELETE",
     });
-  }, [deleteConfirmText, deletePassword, deleteAccountMutation]);
+  }, [deleteConfirmText, deletePassword, deleteAccountMutation, needsPassword]);
 
   if (status === "loading" || userLoading) {
     return (
@@ -170,15 +177,17 @@ export default function DangerPage() {
               </DialogHeader>
               
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">请输入密码确认身份</label>
-                  <Input
-                    type="password"
-                    placeholder="输入密码"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                  />
-                </div>
+                {needsPassword && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">请输入密码确认身份</label>
+                    <Input
+                      type="password"
+                      placeholder="输入密码"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     请输入 <code className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-mono text-xs">DELETE</code> 确认注销
@@ -197,7 +206,7 @@ export default function DangerPage() {
                 <Button
                   variant="destructive"
                   onClick={handleDeleteAccount}
-                  disabled={isDeleting || deleteConfirmText !== "DELETE" || !deletePassword}
+                  disabled={isDeleting || deleteConfirmText !== "DELETE" || (needsPassword && !deletePassword)}
                 >
                   {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   确认注销

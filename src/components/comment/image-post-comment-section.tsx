@@ -21,6 +21,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { ImagePostCommentItem } from "./image-post-comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useIsMounted } from "@/components/motion";
 import { useSiteConfig } from "@/contexts/site-config";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
@@ -39,6 +40,7 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMounted = useIsMounted();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
+  const { getVisitorId } = useFingerprint();
 
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
@@ -174,10 +176,12 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
       setDeviceInfo(currentDeviceInfo);
     }
 
+    const visitorId = await getVisitorId().catch(() => undefined);
+
     createMutation.mutate({
       imagePostId,
       content: newComment.trim(),
-      deviceInfo: currentDeviceInfo || undefined,
+      deviceInfo: currentDeviceInfo ? { ...currentDeviceInfo, visitorId } : undefined,
       ...(session
         ? {}
         : {
@@ -190,7 +194,7 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
     setCaptchaKey((k) => k + 1);
     setTurnstileToken("");
     setCaptchaValue("");
-  }, [newComment, isSubmitting, createMutation, imagePostId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue]);
+  }, [newComment, isSubmitting, createMutation, imagePostId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue, getVisitorId]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 

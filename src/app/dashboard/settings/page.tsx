@@ -58,6 +58,7 @@ import {
   TriangleAlert,
   Copy,
   ScrollText,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import {
@@ -185,6 +186,13 @@ const configFormSchema = z.object({
   effectOpacity: z.number().min(0).max(1),
   effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
   soundDefaultEnabled: z.boolean(),
+
+  // 统计分析
+  analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
+  analyticsGtmId: z.string().max(200).optional().nullable().or(z.literal("")),
+  analyticsCfToken: z.string().max(200).optional().nullable().or(z.literal("")),
+  analyticsClarityId: z.string().max(200).optional().nullable().or(z.literal("")),
+  analyticsBingVerification: z.string().max(200).optional().nullable().or(z.literal("")),
 
   // OAuth 社交登录
   oauthGoogleClientId: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -776,6 +784,11 @@ export default function AdminSettingsPage() {
         effectOpacity: (config as Record<string, unknown>).effectOpacity as number ?? 0.8,
         effectColor: ((config as Record<string, unknown>).effectColor as string) || "",
         soundDefaultEnabled: (config as Record<string, unknown>).soundDefaultEnabled as boolean ?? true,
+        analyticsGoogleId: ((config as Record<string, unknown>).analyticsGoogleId as string) || "",
+        analyticsGtmId: ((config as Record<string, unknown>).analyticsGtmId as string) || "",
+        analyticsCfToken: ((config as Record<string, unknown>).analyticsCfToken as string) || "",
+        analyticsClarityId: ((config as Record<string, unknown>).analyticsClarityId as string) || "",
+        analyticsBingVerification: ((config as Record<string, unknown>).analyticsBingVerification as string) || "",
         ...Object.fromEntries(
           ["Google", "Github", "Discord", "Apple", "Twitter", "Facebook", "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit"]
             .flatMap((k) => [
@@ -970,6 +983,10 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="seo" className="gap-1.5">
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">SEO</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">统计</span>
           </TabsTrigger>
         </TabsList>
 
@@ -3002,6 +3019,150 @@ export default function AdminSettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* 统计分析 */}
+        <TabsContent value="analytics" forceMount className="data-[state=inactive]:hidden">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    统计分析
+                  </CardTitle>
+                  <CardDescription>
+                    接入各大分析统计平台，追踪网站流量和用户行为。填入对应平台的 ID/Token 即可启用，留空则不加载。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Globe className="h-4 w-4" />
+                      Google Analytics 4
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="analyticsGoogleId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Measurement ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="G-XXXXXXXXXX" />
+                          </FormControl>
+                          <FormDescription>
+                            Google Analytics 4 的衡量 ID，可在 GA4 管理面板 &gt; 数据流中找到
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Globe className="h-4 w-4" />
+                      Google Tag Manager
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="analyticsGtmId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Container ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="GTM-XXXXXXX" />
+                          </FormControl>
+                          <FormDescription>
+                            Google Tag Manager 的容器 ID，可在 GTM 控制台 &gt; 管理 &gt; 容器设置中找到
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Shield className="h-4 w-4" />
+                      Cloudflare Web Analytics
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="analyticsCfToken"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Beacon Token</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                          </FormControl>
+                          <FormDescription>
+                            Cloudflare Web Analytics 的 beacon token，可在 Cloudflare 控制台 &gt; Web Analytics 中获取
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Search className="h-4 w-4" />
+                      Microsoft Clarity
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="analyticsClarityId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Project ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="xxxxxxxxxx" />
+                          </FormControl>
+                          <FormDescription>
+                            Microsoft Clarity 的项目 ID，可在 Clarity 控制台 &gt; 设置 &gt; 项目信息中找到
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Globe className="h-4 w-4" />
+                      Bing Webmaster Tools
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="analyticsBingVerification"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>验证码</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" />
+                          </FormControl>
+                          <FormDescription>
+                            Bing Webmaster Tools 验证码，会自动生成 meta 标签用于站点验证
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
         </TabsContent>
       </Tabs>
     </div>

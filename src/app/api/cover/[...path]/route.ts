@@ -17,8 +17,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as crypto from "crypto";
 import sharp from "sharp";
+import { md5 } from "@/lib/wasm-hash";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { getServerConfig } from "@/lib/server-config";
 
@@ -70,9 +70,9 @@ function parseThumbParams(searchParams: URLSearchParams): ThumbParams | null {
   };
 }
 
-function getThumbCacheFile(cacheKey: string, thumb: ThumbParams): string {
+async function getThumbCacheFile(cacheKey: string, thumb: ThumbParams): Promise<string> {
   const key = `${cacheKey}__t_${thumb.w ?? 0}x${thumb.h ?? 0}q${thumb.q ?? 70}`;
-  const hash = crypto.createHash("md5").update(key).digest("hex");
+  const hash = await md5(key);
   return path.join(CACHE_DIR, `${hash}.webp`);
 }
 
@@ -88,8 +88,8 @@ async function resizeImage(
 
 // ==================== 工具函数 ====================
 
-function getCacheFileName(url: string): string {
-  const hash = crypto.createHash("md5").update(url).digest("hex");
+async function getCacheFileName(url: string): Promise<string> {
+  const hash = await md5(url);
   const ext = getExtension(url);
   return `${hash}${ext}`;
 }
@@ -209,7 +209,7 @@ export async function GET(
   // 缩略图缓存命中 → 直接返回（适用于所有类型的封面请求）
   if (thumbParams) {
     await ensureCacheDir();
-    const thumbFile = getThumbCacheFile(thumbCacheKey, thumbParams);
+    const thumbFile = await getThumbCacheFile(thumbCacheKey, thumbParams);
     try {
       const cached = await fs.readFile(thumbFile);
       return new Response(new Uint8Array(cached), {
@@ -233,7 +233,7 @@ export async function GET(
       const buf = Buffer.from(await response.arrayBuffer());
       try {
         const resized = await resizeImage(buf, thumbParams);
-        const thumbFile = getThumbCacheFile(thumbCacheKey, thumbParams);
+        const thumbFile = await getThumbCacheFile(thumbCacheKey, thumbParams);
         await fs.writeFile(thumbFile, resized).catch(() => {});
         return new Response(new Uint8Array(resized), {
           headers: {
@@ -302,7 +302,7 @@ async function handleOriginalRequest(
   }
 
   await ensureCacheDir();
-  const cacheFile = path.join(CACHE_DIR, getCacheFileName(imageUrl));
+  const cacheFile = path.join(CACHE_DIR, await getCacheFileName(imageUrl));
 
   try {
     const cached = await fs.readFile(cacheFile);
@@ -378,7 +378,7 @@ async function handleVideoCover(
       }
     } else {
       await ensureCacheDir();
-      const cacheFile = path.join(CACHE_DIR, getCacheFileName(video.coverUrl));
+      const cacheFile = path.join(CACHE_DIR, await getCacheFileName(video.coverUrl));
       
       try {
         const cached = await fs.readFile(cacheFile);

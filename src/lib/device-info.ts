@@ -15,6 +15,7 @@ export interface DeviceInfo {
   pixelRatio: number | null;
   userAgent: string | null;
   fingerprint: string;
+  visitorId?: string | null;
 }
 
 // User-Agent Client Hints API types
@@ -215,6 +216,7 @@ export interface NormalizedDeviceInfo {
   timezone: string | null;
   language: string | null;
   fingerprint: string;
+  visitorId?: string | null;
 }
 
 /**

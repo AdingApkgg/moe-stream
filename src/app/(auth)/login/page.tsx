@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
 import { useSiteConfig } from "@/contexts/site-config";
+import { getFingerprint } from "@/hooks/use-fingerprint";
 
 function LoginForm() {
   const router = useRouter();
@@ -96,6 +97,13 @@ function LoginForm() {
         form.setValue("captcha", "");
       } else {
         toast.success("登录成功");
+        getFingerprint().then((fp) => {
+          fetch("/api/auth/session-info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fingerprint: fp }),
+          }).catch(() => {});
+        }).catch(() => {});
         router.push(callbackUrl);
         router.refresh();
       }

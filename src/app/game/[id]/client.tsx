@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { Markdown } from "@/components/ui/markdown";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { useSession } from "@/lib/auth-client";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import type { SerializedGame } from "./page";
@@ -107,11 +108,14 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
   });
 
   const incrementViews = trpc.game.incrementViews.useMutation();
+  const { getVisitorId } = useFingerprint();
   const recordView = trpc.game.recordView.useMutation({
     onSuccess: (data) => showPointsToast(data?.pointsAwarded),
   });
   useEffect(() => {
-    incrementViews.mutate({ id });
+    getVisitorId()
+      .then((vid) => incrementViews.mutate({ id, visitorId: vid }))
+      .catch(() => incrementViews.mutate({ id }));
     recordView.mutate({ gameId: id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);

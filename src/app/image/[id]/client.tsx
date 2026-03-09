@@ -9,6 +9,7 @@ import { ImageViewer } from "@/components/image/image-viewer";
 import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
@@ -62,11 +63,14 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
   });
 
   const incrementViews = trpc.image.incrementViews.useMutation();
+  const { getVisitorId } = useFingerprint();
   const recordView = trpc.image.recordView.useMutation({
     onSuccess: (data) => showPointsToast(data?.pointsAwarded),
   });
   useEffect(() => {
-    incrementViews.mutate({ id: post.id });
+    getVisitorId()
+      .then((vid) => incrementViews.mutate({ id: post.id, visitorId: vid }))
+      .catch(() => incrementViews.mutate({ id: post.id }));
     recordView.mutate({ imagePostId: post.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);

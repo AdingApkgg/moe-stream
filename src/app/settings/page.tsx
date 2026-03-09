@@ -264,16 +264,16 @@ export default function ProfileSettingsPage() {
                   )}
                   <ScrollArea className="h-40 w-full">
                     {avatarGallery?.length ? (
-                      <div className="grid grid-cols-6 gap-2 p-1">
+                      <div className="grid grid-cols-6 gap-2 p-1 place-items-center">
                         {avatarGallery.map((avatar, i) => (
                           <button
                             key={i}
                             onClick={() => { setPreviewUrl(avatar); setAvatarUrl(avatar); }}
-                            className={`rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
+                            className={`h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
                               previewUrl === avatar ? "border-primary" : "border-transparent"
                             }`}
                           >
-                            <Avatar className="h-12 w-12">
+                            <Avatar className="h-full w-full">
                               <AvatarImage src={avatar} />
                             </Avatar>
                           </button>

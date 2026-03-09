@@ -506,8 +506,13 @@ export const imageRouter = router({
     }),
 
   incrementViews: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string(), visitorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
+      if (input.visitorId) {
+        const dedupKey = `view:image:${input.id}:${input.visitorId}`;
+        const already = await ctx.redis.set(dedupKey, "1", "EX", 3600, "NX");
+        if (!already) return { success: true, deduplicated: true };
+      }
       await ctx.prisma.imagePost.update({
         where: { id: input.id },
         data: { views: { increment: 1 } },

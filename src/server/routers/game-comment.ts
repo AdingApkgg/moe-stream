@@ -199,6 +199,7 @@ export const gameCommentRouter = router({
             pixelRatio: z.number().nullable().optional(),
             userAgent: z.string().nullable().optional(),
             fingerprint: z.string().optional(),
+            visitorId: z.string().nullable().optional(),
           })
           .optional(),
       })
@@ -227,6 +228,15 @@ export const gameCommentRouter = router({
         });
       }
 
+      const visitorId = deviceInfo?.visitorId;
+      if (!userId && visitorId) {
+        const rateKey = `comment_rate:vid:${visitorId}`;
+        const exists = await ctx.redis.exists(rateKey);
+        if (exists) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "评论太频繁，请稍后再试" });
+        }
+      }
+
       const [ipv4Location, ipv6Location] = await Promise.all([
         getIpLocation(ctx.ipv4Address),
         getIpLocation(ctx.ipv6Address),
@@ -249,6 +259,7 @@ export const gameCommentRouter = router({
           pixelRatio: deviceInfo.pixelRatio || null,
           userAgent: deviceInfo.userAgent || ctx.userAgent || null,
           fingerprint: deviceInfo.fingerprint || "unknown",
+          visitorId: visitorId || null,
         };
       } else {
         normalizedDeviceInfo = parseDeviceInfo(ctx.userAgent, deviceInfo);
@@ -319,6 +330,10 @@ export const gameCommentRouter = router({
           },
         },
       });
+
+      if (!userId && visitorId) {
+        await ctx.redis.set(`comment_rate:vid:${visitorId}`, "1", "EX", 60);
+      }
 
       let pointsAwarded = 0;
       if (userId) {

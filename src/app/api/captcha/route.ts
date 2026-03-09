@@ -48,7 +48,7 @@ export async function GET() {
     const { svg, answer } = generateMathCaptcha();
 
     const cookieStore = await cookies();
-    cookieStore.set("captcha", signMathAnswer(answer), {
+    cookieStore.set("captcha", await signMathAnswer(answer), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",

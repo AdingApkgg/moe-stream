@@ -50,7 +50,7 @@ import { formatRelativeTime } from "@/lib/format";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { getAvatarUrlClient } from "@/lib/avatar";
+import { useAvatarUrl } from "@/lib/avatar";
 import { CommentContent } from "./comment-content";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 
@@ -283,7 +283,7 @@ export function ImagePostCommentItem({
     : comment.user?.nickname || comment.user?.username || "用户";
   const avatarFallbackChar = ((displayName || "用").trim() || "用").charAt(0).toUpperCase();
 
-  const guestAvatarUrl = getAvatarUrlClient(comment.guestEmail);
+  const guestAvatarUrl = useAvatarUrl(comment.guestEmail);
   const normalizedDeviceInfo = (() => {
     if (!comment.deviceInfo || typeof comment.deviceInfo !== "object") return null;
     if (Array.isArray(comment.deviceInfo)) return null;
