@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MdxEditor } from "@/components/ui/mdx-editor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
@@ -147,8 +148,16 @@ export function GameSingleUpload() {
 
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>游戏介绍</FormLabel>
-                    <FormControl><Textarea placeholder="游戏介绍（可选）" className="min-h-[120px] resize-none" {...field} /></FormControl>
+                    <FormLabel>游戏介绍（支持 Markdown / MDX）</FormLabel>
+                    <FormControl>
+                      <MdxEditor
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="游戏介绍，支持 Markdown 语法..."
+                        maxLength={5000}
+                        minHeight="150px"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -212,21 +221,18 @@ export function GameSingleUpload() {
                   </TabsContent>
 
                   <TabsContent value="screenshots" className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />截图链接</FormLabel>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setScreenshots([...screenshots, ""])}><Plus className="h-4 w-4 mr-1" />添加截图</Button>
-                    </div>
-                    {screenshots.map((url, i) => (
-                      <div key={i} className="flex gap-2">
-                        <div className="relative flex-1">
-                          <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="https://example.com/screenshot.jpg" value={url} onChange={(e) => { const u = [...screenshots]; u[i] = e.target.value; setScreenshots(u); }} className="pl-9" />
-                        </div>
-                        {screenshots.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>}
-                      </div>
-                    ))}
+                    <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />截图链接</FormLabel>
+                    <Textarea
+                      value={screenshots.filter(Boolean).join("\n")}
+                      onChange={(e) => setScreenshots(e.target.value.split("\n"))}
+                      placeholder={"每行一个截图链接，例如：\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"}
+                      className="min-h-[100px] font-mono text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      每行一个 URL，已识别 {screenshots.filter(s => s.trim()).length} 张截图
+                    </p>
                     {screenshots.some(s => s.trim()) && (
-                      <div className="flex gap-2 flex-wrap mt-2">
+                      <div className="flex gap-2 flex-wrap">
                         {screenshots.filter(s => s.trim()).map((url, i) => (
                           <div key={i} className="w-24 h-16 rounded border overflow-hidden bg-muted">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -238,20 +244,16 @@ export function GameSingleUpload() {
                   </TabsContent>
 
                   <TabsContent value="videos" className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="flex items-center gap-2"><FileVideo className="h-4 w-4" />视频链接</FormLabel>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setVideos([...videos, ""])}><Plus className="h-4 w-4 mr-1" />添加视频</Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">支持 mp4、webm 等直链或 m3u8 流媒体地址</p>
-                    {videos.map((url, i) => (
-                      <div key={i} className="flex gap-2">
-                        <div className="relative flex-1">
-                          <FileVideo className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="https://example.com/preview.mp4" value={url} onChange={(e) => { const u = [...videos]; u[i] = e.target.value; setVideos(u); }} className="pl-9" />
-                        </div>
-                        {videos.length > 1 && <Button type="button" variant="ghost" size="icon" onClick={() => setVideos(videos.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>}
-                      </div>
-                    ))}
+                    <FormLabel className="flex items-center gap-2"><FileVideo className="h-4 w-4" />视频链接</FormLabel>
+                    <Textarea
+                      value={videos.filter(Boolean).join("\n")}
+                      onChange={(e) => setVideos(e.target.value.split("\n"))}
+                      placeholder={"每行一个视频链接，支持 mp4、webm、m3u8\nhttps://example.com/preview.mp4"}
+                      className="min-h-[80px] font-mono text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      每行一个 URL，已识别 {videos.filter(s => s.trim()).length} 个视频
+                    </p>
                   </TabsContent>
 
                   <TabsContent value="downloads" className="space-y-4 mt-4">

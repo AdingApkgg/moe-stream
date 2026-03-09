@@ -54,7 +54,11 @@ import {
   Award,
   ArrowUpRight,
   UserPlus,
+  Filter,
+  X,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSiteConfig } from "@/contexts/site-config";
 import {
   ChartContainer,
@@ -171,8 +175,77 @@ function TrendBadge({ today, yesterday }: { today: number; yesterday: number }) 
   );
 }
 
-function StatsCards() {
-  const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery();
+function LinkFilter({
+  selectedIds,
+  onChange,
+}: {
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { data } = trpc.referral.getMyLinks.useQuery({ page: 1, limit: 50 });
+  const links = data?.links ?? [];
+
+  const toggle = (id: string) => {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  const hasFilter = selectedIds.length > 0;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant={hasFilter ? "default" : "outline"} size="sm" className="gap-1.5">
+          <Filter className="h-4 w-4" />
+          {hasFilter ? `已选 ${selectedIds.length} 个链接` : "按链接筛选"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <div className="p-3 border-b flex items-center justify-between">
+          <span className="text-sm font-medium">选择推广链接</span>
+          {hasFilter && (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => onChange([])}>
+              清除
+            </Button>
+          )}
+        </div>
+        <div className="max-h-[280px] overflow-y-auto p-2 space-y-1">
+          {links.length === 0 ? (
+            <div className="text-center py-4 text-sm text-muted-foreground">暂无链接</div>
+          ) : (
+            links.map((link) => (
+              <label
+                key={link.id}
+                className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer"
+              >
+                <Checkbox
+                  checked={selectedIds.includes(link.id)}
+                  onCheckedChange={() => toggle(link.id)}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{link.label || link.code}</div>
+                  {link.channel && (
+                    <div className="text-xs text-muted-foreground">
+                      {CHANNEL_OPTIONS.find((c) => c.value === link.channel)?.label || link.channel}
+                    </div>
+                  )}
+                </div>
+              </label>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function StatsCards({ linkIds }: { linkIds?: string[] }) {
+  const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery(
+    linkIds?.length ? { linkIds } : undefined
+  );
 
   if (isLoading) {
     return (
@@ -787,12 +860,14 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
   );
 }
 
-function AnalyticsPanel() {
+function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
   const [trendDays, setTrendDays] = useState<number>(14);
   const [linkSortBy, setLinkSortBy] = useState<"uniqueClicks" | "registers" | "conversionRate">("registers");
-  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ days: trendDays });
-  const { data: channelData, isLoading: channelLoading } = trpc.referral.getChannelStats.useQuery();
-  const { data: topLinks, isLoading: linksLoading } = trpc.referral.getTopLinks.useQuery({ limit: 5, sortBy: linkSortBy });
+  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ days: trendDays, linkIds });
+  const { data: channelData, isLoading: channelLoading } = trpc.referral.getChannelStats.useQuery(
+    linkIds?.length ? { linkIds } : undefined
+  );
+  const { data: topLinks, isLoading: linksLoading } = trpc.referral.getTopLinks.useQuery({ limit: 5, sortBy: linkSortBy, linkIds });
 
   return (
     <div className="space-y-6">
@@ -1057,23 +1132,36 @@ function RedeemCodeCard() {
 }
 
 export default function ReferralPage() {
+  const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
+  const linkIds = selectedLinkIds.length > 0 ? selectedLinkIds : undefined;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <TrendingUp className="h-6 w-6" />
-          推广中心
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          创建推广链接，邀请新用户注册赚取积分
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <TrendingUp className="h-6 w-6" />
+            推广中心
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            创建推广链接，邀请新用户注册赚取积分
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <LinkFilter selectedIds={selectedLinkIds} onChange={setSelectedLinkIds} />
+          {selectedLinkIds.length > 0 && (
+            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setSelectedLinkIds([])}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <CheckinCard />
 
       <RedeemCodeCard />
 
-      <StatsCards />
+      <StatsCards linkIds={linkIds} />
 
       <Tabs defaultValue="analytics">
         <TabsList>
@@ -1086,7 +1174,7 @@ export default function ReferralPage() {
           <TabsTrigger value="points">积分流水</TabsTrigger>
         </TabsList>
         <TabsContent value="analytics" className="mt-4">
-          <AnalyticsPanel />
+          <AnalyticsPanel linkIds={linkIds} />
         </TabsContent>
         <TabsContent value="links" className="mt-4">
           <LinksManager />

@@ -11,6 +11,7 @@ import { GAME_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MdxEditor } from "@/components/ui/mdx-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
@@ -310,9 +311,15 @@ export default function EditGamePage({ params }: Props) {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>描述</FormLabel>
+                        <FormLabel>描述（支持 Markdown / MDX）</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="游戏描述..." className="min-h-[120px]" />
+                          <MdxEditor
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="游戏描述，支持 Markdown 语法..."
+                            maxLength={10000}
+                            minHeight="200px"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -485,38 +492,26 @@ export default function EditGamePage({ params }: Props) {
                     游戏截图
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {screenshots.map((url, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) => {
-                          const next = [...screenshots];
-                          next[i] = e.target.value;
-                          setScreenshots(next);
-                        }}
-                        placeholder="截图 URL..."
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}
-                        disabled={screenshots.length <= 1}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    value={screenshots.filter(Boolean).join("\n")}
+                    onChange={(e) => setScreenshots(e.target.value.split("\n"))}
+                    placeholder={"每行一个截图链接，例如：\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"}
+                    className="min-h-[100px] font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    每行一个 URL，已识别 {screenshots.filter(s => s.trim()).length} 张截图
+                  </p>
+                  {screenshots.some(s => s.trim()) && (
+                    <div className="flex gap-2 flex-wrap">
+                      {screenshots.filter(s => s.trim()).map((url, i) => (
+                        <div key={i} className="w-24 h-16 rounded border overflow-hidden bg-muted">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt={`截图 ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setScreenshots([...screenshots, ""])}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    添加截图
-                  </Button>
+                  )}
                 </CardContent>
               </Card>
 
@@ -527,38 +522,16 @@ export default function EditGamePage({ params }: Props) {
                     游戏视频
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {videos.map((url, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) => {
-                          const next = [...videos];
-                          next[i] = e.target.value;
-                          setVideos(next);
-                        }}
-                        placeholder="视频 URL (mp4, webm, m3u8)..."
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setVideos(videos.filter((_, j) => j !== i))}
-                        disabled={videos.length <= 1}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVideos([...videos, ""])}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    添加视频
-                  </Button>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    value={videos.filter(Boolean).join("\n")}
+                    onChange={(e) => setVideos(e.target.value.split("\n"))}
+                    placeholder={"每行一个视频链接，支持 mp4、webm、m3u8\nhttps://example.com/preview.mp4"}
+                    className="min-h-[80px] font-mono text-xs"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    每行一个 URL，已识别 {videos.filter(s => s.trim()).length} 个视频
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

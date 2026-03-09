@@ -5,6 +5,7 @@ import { GameGrid } from "@/components/game/game-grid";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo } from "react";
+import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Gamepad2 } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
   const [sortBy, setSortBy] = useState<SortBy>("latest");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
 
   const {

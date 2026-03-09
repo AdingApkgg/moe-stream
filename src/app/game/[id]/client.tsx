@@ -24,7 +24,6 @@ import {
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Markdown } from "@/components/ui/markdown";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { useSession } from "@/lib/auth-client";
 import { useFingerprint } from "@/hooks/use-fingerprint";
@@ -64,9 +63,11 @@ function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ cl
 interface GamePageClientProps {
   id: string;
   initialGame: SerializedGame;
+  descriptionContent?: React.ReactNode;
+  characterIntroContent?: React.ReactNode;
 }
 
-export function GamePageClient({ id, initialGame }: GamePageClientProps) {
+export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent }: GamePageClientProps) {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -154,8 +155,6 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
 
   const hasScreenshots = imageUrls.length > 0;
   const hasVideos = videoUrls.length > 0;
-  const hasDescription = !!initialGame.description;
-  const hasCharacterIntro = !!extra.characterIntro;
   const hasDownloads = extra.downloads && extra.downloads.length > 0;
   const hasGameInfo = extra.originalName || extra.originalAuthor || extra.authorUrl || extra.fileSize || extra.platforms;
 
@@ -534,13 +533,13 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
         )}
 
         {/* ——— 游戏介绍 ——— */}
-        {hasDescription && (
+        {descriptionContent && (
           <FadeIn delay={0.25}>
             <section className="mb-8">
               <SectionTitle icon={Gamepad2}>游戏介绍</SectionTitle>
               <Card>
                 <CardContent className="p-4 sm:p-6">
-                  <Markdown content={initialGame.description!} />
+                  {descriptionContent}
                 </CardContent>
               </Card>
             </section>
@@ -601,13 +600,13 @@ export function GamePageClient({ id, initialGame }: GamePageClientProps) {
         )}
 
         {/* ——— 角色介绍 ——— */}
-        {hasCharacterIntro && (
+        {characterIntroContent && (
           <FadeIn delay={0.3}>
             <section className="mb-8">
               <SectionTitle icon={Users}>角色介绍</SectionTitle>
               <Card>
                 <CardContent className="p-4 sm:p-6">
-                  <Markdown content={extra.characterIntro!} />
+                  {characterIntroContent}
                 </CardContent>
               </Card>
             </section>

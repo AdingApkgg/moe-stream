@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo } from "react";
+import { usePageParam } from "@/hooks/use-page-param";
 import { Images } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
 
   const [sortBy, setSortBy] = useState<SortBy>("latest");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
 
   const {
     data: postData,

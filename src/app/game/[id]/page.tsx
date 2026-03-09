@@ -5,6 +5,7 @@ import { GamePageClient } from "./client";
 import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { MdxContent } from "@/components/mdx/mdx-remote";
 
 interface GamePageProps {
   params: Promise<{ id: string }>;
@@ -141,10 +142,23 @@ export default async function GamePage({ params }: GamePageProps) {
   }
 
   const serializedGame = serializeGame(game);
+  const extra = game.extraInfo as GameExtraInfo | null;
+
+  const descriptionContent = game.description
+    ? <MdxContent source={game.description} />
+    : null;
+  const characterIntroContent = extra?.characterIntro
+    ? <MdxContent source={extra.characterIntro} />
+    : null;
 
   return (
     <Suspense fallback={<GamePageSkeleton />}>
-      <GamePageClient id={id} initialGame={serializedGame} />
+      <GamePageClient
+        id={id}
+        initialGame={serializedGame}
+        descriptionContent={descriptionContent}
+        characterIntroContent={characterIntroContent}
+      />
     </Suspense>
   );
 }

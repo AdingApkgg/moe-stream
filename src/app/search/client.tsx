@@ -5,6 +5,7 @@ import { VideoGrid } from "@/components/video/video-grid";
 import { GameGrid } from "@/components/game/game-grid";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { usePageParam } from "@/hooks/use-page-param";
 import { Search, Clock, TrendingUp, X, Play, Gamepad2, type LucideIcon } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
@@ -161,8 +162,8 @@ export function SearchContent({ query }: SearchContentProps) {
   const [searchTab, setSearchTab] = useState<SearchTab>("video");
   const [sortBy, setSortBy] = useState<SortBy>("latest");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
-  const [videoPage, setVideoPage] = useState(1);
-  const [gamePage, setGamePage] = useState(1);
+  const [videoPage, setVideoPage] = usePageParam("page");
+  const [gamePage, setGamePage] = usePageParam("gp");
 
   const page = searchTab === "video" ? videoPage : gamePage;
   const setPage = searchTab === "video" ? setVideoPage : setGamePage;

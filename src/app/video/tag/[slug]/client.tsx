@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePageParam } from "@/hooks/use-page-param";
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export function VideoTagPageClient({
   slug,
   initialTag,
 }: VideoTagPageClientProps) {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
 
   const { data: tag, isLoading: tagLoading } = trpc.tag.getBySlug.useQuery(
     { slug, type: "video" },

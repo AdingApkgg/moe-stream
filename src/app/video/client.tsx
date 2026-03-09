@@ -5,6 +5,7 @@ import { VideoGrid } from "@/components/video/video-grid";
 import { VideoCard } from "@/components/video/video-card";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo } from "react";
+import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Play, Layers } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
@@ -70,8 +71,8 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
   const [sortBy, setSortBy] = useState<SortBy>("latest");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAnnouncement, setShowAnnouncement] = useState(true);
-  const [videoPage, setVideoPage] = useState(1);
-  const [seriesPage, setSeriesPage] = useState(1);
+  const [videoPage, setVideoPage] = usePageParam("page");
+  const [seriesPage, setSeriesPage] = usePageParam("sp");
 
   // 视频列表查询
   const {

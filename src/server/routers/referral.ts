@@ -28,11 +28,22 @@ function dateKey(d: Date): string {
 export const referralRouter = router({
   // ========== 用户端 ==========
 
-  getMyStats: protectedProcedure.query(async ({ ctx }) => {
+  getMyStats: protectedProcedure
+    .input(z.object({ linkIds: z.array(z.string()).optional() }).optional())
+    .query(async ({ ctx, input }) => {
     const userId = ctx.session.user.id;
+    const linkIds = input?.linkIds?.length ? input.linkIds : undefined;
     const today = getDateOnly();
     const yesterdayStart = getDateOnly();
     yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const linkWhere = linkIds ? { userId, id: { in: linkIds } } : { userId };
+    const dailyStatWhere = linkIds
+      ? { userId, referralLinkId: { in: linkIds } }
+      : { userId };
+    const referralRecordWhere = linkIds
+      ? { referrerId: userId, referralLinkId: { in: linkIds } }
+      : { referrerId: userId };
 
     const [user, linkAgg, todayDailyStat, yesterdayDailyStat, referralPoints] = await Promise.all([
       ctx.prisma.user.findUnique({
@@ -44,20 +55,20 @@ export const referralRouter = router({
         },
       }),
       ctx.prisma.referralLink.aggregate({
-        where: { userId },
+        where: linkWhere,
         _sum: { clicks: true, uniqueClicks: true, registers: true },
         _count: true,
       }),
       ctx.prisma.referralDailyStat.aggregate({
-        where: { userId, date: today },
+        where: { ...dailyStatWhere, date: today },
         _sum: { clicks: true, uniqueClicks: true, registers: true },
       }),
       ctx.prisma.referralDailyStat.aggregate({
-        where: { userId, date: yesterdayStart },
+        where: { ...dailyStatWhere, date: yesterdayStart },
         _sum: { clicks: true, uniqueClicks: true, registers: true },
       }),
       ctx.prisma.referralRecord.aggregate({
-        where: { referrerId: userId },
+        where: referralRecordWhere,
         _sum: { pointsAwarded: true },
       }),
     ]);
@@ -76,7 +87,9 @@ export const referralRouter = router({
     return {
       points: user.points,
       referralCode: user.referralCode,
-      totalReferrals: user._count.referralsMade,
+      totalReferrals: linkIds
+        ? await ctx.prisma.referralRecord.count({ where: referralRecordWhere })
+        : user._count.referralsMade,
       totalLinks: linkAgg._count,
       todayClicks,
       todayUniqueClicks,
@@ -92,16 +105,19 @@ export const referralRouter = router({
   }),
 
   getMyTrendStats: protectedProcedure
-    .input(z.object({ days: z.number().min(7).max(90).default(30) }))
+    .input(z.object({ days: z.number().min(7).max(90).default(30), linkIds: z.array(z.string()).optional() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { days } = input;
+      const { days, linkIds } = input;
 
       const startDate = getDateOnly();
       startDate.setDate(startDate.getDate() - days + 1);
 
+      const where: Record<string, unknown> = { userId, date: { gte: startDate } };
+      if (linkIds?.length) where.referralLinkId = { in: linkIds };
+
       const stats = await ctx.prisma.referralDailyStat.findMany({
-        where: { userId, date: { gte: startDate } },
+        where,
         select: { date: true, clicks: true, uniqueClicks: true, registers: true },
         orderBy: { date: "asc" },
       });
@@ -129,11 +145,16 @@ export const referralRouter = router({
       }));
     }),
 
-  getChannelStats: protectedProcedure.query(async ({ ctx }) => {
+  getChannelStats: protectedProcedure
+    .input(z.object({ linkIds: z.array(z.string()).optional() }).optional())
+    .query(async ({ ctx, input }) => {
     const userId = ctx.session.user.id;
+    const linkIds = input?.linkIds?.length ? input.linkIds : undefined;
+
+    const linkWhere = linkIds ? { userId, id: { in: linkIds } } : { userId };
 
     const links = await ctx.prisma.referralLink.findMany({
-      where: { userId },
+      where: linkWhere,
       select: { channel: true, clicks: true, uniqueClicks: true, registers: true },
     });
 
@@ -160,13 +181,15 @@ export const referralRouter = router({
   }),
 
   getTopLinks: protectedProcedure
-    .input(z.object({ limit: z.number().min(1).max(20).default(5), sortBy: z.enum(["uniqueClicks", "registers", "conversionRate"]).default("registers") }))
+    .input(z.object({ limit: z.number().min(1).max(20).default(5), sortBy: z.enum(["uniqueClicks", "registers", "conversionRate"]).default("registers"), linkIds: z.array(z.string()).optional() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { limit, sortBy } = input;
+      const { limit, sortBy, linkIds } = input;
+
+      const linkWhere = linkIds?.length ? { userId, id: { in: linkIds } } : { userId };
 
       const links = await ctx.prisma.referralLink.findMany({
-        where: { userId },
+        where: linkWhere,
         select: { id: true, code: true, label: true, channel: true, clicks: true, uniqueClicks: true, registers: true, createdAt: true },
       });
 
