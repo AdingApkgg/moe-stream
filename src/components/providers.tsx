@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SiteConfigProvider } from "@/contexts/site-config";
 import type { PublicSiteConfig } from "@/lib/site-config";
 import dynamic from "next/dynamic";
+import { AnalyticsScripts } from "@/components/analytics-scripts";
 
 const ParticleBackground = dynamic(
   () => import("@/components/effects/particle-background"),
@@ -152,6 +153,7 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
                 )}
                 {children}
                 <Toaster richColors position="top-center" />
+                <AnalyticsScripts config={siteConfig} />
             </SiteConfigProvider>
           </ThemeProvider>
       </QueryClientProvider>

@@ -13,7 +13,7 @@ import { generateThemeCSS } from "@/lib/theme-styles";
 import { isSetupComplete } from "@/lib/setup";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { AnalyticsScripts, GtmNoscript } from "@/components/analytics-scripts";
+import { GtmNoscript } from "@/components/analytics-scripts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
@@ -153,7 +153,6 @@ async function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <>
       {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
-      <AnalyticsScripts config={siteConfig} />
       <Providers siteConfig={siteConfig}>
         <AppLayout>{children}</AppLayout>
       </Providers>
