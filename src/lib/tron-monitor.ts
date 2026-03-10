@@ -166,11 +166,13 @@ async function expireOrders(): Promise<void> {
   });
 
   for (const order of expired) {
-    await prisma.paymentOrder.update({
-      where: { id: order.id },
+    const { count } = await prisma.paymentOrder.updateMany({
+      where: { id: order.id, status: "PENDING" },
       data: { status: "EXPIRED" },
     });
-    await releaseAmount(order.amount);
+    if (count > 0) {
+      await releaseAmount(order.amount);
+    }
   }
 
   if (expired.length > 0) {

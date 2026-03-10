@@ -82,6 +82,8 @@ function LoginForm() {
       const result = await authClient.signIn.passkey();
       if (result?.error) {
         toast.error("通行密钥登录失败", { description: result.error.message });
+      } else if (result?.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        router.push(`/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       } else if (result?.data) {
         toast.success("登录成功");
         router.push(callbackUrl);
