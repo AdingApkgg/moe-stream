@@ -3,6 +3,7 @@
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +46,7 @@ export default function FavoritesClient({ page }: { page: number }) {
   const utils = trpc.useUtils();
   const { play } = useSound();
 
-  const [activeTab, setActiveTab] = useState<ContentTab>("video");
+  const [activeTab, setActiveTab] = useTabParam<ContentTab>("video");
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [gamePage, setGamePage] = useState(1);

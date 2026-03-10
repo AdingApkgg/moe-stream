@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -98,7 +99,7 @@ function MyVideosContent() {
   const searchParams = useSearchParams();
   const { play } = useSound();
 
-  const [activeTab, setActiveTab] = useState<ContentTab>("video");
+  const [activeTab, setActiveTab] = useTabParam<ContentTab>("video");
 
   // Video tab state
   const initialPage = parseInt(searchParams.get("page") || "1");

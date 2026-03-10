@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { GameGrid } from "@/components/game/game-grid";
@@ -34,7 +34,7 @@ export function TagAggregateClient({
         ? "game"
         : "image";
 
-  const [activeTab, setActiveTab] = useState<ContentType>(defaultTab);
+  const [activeTab, setActiveTab] = useTabParam<ContentType>(defaultTab);
 
   const { data: tagData, isLoading: tagLoading } = trpc.tag.getBySlug.useQuery(
     { slug, type: activeTab },

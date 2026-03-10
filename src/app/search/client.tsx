@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { Search, Clock, TrendingUp, X, Play, Gamepad2, Images, Tag, type LucideIcon } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
@@ -166,7 +167,7 @@ const contentTypeLabels: Record<SearchTab, string> = {
 };
 
 export function SearchContent({ query }: SearchContentProps) {
-  const [searchTab, setSearchTab] = useState<SearchTab>("video");
+  const [searchTab, setSearchTab] = useTabParam<SearchTab>("video");
   const [sortBy, setSortBy] = useState<SortBy>("latest");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [videoPage, setVideoPage] = usePageParam("page");

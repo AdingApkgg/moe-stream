@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -627,7 +628,7 @@ export default function AdminSettingsPage() {
   const [lastResult, setLastResult] = useState<{ type: string; message: string; time: Date } | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
-  const [activeTab, setActiveTab] = useState("basic");
+  const [activeTab, setActiveTab] = useTabParam("basic");
 
   const validEnum = <T extends string>(value: unknown, valid: readonly T[], fallback: T): T =>
     valid.includes(value as T) ? (value as T) : fallback;
@@ -718,6 +719,12 @@ export default function AdminSettingsPage() {
       oauthLinkedinClientId: "", oauthLinkedinClientSecret: "",
       oauthGitlabClientId: "", oauthGitlabClientSecret: "",
       oauthRedditClientId: "", oauthRedditClientSecret: "",
+      usdtPaymentEnabled: false,
+      usdtWalletAddress: "",
+      usdtPointsPerUnit: 10000,
+      usdtOrderTimeoutMin: 30,
+      usdtMinAmount: null,
+      usdtMaxAmount: null,
     },
   });
   const { fields: adsFields, append: appendAd, remove: removeAd } = useFieldArray({
@@ -812,6 +819,12 @@ export default function AdminSettingsPage() {
         analyticsCfToken: ((config as Record<string, unknown>).analyticsCfToken as string) || "",
         analyticsClarityId: ((config as Record<string, unknown>).analyticsClarityId as string) || "",
         analyticsBingVerification: ((config as Record<string, unknown>).analyticsBingVerification as string) || "",
+        usdtPaymentEnabled: (config as Record<string, unknown>).usdtPaymentEnabled as boolean ?? false,
+        usdtWalletAddress: ((config as Record<string, unknown>).usdtWalletAddress as string) || "",
+        usdtPointsPerUnit: (config as Record<string, unknown>).usdtPointsPerUnit as number ?? 10000,
+        usdtOrderTimeoutMin: (config as Record<string, unknown>).usdtOrderTimeoutMin as number ?? 30,
+        usdtMinAmount: (config as Record<string, unknown>).usdtMinAmount as number ?? null,
+        usdtMaxAmount: (config as Record<string, unknown>).usdtMaxAmount as number ?? null,
         ...Object.fromEntries(
           ["Google", "Github", "Discord", "Apple", "Twitter", "Facebook", "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit"]
             .flatMap((k) => [

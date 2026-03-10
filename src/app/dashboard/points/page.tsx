@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTabParam } from "@/hooks/use-tab-param";
 import { useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -932,6 +933,8 @@ function BatchResultDialog({
 // ========== Main Page ==========
 
 export default function PointsManagementPage() {
+  const [activeTab, setActiveTab] = useTabParam("overview");
+
   return (
     <div className="space-y-6">
       <div>
@@ -944,7 +947,7 @@ export default function PointsManagementPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview" className="gap-1.5">
             <TrendingUp className="h-4 w-4" />
