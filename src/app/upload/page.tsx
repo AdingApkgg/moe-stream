@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "@/lib/auth-client";
+import { useSiteConfig } from "@/contexts/site-config";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSound } from "@/hooks/use-sound";
@@ -67,11 +68,17 @@ export default function UploadPage() {
     );
   }
 
+  const config = useSiteConfig();
   const contentTypeOptions = [
     { id: "video" as const, label: "视频", icon: FileVideo, description: "上传视频作品" },
     { id: "game" as const, label: "游戏", icon: Gamepad2, description: "上传游戏资源" },
     { id: "image" as const, label: "图片", icon: ImageIcon, description: "上传图片作品" },
-  ];
+  ].filter((opt) => {
+    if (opt.id === "video") return config?.sectionVideoEnabled !== false;
+    if (opt.id === "game") return config?.sectionGameEnabled !== false;
+    if (opt.id === "image") return config?.sectionImageEnabled !== false;
+    return true;
+  });
 
   return (
     <div className="container py-6 max-w-5xl">

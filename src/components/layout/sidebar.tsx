@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useStableSession } from "@/lib/hooks";
 import type { AppSession } from "@/lib/auth";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { useSiteConfig } from "@/contexts/site-config";
 
 /** 侧栏仅需 user，兼容服务端 AppSession 与客户端 useSession 的 data */
 type SessionWithUser = Pick<AppSession, "user"> | null;
@@ -171,22 +172,35 @@ const CONTENT_MODE_ROUTES: Record<ContentMode, string> = {
   game: "/game",
 };
 
+/** 根据站点配置过滤可用的内容分区 */
+function useEnabledContentModes() {
+  const config = useSiteConfig();
+  return CONTENT_MODE_OPTIONS.filter((opt) => {
+    if (opt.id === "video") return config?.sectionVideoEnabled !== false;
+    if (opt.id === "image") return config?.sectionImageEnabled !== false;
+    if (opt.id === "game") return config?.sectionGameEnabled !== false;
+    return true;
+  });
+}
+
 /** 内容模式切换条（视频 / 图片 / 游戏），显示在「首页」上方 */
 function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
   const contentMode = useUIStore((s) => s.contentMode);
   const chooseContentMode = useUIStore((s) => s.chooseContentMode);
   const router = useRouter();
+  const enabledOptions = useEnabledContentModes();
 
   const handleModeChange = (mode: ContentMode) => {
     chooseContentMode(mode);
     router.push(CONTENT_MODE_ROUTES[mode]);
   };
 
+  if (enabledOptions.length <= 1) return null;
+
   if (collapsed) {
-    // 折叠态：纵向图标 + 小文字（YouTube mini 风格）
     return (
       <div className="flex flex-col items-center gap-0.5">
-        {CONTENT_MODE_OPTIONS.map((opt) => {
+        {enabledOptions.map((opt) => {
           const Icon = opt.icon;
           const isSelected = contentMode === opt.id;
           return (
@@ -210,10 +224,9 @@ function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
     );
   }
 
-  // 展开态：横向按钮条（胶囊 chip 风格）
   return (
     <div className="flex items-center gap-1 rounded-xl bg-muted/50 p-1">
-      {CONTENT_MODE_OPTIONS.map((opt) => {
+      {enabledOptions.map((opt) => {
         const Icon = opt.icon;
         const isSelected = contentMode === opt.id;
         return (

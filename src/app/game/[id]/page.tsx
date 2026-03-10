@@ -134,6 +134,8 @@ function serializeGame(game: NonNullable<Awaited<ReturnType<typeof getGame>>>) {
 export type SerializedGame = ReturnType<typeof serializeGame>;
 
 export default async function GamePage({ params }: GamePageProps) {
+  const siteConfig = await getPublicSiteConfig();
+  if (!siteConfig.sectionGameEnabled) notFound();
   const { id } = await params;
   const game = await getGame(id);
 

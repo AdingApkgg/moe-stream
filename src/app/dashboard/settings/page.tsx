@@ -24,7 +24,10 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -97,6 +100,11 @@ const configFormSchema = z.object({
   allowComment: z.boolean(),
   requireLoginToComment: z.boolean(),
   requireEmailVerify: z.boolean(),
+  
+  // 内容分区开关
+  sectionVideoEnabled: z.boolean(),
+  sectionImageEnabled: z.boolean(),
+  sectionGameEnabled: z.boolean(),
   
   // 内容设置
   videosPerPage: z.number().int().min(5).max(100),
@@ -186,6 +194,14 @@ const configFormSchema = z.object({
   effectOpacity: z.number().min(0).max(1),
   effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
   soundDefaultEnabled: z.boolean(),
+
+  // USDT 支付
+  usdtPaymentEnabled: z.boolean(),
+  usdtWalletAddress: z.string().max(100).optional().nullable().or(z.literal("")),
+  usdtPointsPerUnit: z.number().int().min(1),
+  usdtOrderTimeoutMin: z.number().int().min(5).max(1440),
+  usdtMinAmount: z.number().min(0).optional().nullable(),
+  usdtMaxAmount: z.number().min(0).optional().nullable(),
 
   // 统计分析
   analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
@@ -611,6 +627,7 @@ export default function AdminSettingsPage() {
   const [lastResult, setLastResult] = useState<{ type: string; message: string; time: Date } | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
+  const [activeTab, setActiveTab] = useState("basic");
 
   const validEnum = <T extends string>(value: unknown, valid: readonly T[], fallback: T): T =>
     valid.includes(value as T) ? (value as T) : fallback;
@@ -635,6 +652,9 @@ export default function AdminSettingsPage() {
       allowComment: true,
       requireLoginToComment: false,
       requireEmailVerify: false,
+      sectionVideoEnabled: true,
+      sectionImageEnabled: true,
+      sectionGameEnabled: true,
       videosPerPage: 20,
       commentsPerPage: 20,
       maxUploadSize: 500,
@@ -725,6 +745,9 @@ export default function AdminSettingsPage() {
         allowComment: config.allowComment,
         requireLoginToComment: (config as { requireLoginToComment?: boolean }).requireLoginToComment ?? false,
         requireEmailVerify: config.requireEmailVerify,
+        sectionVideoEnabled: (config as { sectionVideoEnabled?: boolean }).sectionVideoEnabled ?? true,
+        sectionImageEnabled: (config as { sectionImageEnabled?: boolean }).sectionImageEnabled ?? true,
+        sectionGameEnabled: (config as { sectionGameEnabled?: boolean }).sectionGameEnabled ?? true,
         videosPerPage: config.videosPerPage,
         commentsPerPage: config.commentsPerPage,
         maxUploadSize: config.maxUploadSize,
@@ -918,78 +941,109 @@ export default function AdminSettingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="h-auto flex flex-wrap gap-1 p-1">
-          <TabsTrigger value="basic" className="gap-1.5">
-            <Info className="h-4 w-4" />
-            <span className="hidden sm:inline">基本信息</span>
-          </TabsTrigger>
-          <TabsTrigger value="features" className="gap-1.5">
-            <ToggleLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">功能开关</span>
-          </TabsTrigger>
-          <TabsTrigger value="content" className="gap-1.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">内容设置</span>
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="flex-col md:flex-row md:gap-6 gap-4">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:block w-48 shrink-0">
+          <TabsList variant="line" className="flex flex-col h-auto w-full items-stretch bg-transparent p-0 gap-0.5 sticky top-20">
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 select-none">通用</span>
+            <TabsTrigger value="basic" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Info className="h-3.5 w-3.5" /> 基本信息
+            </TabsTrigger>
+            <TabsTrigger value="features" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <ToggleLeft className="h-3.5 w-3.5" /> 功能开关
+            </TabsTrigger>
+            <TabsTrigger value="content" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <FileText className="h-3.5 w-3.5" /> 内容设置
+            </TabsTrigger>
 
-          <div className="hidden sm:block w-px h-5 bg-border mx-0.5 self-center" />
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">外观</span>
+            <TabsTrigger value="theme" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Palette className="h-3.5 w-3.5" /> 样式
+            </TabsTrigger>
+            <TabsTrigger value="effects" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Sparkles className="h-3.5 w-3.5" /> 视觉效果
+            </TabsTrigger>
 
-          <TabsTrigger value="theme" className="gap-1.5">
-            <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">样式</span>
-          </TabsTrigger>
-          <TabsTrigger value="effects" className="gap-1.5">
-            <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">视觉效果</span>
-          </TabsTrigger>
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">页面</span>
+            <TabsTrigger value="pages" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <ScrollText className="h-3.5 w-3.5" /> 页面管理
+            </TabsTrigger>
+            <TabsTrigger value="footer" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Link2 className="h-3.5 w-3.5" /> 页脚
+            </TabsTrigger>
+            <TabsTrigger value="ads" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Megaphone className="h-3.5 w-3.5" /> 广告
+            </TabsTrigger>
 
-          <div className="hidden sm:block w-px h-5 bg-border mx-0.5 self-center" />
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">安全与认证</span>
+            <TabsTrigger value="captcha" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <ShieldCheck className="h-3.5 w-3.5" /> 验证码
+            </TabsTrigger>
+            <TabsTrigger value="oauth" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <KeyRound className="h-3.5 w-3.5" /> 登录
+            </TabsTrigger>
+            <TabsTrigger value="email" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Mail className="h-3.5 w-3.5" /> 邮件
+            </TabsTrigger>
 
-          <TabsTrigger value="pages" className="gap-1.5">
-            <ScrollText className="h-4 w-4" />
-            <span className="hidden sm:inline">页面</span>
-          </TabsTrigger>
-          <TabsTrigger value="footer" className="gap-1.5">
-            <Link2 className="h-4 w-4" />
-            <span className="hidden sm:inline">页脚</span>
-          </TabsTrigger>
-          <TabsTrigger value="ads" className="gap-1.5">
-            <Megaphone className="h-4 w-4" />
-            <span className="hidden sm:inline">广告</span>
-          </TabsTrigger>
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">集成</span>
+            <TabsTrigger value="storage" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <HardDrive className="h-3.5 w-3.5" /> 存储
+            </TabsTrigger>
+            <TabsTrigger value="seo" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Search className="h-3.5 w-3.5" /> SEO
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <BarChart3 className="h-3.5 w-3.5" /> 统计
+            </TabsTrigger>
+          </TabsList>
+        </aside>
 
-          <div className="hidden sm:block w-px h-5 bg-border mx-0.5 self-center" />
+        {/* Mobile select */}
+        <div className="md:hidden">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>通用</SelectLabel>
+                <SelectItem value="basic">基本信息</SelectItem>
+                <SelectItem value="features">功能开关</SelectItem>
+                <SelectItem value="content">内容设置</SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>外观</SelectLabel>
+                <SelectItem value="theme">样式</SelectItem>
+                <SelectItem value="effects">视觉效果</SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>页面</SelectLabel>
+                <SelectItem value="pages">页面管理</SelectItem>
+                <SelectItem value="footer">页脚</SelectItem>
+                <SelectItem value="ads">广告</SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>安全与认证</SelectLabel>
+                <SelectItem value="captcha">验证码</SelectItem>
+                <SelectItem value="oauth">登录</SelectItem>
+                <SelectItem value="email">邮件</SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>集成</SelectLabel>
+                <SelectItem value="storage">存储</SelectItem>
+                <SelectItem value="seo">SEO</SelectItem>
+                <SelectItem value="analytics">统计</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <TabsTrigger value="captcha" className="gap-1.5">
-            <ShieldCheck className="h-4 w-4" />
-            <span className="hidden sm:inline">验证码</span>
-          </TabsTrigger>
-          <TabsTrigger value="oauth" className="gap-1.5">
-            <KeyRound className="h-4 w-4" />
-            <span className="hidden sm:inline">登录</span>
-          </TabsTrigger>
-          <TabsTrigger value="email" className="gap-1.5">
-            <Mail className="h-4 w-4" />
-            <span className="hidden sm:inline">邮件</span>
-          </TabsTrigger>
-
-          <div className="hidden sm:block w-px h-5 bg-border mx-0.5 self-center" />
-
-          <TabsTrigger value="storage" className="gap-1.5">
-            <HardDrive className="h-4 w-4" />
-            <span className="hidden sm:inline">存储</span>
-          </TabsTrigger>
-          <TabsTrigger value="seo" className="gap-1.5">
-            <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">SEO</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">统计</span>
-          </TabsTrigger>
-        </TabsList>
-
+        <div className="flex-1 min-w-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
             {/* 基本信息 */}
@@ -1248,6 +1302,212 @@ export default function AdminSettingsPage() {
                       </FormItem>
                     )}
                   />
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* 内容分区开关 */}
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>内容分区</CardTitle>
+                  <CardDescription>控制各内容分区的显示，关闭后侧边栏和页面将隐藏对应分区</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="sectionVideoEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>视频分区</FormLabel>
+                          <FormDescription>关闭后视频分区将不可见，已有视频仍会保留</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sectionImageEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>图片分区</FormLabel>
+                          <FormDescription>关闭后图片分区将不可见，已有图片仍会保留</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sectionGameEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>游戏分区</FormLabel>
+                          <FormDescription>关闭后游戏分区将不可见，已有游戏仍会保留</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" disabled={updateConfig.isPending}>
+                    {updateConfig.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    保存设置
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* USDT 支付配置 */}
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>USDT 支付</CardTitle>
+                  <CardDescription>配置 TRC20 USDT 自助充值功能</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="usdtPaymentEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>启用 USDT 支付</FormLabel>
+                          <FormDescription>开启后用户可以使用 TRC20 USDT 充值积分</FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="usdtWalletAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>TRC20 收款钱包地址</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            placeholder="T..."
+                          />
+                        </FormControl>
+                        <FormDescription>用于接收 USDT 支付的 Tron 钱包地址</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="usdtPointsPerUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>积分汇率（1 USDT）</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={field.value}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                            />
+                          </FormControl>
+                          <FormDescription>自定义金额充值时 1 USDT 兑换多少积分</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="usdtOrderTimeoutMin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>订单超时（分钟）</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={5}
+                              max={1440}
+                              value={field.value}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                            />
+                          </FormControl>
+                          <FormDescription>未支付订单自动过期的时间</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="usdtMinAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>最低充值金额（USDT）</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                              placeholder="不限"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="usdtMaxAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>最高充值金额（USDT）</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                              placeholder="不限"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <Button type="submit" disabled={updateConfig.isPending}>
                     {updateConfig.isPending ? (
@@ -3164,6 +3424,7 @@ export default function AdminSettingsPage() {
             </form>
           </Form>
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

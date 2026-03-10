@@ -34,5 +34,15 @@ export async function register() {
     console.log(
       `[${new Date().toISOString()}][Instrumentation] 数据备份调度器已启动`
     );
+
+    // 启动 TRC20 USDT 支付监听
+    const { startTronMonitor } = await import("@/lib/tron-monitor");
+    console.log(
+      `[${new Date().toISOString()}][Instrumentation] 启动 USDT 支付监听...`
+    );
+    startTronMonitor();
+    console.log(
+      `[${new Date().toISOString()}][Instrumentation] USDT 支付监听已启动`
+    );
   }
 }

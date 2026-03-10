@@ -53,6 +53,7 @@ export default function RegisterPage() {
     confirmPassword: z.string(),
     emailCode: z.string().length(6, "请输入6位验证码"),
     captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+    inviteCode: z.string().optional(),
   }).refine((data) => data.password === data.confirmPassword, {
     message: "两次密码不一致",
     path: ["confirmPassword"],
@@ -75,8 +76,15 @@ export default function RegisterPage() {
       confirmPassword: "",
       emailCode: "",
       captcha: "",
+      inviteCode: "",
     },
   });
+
+  useEffect(() => {
+    if (referralCode) {
+      form.setValue("inviteCode", referralCode);
+    }
+  }, [referralCode, form]);
 
   const email = form.watch("email");
 
@@ -138,7 +146,7 @@ export default function RegisterPage() {
         email: data.email,
         username: data.username,
         password: data.password,
-        referralCode,
+        referralCode: data.inviteCode || referralCode,
         fingerprint: fp || undefined,
       });
 
@@ -247,6 +255,19 @@ export default function RegisterPage() {
                         error={form.formState.errors.emailCode?.message}
                       />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="inviteCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>邀请码（选填）</FormLabel>
+                    <FormControl>
+                      <Input placeholder="输入邀请码" {...field} />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

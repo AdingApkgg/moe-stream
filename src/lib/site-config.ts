@@ -53,6 +53,9 @@ export interface PublicSiteConfig {
   captchaForgotPassword: string;
   turnstileSiteKey: string | null;
   referralEnabled: boolean;
+  sectionVideoEnabled: boolean;
+  sectionImageEnabled: boolean;
+  sectionGameEnabled: boolean;
   analyticsGoogleId: string | null;
   analyticsGtmId: string | null;
   analyticsCfToken: string | null;
@@ -108,6 +111,9 @@ const selectFields = {
   captchaForgotPassword: true,
   turnstileSiteKey: true,
   referralEnabled: true,
+  sectionVideoEnabled: true,
+  sectionImageEnabled: true,
+  sectionGameEnabled: true,
   analyticsGoogleId: true,
   analyticsGtmId: true,
   analyticsCfToken: true,
@@ -188,6 +194,9 @@ const defaultConfig: PublicSiteConfig = {
   captchaForgotPassword: "none",
   turnstileSiteKey: null,
   referralEnabled: false,
+  sectionVideoEnabled: true,
+  sectionImageEnabled: true,
+  sectionGameEnabled: true,
   analyticsGoogleId: null,
   analyticsGtmId: null,
   analyticsCfToken: null,

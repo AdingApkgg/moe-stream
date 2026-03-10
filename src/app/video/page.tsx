@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
 import VideoListClient from "./client";
 import { WebsiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
@@ -88,6 +89,8 @@ function serializeVideos(videos: Awaited<ReturnType<typeof getInitialData>>["vid
 }
 
 export default async function VideoListPage() {
+  const fullSiteConfig = await getPublicSiteConfig();
+  if (!fullSiteConfig.sectionVideoEnabled) notFound();
   const { tags, videos, siteConfig, initialAds } = await getInitialData();
   const serializedVideos = serializeVideos(videos);
 

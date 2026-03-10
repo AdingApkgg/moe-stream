@@ -43,6 +43,7 @@ import {
   Crown,
   UserCog,
   User,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -83,6 +84,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { href: "/dashboard/referral", label: "推广中心", icon: TrendingUp, scope: null },
       { href: "/dashboard/points", label: "积分管理", icon: Coins, scope: "settings:manage" },
+      { href: "/dashboard/payment", label: "支付管理", icon: Wallet, scope: "settings:manage" },
     ],
   },
   {

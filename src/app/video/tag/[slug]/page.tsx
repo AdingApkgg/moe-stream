@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { VideoTagPageClient } from "./client";
 import { CollectionPageJsonLd } from "@/components/seo/json-ld";
@@ -81,12 +82,13 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
 export type SerializedVideoTag = ReturnType<typeof serializeTag>;
 
 export default async function VideoTagPage({ params }: VideoTagPageProps) {
+  const config = await getPublicSiteConfig();
+  if (!config.sectionVideoEnabled) notFound();
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);
 
   const initialTag = tag ? serializeTag(tag) : null;
-  const config = await getPublicSiteConfig();
   const siteName = config.siteName;
   const siteUrl = config.siteUrl;
 

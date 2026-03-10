@@ -87,6 +87,8 @@ function serializePost(post: NonNullable<Awaited<ReturnType<typeof getImagePost>
 export type SerializedImagePost = ReturnType<typeof serializePost>;
 
 export default async function ImagePage({ params }: ImagePageProps) {
+  const siteConfig = await getPublicSiteConfig();
+  if (!siteConfig.sectionImageEnabled) notFound();
   const { id } = await params;
   const post = await getImagePost(id);
 

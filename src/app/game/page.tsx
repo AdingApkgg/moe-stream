@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
 import { GameListClient } from "./client";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
@@ -92,6 +93,8 @@ function serializeGames(games: Awaited<ReturnType<typeof getInitialData>>["games
 }
 
 export default async function GameListPage() {
+  const fullSiteConfig = await getPublicSiteConfig();
+  if (!fullSiteConfig.sectionGameEnabled) notFound();
   const { tags, games, typeStats, siteConfig, initialAds } = await getInitialData();
   const serializedGames = serializeGames(games);
 

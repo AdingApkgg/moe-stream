@@ -120,6 +120,8 @@ function serializeVideo(video: NonNullable<Awaited<ReturnType<typeof getVideo>>>
 export type SerializedVideo = ReturnType<typeof serializeVideo>;
 
 export default async function VideoPage({ params }: VideoPageProps) {
+  const siteConfig = await getPublicSiteConfig();
+  if (!siteConfig.sectionVideoEnabled) notFound();
   const { id } = await params;
   const video = await getVideo(id);
 

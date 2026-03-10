@@ -1,17 +1,27 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { usernameClient } from "better-auth/client/plugins";
+import { usernameClient, twoFactorClient } from "better-auth/client/plugins";
+import { passkeyClient } from "@better-auth/passkey/client";
 
 export const authClient = createAuthClient({
   baseURL: typeof window !== "undefined" ? "" : process.env.NEXT_PUBLIC_APP_URL,
-  plugins: [usernameClient()],
+  plugins: [
+    usernameClient(),
+    twoFactorClient({
+      onTwoFactorRedirect() {
+        window.location.href = "/2fa";
+      },
+    }),
+    passkeyClient(),
+  ],
 });
 
 interface CustomSessionUser {
   role?: string;
   canUpload?: boolean;
   adsEnabled?: boolean;
+  twoFactorEnabled?: boolean;
 }
 
 /**
@@ -27,6 +37,7 @@ export function useSession() {
   const role = customUser?.role as "USER" | "ADMIN" | "OWNER" | undefined;
   const canUpload = role === "ADMIN" || role === "OWNER" || customUser?.canUpload === true;
   const adsEnabled = customUser?.adsEnabled ?? true;
+  const twoFactorEnabled = customUser?.twoFactorEnabled ?? false;
 
   const session = data?.user
     ? {
@@ -38,6 +49,7 @@ export function useSession() {
           role,
           canUpload,
           adsEnabled,
+          twoFactorEnabled,
         },
         expires: data.session?.expiresAt?.toString?.() ?? "",
       }

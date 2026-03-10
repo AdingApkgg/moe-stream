@@ -2,7 +2,8 @@
 
 import { Component, useEffect, useRef, useState, useSyncExternalStore, lazy, Suspense, type ReactNode, type ErrorInfo } from "react";
 import { useRouter } from "next/navigation";
-import { useUIStore } from "@/stores/app";
+import { useUIStore, type ContentMode } from "@/stores/app";
+import { useSiteConfig } from "@/contexts/site-config";
 import { Play, Gamepad2, ImageIcon, Loader2, Sparkles, Zap, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
@@ -25,12 +26,22 @@ const subscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
+const MODE_ROUTES: Record<ContentMode, string> = { video: "/video", image: "/image", game: "/game" };
+
 export default function LandingClient() {
   const router = useRouter();
   const contentMode = useUIStore((s) => s.contentMode);
   const isContentModeChosen = useUIStore((s) => s.isContentModeChosen);
   const chooseContentMode = useUIStore((s) => s.chooseContentMode);
   const { play } = useSound();
+  const config = useSiteConfig();
+
+  const enabledModes = (["video", "image", "game"] as ContentMode[]).filter((m) => {
+    if (m === "video") return config?.sectionVideoEnabled !== false;
+    if (m === "image") return config?.sectionImageEnabled !== false;
+    if (m === "game") return config?.sectionGameEnabled !== false;
+    return true;
+  });
 
   const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
@@ -38,12 +49,17 @@ export default function LandingClient() {
   const mouseRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (!mounted) return;
-    if (isContentModeChosen) {
-      const target = contentMode === "game" ? "/game" : contentMode === "image" ? "/image" : "/video";
-      router.replace(target);
+    if (!mounted || enabledModes.length === 0) return;
+    if (enabledModes.length === 1) {
+      chooseContentMode(enabledModes[0]);
+      router.replace(MODE_ROUTES[enabledModes[0]]);
+      return;
     }
-  }, [mounted, isContentModeChosen, contentMode, router]);
+    if (isContentModeChosen) {
+      const target = enabledModes.includes(contentMode) ? contentMode : enabledModes[0];
+      router.replace(MODE_ROUTES[target]);
+    }
+  }, [mounted, isContentModeChosen, contentMode, router, enabledModes, chooseContentMode]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -54,7 +70,7 @@ export default function LandingClient() {
     return () => window.removeEventListener("mousemove", handler);
   }, []);
 
-  if (!mounted || isContentModeChosen) {
+  if (!mounted || isContentModeChosen || enabledModes.length <= 1) {
     return (
       <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -62,10 +78,10 @@ export default function LandingClient() {
     );
   }
 
-  const handleChoose = (mode: "video" | "image" | "game") => {
+  const handleChoose = (mode: ContentMode) => {
     play("navigate");
     chooseContentMode(mode);
-    router.replace(mode === "game" ? "/game" : mode === "image" ? "/image" : "/video");
+    router.replace(MODE_ROUTES[mode]);
   };
 
   return (
@@ -88,9 +104,9 @@ export default function LandingClient() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className={cn("grid grid-cols-1 gap-5", enabledModes.length === 2 ? "sm:grid-cols-2 max-w-2xl mx-auto" : "sm:grid-cols-3")}>
           {/* Video card */}
-          <button
+          {enabledModes.includes("video") && <button
             onClick={() => handleChoose("video")}
             onMouseEnter={() => setHoveredMode("video")}
             onMouseLeave={() => setHoveredMode(null)}
@@ -124,10 +140,10 @@ export default function LandingClient() {
               </p>
             </div>
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          </button>
+          </button>}
 
           {/* Image card */}
-          <button
+          {enabledModes.includes("image") && <button
             onClick={() => handleChoose("image")}
             onMouseEnter={() => setHoveredMode("image")}
             onMouseLeave={() => setHoveredMode(null)}
@@ -161,10 +177,10 @@ export default function LandingClient() {
               </p>
             </div>
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-pink-500/5 via-transparent to-rose-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          </button>
+          </button>}
 
           {/* Game card */}
-          <button
+          {enabledModes.includes("game") && <button
             onClick={() => handleChoose("game")}
             onMouseEnter={() => setHoveredMode("game")}
             onMouseLeave={() => setHoveredMode(null)}
@@ -198,7 +214,7 @@ export default function LandingClient() {
               </p>
             </div>
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500/5 via-transparent to-green-500/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          </button>
+          </button>}
         </div>
       </div>
     </div>

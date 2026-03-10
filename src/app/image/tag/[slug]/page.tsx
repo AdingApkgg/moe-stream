@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ImageTagPageClient } from "./client";
 import { CollectionPageJsonLd } from "@/components/seo/json-ld";
@@ -81,12 +82,13 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
 export type SerializedImageTag = ReturnType<typeof serializeTag>;
 
 export default async function ImageTagPage({ params }: ImageTagPageProps) {
+  const config = await getPublicSiteConfig();
+  if (!config.sectionImageEnabled) notFound();
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);
 
   const initialTag = tag ? serializeTag(tag) : null;
-  const config = await getPublicSiteConfig();
   const siteName = config.siteName;
   const siteUrl = config.siteUrl;
 

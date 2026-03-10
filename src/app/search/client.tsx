@@ -173,7 +173,7 @@ export function SearchContent({ query }: SearchContentProps) {
   const [gamePage, setGamePage] = usePageParam("gp");
   const [imagePage, setImagePage] = usePageParam("ip");
 
-  const showFilters = searchTab !== "tag";
+  const showFilters = searchTab === "video" || searchTab === "game";
 
   const { data: videoData, isLoading: videoLoading } = trpc.video.list.useQuery(
     { limit: 20, page: videoPage, search: query, sortBy, timeRange },
@@ -334,7 +334,7 @@ export function SearchContent({ query }: SearchContentProps) {
             <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
           )}
           {!currentLoading && posts.length === 0 && (
-            <EmptyResult icon={Images} label="图片" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+            <EmptyResult icon={Images} label="图片" sortBy="latest" timeRange="all" onClear={() => {}} />
           )}
         </>
       )}

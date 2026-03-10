@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { notFound } from "next/navigation";
 import { ImageListClient } from "./client";
 import { cache } from "react";
+import { getPublicSiteConfig } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -51,6 +53,8 @@ function serializePosts(posts: Awaited<ReturnType<typeof getInitialData>>["posts
 }
 
 export default async function ImageListPage() {
+  const config = await getPublicSiteConfig();
+  if (!config.sectionImageEnabled) notFound();
   const { tags, posts } = await getInitialData();
   const serializedPosts = serializePosts(posts);
 

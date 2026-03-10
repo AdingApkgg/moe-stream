@@ -1,9 +1,11 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { username, customSession } from "better-auth/plugins";
+import { username, customSession, twoFactor } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
 import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { getOrSet, deleteCache } from "@/lib/redis";
+import { send2faOtpEmail } from "@/lib/email";
 
 interface OAuthProviderCredentials {
   clientId?: string | null;
@@ -45,11 +47,16 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
             oauth[key.toLowerCase()] = { clientId: id, clientSecret: secret };
           }
         }
+        const enabledProviders = Object.keys(oauth);
+        if (enabledProviders.length > 0) {
+          console.log(`[auth] OAuth providers loaded: ${enabledProviders.join(", ")}`);
+        }
         return { oauth, siteUrl: config.siteUrl || null };
       },
       300
     );
-  } catch {
+  } catch (err) {
+    console.error("[auth] Failed to load OAuth config:", err);
     return { oauth: {}, siteUrl: null };
   }
 }
@@ -68,6 +75,9 @@ const LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}
 
 function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
   const baseURL = siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const socialProviderConfig = buildSocialProviders(oauthConfig);
+  console.log(`[auth] Creating auth instance: baseURL=${baseURL}, providers=${Object.keys(socialProviderConfig).join(",") || "none"}`);
 
   const staticOrigins = new Set(
     [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v)
@@ -92,14 +102,14 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         verify: (data) => compare(data.password, data.hash),
       },
     },
-    socialProviders: buildSocialProviders(oauthConfig),
+    socialProviders: socialProviderConfig as Parameters<typeof betterAuth>[0]["socialProviders"],
     databaseHooks: {
       user: {
         create: {
           before: async (user) => {
             if (!user.username) {
               const prefix = (user.email?.split("@")[0] || "user").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 14);
-              const suffix = Math.random().toString(36).slice(2, 6);
+              const suffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
               return { data: { ...user, username: `${prefix}_${suffix}` } };
             }
             return { data: user };
@@ -112,6 +122,19 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         minUsernameLength: 1,
         maxUsernameLength: 64,
       }),
+      twoFactor({
+        issuer: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
+        otpOptions: {
+          async sendOTP({ user, otp }) {
+            await send2faOtpEmail(user.email, otp);
+          },
+        },
+      }),
+      passkey({
+        rpID: new URL(baseURL).hostname,
+        rpName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
+        origin: baseURL,
+      }),
       customSession(async ({ user, session }) => {
         if (!user?.id) return { user, session };
         const dbUser = await prisma.user.findUnique({
@@ -123,6 +146,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             nickname: true,
             username: true,
             avatar: true,
+            twoFactorEnabled: true,
           },
         });
         if (!dbUser) return { user, session };
@@ -139,6 +163,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             role: dbUser.role,
             canUpload,
             adsEnabled: dbUser.adsEnabled ?? true,
+            twoFactorEnabled: dbUser.twoFactorEnabled,
           },
         };
       }),
@@ -166,6 +191,12 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
           type: "boolean",
           required: false,
           defaultValue: true,
+          input: false,
+        },
+        twoFactorEnabled: {
+          type: "boolean",
+          required: false,
+          defaultValue: false,
           input: false,
         },
       },
@@ -259,6 +290,7 @@ export interface AppSession {
     role?: "USER" | "ADMIN" | "OWNER";
     canUpload?: boolean;
     adsEnabled?: boolean;
+    twoFactorEnabled?: boolean;
   };
   jti?: string;
   session: { id: string; token: string; expiresAt: Date };
@@ -290,6 +322,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
       role?: string;
       canUpload?: boolean;
       adsEnabled?: boolean;
+      twoFactorEnabled?: boolean;
     };
     session: { id: string; token: string; expiresAt: Date };
   };
@@ -307,6 +340,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
       role,
       canUpload,
       adsEnabled: user.adsEnabled ?? true,
+      twoFactorEnabled: user.twoFactorEnabled ?? false,
     },
     session: session
       ? { id: session.id, token: session.token, expiresAt: session.expiresAt }

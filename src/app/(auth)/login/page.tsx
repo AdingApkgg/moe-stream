@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { toast } from "@/lib/toast-with-sound";
-import { Loader2 } from "lucide-react";
+import { Loader2, Fingerprint } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
@@ -27,6 +27,7 @@ function LoginForm() {
   const prefillAccount = searchParams.get("account") || "";
   const isNewAccount = searchParams.get("new") === "1";
   const [isLoading, setIsLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const rawCaptchaType = (siteConfig?.captchaLogin as CaptchaType) || "math";
@@ -59,6 +60,39 @@ function LoginForm() {
   const handleTurnstileExpire = useCallback(() => {
     setTurnstileToken("");
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
+    Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable()).then((available) => {
+      if (!available) return;
+      authClient.signIn.passkey({ autoFill: true }).then((res) => {
+        if (res?.data && !("twoFactorRedirect" in res.data)) {
+          toast.success("登录成功");
+          router.push(callbackUrl);
+          router.refresh();
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [callbackUrl, router]);
+
+  const handlePasskeySignIn = useCallback(async () => {
+    setPasskeyLoading(true);
+    try {
+      const result = await authClient.signIn.passkey();
+      if (result?.error) {
+        toast.error("通行密钥登录失败", { description: result.error.message });
+      } else if (result?.data) {
+        toast.success("登录成功");
+        router.push(callbackUrl);
+        router.refresh();
+      }
+    } catch {
+      toast.error("通行密钥登录失败");
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }, [callbackUrl, router]);
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
@@ -95,6 +129,8 @@ function LoginForm() {
         setCaptchaKey((k) => k + 1);
         setTurnstileToken("");
         form.setValue("captcha", "");
+      } else if (result?.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        router.push(`/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       } else {
         toast.success("登录成功");
         getFingerprint().then((fp) => {
@@ -145,6 +181,7 @@ function LoginForm() {
                       <Input
                         type="text"
                         placeholder="邮箱或用户名"
+                        autoComplete="username webauthn"
                         {...field}
                       />
                     </FormControl>
@@ -159,7 +196,7 @@ function LoginForm() {
                   <FormItem>
                     <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="******" {...field} />
+                      <Input type="password" placeholder="******" autoComplete="current-password webauthn" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -206,6 +243,30 @@ function LoginForm() {
               </Button>
             </form>
           </Form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">或</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={passkeyLoading}
+            onClick={handlePasskeySignIn}
+          >
+            {passkeyLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Fingerprint className="mr-2 h-4 w-4" />
+            )}
+            使用通行密钥登录
+          </Button>
 
           <SocialLoginButtons callbackURL={callbackUrl} />
 

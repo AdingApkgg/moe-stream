@@ -14,6 +14,7 @@ import { setupRouter } from "./setup";
 import { stickerRouter } from "./sticker";
 import { referralRouter } from "./referral";
 import { redeemRouter } from "./redeem";
+import { paymentRouter } from "./payment";
 
 export const appRouter = router({
   user: userRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   sticker: stickerRouter,
   referral: referralRouter,
   redeem: redeemRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;

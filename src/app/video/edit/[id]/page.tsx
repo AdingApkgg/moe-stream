@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
+import { useSiteConfig } from "@/contexts/site-config";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -67,6 +68,8 @@ interface EditVideoPageProps {
 }
 
 export default function EditVideoPage({ params }: EditVideoPageProps) {
+  const siteConfig = useSiteConfig();
+  if (siteConfig && !siteConfig.sectionVideoEnabled) notFound();
   const { id } = use(params);
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();

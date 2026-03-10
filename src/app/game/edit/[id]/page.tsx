@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
+import { useSiteConfig } from "@/contexts/site-config";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -68,6 +69,8 @@ interface Props {
 }
 
 export default function EditGamePage({ params }: Props) {
+  const siteConfig = useSiteConfig();
+  if (siteConfig && !siteConfig.sectionGameEnabled) notFound();
   const { id } = use(params);
   const { data: session, status: authStatus } = useSession();
   const authLoading = authStatus === "loading";

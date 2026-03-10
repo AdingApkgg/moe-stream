@@ -33,12 +33,15 @@ model User {
   bannedAt      DateTime? // 封禁时间
   lastIpLocation  String?  // 最后一次 IP 属地
   adsEnabled    Boolean   @default(true)   // 是否加载广告（站长/管理员可在后台关闭某用户的广告）
+  twoFactorEnabled Boolean @default(false) // 是否已启用两步验证
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts         Account[]
   sessions         Session[]
   loginSessions    LoginSession[]
+  passkeys         Passkey[]
+  twoFactors       TwoFactor[]
   videos           Video[]
   series           Series[]
   favorites        Favorite[]
@@ -85,6 +88,7 @@ model User {
   referralDailyStats ReferralDailyStat[]
   pointsTransactions PointsTransaction[]
   redeemCodeRedemptions RedeemCodeRedemption[]
+  paymentOrders       PaymentOrder[]
 
   @@index([email])
   @@index([username])
@@ -211,6 +215,37 @@ enum VerificationType {
   LOGIN
   RESET_PASSWORD
   CHANGE_EMAIL
+}
+
+// ==================== Passkey / 2FA ====================
+
+model Passkey {
+  id           String   @id @default(cuid())
+  name         String?
+  publicKey    String
+  userId       String
+  credentialID String   @unique
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime @default(now())
+  aaguid       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TwoFactor {
+  id          String @id @default(cuid())
+  userId      String
+  secret      String
+  backupCodes String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ==================== 视频相关 ====================
@@ -914,6 +949,11 @@ model SiteConfig {
   requireLoginToComment  Boolean @default(false)  // 评论需要登录
   requireEmailVerify     Boolean @default(false)  // 注册需要邮箱验证
   
+  // 内容分区开关
+  sectionVideoEnabled  Boolean @default(true)   // 视频分区
+  sectionImageEnabled  Boolean @default(true)   // 图片分区
+  sectionGameEnabled   Boolean @default(true)   // 游戏分区
+  
   // 内容设置
   videosPerPage       Int     @default(20)     // 每页视频数
   commentsPerPage     Int     @default(20)     // 每页评论数
@@ -1037,6 +1077,14 @@ model SiteConfig {
   checkinEnabled        Boolean @default(false)
   checkinPointsMin      Int     @default(1)
   checkinPointsMax      Int     @default(10)
+
+  // USDT 支付
+  usdtPaymentEnabled    Boolean  @default(false)
+  usdtWalletAddress     String?
+  usdtPointsPerUnit     Int      @default(10000)  // 1 USDT = X 积分
+  usdtOrderTimeoutMin   Int      @default(30)
+  usdtMinAmount         Float?
+  usdtMaxAmount         Float?
 
   // 统计分析
   analyticsGoogleId       String?  // Google Analytics 4 Measurement ID (G-XXXXXXXXXX)
@@ -1221,6 +1269,7 @@ enum PointsTransactionType {
   FAVORITE_IMAGE
   COMMENT_IMAGE
   REDEEM_CODE
+  USDT_RECHARGE
 }
 
 // ==================== 兑换码 ====================
@@ -1257,6 +1306,59 @@ model RedeemCodeRedemption {
   @@unique([codeId, userId])
   @@index([codeId])
   @@index([userId])
+}
+
+// ==================== USDT 支付 ====================
+
+model PaymentPackage {
+  id           String   @id @default(cuid())
+  name         String
+  amount       Float    // USDT 价格
+  pointsAmount Int      @default(0)
+  grantUpload  Boolean  @default(false)
+  description  String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders PaymentOrder[]
+
+  @@index([isActive, sortOrder])
+}
+
+model PaymentOrder {
+  id            String        @id @default(cuid())
+  userId        String
+  orderNo       String        @unique
+  amount        Float         // 实际支付金额（含差异化小数）
+  baseAmount    Float         // 原始金额
+  chain         String        @default("TRC20")
+  walletAddress String
+  txHash        String?       @unique
+  status        PaymentStatus @default(PENDING)
+  packageId     String?
+  pointsAmount  Int           @default(0)
+  grantUpload   Boolean       @default(false)
+  description   String?
+  expiresAt     DateTime
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package PaymentPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, expiresAt])
+  @@index([amount, status])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
 }
 
 // ==================== 友情链接 ====================

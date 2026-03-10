@@ -2435,6 +2435,11 @@ export const adminRouter = router({
       requireLoginToComment: z.boolean().optional(),
       requireEmailVerify: z.boolean().optional(),
       
+      // 内容分区开关
+      sectionVideoEnabled: z.boolean().optional(),
+      sectionImageEnabled: z.boolean().optional(),
+      sectionGameEnabled: z.boolean().optional(),
+      
       // 内容设置
       videosPerPage: z.number().int().min(5).max(100).optional(),
       commentsPerPage: z.number().int().min(5).max(100).optional(),
@@ -2530,6 +2535,14 @@ export const adminRouter = router({
       checkinPointsMin: z.number().int().min(1).max(100000).optional(),
       checkinPointsMax: z.number().int().min(1).max(100000).optional(),
 
+      // USDT 支付
+      usdtPaymentEnabled: z.boolean().optional(),
+      usdtWalletAddress: z.string().max(100).optional().nullable().or(z.literal("")),
+      usdtPointsPerUnit: z.number().int().min(1).optional(),
+      usdtOrderTimeoutMin: z.number().int().min(5).max(1440).optional(),
+      usdtMinAmount: z.number().min(0).optional().nullable(),
+      usdtMaxAmount: z.number().min(0).optional().nullable(),
+
       // 数据备份
       backupEnabled: z.boolean().optional(),
       backupIntervalHours: z.number().int().min(1).max(720).optional(),
@@ -2597,7 +2610,9 @@ export const adminRouter = router({
         "siteName", "siteUrl", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
         "googleVerification", "githubUrl", "securityEmail",
         "announcement", "announcementEnabled", "allowRegistration", "allowUpload",
-        "allowComment", "requireLoginToComment", "requireEmailVerify", "videosPerPage", "commentsPerPage",
+        "allowComment", "requireLoginToComment", "requireEmailVerify",
+        "sectionVideoEnabled", "sectionImageEnabled", "sectionGameEnabled",
+        "videosPerPage", "commentsPerPage",
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "privacyPolicy", "termsOfService", "aboutPage",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
@@ -2741,7 +2756,9 @@ export const adminRouter = router({
         "siteName", "siteUrl", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
         "googleVerification", "githubUrl", "securityEmail",
         "announcement", "announcementEnabled", "allowRegistration", "allowUpload",
-        "allowComment", "requireLoginToComment", "requireEmailVerify", "videosPerPage", "commentsPerPage",
+        "allowComment", "requireLoginToComment", "requireEmailVerify",
+        "sectionVideoEnabled", "sectionImageEnabled", "sectionGameEnabled",
+        "videosPerPage", "commentsPerPage",
         "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",

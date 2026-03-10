@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,10 @@ import {
   UserPlus,
   Filter,
   X,
+  Wallet,
+  CheckCircle,
+  Clock,
+  Upload,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -690,6 +694,7 @@ function PointsHistory() {
     FAVORITE_IMAGE: "收藏图片",
     COMMENT_IMAGE: "评论图片",
     REDEEM_CODE: "兑换码兑换",
+    USDT_RECHARGE: "USDT 充值",
   };
 
   if (isLoading) {
@@ -1074,6 +1079,298 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
   );
 }
 
+// ========== USDT Recharge ==========
+
+function RechargeCard() {
+  const [open, setOpen] = useState(false);
+  const { data: config } = trpc.payment.getConfig.useQuery();
+
+  if (!config?.usdtPaymentEnabled) return null;
+
+  return (
+    <>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-green-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">USDT 充值</div>
+              <div className="text-xs text-muted-foreground">
+                使用 TRC20 USDT 快速充值积分
+              </div>
+            </div>
+            <Button size="sm" onClick={() => setOpen(true)}>充值</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <RechargeDialog open={open} onOpenChange={setOpen} config={config} />
+    </>
+  );
+}
+
+type PaymentConfig = {
+  usdtPaymentEnabled: boolean;
+  usdtPointsPerUnit: number;
+  usdtMinAmount: number | null;
+  usdtMaxAmount: number | null;
+  usdtOrderTimeoutMin: number;
+};
+
+type OrderResult = {
+  id: string;
+  orderNo: string;
+  amount: number;
+  walletAddress: string;
+  pointsAmount: number;
+  grantUpload: boolean;
+  expiresAt: Date;
+  description: string | null;
+};
+
+function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenChange: (v: boolean) => void; config: PaymentConfig }) {
+  const [step, setStep] = useState<"select" | "paying" | "success">("select");
+  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const [order, setOrder] = useState<OrderResult | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const utils = trpc.useUtils();
+  const { data: packages } = trpc.payment.getPackages.useQuery(undefined, { enabled: open });
+  const createMutation = trpc.payment.createOrder.useMutation({
+    onSuccess: async (data) => {
+      setOrder(data as unknown as OrderResult);
+      setStep("paying");
+      try {
+        const QRCode = (await import("qrcode")).default;
+        const qr = await QRCode.toDataURL(`tron:${data.walletAddress}?amount=${data.amount}`, { width: 256, margin: 2 });
+        setQrDataUrl(qr);
+      } catch { /* qr generation failed, user can still copy address */ }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const { data: orderStatus } = trpc.payment.checkOrderStatus.useQuery(
+    { orderId: order?.id ?? "" },
+    { enabled: step === "paying" && !!order?.id, refetchInterval: 5000 }
+  );
+
+  useEffect(() => {
+    if (orderStatus?.status === "PAID" && step === "paying") {
+      setStep("success");
+      utils.user.me.invalidate();
+      utils.referral.getMyStats.invalidate();
+      utils.referral.getPointsHistory.invalidate();
+    }
+  }, [orderStatus?.status, step, utils]);
+
+  const reset = useCallback(() => {
+    setStep("select");
+    setSelectedPkgId(null);
+    setCustomAmount("");
+    setOrder(null);
+    setQrDataUrl("");
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  useEffect(() => {
+    if (!open) reset();
+  }, [open, reset]);
+
+  const handleCreate = () => {
+    if (selectedPkgId) {
+      createMutation.mutate({ packageId: selectedPkgId });
+    } else if (customAmount) {
+      const amt = parseFloat(customAmount);
+      if (isNaN(amt) || amt <= 0) { toast.error("请输入有效金额"); return; }
+      createMutation.mutate({ customAmount: amt });
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("已复制");
+  };
+
+  const remainingSeconds = order ? Math.max(0, Math.floor((new Date(order.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+  const remainingMin = Math.floor(remainingSeconds / 60);
+  const remainingSec = remainingSeconds % 60;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {step === "select" && "USDT 充值"}
+            {step === "paying" && "等待支付"}
+            {step === "success" && "充值成功"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {step === "select" && (
+          <div className="space-y-4">
+            {packages && packages.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">选择套餐</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {packages.map((pkg) => (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => { setSelectedPkgId(pkg.id); setCustomAmount(""); }}
+                      className={`rounded-lg border p-3 text-left transition-all ${
+                        selectedPkgId === pkg.id
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "hover:border-foreground/20"
+                      }`}
+                    >
+                      <div className="font-bold text-lg">{pkg.amount} USDT</div>
+                      <div className="text-sm text-muted-foreground">
+                        {pkg.pointsAmount.toLocaleString()} 积分
+                      </div>
+                      {pkg.grantUpload && (
+                        <div className="text-xs text-green-500 flex items-center gap-1 mt-1">
+                          <Upload className="h-3 w-3" />上传权限
+                        </div>
+                      )}
+                      {pkg.description && <div className="text-xs text-muted-foreground mt-1">{pkg.description}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">自定义金额</div>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  step={0.01}
+                  min={config.usdtMinAmount ?? 0.01}
+                  max={config.usdtMaxAmount ?? undefined}
+                  placeholder={`${config.usdtMinAmount ?? 1}~${config.usdtMaxAmount ?? "不限"} USDT`}
+                  value={customAmount}
+                  onChange={(e) => { setCustomAmount(e.target.value); setSelectedPkgId(null); }}
+                />
+                <span className="text-sm text-muted-foreground shrink-0">USDT</span>
+              </div>
+              {customAmount && !isNaN(parseFloat(customAmount)) && parseFloat(customAmount) > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  预计获得 {Math.floor(parseFloat(customAmount) * config.usdtPointsPerUnit).toLocaleString()} 积分
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                className="w-full"
+                disabled={(!selectedPkgId && !customAmount) || createMutation.isPending}
+                onClick={handleCreate}
+              >
+                {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                <Wallet className="h-4 w-4 mr-1" />
+                立即充值
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "paying" && order && (
+          <div className="space-y-4 text-center">
+            <div className="flex items-center justify-center gap-2 text-amber-500 text-sm">
+              <Clock className="h-4 w-4" />
+              <CountdownTimer expiresAt={order.expiresAt} />
+            </div>
+
+            {qrDataUrl && (
+              <div className="flex justify-center">
+                <img src={qrDataUrl} alt="Payment QR" className="w-48 h-48 rounded-lg border" />
+              </div>
+            )}
+
+            <div className="space-y-3 text-left">
+              <div>
+                <div className="text-xs text-muted-foreground">收款地址 (TRC20)</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1 break-all">{order.walletAddress}</code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(order.walletAddress)}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-muted-foreground">精确支付金额</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-lg font-bold text-primary">{order.amount.toFixed(2)} USDT</code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(order.amount.toFixed(2))}>
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-lg p-2">
+                请务必转账 <strong>精确金额</strong>（含小数），否则系统无法自动匹配。
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              正在等待链上确认...
+            </div>
+          </div>
+        )}
+
+        {step === "success" && order && (
+          <div className="text-center space-y-4 py-4">
+            <div className="flex justify-center">
+              <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+            </div>
+            <div>
+              <div className="text-lg font-bold">充值成功！</div>
+              <div className="text-muted-foreground text-sm mt-1">
+                {order.amount.toFixed(2)} USDT → {order.pointsAmount.toLocaleString()} 积分
+              </div>
+              {order.grantUpload && (
+                <div className="text-green-500 text-sm mt-1 flex items-center justify-center gap-1">
+                  <Upload className="h-4 w-4" />已获得上传权限
+                </div>
+              )}
+            </div>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>完成</Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemaining((prev) => {
+        const next = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
+  const min = Math.floor(remaining / 60);
+  const sec = remaining % 60;
+
+  if (remaining <= 0) return <span className="text-red-500">已超时</span>;
+
+  return <span>{min}:{sec.toString().padStart(2, "0")}</span>;
+}
+
 function RedeemCodeCard() {
   const [code, setCode] = useState("");
   const utils = trpc.useUtils();
@@ -1160,6 +1457,8 @@ export default function ReferralPage() {
       <CheckinCard />
 
       <RedeemCodeCard />
+
+      <RechargeCard />
 
       <StatsCards linkIds={linkIds} />
 

@@ -12,9 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import { Loader2, Check, Link2, Unlink } from "lucide-react";
+import { Loader2, Check, Link2, Unlink, Fingerprint, ShieldCheck, Plus, Trash2, Pencil, Copy, Eye, EyeOff } from "lucide-react";
 import { PROVIDER_CONFIG, type OAuthProvider } from "@/components/auth/social-login-buttons";
 import { useSiteConfig } from "@/contexts/site-config";
+import QRCode from "react-qr-code";
 
 const accountSchema = z.object({
   username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
@@ -36,6 +37,17 @@ interface LinkedAccount {
   accountId: string;
 }
 
+function normalizeAccounts(raw: unknown[]): LinkedAccount[] {
+  return raw.map((item) => {
+    const a = item as Record<string, unknown>;
+    return {
+      id: String(a.id ?? ""),
+      providerId: String(a.providerId ?? a.provider ?? ""),
+      accountId: String(a.accountId ?? a.providerAccountId ?? ""),
+    };
+  });
+}
+
 function OAuthAccountSection() {
   const siteConfig = useSiteConfig();
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -50,10 +62,10 @@ function OAuthAccountSection() {
     try {
       const res = await authClient.listAccounts();
       if (res.data) {
-        setLinkedAccounts(res.data as unknown as LinkedAccount[]);
+        setLinkedAccounts(normalizeAccounts(res.data as unknown as unknown[]));
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("[settings] Failed to load linked accounts:", err);
     } finally {
       setIsLoading(false);
     }
@@ -75,11 +87,19 @@ function OAuthAccountSection() {
     setActionLoading(provider);
     try {
       const callbackURL = `${window.location.origin}/settings/account`;
-      await authClient.linkSocial({
+      const result = await authClient.linkSocial({
         provider,
         callbackURL,
       });
-    } catch {
+      if (result?.error) {
+        console.error("[settings] linkSocial error:", result.error);
+        toast.error("绑定失败", {
+          description: result.error.message || `无法通过 ${PROVIDER_CONFIG[provider].label} 绑定`,
+        });
+        setActionLoading(null);
+      }
+    } catch (err) {
+      console.error("[settings] linkSocial exception:", err);
       toast.error("绑定失败", { description: "无法连接到登录服务" });
       setActionLoading(null);
     }
@@ -100,12 +120,14 @@ function OAuthAccountSection() {
     try {
       const res = await authClient.unlinkAccount({ providerId });
       if (res.error) {
+        console.error("[settings] unlinkAccount error:", res.error);
         toast.error("解绑失败", { description: res.error.message || "请稍后重试" });
       } else {
         toast.success("已解绑");
         await fetchAccounts();
       }
-    } catch {
+    } catch (err) {
+      console.error("[settings] unlinkAccount exception:", err);
       toast.error("解绑失败", { description: "请稍后重试" });
     } finally {
       setActionLoading(null);
@@ -174,6 +196,484 @@ function OAuthAccountSection() {
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PasskeyItem {
+  id: string;
+  name?: string | null;
+  createdAt?: string;
+}
+
+function PasskeySection() {
+  const [passkeys, setPasskeys] = useState<PasskeyItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [addLoading, setAddLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const fetchPasskeys = useCallback(async () => {
+    try {
+      const res = await authClient.passkey.listUserPasskeys();
+      if (res.data) {
+        setPasskeys(res.data as unknown as PasskeyItem[]);
+      }
+    } catch (err) {
+      console.error("[settings] Failed to load passkeys:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPasskeys();
+  }, [fetchPasskeys]);
+
+  async function handleAdd() {
+    setAddLoading(true);
+    try {
+      const res = await authClient.passkey.addPasskey({
+        name: `通行密钥 ${passkeys.length + 1}`,
+      });
+      if (res?.error) {
+        toast.error("添加失败", { description: (res.error as { message?: string }).message || "无法注册通行密钥" });
+      } else {
+        toast.success("通行密钥已添加");
+        await fetchPasskeys();
+      }
+    } catch {
+      toast.error("添加失败", { description: "请确认您的设备支持通行密钥" });
+    } finally {
+      setAddLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setActionLoading(id);
+    try {
+      const res = await authClient.passkey.deletePasskey({ id });
+      if (res?.error) {
+        toast.error("删除失败");
+      } else {
+        toast.success("通行密钥已删除");
+        await fetchPasskeys();
+      }
+    } catch {
+      toast.error("删除失败");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleRename(id: string) {
+    if (!editName.trim()) return;
+    setActionLoading(id);
+    try {
+      const res = await authClient.passkey.updatePasskey({ id, name: editName.trim() });
+      if (res?.error) {
+        toast.error("重命名失败");
+      } else {
+        toast.success("已重命名");
+        setEditingId(null);
+        await fetchPasskeys();
+      }
+    } catch {
+      toast.error("重命名失败");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  return (
+    <div className="pb-6 border-b">
+      <div className="flex items-center gap-2 mb-1">
+        <Fingerprint className="h-4 w-4" />
+        <h3 className="font-medium">通行密钥</h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        使用指纹、面容或安全密钥快速登录，无需输入密码
+      </p>
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-12 w-full max-w-sm" />
+        </div>
+      ) : (
+        <>
+          {passkeys.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {passkeys.map((pk) => (
+                <div
+                  key={pk.id}
+                  className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm"
+                >
+                  <div className="flex-1 min-w-0">
+                    {editingId === pk.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="h-7 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRename(pk.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          disabled={actionLoading === pk.id}
+                          onClick={() => handleRename(pk.id)}
+                        >
+                          {actionLoading === pk.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm font-medium truncate">
+                          {pk.name || "通行密钥"}
+                        </div>
+                        {pk.createdAt && (
+                          <div className="text-xs text-muted-foreground">
+                            添加于 {new Date(pk.createdAt).toLocaleDateString("zh-CN")}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {editingId !== pk.id && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          setEditingId(pk.id);
+                          setEditName(pk.name || "");
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        disabled={actionLoading === pk.id}
+                        onClick={() => handleDelete(pk.id)}
+                      >
+                        {actionLoading === pk.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAdd}
+            disabled={addLoading}
+          >
+            {addLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            添加通行密钥
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+type TwoFactorStep = "idle" | "enabling" | "verify" | "enabled" | "backup";
+
+function TwoFactorSection() {
+  const { data: session, update: refreshSession } = useSession();
+  const is2faEnabled = session?.user?.twoFactorEnabled ?? false;
+
+  const [step, setStep] = useState<TwoFactorStep>("idle");
+  const [totpUri, setTotpUri] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [password, setPassword] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
+
+  async function handleEnable() {
+    if (!password) {
+      toast.error("请输入密码");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await authClient.twoFactor.enable({ password });
+      if (res.error) {
+        toast.error("启用失败", { description: res.error.message });
+      } else if (res.data) {
+        setTotpUri(res.data.totpURI);
+        setBackupCodes(res.data.backupCodes);
+        setStep("verify");
+      }
+    } catch {
+      toast.error("启用失败");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleVerify() {
+    if (!verifyCode) return;
+    setIsLoading(true);
+    try {
+      const res = await authClient.twoFactor.verifyTotp({ code: verifyCode });
+      if (res.error) {
+        toast.error("验证失败", { description: res.error.message || "验证码错误" });
+        setVerifyCode("");
+      } else {
+        toast.success("两步验证已启用");
+        setStep("backup");
+        await refreshSession();
+      }
+    } catch {
+      toast.error("验证失败");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDisable() {
+    if (!password) {
+      toast.error("请输入密码");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await authClient.twoFactor.disable({ password });
+      if (res.error) {
+        toast.error("关闭失败", { description: res.error.message });
+      } else {
+        toast.success("两步验证已关闭");
+        setStep("idle");
+        setPassword("");
+        await refreshSession();
+      }
+    } catch {
+      toast.error("关闭失败");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGenerateBackupCodes() {
+    if (!password) {
+      toast.error("请输入密码");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await authClient.twoFactor.generateBackupCodes({ password });
+      if (res.error) {
+        toast.error("生成失败", { description: res.error.message });
+      } else if (res.data) {
+        setBackupCodes(res.data.backupCodes);
+        setShowBackupCodes(true);
+        toast.success("备用恢复码已重新生成");
+      }
+    } catch {
+      toast.error("生成失败");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function copyBackupCodes() {
+    navigator.clipboard.writeText(backupCodes.join("\n")).then(() => {
+      toast.success("已复制到剪贴板");
+    }).catch(() => {
+      toast.error("复制失败");
+    });
+  }
+
+  return (
+    <div className="pb-6 border-b">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck className="h-4 w-4" />
+        <h3 className="font-medium">两步验证 (2FA)</h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        {is2faEnabled
+          ? "两步验证已启用，登录时需要额外验证"
+          : "启用后，登录时需输入验证器应用生成的验证码，提升安全性"}
+      </p>
+
+      {step === "idle" && !is2faEnabled && (
+        <div className="space-y-3 max-w-sm">
+          <Input
+            type="password"
+            placeholder="输入当前密码以启用"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <Button onClick={handleEnable} disabled={isLoading || !password}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            启用两步验证
+          </Button>
+        </div>
+      )}
+
+      {step === "verify" && (
+        <div className="space-y-4 max-w-sm">
+          <p className="text-sm">
+            使用 Google Authenticator、Microsoft Authenticator 等验证器应用扫描下方二维码：
+          </p>
+          <div className="bg-white p-4 rounded-lg w-fit">
+            <QRCode value={totpUri} size={180} />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            扫描后，输入验证器应用显示的 6 位验证码确认：
+          </p>
+          <Input
+            value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value)}
+            placeholder="000000"
+            maxLength={6}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            className="text-center text-lg tracking-widest"
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleVerify} disabled={isLoading || !verifyCode}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              确认启用
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setStep("idle");
+                setVerifyCode("");
+                setTotpUri("");
+              }}
+            >
+              取消
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {(step === "backup" || (step === "idle" && is2faEnabled && backupCodes.length > 0)) && (
+        <div className="space-y-4 max-w-sm">
+          <div className="rounded-lg border bg-muted/50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">备用恢复码</p>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setShowBackupCodes(!showBackupCodes)}
+                >
+                  {showBackupCodes ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={copyBackupCodes}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              请妥善保存这些恢复码。如果丢失验证器设备，可使用恢复码登录。每个恢复码只能使用一次。
+            </p>
+            {showBackupCodes ? (
+              <div className="grid grid-cols-2 gap-1">
+                {backupCodes.map((code, i) => (
+                  <code
+                    key={i}
+                    className="text-xs bg-background px-2 py-1 rounded font-mono"
+                  >
+                    {code}
+                  </code>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                点击眼睛图标查看恢复码
+              </p>
+            )}
+          </div>
+          {step === "backup" && (
+            <Button
+              onClick={() => {
+                setStep("idle");
+                setPassword("");
+                setVerifyCode("");
+              }}
+            >
+              完成
+            </Button>
+          )}
+        </div>
+      )}
+
+      {step === "idle" && is2faEnabled && (
+        <div className="space-y-3 max-w-sm">
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <Check className="h-4 w-4" />
+            <span>两步验证已启用</span>
+          </div>
+          <div className="space-y-2">
+            <Input
+              type="password"
+              placeholder="输入密码"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateBackupCodes}
+                disabled={isLoading || !password}
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                重新生成恢复码
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisable}
+                disabled={isLoading || !password}
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                关闭两步验证
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -329,6 +829,12 @@ export default function AccountSettingsPage() {
           </form>
         </Form>
       </div>
+
+      {/* 通行密钥 */}
+      <PasskeySection />
+
+      {/* 两步验证 */}
+      <TwoFactorSection />
 
       {/* 第三方账号绑定 */}
       <OAuthAccountSection />

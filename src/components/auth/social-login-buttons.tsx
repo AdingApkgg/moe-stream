@@ -135,12 +135,14 @@ export function SocialLoginButtons({ callbackURL = "/" }: SocialLoginButtonsProp
     try {
       const result = await authClient.signIn.social({ provider, callbackURL });
       if (result?.error) {
+        console.error("[auth] signIn.social error:", provider, result.error);
         toast.error("登录失败", {
           description: result.error.message || `无法通过 ${PROVIDER_CONFIG[provider].label} 登录`,
         });
         setLoading(null);
       }
-    } catch {
+    } catch (err) {
+      console.error("[auth] signIn.social exception:", provider, err);
       toast.error("登录失败", { description: "无法连接到登录服务" });
       setLoading(null);
     }

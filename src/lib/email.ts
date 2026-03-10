@@ -212,3 +212,33 @@ export async function checkRateLimit(email: string): Promise<boolean> {
   });
   return !recentCode;
 }
+
+/**
+ * 发送 2FA OTP 验证码邮件（供 better-auth twoFactor 插件调用）
+ */
+export async function send2faOtpEmail(email: string, otp: string): Promise<void> {
+  const { getPublicSiteConfig } = await import("@/lib/site-config");
+  const siteConfig = await getPublicSiteConfig();
+  const siteName = siteConfig.siteName;
+
+  const html = templates.verificationCode({
+    siteName,
+    title: "两步验证",
+    description: "您正在登录账户，请使用以下验证码完成两步验证。",
+    code: otp,
+    expireMinutes: 5,
+    year: new Date().getFullYear(),
+  });
+
+  const mail = await createTransporter();
+  if (!mail) {
+    throw new Error("邮件服务未配置");
+  }
+
+  await mail.transporter.sendMail({
+    from: `"${siteName}" <${mail.from}>`,
+    to: email,
+    subject: `【${siteName}】两步验证 - 验证码: ${otp}`,
+    html,
+  });
+}
