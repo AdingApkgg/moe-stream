@@ -266,7 +266,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
           <FadeIn delay={0.15}>
             <div className="flex flex-wrap gap-1.5 mb-6">
               {post.tags.map(({ tag }) => (
-                <Link key={tag.id} href={`/tag/${tag.slug}`}>
+                <Link key={tag.id} href={`/image/tag/${tag.slug}`}>
                   <Badge variant="secondary" className="hover:bg-primary/10 transition-colors cursor-pointer">
                     {tag.name}
                   </Badge>

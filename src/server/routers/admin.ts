@@ -1543,7 +1543,7 @@ export const adminRouter = router({
 
     const [tags, categoryCount] = await Promise.all([
       ctx.prisma.tag.findMany({
-        select: { categoryId: true, _count: { select: { videos: true, games: true } } },
+        select: { categoryId: true, _count: { select: { videos: true, games: true, imagePosts: true } } },
       }),
       ctx.prisma.tagCategory.count(),
     ]);
@@ -1551,10 +1551,11 @@ export const adminRouter = router({
     const total = tags.length;
     const withVideos = tags.filter((t) => t._count.videos > 0).length;
     const withGames = tags.filter((t) => t._count.games > 0).length;
-    const empty = tags.filter((t) => t._count.videos === 0 && t._count.games === 0).length;
+    const withImages = tags.filter((t) => t._count.imagePosts > 0).length;
+    const empty = tags.filter((t) => t._count.videos === 0 && t._count.games === 0 && t._count.imagePosts === 0).length;
     const uncategorized = tags.filter((t) => !t.categoryId).length;
 
-    return { total, withVideos, withGames, empty, uncategorized, categoryCount };
+    return { total, withVideos, withGames, withImages, empty, uncategorized, categoryCount };
   }),
 
   createTag: adminProcedure
@@ -1621,7 +1622,7 @@ export const adminRouter = router({
           orderBy: { createdAt: "desc" },
           include: {
             category: true,
-            _count: { select: { videos: true, games: true } },
+            _count: { select: { videos: true, games: true, imagePosts: true } },
           },
         }),
         ctx.prisma.tag.count({ where }),
@@ -2166,6 +2167,211 @@ export const adminRouter = router({
       });
 
       const result = await ctx.prisma.gameComment.deleteMany({
+        where: { id: { in: input.commentIds } },
+      });
+
+      return { success: true, count: result.count };
+    }),
+
+  // ========== 图文评论管理 ==========
+
+  listImagePostComments: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      const { limit, page } = input;
+      const where = {
+        ...(input.search && {
+          OR: [
+            { content: { contains: input.search, mode: "insensitive" as const } },
+            { user: { username: { contains: input.search, mode: "insensitive" as const } } },
+            { user: { nickname: { contains: input.search, mode: "insensitive" as const } } },
+            { imagePost: { title: { contains: input.search, mode: "insensitive" as const } } },
+          ],
+        }),
+        ...(input.status === "VISIBLE" && { isDeleted: false, isHidden: false }),
+        ...(input.status === "HIDDEN" && { isHidden: true, isDeleted: false }),
+        ...(input.status === "DELETED" && { isDeleted: true }),
+      };
+
+      type AdminImagePostComment = Prisma.ImagePostCommentGetPayload<{
+        include: {
+          user: { select: { id: true; username: true; nickname: true; avatar: true } };
+          imagePost: { select: { id: true; title: true } };
+        };
+      }>;
+
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.imagePostComment.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: { select: { id: true, username: true, nickname: true, avatar: true } },
+            imagePost: { select: { id: true, title: true } },
+          },
+        }) as Promise<AdminImagePostComment[]>,
+        ctx.prisma.imagePostComment.count({ where }),
+      ]);
+
+      return {
+        comments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  toggleImagePostCommentHidden: adminProcedure
+    .input(z.object({ commentId: z.string(), isHidden: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.imagePostComment.update({
+        where: { id: input.commentId },
+        data: { isHidden: input.isHidden },
+      });
+
+      return { success: true };
+    }),
+
+  deleteImagePostComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.imagePostComment.update({
+        where: { id: input.commentId },
+        data: { isDeleted: true },
+      });
+
+      return { success: true };
+    }),
+
+  restoreImagePostComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.imagePostComment.update({
+        where: { id: input.commentId },
+        data: { isDeleted: false },
+      });
+
+      return { success: true };
+    }),
+
+  getImagePostCommentStats: adminProcedure.query(async ({ ctx }) => {
+    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+    if (!canManage) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+    }
+
+    const [total, visible, hidden, deleted] = await Promise.all([
+      ctx.prisma.imagePostComment.count(),
+      ctx.prisma.imagePostComment.count({ where: { isDeleted: false, isHidden: false } }),
+      ctx.prisma.imagePostComment.count({ where: { isHidden: true, isDeleted: false } }),
+      ctx.prisma.imagePostComment.count({ where: { isDeleted: true } }),
+    ]);
+
+    return { total, visible, hidden, deleted };
+  }),
+
+  batchImagePostCommentAction: adminProcedure
+    .input(
+      z.object({
+        commentIds: z.array(z.string()).min(1).max(100),
+        action: z.enum(["hide", "show", "delete", "restore"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      const data = (() => {
+        switch (input.action) {
+          case "hide":
+            return { isHidden: true };
+          case "show":
+            return { isHidden: false };
+          case "delete":
+            return { isDeleted: true };
+          case "restore":
+            return { isDeleted: false };
+        }
+      })();
+
+      const result = await ctx.prisma.imagePostComment.updateMany({
+        where: { id: { in: input.commentIds } },
+        data,
+      });
+
+      return { success: true, count: result.count };
+    }),
+
+  hardDeleteImagePostComment: adminProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.imagePostComment.deleteMany({
+        where: { parentId: input.commentId },
+      });
+
+      await ctx.prisma.imagePostCommentReaction.deleteMany({
+        where: { commentId: input.commentId },
+      });
+
+      await ctx.prisma.imagePostComment.delete({
+        where: { id: input.commentId },
+      });
+
+      return { success: true };
+    }),
+
+  batchHardDeleteImagePostComments: adminProcedure
+    .input(z.object({ commentIds: z.array(z.string()).min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
+      }
+
+      await ctx.prisma.imagePostComment.deleteMany({
+        where: { parentId: { in: input.commentIds } },
+      });
+
+      await ctx.prisma.imagePostCommentReaction.deleteMany({
+        where: { commentId: { in: input.commentIds } },
+      });
+
+      const result = await ctx.prisma.imagePostComment.deleteMany({
         where: { id: { in: input.commentIds } },
       });
 

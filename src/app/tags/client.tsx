@@ -12,6 +12,7 @@ import {
   Tags,
   FileVideo,
   Gamepad2,
+  Images,
   FolderOpen,
 } from "lucide-react";
 
@@ -20,7 +21,7 @@ interface TagData {
   name: string;
   slug: string;
   categoryId: string | null;
-  _count: { videos?: number; games?: number };
+  _count: { videos?: number; games?: number; imagePosts?: number };
 }
 
 interface CategoryGroup<T extends TagData> {
@@ -31,50 +32,50 @@ interface CategoryGroup<T extends TagData> {
 interface TagsPageClientProps {
   videoGroups: CategoryGroup<TagData & { _count: { videos: number } }>[];
   gameGroups: CategoryGroup<TagData & { _count: { games: number } }>[];
+  imageGroups: CategoryGroup<TagData & { _count: { imagePosts: number } }>[];
   totalVideoTags: number;
   totalGameTags: number;
+  totalImageTags: number;
 }
 
 export function TagsPageClient({
   videoGroups,
   gameGroups,
+  imageGroups,
   totalVideoTags,
   totalGameTags,
+  totalImageTags,
 }: TagsPageClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const clearSearch = useCallback(() => setSearchQuery(""), []);
   const isSearching = searchQuery.length > 0;
 
-  const filteredVideoGroups = useMemo(() => {
-    if (!searchQuery) return videoGroups;
+  const filterGroups = <T extends TagData>(groups: CategoryGroup<T>[]) => {
+    if (!searchQuery) return groups;
     const q = searchQuery.toLowerCase();
-    return videoGroups
+    return groups
       .map((g) => ({ ...g, tags: g.tags.filter((t) => t.name.toLowerCase().includes(q)) }))
       .filter((g) => g.tags.length > 0);
-  }, [searchQuery, videoGroups]);
+  };
 
-  const filteredGameGroups = useMemo(() => {
-    if (!searchQuery) return gameGroups;
-    const q = searchQuery.toLowerCase();
-    return gameGroups
-      .map((g) => ({ ...g, tags: g.tags.filter((t) => t.name.toLowerCase().includes(q)) }))
-      .filter((g) => g.tags.length > 0);
-  }, [searchQuery, gameGroups]);
+  const filteredVideoGroups = useMemo(() => filterGroups(videoGroups), [searchQuery, videoGroups]);
+  const filteredGameGroups = useMemo(() => filterGroups(gameGroups), [searchQuery, gameGroups]);
+  const filteredImageGroups = useMemo(() => filterGroups(imageGroups), [searchQuery, imageGroups]);
 
   const filteredVideoCount = filteredVideoGroups.reduce((s, g) => s + g.tags.length, 0);
   const filteredGameCount = filteredGameGroups.reduce((s, g) => s + g.tags.length, 0);
+  const filteredImageCount = filteredImageGroups.reduce((s, g) => s + g.tags.length, 0);
 
   return (
     <div className="container py-6 animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">标签</h1>
         <span className="text-sm text-muted-foreground">
-          视频 {totalVideoTags} 个 · 游戏 {totalGameTags} 个
+          视频 {totalVideoTags} 个 · 游戏 {totalGameTags} 个 · 图片 {totalImageTags} 个
         </span>
       </div>
 
-      {/* 搜索框 */}
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -107,6 +108,11 @@ export function TagsPageClient({
             <Gamepad2 className="h-4 w-4" />
             游戏标签
             <Badge variant="secondary" className="ml-1 text-xs">{filteredGameCount}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="image" className="gap-1.5">
+            <Images className="h-4 w-4" />
+            图片标签
+            <Badge variant="secondary" className="ml-1 text-xs">{filteredImageCount}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -141,6 +147,22 @@ export function TagsPageClient({
             ))
           )}
         </TabsContent>
+
+        <TabsContent value="image" className="space-y-8">
+          {filteredImageGroups.length === 0 ? (
+            <EmptyState isSearching={isSearching} searchQuery={searchQuery} />
+          ) : (
+            filteredImageGroups.map((group) => (
+              <CategorySection
+                key={group.category?.id ?? "uncategorized"}
+                category={group.category}
+                tags={group.tags}
+                type="image"
+                getCount={(t) => (t._count as { imagePosts: number }).imagePosts}
+              />
+            ))
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -154,10 +176,10 @@ function CategorySection<T extends TagData>({
 }: {
   category: { id: string; name: string; slug: string; color: string } | null;
   tags: T[];
-  type: "video" | "game";
+  type: "video" | "game" | "image";
   getCount: (tag: T) => number;
 }) {
-  const basePath = type === "video" ? "/video/tag" : "/game/tag";
+  const basePath = type === "video" ? "/video/tag" : type === "game" ? "/game/tag" : "/image/tag";
 
   return (
     <section>

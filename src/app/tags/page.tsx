@@ -9,12 +9,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "标签",
     description: `浏览 ${config.siteName} 的所有标签，按分类查找 ACGN 相关内容`,
-    keywords: ["标签", "分类", "ACGN", "动漫", "视频", "游戏"],
+    keywords: ["标签", "分类", "ACGN", "动漫", "视频", "游戏", "图片"],
   };
 }
 
 async function getTagsData() {
-  const [categories, videoTags, gameTags] = await Promise.all([
+  const [categories, videoTags, gameTags, imageTags] = await Promise.all([
     prisma.tagCategory.findMany({
       orderBy: { sortOrder: "asc" },
     }),
@@ -31,6 +31,14 @@ async function getTagsData() {
       include: {
         category: true,
         _count: { select: { games: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.tag.findMany({
+      where: { imagePosts: { some: {} } },
+      include: {
+        category: true,
+        _count: { select: { imagePosts: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -65,8 +73,10 @@ async function getTagsData() {
   return {
     videoGroups: groupByCategory(videoTags),
     gameGroups: groupByCategory(gameTags),
+    imageGroups: groupByCategory(imageTags),
     totalVideoTags: videoTags.length,
     totalGameTags: gameTags.length,
+    totalImageTags: imageTags.length,
   };
 }
 
@@ -76,6 +86,7 @@ export default async function TagsPage() {
   const totalTags = new Set([
     ...data.videoGroups.flatMap((g) => g.tags.map((t) => t.id)),
     ...data.gameGroups.flatMap((g) => g.tags.map((t) => t.id)),
+    ...data.imageGroups.flatMap((g) => g.tags.map((t) => t.id)),
   ]).size;
 
   return (
@@ -89,8 +100,10 @@ export default async function TagsPage() {
       <TagsPageClient
         videoGroups={data.videoGroups}
         gameGroups={data.gameGroups}
+        imageGroups={data.imageGroups}
         totalVideoTags={data.totalVideoTags}
         totalGameTags={data.totalGameTags}
+        totalImageTags={data.totalImageTags}
       />
     </>
   );

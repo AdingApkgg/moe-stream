@@ -55,6 +55,7 @@ import {
   XCircle,
   Video,
   Gamepad2,
+  ImageIcon,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
@@ -842,6 +843,222 @@ function GameCommentList({ initialPage }: { initialPage: number }) {
   );
 }
 
+function ImagePostCommentList({ initialPage }: { initialPage: number }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+  const handleStatusChange = (value: StatusFilter) => {
+    setStatus(value);
+    setCurrentPage(1);
+  };
+
+  const utils = trpc.useUtils();
+
+  const { data, isLoading } = trpc.admin.listImagePostComments.useQuery(
+    { limit: 20, page: currentPage, search: search || undefined, status }
+  );
+
+  const { data: stats } = trpc.admin.getImagePostCommentStats.useQuery();
+
+  const comments = useMemo(() => data?.comments ?? [], [data?.comments]);
+
+  const toggleHiddenMutation = trpc.admin.toggleImagePostCommentHidden.useMutation({
+    onSuccess: () => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      toast.success("操作成功");
+    },
+    onError: (error) => toast.error(error.message || "操作失败"),
+  });
+
+  const deleteMutation = trpc.admin.deleteImagePostComment.useMutation({
+    onSuccess: () => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success("评论已删除");
+    },
+    onError: (error) => toast.error(error.message || "删除失败"),
+  });
+
+  const restoreMutation = trpc.admin.restoreImagePostComment.useMutation({
+    onSuccess: () => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      toast.success("评论已恢复");
+    },
+    onError: (error) => toast.error(error.message || "恢复失败"),
+  });
+
+  const batchMutation = trpc.admin.batchImagePostCommentAction.useMutation({
+    onSuccess: (result) => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success(`已处理 ${result.count} 条评论`);
+    },
+    onError: (error) => toast.error(error.message || "批量操作失败"),
+  });
+
+  const hardDeleteMutation = trpc.admin.hardDeleteImagePostComment.useMutation({
+    onSuccess: () => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      toast.success("评论已彻底删除");
+    },
+    onError: (error) => toast.error(error.message || "删除失败"),
+  });
+
+  const batchHardDeleteMutation = trpc.admin.batchHardDeleteImagePostComments.useMutation({
+    onSuccess: (result) => {
+      utils.admin.listImagePostComments.invalidate();
+      utils.admin.getImagePostCommentStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success(`已彻底删除 ${result.count} 条评论`);
+    },
+    onError: (error) => toast.error(error.message || "批量删除失败"),
+  });
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === comments.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(comments.map((c) => c.id)));
+  }, [comments, selectedIds.size]);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBatchAction = useCallback(
+    (action: "hide" | "show" | "delete" | "restore") => {
+      if (selectedIds.size === 0) return;
+      batchMutation.mutate({ commentIds: Array.from(selectedIds), action });
+    },
+    [selectedIds, batchMutation]
+  );
+
+  return (
+    <div className="space-y-6">
+      {stats && (
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">总计</span>
+            <Badge variant="outline">{stats.total}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">可见</span>
+            <Badge variant="secondary">{stats.visible}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">隐藏</span>
+            <Badge variant="outline">{stats.hidden}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">删除</span>
+            <Badge variant="destructive">{stats.deleted}</Badge>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input
+          placeholder="搜索评论内容 / 用户 / 图文标题"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="sm:max-w-md"
+        />
+        <Select value={status} onValueChange={(v) => handleStatusChange(v as StatusFilter)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">全部</SelectItem>
+            <SelectItem value="VISIBLE">可见</SelectItem>
+            <SelectItem value="HIDDEN">已隐藏</SelectItem>
+            <SelectItem value="DELETED">已删除</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <BatchActions
+        selectedIds={selectedIds}
+        comments={comments}
+        toggleSelectAll={toggleSelectAll}
+        handleBatchAction={handleBatchAction}
+        batchMutation={batchMutation}
+        batchHardDeleteMutation={batchHardDeleteMutation}
+      />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      ) : comments.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            暂无评论
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {comments.map((comment) => (
+            <CommentCard
+              key={comment.id}
+              comment={comment as CommentCardProps["comment"]}
+              contentLink={{
+                href: `/image/${comment.imagePost.id}`,
+                title: comment.imagePost.title,
+              }}
+              isSelected={selectedIds.has(comment.id)}
+              isExpanded={expandedIds.has(comment.id)}
+              onToggleSelect={() => toggleSelect(comment.id)}
+              onToggleExpand={() => toggleExpand(comment.id)}
+              onToggleHidden={() =>
+                toggleHiddenMutation.mutate({
+                  commentId: comment.id,
+                  isHidden: !comment.isHidden,
+                })
+              }
+              onDelete={() => deleteMutation.mutate({ commentId: comment.id })}
+              onRestore={() => restoreMutation.mutate({ commentId: comment.id })}
+              onHardDelete={() => hardDeleteMutation.mutate({ commentId: comment.id })}
+            />
+          ))}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={data?.totalPages ?? 1}
+            basePath="/dashboard/comments"
+            onPageChange={setCurrentPage}
+            className="mt-6"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface BatchActionsProps {
   selectedIds: Set<string>;
   comments: { id: string }[];
@@ -991,12 +1208,19 @@ export default function AdminCommentsClient({ page }: { page: number }) {
             <Gamepad2 className="h-4 w-4" />
             游戏评论
           </TabsTrigger>
+          <TabsTrigger value="image" className="gap-1.5">
+            <ImageIcon className="h-4 w-4" />
+            图文评论
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="video" className="mt-4">
           <VideoCommentList initialPage={page} />
         </TabsContent>
         <TabsContent value="game" className="mt-4">
           <GameCommentList initialPage={page} />
+        </TabsContent>
+        <TabsContent value="image" className="mt-4">
+          <ImagePostCommentList initialPage={page} />
         </TabsContent>
       </Tabs>
     </div>

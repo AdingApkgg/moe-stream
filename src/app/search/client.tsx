@@ -3,26 +3,31 @@
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { GameGrid } from "@/components/game/game-grid";
+import { ImagePostCard } from "@/components/image/image-post-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
-import { Search, Clock, TrendingUp, X, Play, Gamepad2, type LucideIcon } from "lucide-react";
+import { Search, Clock, TrendingUp, X, Play, Gamepad2, Images, Tag, type LucideIcon } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
 import { useSearchHistoryStore } from "@/stores/app";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface SearchContentProps {
   query: string;
 }
 
-type SearchTab = "video" | "game";
+type SearchTab = "video" | "game" | "image" | "tag";
 type SortBy = "latest" | "views" | "likes";
 type TimeRange = "all" | "today" | "week" | "month";
 
 const TAB_OPTIONS: { value: SearchTab; label: string; icon: LucideIcon }[] = [
   { value: "video", label: "视频", icon: Play },
   { value: "game", label: "游戏", icon: Gamepad2 },
+  { value: "image", label: "图片", icon: Images },
+  { value: "tag", label: "标签", icon: Tag },
 ];
 
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
@@ -38,7 +43,6 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: "month", label: "本月" },
 ];
 
-// 筛选 Chip 组件
 function FilterChip({
   label,
   active,
@@ -63,7 +67,6 @@ function FilterChip({
   );
 }
 
-// 无 query 时的探索页面
 function SearchExplore() {
   const router = useRouter();
   const { history: searchHistory, removeSearch, clearHistory } = useSearchHistoryStore();
@@ -79,7 +82,6 @@ function SearchExplore() {
 
   return (
     <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
-      {/* 搜索历史 */}
       {searchHistory.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -112,7 +114,6 @@ function SearchExplore() {
         </div>
       )}
 
-      {/* 热搜榜 */}
       {hotSearches && hotSearches.length > 0 && (
         <div>
           <h2 className="text-base font-semibold flex items-center gap-2 mb-3">
@@ -146,17 +147,23 @@ function SearchExplore() {
         </div>
       )}
 
-      {/* 完全空状态 */}
       {searchHistory.length === 0 && (!hotSearches || hotSearches.length === 0) && (
         <div className="text-center py-16">
           <Search className="h-12 w-12 mx-auto text-muted-foreground/30" />
           <h1 className="text-xl font-semibold mt-4">搜索</h1>
-          <p className="text-muted-foreground mt-2 text-sm">在顶部搜索框中输入关键词开始搜索视频和游戏</p>
+          <p className="text-muted-foreground mt-2 text-sm">在顶部搜索框中输入关键词开始搜索</p>
         </div>
       )}
     </div>
   );
 }
+
+const contentTypeLabels: Record<SearchTab, string> = {
+  video: "视频",
+  game: "游戏",
+  image: "图片",
+  tag: "标签",
+};
 
 export function SearchContent({ query }: SearchContentProps) {
   const [searchTab, setSearchTab] = useState<SearchTab>("video");
@@ -164,32 +171,28 @@ export function SearchContent({ query }: SearchContentProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [videoPage, setVideoPage] = usePageParam("page");
   const [gamePage, setGamePage] = usePageParam("gp");
+  const [imagePage, setImagePage] = usePageParam("ip");
 
-  const page = searchTab === "video" ? videoPage : gamePage;
-  const setPage = searchTab === "video" ? setVideoPage : setGamePage;
+  const showFilters = searchTab !== "tag";
 
-  // 视频搜索查询
-  const {
-    data: videoData,
-    isLoading: videoLoading,
-  } = trpc.video.list.useQuery(
+  const { data: videoData, isLoading: videoLoading } = trpc.video.list.useQuery(
     { limit: 20, page: videoPage, search: query, sortBy, timeRange },
-    {
-      enabled: !!query && searchTab === "video",
-      placeholderData: (prev) => prev,
-    }
+    { enabled: !!query && searchTab === "video", placeholderData: (prev) => prev }
   );
 
-  // 游戏搜索查询
-  const {
-    data: gameData,
-    isLoading: gameLoading,
-  } = trpc.game.list.useQuery(
+  const { data: gameData, isLoading: gameLoading } = trpc.game.list.useQuery(
     { limit: 20, page: gamePage, search: query, sortBy, timeRange },
-    {
-      enabled: !!query && searchTab === "game",
-      placeholderData: (prev) => prev,
-    }
+    { enabled: !!query && searchTab === "game", placeholderData: (prev) => prev }
+  );
+
+  const { data: imageData, isLoading: imageLoading } = trpc.image.list.useQuery(
+    { limit: 20, page: imagePage, search: query, sortBy: sortBy === "likes" ? "latest" : sortBy },
+    { enabled: !!query && searchTab === "image", placeholderData: (prev) => prev }
+  );
+
+  const { data: tagData, isLoading: tagLoading } = trpc.tag.list.useQuery(
+    { search: query, limit: 50 },
+    { enabled: !!query && searchTab === "tag" }
   );
 
   const videos = videoData?.videos ?? [];
@@ -200,34 +203,47 @@ export function SearchContent({ query }: SearchContentProps) {
   const gameTotalCount = gameData?.totalCount ?? 0;
   const gameTotalPages = gameData?.totalPages ?? 1;
 
-  const isLoading = searchTab === "video" ? videoLoading : gameLoading;
-  const totalCount = searchTab === "video" ? videoTotalCount : gameTotalCount;
-  const totalPages = searchTab === "video" ? videoTotalPages : gameTotalPages;
+  const posts = imageData?.posts ?? [];
+  const imageTotalCount = imageData?.totalCount ?? 0;
+  const imageTotalPages = imageData?.totalPages ?? 1;
 
-  // 无搜索词时展示探索页
+  const tags = tagData ?? [];
+
+  const currentLoading = {
+    video: videoLoading,
+    game: gameLoading,
+    image: imageLoading,
+    tag: tagLoading,
+  }[searchTab];
+
+  const currentTotalCount = {
+    video: videoTotalCount,
+    game: gameTotalCount,
+    image: imageTotalCount,
+    tag: tags.length,
+  }[searchTab];
+
+  const currentPage = { video: videoPage, game: gamePage, image: imagePage, tag: 1 }[searchTab];
+  const currentSetPage = { video: setVideoPage, game: setGamePage, image: setImagePage, tag: () => {} }[searchTab];
+  const currentTotalPages = { video: videoTotalPages, game: gameTotalPages, image: imageTotalPages, tag: 1 }[searchTab];
+
   if (!query) {
     return <SearchExplore />;
   }
 
-  const handleTabChange = (tab: SearchTab) => {
-    setSearchTab(tab);
-  };
-
   return (
     <div className="px-4 md:px-6 py-6">
-      {/* 搜索标题 */}
       <div className="mb-4">
         <p className="text-muted-foreground text-sm">
           搜索 &quot;{query}&quot;
-          {!isLoading && (
+          {!currentLoading && (
             <span className="ml-1">
-              - 共 {totalCount} 个{searchTab === "video" ? "视频" : "游戏"}
+              - 共 {currentTotalCount} 个{contentTypeLabels[searchTab]}
             </span>
           )}
         </p>
       </div>
 
-      {/* 视频 / 游戏 标签页切换 */}
       <div className="flex gap-1 mb-4">
         {TAB_OPTIONS.map((tab) => {
           const Icon = tab.icon;
@@ -235,7 +251,7 @@ export function SearchContent({ query }: SearchContentProps) {
           return (
             <button
               key={tab.value}
-              onClick={() => handleTabChange(tab.value)}
+              onClick={() => setSearchTab(tab.value)}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive
@@ -250,91 +266,146 @@ export function SearchContent({ query }: SearchContentProps) {
         })}
       </div>
 
-      {/* YouTube 风格的 chip 筛选栏 */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-        {/* 排序 chips */}
-        {SORT_OPTIONS.map((option) => (
-          <FilterChip
-            key={option.value}
-            label={option.label}
-            active={sortBy === option.value}
-            onClick={() => { setSortBy(option.value); setPage(1); }}
-          />
-        ))}
-
-        {/* 分隔线 */}
-        <div className="w-px bg-border shrink-0 my-1" />
-
-        {/* 时间 chips */}
-        {TIME_RANGE_OPTIONS.map((option) => (
-          <FilterChip
-            key={option.value}
-            label={option.label}
-            active={timeRange === option.value}
-            onClick={() => { setTimeRange(option.value); setPage(1); }}
-          />
-        ))}
-      </div>
-
-      {/* 内容区域 */}
-      {searchTab === "video" ? (
-        <>
-          <VideoGrid videos={videos} isLoading={isLoading} />
-
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              className="mt-8"
+      {showFilters && (
+        <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          {SORT_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={sortBy === option.value}
+              onClick={() => { setSortBy(option.value); currentSetPage(1); }}
             />
-          )}
+          ))}
+          <div className="w-px bg-border shrink-0 my-1" />
+          {TIME_RANGE_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={timeRange === option.value}
+              onClick={() => { setTimeRange(option.value); currentSetPage(1); }}
+            />
+          ))}
+        </div>
+      )}
 
-          {!isLoading && videos.length === 0 && (
+      {/* 视频结果 */}
+      {searchTab === "video" && (
+        <>
+          <VideoGrid videos={videos} isLoading={currentLoading} />
+          {currentTotalPages > 1 && (
+            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+          )}
+          {!currentLoading && videos.length === 0 && (
+            <EmptyResult icon={Search} label="视频" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+          )}
+        </>
+      )}
+
+      {/* 游戏结果 */}
+      {searchTab === "game" && (
+        <>
+          <GameGrid games={games} isLoading={currentLoading} columns={4} />
+          {currentTotalPages > 1 && (
+            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+          )}
+          {!currentLoading && games.length === 0 && (
+            <EmptyResult icon={Gamepad2} label="游戏" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+          )}
+        </>
+      )}
+
+      {/* 图片结果 */}
+      {searchTab === "image" && (
+        <>
+          {currentLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {posts.map((post, index) => (
+                <ImagePostCard key={post.id} post={post} index={index} />
+              ))}
+            </div>
+          )}
+          {currentTotalPages > 1 && (
+            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+          )}
+          {!currentLoading && posts.length === 0 && (
+            <EmptyResult icon={Images} label="图片" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+          )}
+        </>
+      )}
+
+      {/* 标签结果 */}
+      {searchTab === "tag" && (
+        <>
+          {tagLoading ? (
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="h-9 w-24 rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => {
+                const count =
+                  (tag._count && "videos" in tag._count ? (tag._count as { videos?: number }).videos ?? 0 : 0) +
+                  (tag._count && "games" in tag._count ? (tag._count as { games?: number }).games ?? 0 : 0) +
+                  (tag._count && "imagePosts" in tag._count ? (tag._count as { imagePosts?: number }).imagePosts ?? 0 : 0);
+                return (
+                  <Link
+                    key={tag.id}
+                    href={`/tag/${tag.slug}`}
+                    className="transition-all duration-200 hover:scale-105 hover:-translate-y-0.5 active:scale-95"
+                  >
+                    <Badge
+                      variant="outline"
+                      className="text-sm py-2 px-4 cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      <Tag className="h-3.5 w-3.5 mr-1.5" />
+                      {tag.name}
+                      {count > 0 && <span className="ml-1.5 opacity-60">({count})</span>}
+                    </Badge>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
             <div className="text-center py-16">
-              <Search className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground">没有找到相关视频</p>
-              {(sortBy !== "latest" || timeRange !== "all") && (
-                <Button
-                  variant="link"
-                  onClick={() => { setSortBy("latest"); setTimeRange("all"); }}
-                  className="mt-2"
-                >
-                  清除筛选条件重试
-                </Button>
-              )}
+              <Tag className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground">没有找到相关标签</p>
             </div>
           )}
         </>
-      ) : (
-        <>
-          <GameGrid games={games} isLoading={isLoading} columns={4} />
+      )}
+    </div>
+  );
+}
 
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              className="mt-8"
-            />
-          )}
-
-          {!isLoading && games.length === 0 && (
-            <div className="text-center py-16">
-              <Gamepad2 className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground">没有找到相关游戏</p>
-              {(sortBy !== "latest" || timeRange !== "all") && (
-                <Button
-                  variant="link"
-                  onClick={() => { setSortBy("latest"); setTimeRange("all"); }}
-                  className="mt-2"
-                >
-                  清除筛选条件重试
-                </Button>
-              )}
-            </div>
-          )}
-        </>
+function EmptyResult({
+  icon: Icon,
+  label,
+  sortBy,
+  timeRange,
+  onClear,
+}: {
+  icon: LucideIcon;
+  label: string;
+  sortBy: SortBy;
+  timeRange: TimeRange;
+  onClear: () => void;
+}) {
+  return (
+    <div className="text-center py-16">
+      <Icon className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+      <p className="text-muted-foreground">没有找到相关{label}</p>
+      {(sortBy !== "latest" || timeRange !== "all") && (
+        <Button variant="link" onClick={onClear} className="mt-2">
+          清除筛选条件重试
+        </Button>
       )}
     </div>
   );

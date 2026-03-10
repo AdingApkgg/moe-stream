@@ -44,6 +44,7 @@ import {
   Loader2,
   Video,
   Gamepad2,
+  Images,
   Plus,
   Merge,
   CheckSquare,
@@ -64,7 +65,7 @@ interface TagItem {
   categoryId: string | null;
   category: { id: string; name: string; color: string } | null;
   createdAt: Date;
-  _count: { videos: number; games: number };
+  _count: { videos: number; games: number; imagePosts: number };
 }
 
 interface CategoryItem {
@@ -482,6 +483,7 @@ function TagManager({ page: initialPage }: { page: number }) {
               <span className="flex items-center gap-1.5 text-muted-foreground">未分类 <Badge variant="outline">{stats.uncategorized}</Badge></span>
               <span className="flex items-center gap-1.5 text-muted-foreground">有视频 <Badge variant="secondary">{stats.withVideos}</Badge></span>
               <span className="flex items-center gap-1.5 text-muted-foreground">有游戏 <Badge variant="secondary">{stats.withGames}</Badge></span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">有图片 <Badge variant="secondary">{stats.withImages}</Badge></span>
               <span className="flex items-center gap-1.5 text-muted-foreground">空标签 <Badge variant="outline">{stats.empty}</Badge></span>
             </div>
           )}
@@ -580,6 +582,9 @@ function TagManager({ page: initialPage }: { page: number }) {
                             <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                               <Link href={`/game/tag/${tag.slug}`} target="_blank" title="游戏"><Gamepad2 className="h-3 w-3" /></Link>
                             </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                              <Link href={`/image/tag/${tag.slug}`} target="_blank" title="图片"><Images className="h-3 w-3" /></Link>
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tag)}>
                               <Edit2 className="h-3 w-3" />
                             </Button>
@@ -599,6 +604,7 @@ function TagManager({ page: initialPage }: { page: number }) {
                           )}
                           <span className="flex items-center gap-1"><Video className="h-3 w-3" />{tag._count.videos}</span>
                           <span className="flex items-center gap-1"><Gamepad2 className="h-3 w-3" />{tag._count.games}</span>
+                          <span className="flex items-center gap-1"><Images className="h-3 w-3" />{tag._count.imagePosts}</span>
                           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(tag.createdAt).toLocaleDateString("zh-CN")}</span>
                         </div>
                       </div>
@@ -737,7 +743,7 @@ function TagManager({ page: initialPage }: { page: number }) {
               <SelectContent>
                 {tags.filter((t) => selectedIds.has(t.id)).map((tag) => (
                   <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name} ({tag._count.videos} 视频, {tag._count.games} 游戏)
+                    {tag.name} ({tag._count.videos} 视频, {tag._count.games} 游戏, {tag._count.imagePosts} 图片)
                   </SelectItem>
                 ))}
               </SelectContent>

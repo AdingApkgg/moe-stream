@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, adminProcedure } from "../trpc";
 import { getOrSet, deleteCachePattern } from "@/lib/redis";
 
-const tagTypeSchema = z.enum(["video", "game"]).optional();
+const tagTypeSchema = z.enum(["video", "game", "image"]).optional();
 
 const CACHE_KEYS = {
   tagBySlug: (slug: string, type?: string) => `tag:slug:${slug}:${type || "all"}`,
@@ -21,12 +21,19 @@ const CACHE_TTL = {
   categories: 600,
 };
 
-function tagQueryHelpers(type?: "video" | "game") {
+function tagQueryHelpers(type?: "video" | "game" | "image") {
   if (type === "game") {
     return {
       hasContent: { games: { some: {} } } satisfies Prisma.TagWhereInput,
       countSelect: { games: true } as const,
       orderByCount: { games: { _count: "desc" as const } },
+    };
+  }
+  if (type === "image") {
+    return {
+      hasContent: { imagePosts: { some: {} } } satisfies Prisma.TagWhereInput,
+      countSelect: { imagePosts: true } as const,
+      orderByCount: { imagePosts: { _count: "desc" as const } },
     };
   }
   if (type === "video") {
@@ -38,14 +45,14 @@ function tagQueryHelpers(type?: "video" | "game") {
   }
   return {
     hasContent: {} satisfies Prisma.TagWhereInput,
-    countSelect: { videos: true, games: true } as const,
+    countSelect: { videos: true, games: true, imagePosts: true } as const,
     orderByCount: { name: "asc" as const },
   };
 }
 
 export const tagRouter = router({
   getBySlug: publicProcedure
-    .input(z.object({ slug: z.string(), type: z.enum(["video", "game"]).default("video") }))
+    .input(z.object({ slug: z.string(), type: z.enum(["video", "game", "image"]).default("video") }))
     .query(async ({ ctx, input }) => {
       const h = tagQueryHelpers(input.type);
       return getOrSet(
@@ -110,7 +117,7 @@ export const tagRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(20).default(10),
-        type: z.enum(["video", "game"]).default("video"),
+        type: z.enum(["video", "game", "image"]).default("video"),
       }),
     )
     .query(async ({ ctx, input }) => {

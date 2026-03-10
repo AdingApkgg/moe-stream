@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { TagAggregateClient } from "./client";
+import { ImageTagPageClient } from "./client";
 import { CollectionPageJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
 
-interface TagPageProps {
+interface ImageTagPageProps {
   params: Promise<{ slug: string }>;
 }
 
@@ -17,15 +17,26 @@ const getTag = cache(async (slug: string) => {
       name: true,
       slug: true,
       _count: {
-        select: { videos: true, games: true, imagePosts: true },
+        select: { imagePosts: true },
       },
     },
   });
 });
 
+export async function generateStaticParams() {
+  const popularTags = await prisma.tag.findMany({
+    where: { imagePosts: { some: {} } },
+    take: 50,
+    orderBy: { imagePosts: { _count: "desc" } },
+    select: { slug: true },
+  });
+
+  return popularTags.map((tag) => ({ slug: tag.slug }));
+}
+
 export async function generateMetadata({
   params,
-}: TagPageProps): Promise<Metadata> {
+}: ImageTagPageProps): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);
@@ -39,21 +50,20 @@ export async function generateMetadata({
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
-  const total = tag._count.videos + tag._count.games + tag._count.imagePosts;
-  const description = `浏览 ${tag.name} 标签下的 ${total} 个内容`;
+  const description = `浏览 ${tag.name} 标签下的 ${tag._count.imagePosts} 组图片`;
 
   return {
-    title: `#${tag.name}`,
+    title: `#${tag.name} - 图片`,
     description,
-    keywords: [tag.name, "ACGN", "标签"],
+    keywords: [tag.name, "ACGN", "图片", "标签"],
     openGraph: {
       type: "website",
-      title: `#${tag.name} - ${siteName}`,
+      title: `#${tag.name} 图片 - ${siteName}`,
       description,
     },
     twitter: {
       card: "summary",
-      title: `#${tag.name} - ${siteName}`,
+      title: `#${tag.name} 图片 - ${siteName}`,
       description,
     },
   };
@@ -68,9 +78,9 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
   };
 }
 
-export type SerializedAggregateTag = ReturnType<typeof serializeTag>;
+export type SerializedImageTag = ReturnType<typeof serializeTag>;
 
-export default async function TagPage({ params }: TagPageProps) {
+export default async function ImageTagPage({ params }: ImageTagPageProps) {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);
@@ -80,21 +90,17 @@ export default async function TagPage({ params }: TagPageProps) {
   const siteName = config.siteName;
   const siteUrl = config.siteUrl;
 
-  const total = tag
-    ? tag._count.videos + tag._count.games + tag._count.imagePosts
-    : 0;
-
   return (
     <>
       {tag && (
         <CollectionPageJsonLd
-          name={`#${tag.name} - ${siteName}`}
-          description={`浏览 ${tag.name} 标签下的 ${total} 个内容`}
-          url={`${siteUrl}/tag/${tag.slug}`}
-          numberOfItems={total}
+          name={`#${tag.name} 图片 - ${siteName}`}
+          description={`浏览 ${tag.name} 标签下的 ${tag._count.imagePosts} 组图片`}
+          url={`${siteUrl}/image/tag/${tag.slug}`}
+          numberOfItems={tag._count.imagePosts}
         />
       )}
-      <TagAggregateClient slug={slug} initialTag={initialTag} />
+      <ImageTagPageClient slug={slug} initialTag={initialTag} />
     </>
   );
 }

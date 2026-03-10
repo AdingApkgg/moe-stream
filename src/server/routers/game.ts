@@ -81,6 +81,7 @@ export const gameRouter = router({
         baseWhere.OR = [
           { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
           { description: { contains: search, mode: Prisma.QueryMode.insensitive } },
+          { tags: { some: { tag: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } } } },
         ];
       }
 

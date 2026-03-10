@@ -48,10 +48,10 @@ export async function GET() {
 
     const imageTagUrls = imageTags.map(
       (tag) => `  <url>
-    <loc>${baseUrl}/tag/${tag.slug}</loc>
+    <loc>${baseUrl}/image/tag/${tag.slug}</loc>
     <lastmod>${now}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>`
     );
 

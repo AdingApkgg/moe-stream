@@ -320,7 +320,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         break;
       case "tag":
         setSearchQuery("");
-        router.push(`/video/tag/${item.value}`);
+        router.push(`/tag/${item.value}`);
         break;
       case "video":
         setSearchQuery("");

@@ -92,7 +92,7 @@ ${popularGameTags.map((tag) => `- [${tag.name}](${baseUrl}/game/tag/${tag.slug})
       imageTagsSection = `
 ## 热门图片标签
 
-${popularImageTags.map((tag) => `- [${tag.name}](${baseUrl}/tag/${tag.slug}) (${tag._count.imagePosts} 个图片)`).join("\n")}
+${popularImageTags.map((tag) => `- [${tag.name}](${baseUrl}/image/tag/${tag.slug}) (${tag._count.imagePosts} 个图片)`).join("\n")}
 `;
     }
 
@@ -274,6 +274,8 @@ ${statsSection}${videoTagsSection}${gameTagsSection}${imageTagsSection}${recentV
 - 图片详情 (${baseUrl}/image/{id}): 单个图片帖子详情
 - 视频标签 (${baseUrl}/video/tag/{slug}): 按标签浏览视频
 - 游戏标签 (${baseUrl}/game/tag/{slug}): 按标签浏览游戏
+- 图片标签 (${baseUrl}/image/tag/{slug}): 按标签浏览图片
+- 标签聚合 (${baseUrl}/tag/{slug}): 查看标签下所有类型内容
 - 用户页 (${baseUrl}/user/{id}): 用户主页和上传内容
 - 友链 (${baseUrl}/links): 友情链接
 - 搜索页 (${baseUrl}/search?q={query}): 搜索内容
