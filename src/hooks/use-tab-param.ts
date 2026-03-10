@@ -10,7 +10,7 @@ import { useState, useCallback } from "react";
 export function useTabParam<T extends string>(
   defaultValue: T,
   key = "tab",
-): [T, (tab: T) => void] {
+): [T, (tab: string) => void] {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -20,8 +20,8 @@ export function useTabParam<T extends string>(
   });
 
   const setTab = useCallback(
-    (newTab: T) => {
-      setTabState(newTab);
+    (newTab: string) => {
+      setTabState(newTab as T);
       const params = new URLSearchParams(window.location.search);
       if (newTab === defaultValue) {
         params.delete(key);
