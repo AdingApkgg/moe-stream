@@ -51,17 +51,17 @@ export function TagsPageClient({
   const clearSearch = useCallback(() => setSearchQuery(""), []);
   const isSearching = searchQuery.length > 0;
 
-  const filterGroups = <T extends TagData>(groups: CategoryGroup<T>[]) => {
+  const filterGroups = useCallback(<T extends TagData>(groups: CategoryGroup<T>[]) => {
     if (!searchQuery) return groups;
     const q = searchQuery.toLowerCase();
     return groups
       .map((g) => ({ ...g, tags: g.tags.filter((t) => t.name.toLowerCase().includes(q)) }))
       .filter((g) => g.tags.length > 0);
-  };
+  }, [searchQuery]);
 
-  const filteredVideoGroups = useMemo(() => filterGroups(videoGroups), [searchQuery, videoGroups]);
-  const filteredGameGroups = useMemo(() => filterGroups(gameGroups), [searchQuery, gameGroups]);
-  const filteredImageGroups = useMemo(() => filterGroups(imageGroups), [searchQuery, imageGroups]);
+  const filteredVideoGroups = useMemo(() => filterGroups(videoGroups), [filterGroups, videoGroups]);
+  const filteredGameGroups = useMemo(() => filterGroups(gameGroups), [filterGroups, gameGroups]);
+  const filteredImageGroups = useMemo(() => filterGroups(imageGroups), [filterGroups, imageGroups]);
 
   const filteredVideoCount = filteredVideoGroups.reduce((s, g) => s + g.tags.length, 0);
   const filteredGameCount = filteredGameGroups.reduce((s, g) => s + g.tags.length, 0);

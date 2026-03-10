@@ -23,6 +23,7 @@ import { ImageBatchUpload } from "./_components/image-batch";
 export default function UploadPage() {
   const { data: session, status } = useSession();
   const { play } = useSound();
+  const config = useSiteConfig();
   const [contentType, setContentType] = useState<UploadContentType>("video");
   const [videoMode, setVideoMode] = useState<"single" | "quick-batch" | "json-import">("single");
   const [gameMode, setGameMode] = useState<"single" | "quick-batch" | "json-import">("single");
@@ -68,7 +69,6 @@ export default function UploadPage() {
     );
   }
 
-  const config = useSiteConfig();
   const contentTypeOptions = [
     { id: "video" as const, label: "视频", icon: FileVideo, description: "上传视频作品" },
     { id: "game" as const, label: "游戏", icon: Gamepad2, description: "上传游戏资源" },

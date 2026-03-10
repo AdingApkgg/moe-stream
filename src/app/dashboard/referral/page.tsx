@@ -1195,10 +1195,6 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
     toast.success("已复制");
   };
 
-  const remainingSeconds = order ? Math.max(0, Math.floor((new Date(order.expiresAt).getTime() - Date.now()) / 1000)) : 0;
-  const remainingMin = Math.floor(remainingSeconds / 60);
-  const remainingSec = remainingSeconds % 60;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -1287,6 +1283,7 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
 
             {qrDataUrl && (
               <div className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qrDataUrl} alt="Payment QR" className="w-48 h-48 rounded-lg border" />
               </div>
             )}
@@ -1355,7 +1352,7 @@ function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setRemaining((prev) => {
+      setRemaining(() => {
         const next = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
         return next;
       });
