@@ -6,6 +6,7 @@ import { getCache, setCache, getOrSet, deleteCache, deleteCacheKeys } from "@/li
 import { submitVideoToIndexNow, submitVideosToIndexNow } from "@/lib/indexnow";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { awardPoints } from "@/lib/points";
+import { createNotification } from "@/lib/notification";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
 
@@ -1165,6 +1166,25 @@ export const videoRouter = router({
 
       await deleteCache(`video:${input.videoId}`);
       const pointsAwarded = await awardPoints(ctx.session.user.id, "LIKE_VIDEO", undefined, input.videoId, { firstTimeOnly: true });
+
+      const video = await ctx.prisma.video.findUnique({
+        where: { id: input.videoId },
+        select: { uploaderId: true, title: true },
+      });
+      if (video && video.uploaderId !== ctx.session.user.id) {
+        const liker = await ctx.prisma.user.findUnique({
+          where: { id: ctx.session.user.id },
+          select: { nickname: true, username: true },
+        });
+        createNotification({
+          userId: video.uploaderId,
+          type: "LIKE",
+          title: "收到点赞",
+          content: `${liker?.nickname || liker?.username || "某用户"} 赞了你的视频「${video.title}」`,
+          data: { videoId: input.videoId },
+        }).catch(() => {});
+      }
+
       return { liked: true, pointsAwarded };
     }),
 
@@ -1282,6 +1302,25 @@ export const videoRouter = router({
 
       await deleteCache(`video:${input.videoId}`);
       const pointsAwarded = await awardPoints(ctx.session.user.id, "FAVORITE_VIDEO", undefined, input.videoId, { firstTimeOnly: true });
+
+      const video = await ctx.prisma.video.findUnique({
+        where: { id: input.videoId },
+        select: { uploaderId: true, title: true },
+      });
+      if (video && video.uploaderId !== ctx.session.user.id) {
+        const user = await ctx.prisma.user.findUnique({
+          where: { id: ctx.session.user.id },
+          select: { nickname: true, username: true },
+        });
+        createNotification({
+          userId: video.uploaderId,
+          type: "FAVORITE",
+          title: "新收藏",
+          content: `${user?.nickname || user?.username || "某用户"} 收藏了你的视频「${video.title}」`,
+          data: { videoId: input.videoId },
+        }).catch(() => {});
+      }
+
       return { favorited: true, pointsAwarded };
     }),
 

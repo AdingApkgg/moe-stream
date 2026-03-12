@@ -212,11 +212,11 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
           input: false,
           fieldName: "emailVerified",
           transform: {
-            input: (value: unknown) => {
+            input: (value) => {
               if (typeof value === "boolean") return value ? new Date() : null;
               return value;
             },
-            output: (value: unknown) => {
+            output: (value) => {
               return value instanceof Date || !!value;
             },
           },

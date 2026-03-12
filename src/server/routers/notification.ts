@@ -1,0 +1,101 @@
+import { z } from "zod";
+import { router, protectedProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
+
+export const notificationRouter = router({
+  list: protectedProcedure
+    .input(
+      z.object({
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(50).default(20),
+        type: z
+          .enum([
+            "COMMENT_REPLY",
+            "LIKE",
+            "FAVORITE",
+            "SYSTEM",
+            "NEW_MESSAGE",
+            "CONTENT_STATUS",
+            "FOLLOW",
+          ])
+          .optional(),
+        unreadOnly: z.boolean().default(false),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { cursor, limit, type, unreadOnly } = input;
+      const userId = ctx.session.user.id;
+
+      const notifications = await ctx.prisma.notification.findMany({
+        where: {
+          userId,
+          ...(type ? { type } : {}),
+          ...(unreadOnly ? { isRead: false } : {}),
+        },
+        take: limit + 1,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        orderBy: { createdAt: "desc" },
+      });
+
+      let nextCursor: string | undefined;
+      if (notifications.length > limit) {
+        const next = notifications.pop();
+        nextCursor = next?.id;
+      }
+
+      return { notifications, nextCursor };
+    }),
+
+  unreadCount: protectedProcedure.query(async ({ ctx }) => {
+    const count = await ctx.prisma.notification.count({
+      where: { userId: ctx.session.user.id, isRead: false },
+    });
+    return count;
+  }),
+
+  markAsRead: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().optional(),
+        all: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      if (input.all) {
+        await ctx.prisma.notification.updateMany({
+          where: { userId, isRead: false },
+          data: { isRead: true },
+        });
+      } else if (input.id) {
+        await ctx.prisma.notification.updateMany({
+          where: { id: input.id, userId },
+          data: { isRead: true },
+        });
+      } else {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Must provide id or set all=true",
+        });
+      }
+
+      return { success: true };
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.notification.deleteMany({
+        where: { id: input.id, userId: ctx.session.user.id },
+      });
+      return { success: true };
+    }),
+
+  deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
+    await ctx.prisma.notification.deleteMany({
+      where: { userId: ctx.session.user.id },
+    });
+    return { success: true };
+  }),
+});

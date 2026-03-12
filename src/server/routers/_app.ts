@@ -15,6 +15,10 @@ import { stickerRouter } from "./sticker";
 import { referralRouter } from "./referral";
 import { redeemRouter } from "./redeem";
 import { paymentRouter } from "./payment";
+import { notificationRouter } from "./notification";
+import { followRouter } from "./follow";
+import { messageRouter } from "./message";
+import { channelRouter } from "./channel";
 
 export const appRouter = router({
   user: userRouter,
@@ -33,6 +37,10 @@ export const appRouter = router({
   referral: referralRouter,
   redeem: redeemRouter,
   payment: paymentRouter,
+  notification: notificationRouter,
+  follow: followRouter,
+  message: messageRouter,
+  channel: channelRouter,
 });
 
 export type AppRouter = typeof appRouter;

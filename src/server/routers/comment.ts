@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { getIpLocation } from "@/lib/ip-location";
 import { parseDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { awardPoints } from "@/lib/points";
+import { createNotification } from "@/lib/notification";
 
 // 邮箱格式验证
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -410,6 +411,32 @@ export const commentRouter = router({
           },
         });
         pointsAwarded = await awardPoints(userId, "COMMENT_VIDEO", undefined, comment.id);
+      }
+
+      // Notification: comment reply
+      const commenterName = comment.user?.nickname || comment.user?.username || guestName || "访客";
+      if (replyToUserId && replyToUserId !== userId) {
+        createNotification({
+          userId: replyToUserId,
+          type: "COMMENT_REPLY",
+          title: "收到回复",
+          content: `${commenterName} 回复了你的评论: ${content.slice(0, 60)}`,
+          data: { videoId, commentId: comment.id },
+        }).catch(() => {});
+      } else if (!replyToUserId) {
+        const videoData = await ctx.prisma.video.findUnique({
+          where: { id: videoId },
+          select: { uploaderId: true },
+        });
+        if (videoData && videoData.uploaderId !== userId) {
+          createNotification({
+            userId: videoData.uploaderId,
+            type: "COMMENT_REPLY",
+            title: "新评论",
+            content: `${commenterName} 评论了你的视频: ${content.slice(0, 60)}`,
+            data: { videoId, commentId: comment.id },
+          }).catch(() => {});
+        }
       }
 
       return {

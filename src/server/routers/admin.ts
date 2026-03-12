@@ -8,6 +8,7 @@ import { parseShortcode } from "@/lib/shortcode-parser";
 import { enqueueCoverForVideo, processVideo, setCoverManually } from "@/lib/cover-auto";
 import { addToQueueBatch, getCoverStats, resetCoverStats, getPermFailedVideos, clearPermFailed, getCoverLogs, clearCoverLogs } from "@/lib/cover-queue";
 import { deleteCache, deleteCachePattern } from "@/lib/redis";
+import { createNotification } from "@/lib/notification";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 import sharp from "sharp";
 import { writeFile, mkdir } from "fs/promises";
@@ -1104,8 +1105,19 @@ export const adminRouter = router({
       const video = await ctx.prisma.video.update({
         where: { id: input.videoId },
         data: { status: input.status },
-        select: { id: true, title: true, status: true },
+        select: { id: true, title: true, status: true, uploaderId: true },
       });
+
+      if (video.uploaderId) {
+        const statusText = input.status === "PUBLISHED" ? "已通过审核" : "未通过审核";
+        createNotification({
+          userId: video.uploaderId,
+          type: "CONTENT_STATUS",
+          title: `视频${statusText}`,
+          content: `你的视频「${video.title}」${statusText}`,
+          data: { videoId: video.id, status: input.status },
+        }).catch(() => {});
+      }
 
       return { success: true, video };
     }),

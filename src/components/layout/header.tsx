@@ -52,6 +52,7 @@ import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/contexts/site-config";
 import { showPointsToast } from "@/lib/toast-with-sound";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -571,6 +572,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
             {/* Sound Toggle */}
             <SoundToggleButton />
+
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {isLoading ? (
               <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />

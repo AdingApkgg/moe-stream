@@ -24,6 +24,10 @@ import {
   Settings,
   Video,
   ChevronRight,
+  UserPlus,
+  UserMinus,
+  Users,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -824,13 +828,15 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
                   </div>
                   <p className="text-muted-foreground">@{displayUser.username}</p>
                 </div>
-                {isOwnProfile && (
+                {isOwnProfile ? (
                   <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
                     <Link href="/settings">
                       <Settings className="h-3.5 w-3.5" />
                       编辑资料
                     </Link>
                   </Button>
+                ) : (
+                  <FollowButton userId={id} />
                 )}
               </div>
 
@@ -889,6 +895,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
           {/* 统计数据 */}
           <div className="flex items-center gap-2 mt-5 pt-5 border-t border-border/50 flex-wrap">
+            <FollowCounts userId={id} />
             <StatItem icon={Video} label="视频" value={displayUser._count.videos} />
             <StatItem icon={Images} label="图片" value={displayUser._count.imagePosts} />
             <StatItem icon={Gamepad2} label="游戏" value={displayUser._count.games} />
@@ -932,5 +939,96 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
         </div>
       </FadeIn>
     </div>
+  );
+}
+
+function FollowButton({ userId }: { userId: string }) {
+  const { data: session } = useSession();
+  const utils = trpc.useUtils();
+
+  const { data: isFollowing, isLoading } = trpc.follow.isFollowing.useQuery(
+    { userId },
+    { enabled: !!session?.user },
+  );
+
+  const followMutation = trpc.follow.follow.useMutation({
+    onSuccess: () => {
+      utils.follow.isFollowing.invalidate({ userId });
+      utils.follow.counts.invalidate({ userId });
+    },
+  });
+
+  const unfollowMutation = trpc.follow.unfollow.useMutation({
+    onSuccess: () => {
+      utils.follow.isFollowing.invalidate({ userId });
+      utils.follow.counts.invalidate({ userId });
+    },
+  });
+
+  if (!session?.user) {
+    return (
+      <Button asChild variant="default" size="sm" className="gap-1.5 shrink-0">
+        <Link href="/login">
+          <UserPlus className="h-3.5 w-3.5" />
+          关注
+        </Link>
+      </Button>
+    );
+  }
+
+  const pending = followMutation.isPending || unfollowMutation.isPending;
+
+  if (isFollowing) {
+    return (
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={pending}
+          onClick={() => unfollowMutation.mutate({ userId })}
+        >
+          <UserMinus className="h-3.5 w-3.5" />
+          已关注
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          asChild
+        >
+          <Link href={`/messages?user=${userId}`}>
+            <MessageSquare className="h-3.5 w-3.5" />
+            私信
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="default"
+      size="sm"
+      className="gap-1.5 shrink-0"
+      disabled={pending || isLoading}
+      onClick={() => followMutation.mutate({ userId })}
+    >
+      <UserPlus className="h-3.5 w-3.5" />
+      关注
+    </Button>
+  );
+}
+
+function FollowCounts({ userId }: { userId: string }) {
+  const { data: counts } = trpc.follow.counts.useQuery({ userId });
+
+  if (!counts) return null;
+
+  return (
+    <>
+      <StatItem icon={Users} label="粉丝" value={counts.followers} />
+      <StatItem icon={Heart} label="关注" value={counts.following} />
+    </>
   );
 }

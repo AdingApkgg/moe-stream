@@ -82,6 +82,7 @@ function serializeVideos(videos: Awaited<ReturnType<typeof getInitialData>>["vid
     duration: video.duration,
     views: video.views,
     createdAt: video.createdAt.toISOString(),
+    extraInfo: video.extraInfo,
     uploader: video.uploader,
     tags: video.tags,
     _count: video._count,
