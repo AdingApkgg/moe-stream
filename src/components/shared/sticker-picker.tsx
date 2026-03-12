@@ -93,6 +93,7 @@ export function StickerPicker({ onSelect }: StickerPickerProps) {
                     className="aspect-square rounded-lg hover:bg-accent transition-colors p-1 flex items-center justify-center"
                     title={sticker.name}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={sticker.imageUrl}
                       alt={sticker.name}

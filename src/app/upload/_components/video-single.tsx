@@ -21,7 +21,7 @@ import { CoverInput } from "./cover-input";
 import type { TagItem } from "../_lib/types";
 import type { VideoExtraInfo } from "@/lib/shortcode-parser";
 import {
-  Download, Eye, EyeOff, FileVideo,
+  Download, Eye, EyeOff,
   Layers, Link2, ListVideo, Loader2, Plus, Trash2, Upload, User,
 } from "lucide-react";
 

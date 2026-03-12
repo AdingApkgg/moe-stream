@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { getSocket, disconnectSocket } from "@/lib/socket-client";
 import { useSocketStore } from "@/stores/socket";
-import type { Socket } from "socket.io-client";
 
-export function useSocket(userId: string | undefined): Socket | null {
-  const socketRef = useRef<Socket | null>(null);
+export function useSocket(userId: string | undefined): void {
   const setConnected = useSocketStore((s) => s.setConnected);
   const addOnlineUser = useSocketStore((s) => s.addOnlineUser);
   const removeOnlineUser = useSocketStore((s) => s.removeOnlineUser);
@@ -15,7 +13,6 @@ export function useSocket(userId: string | undefined): Socket | null {
     if (!userId) return;
 
     const socket = getSocket();
-    socketRef.current = socket;
 
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
@@ -37,6 +34,4 @@ export function useSocket(userId: string | undefined): Socket | null {
       setConnected(false);
     };
   }, [userId, setConnected, addOnlineUser, removeOnlineUser]);
-
-  return socketRef.current;
 }

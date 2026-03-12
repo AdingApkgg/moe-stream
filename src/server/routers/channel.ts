@@ -211,6 +211,17 @@ export const channelRouter = router({
       return { left: true };
     }),
 
+  isMember: protectedProcedure
+    .input(z.object({ channelId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const membership = await ctx.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId: input.channelId, userId } },
+        select: { id: true, role: true },
+      });
+      return { isMember: !!membership, role: membership?.role ?? null };
+    }),
+
   members: publicProcedure
     .input(
       z.object({

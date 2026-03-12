@@ -57,12 +57,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     { enabled: !!channel?.id && showMembers },
   );
 
-  const membership = trpc.channel.members.useQuery(
-    { channelId: channel?.id || "", limit: 1 },
-    { enabled: false },
-  );
-
-  const isMember = trpc.channel.members.useQuery(
+  const { data: membershipData } = trpc.channel.isMember.useQuery(
     { channelId: channel?.id || "" },
     { enabled: !!channel?.id && !!userId },
   );
@@ -71,6 +66,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     onSuccess: () => {
       utils.channel.list.invalidate();
       utils.channel.members.invalidate();
+      utils.channel.isMember.invalidate();
     },
   });
 
@@ -78,6 +74,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     onSuccess: () => {
       utils.channel.list.invalidate();
       utils.channel.members.invalidate();
+      utils.channel.isMember.invalidate();
     },
   });
 
@@ -89,13 +86,13 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     },
   });
 
-  const markRead = trpc.channel.markRead.useMutation();
+  const { mutate: markReadMutate } = trpc.channel.markRead.useMutation();
 
   useEffect(() => {
     if (channel?.id) {
-      markRead.mutate({ channelId: channel.id });
+      markReadMutate({ channelId: channel.id });
     }
-  }, [channel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [channel?.id, markReadMutate]);
 
   useEffect(() => {
     if (!connected || !channel?.id) return;
@@ -104,7 +101,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
 
     const handleNewMessage = () => {
       utils.channel.messages.invalidate({ channelId: channel.id });
-      markRead.mutate({ channelId: channel.id });
+      markReadMutate({ channelId: channel.id });
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     };
 
@@ -120,7 +117,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
       socket.off("channel:message:new", handleNewMessage);
       socket.off("channel:message:deleted", handleDeletedMessage);
     };
-  }, [connected, channel?.id, utils, markRead]);
+  }, [connected, channel?.id, utils, markReadMutate]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -169,7 +166,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
 
   const allMessages = messagesData?.pages.flatMap((p) => p.messages).reverse() ?? [];
   const membersList = membersData?.members ?? [];
-  const userIsMember = isMember.data?.members?.some((m) => m.userId === userId);
+  const userIsMember = membershipData?.isMember ?? false;
 
   return (
     <div className="mx-auto max-w-5xl px-0 md:px-4 py-0 md:py-6">
@@ -273,6 +270,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                           <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                         )}
                         {msg.type === "IMAGE" && (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={(msg.metadata as Record<string, string>)?.fileUrl || msg.content || ""}
                             alt="图片"
@@ -280,6 +278,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                           />
                         )}
                         {msg.type === "STICKER" && (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={(msg.metadata as Record<string, string>)?.stickerUrl || ""}
                             alt="表情"

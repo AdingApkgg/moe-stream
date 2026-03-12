@@ -100,6 +100,7 @@ export function ChatFileUpload({ onUpload }: ChatFileUploadProps) {
 
       {preview && (
         <div className="relative inline-block mb-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="预览" className="h-20 rounded-lg" />
           <button
             type="button"

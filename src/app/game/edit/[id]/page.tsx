@@ -38,7 +38,6 @@ import {
   Search,
   Download,
   Save,
-  Gamepad2,
   Trash2,
   Monitor,
   Link2,

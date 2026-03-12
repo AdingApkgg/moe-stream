@@ -12,11 +12,6 @@ import { Button } from "@/components/ui/button";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
-interface ReadReceiptEvent {
-  conversationId: string;
-  userId: string;
-}
-
 dayjs.locale("zh-cn");
 
 interface MessageThreadProps {
@@ -66,7 +61,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
       utils.message.messages.invalidate({ conversationId });
     };
 
-    const handleReadReceipt = (_data: ReadReceiptEvent) => {
+    const handleReadReceipt = () => {
       utils.message.messages.invalidate({ conversationId });
     };
 
@@ -146,6 +141,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
               >
                 {msg.type === "TEXT" && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
                 {msg.type === "IMAGE" && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={(msg.metadata as Record<string, string>)?.fileUrl || msg.content || ""}
                     alt="图片"
@@ -153,6 +149,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
                   />
                 )}
                 {msg.type === "STICKER" && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={(msg.metadata as Record<string, string>)?.stickerUrl || ""}
                     alt="表情"
