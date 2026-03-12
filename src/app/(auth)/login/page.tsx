@@ -67,9 +67,21 @@ function LoginForm() {
     const messages: Record<string, string> = {
       OAuthCallbackError: "OAuth 回调过程中发生异常，请重试",
       auth_error: "认证过程中发生异常，请重试",
+      internal_server_error: "服务器内部错误，请稍后重试",
+      unable_to_create_user: "无法创建账号，请稍后重试",
+      unable_to_create_session: "创建会话失败，请重试",
+      "account_not_linked": "该邮箱已注册但未绑定此第三方账号",
       "email_doesn't_match": "第三方账号邮箱与当前账号不一致",
+      email_not_found: "第三方账号未提供邮箱，无法登录",
       state_mismatch: "登录状态已过期，请重试",
+      state_not_found: "登录状态丢失，请重试",
+      invalid_code: "授权码无效或已过期，请重试",
       unable_to_link_account: "无法绑定第三方账号",
+      account_already_linked_to_different_user: "该第三方账号已绑定到其他用户",
+      oauth_provider_not_found: "OAuth 提供商配置错误",
+      unable_to_get_user_info: "无法获取第三方账号信息",
+      signup_disabled: "当前不允许新用户通过第三方登录注册",
+      no_callback_url: "回调地址丢失，请重试",
     };
     toast.error("登录失败", {
       description: messages[errorCode] || `发生错误 (${errorCode})`,

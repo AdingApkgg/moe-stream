@@ -241,7 +241,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
     verification: { modelName: "verification" },
     pages: { signIn: "/login" },
     onAPIError: {
-      errorURL: "/login?error=auth_error",
+      errorURL: "/login",
     },
     advanced: { database: { generateId: false } },
   });

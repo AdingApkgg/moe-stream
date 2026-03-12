@@ -94,8 +94,15 @@ async function handler(req: Request) {
 
     const url = new URL(req.url);
     const callbackMatch = url.pathname.match(OAUTH_CALLBACK_RE);
-    if (callbackMatch && response.status >= 300 && response.status < 400) {
-      recordLoginSessionInBackground(req, response);
+    if (callbackMatch) {
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location") || "";
+        if (location.includes("error=")) {
+          console.error(`[auth] OAuth callback error redirect: ${location}`);
+        } else {
+          recordLoginSessionInBackground(req, response);
+        }
+      }
     }
 
     return response;
