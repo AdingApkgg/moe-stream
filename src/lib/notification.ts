@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { socketEmitter } from "./socket-emitter";
-import type { NotificationType } from "@/generated/prisma/client";
+import type { NotificationType, Prisma } from "@/generated/prisma/client";
 
 interface CreateNotificationParams {
   userId: string;
@@ -17,7 +17,7 @@ export async function createNotification(params: CreateNotificationParams) {
       type: params.type,
       title: params.title,
       content: params.content,
-      data: params.data,
+      data: (params.data ?? undefined) as Prisma.InputJsonValue | undefined,
     },
   });
 
@@ -41,7 +41,7 @@ export async function createBulkNotifications(
           type: n.type,
           title: n.title,
           content: n.content,
-          data: n.data,
+          data: (n.data ?? undefined) as Prisma.InputJsonValue | undefined,
         },
       }),
     ),

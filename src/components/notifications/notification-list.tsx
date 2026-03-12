@@ -90,7 +90,7 @@ export function NotificationList({ compact, onNavigate }: NotificationListProps)
       )}
       <div className="divide-y">
         {notifications.map((n) => (
-          <NotificationItem key={n.id} notification={n} onNavigate={onNavigate} />
+          <NotificationItem key={n.id} notification={n as Parameters<typeof NotificationItem>[0]["notification"]} onNavigate={onNavigate} />
         ))}
       </div>
       {!compact && hasNextPage && (

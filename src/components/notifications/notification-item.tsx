@@ -25,12 +25,13 @@ interface NotificationData {
   type: NotificationType;
   title: string;
   content: string | null;
-  data: Record<string, unknown> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
   isRead: boolean;
   createdAt: Date;
 }
 
-const typeIcons: Record<NotificationType, React.ElementType> = {
+const typeIcons: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   COMMENT_REPLY: MessageSquare,
   LIKE: Heart,
   FAVORITE: Star,
@@ -96,8 +97,8 @@ export function NotificationItem({ notification, onNavigate }: NotificationItemP
     },
   });
 
-  const Icon = typeIcons[notification.type] || Megaphone;
-  const color = typeColors[notification.type] || "text-muted-foreground";
+  const Icon = typeIcons[notification.type] ?? Megaphone;
+  const color: string = typeColors[notification.type] ?? "text-muted-foreground";
   const url = getNotificationUrl(notification);
 
   const handleClick = () => {

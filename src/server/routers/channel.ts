@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { type Prisma } from "@/generated/prisma/client";
 import { socketEmitter } from "@/lib/socket-emitter";
 
 export const channelRouter = router({
@@ -332,7 +333,7 @@ export const channelRouter = router({
         channelId: z.string(),
         content: z.string().optional(),
         type: z.enum(["TEXT", "IMAGE", "FILE", "STICKER"]).default("TEXT"),
-        metadata: z.record(z.unknown()).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
         replyToId: z.string().optional(),
       }),
     )
@@ -356,7 +357,7 @@ export const channelRouter = router({
           senderId: userId,
           content: input.content,
           type: input.type,
-          metadata: input.metadata,
+          metadata: input.metadata as Prisma.InputJsonValue | undefined,
           replyToId: input.replyToId,
         },
         include: {

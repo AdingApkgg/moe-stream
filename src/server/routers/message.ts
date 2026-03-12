@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { type Prisma } from "@/generated/prisma/client";
 import { socketEmitter } from "@/lib/socket-emitter";
 import { createNotification } from "@/lib/notification";
 
@@ -175,7 +176,7 @@ export const messageRouter = router({
         conversationId: z.string(),
         content: z.string().optional(),
         type: z.enum(["TEXT", "IMAGE", "FILE", "STICKER"]).default("TEXT"),
-        metadata: z.record(z.unknown()).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -200,7 +201,7 @@ export const messageRouter = router({
           senderId: userId,
           content: input.content,
           type: input.type,
-          metadata: input.metadata,
+          metadata: input.metadata as Prisma.InputJsonValue | undefined,
         },
         include: {
           sender: {
@@ -230,7 +231,11 @@ export const messageRouter = router({
         select: { userId: true },
       });
 
-      const senderName = message.sender.nickname || message.sender.username || "某用户";
+      const senderUser = await ctx.prisma.user.findUnique({
+        where: { id: userId },
+        select: { nickname: true, username: true },
+      });
+      const senderName = senderUser?.nickname || senderUser?.username || "某用户";
       for (const p of otherParticipants) {
         socketEmitter
           .to(`user:${p.userId}`)
