@@ -232,6 +232,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       },
       accountLinking: {
         enabled: true,
+        allowDifferentEmails: true,
         trustedProviders: OAUTH_PROVIDER_KEYS.map(
           (k) => k.toLowerCase(),
         ) as Array<Lowercase<OAuthProviderKey>>,
@@ -240,6 +241,9 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
 
     verification: { modelName: "verification" },
     pages: { signIn: "/login" },
+    onAPIError: {
+      errorURL: "/login?error=auth_error",
+    },
     advanced: { database: { generateId: false } },
   });
 }

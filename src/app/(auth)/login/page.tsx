@@ -62,10 +62,18 @@ function LoginForm() {
   }, []);
 
   useEffect(() => {
-    const oauthError = searchParams.get("error");
-    if (oauthError === "OAuthCallbackError") {
-      toast.error("第三方登录失败", { description: "OAuth 回调过程中发生异常，请重试" });
-    }
+    const errorCode = searchParams.get("error");
+    if (!errorCode) return;
+    const messages: Record<string, string> = {
+      OAuthCallbackError: "OAuth 回调过程中发生异常，请重试",
+      auth_error: "认证过程中发生异常，请重试",
+      "email_doesn't_match": "第三方账号邮箱与当前账号不一致",
+      state_mismatch: "登录状态已过期，请重试",
+      unable_to_link_account: "无法绑定第三方账号",
+    };
+    toast.error("登录失败", {
+      description: messages[errorCode] || `发生错误 (${errorCode})`,
+    });
   }, [searchParams]);
 
   useEffect(() => {

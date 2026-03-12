@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,8 +48,18 @@ function normalizeAccounts(raw: unknown[]): LinkedAccount[] {
   });
 }
 
+const LINK_ERROR_MESSAGES: Record<string, string> = {
+  "email_doesn't_match": "第三方账号邮箱与当前账号邮箱不一致",
+  "account_already_linked_to_different_user": "该第三方账号已被其他用户绑定",
+  "unable_to_link_account": "无法绑定该第三方账号",
+  "state_mismatch": "登录状态已过期，请重试",
+  "please_restart_the_process": "操作超时，请重试",
+};
+
 function OAuthAccountSection() {
   const siteConfig = useSiteConfig();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -60,6 +70,16 @@ function OAuthAccountSection() {
       if (linkTimeoutRef.current) clearTimeout(linkTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const linkError = searchParams.get("link_error");
+    const errorCode = searchParams.get("error");
+    if (linkError && errorCode) {
+      const msg = LINK_ERROR_MESSAGES[errorCode] || `绑定失败 (${errorCode})`;
+      toast.error("第三方账号绑定失败", { description: msg });
+      router.replace("/settings/account");
+    }
+  }, [searchParams, router]);
 
   const availableProviders = (siteConfig?.oauthProviders ?? []).filter(
     (p): p is OAuthProvider => p in PROVIDER_CONFIG,
@@ -106,10 +126,11 @@ function OAuthAccountSection() {
     }, 15_000);
 
     try {
-      const callbackURL = `${window.location.origin}/settings/account`;
+      const base = `${window.location.origin}/settings/account`;
       const result = await authClient.linkSocial({
         provider,
-        callbackURL,
+        callbackURL: base,
+        errorCallbackURL: `${base}?link_error=1`,
       });
       if (result?.error) {
         console.error("[settings] linkSocial error:", result.error);
