@@ -200,12 +200,13 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
 
   const availableTabs = useMemo(() => {
     const tabs: { value: string; label: string; shortLabel: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [];
-    if (descriptionContent) tabs.push({ value: "intro", label: "游戏介绍", shortLabel: "介绍", icon: Gamepad2 });
     if (hasScreenshots) tabs.push({ value: "screenshots", label: "游戏截图", shortLabel: "截图", icon: ImageIcon, count: imageUrls.length });
+    if (descriptionContent) tabs.push({ value: "intro", label: "游戏介绍", shortLabel: "介绍", icon: Gamepad2 });
     if (hasVideos) tabs.push({ value: "videos", label: "PV 鉴赏", shortLabel: "PV", icon: Play, count: videoUrls.length });
     if (characterIntroContent) tabs.push({ value: "characters", label: "角色介绍", shortLabel: "角色", icon: Users });
+    if (relatedGames && relatedGames.length > 0) tabs.push({ value: "related", label: "相关推荐", shortLabel: "推荐", icon: Tag, count: relatedGames.length });
     return tabs;
-  }, [descriptionContent, hasScreenshots, hasVideos, characterIntroContent, imageUrls.length, videoUrls.length]);
+  }, [descriptionContent, hasScreenshots, hasVideos, characterIntroContent, imageUrls.length, videoUrls.length, relatedGames]);
 
   const defaultTab = availableTabs[0]?.value ?? "intro";
 
@@ -710,6 +711,21 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       </Card>
                     </TabsContent>
                   )}
+
+                  {/* 相关推荐 */}
+                  {relatedGames && relatedGames.length > 0 && (
+                    <TabsContent value="related">
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                        {relatedGames.map((game: { id: string; title: string; description?: string | null; coverUrl?: string | null; gameType?: string | null; isFree: boolean; version?: string | null; views: number; createdAt: Date; extraInfo?: unknown; uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null }; tags?: { tag: { id: string; name: string; slug: string } }[]; _count: { likes: number; dislikes?: number; favorites?: number } }, index: number) => (
+                          <GameCard
+                            key={game.id}
+                            game={{ ...game, createdAt: game.createdAt.toString() }}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                    </TabsContent>
+                  )}
                 </Tabs>
               </FadeIn>
             )}
@@ -724,24 +740,6 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       {descriptionContent}
                     </CardContent>
                   </Card>
-                </section>
-              </FadeIn>
-            )}
-
-            {/* 相关推荐 */}
-            {relatedGames && relatedGames.length > 0 && (
-              <FadeIn delay={0.3}>
-                <section className="mb-4 sm:mb-6">
-                  <SectionTitle icon={Tag}>相关推荐</SectionTitle>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                    {relatedGames.map((game: { id: string; title: string; description?: string | null; coverUrl?: string | null; gameType?: string | null; isFree: boolean; version?: string | null; views: number; createdAt: Date; extraInfo?: unknown; uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null }; tags?: { tag: { id: string; name: string; slug: string } }[]; _count: { likes: number; dislikes?: number; favorites?: number } }, index: number) => (
-                      <GameCard
-                        key={game.id}
-                        game={{ ...game, createdAt: game.createdAt.toString() }}
-                        index={index}
-                      />
-                    ))}
-                  </div>
                 </section>
               </FadeIn>
             )}

@@ -8,21 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MdxEditor } from "@/components/ui/mdx-editor";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
-import { GAME_TYPES } from "@/lib/constants";
+import { GAME_TYPES, GAME_PLATFORMS } from "@/lib/constants";
 import { gameUploadSchema, type GameUploadForm } from "../_lib/schemas";
 import { TagPicker } from "./tag-picker";
 import { CoverInput } from "./cover-input";
 import type { TagItem } from "../_lib/types";
 import {
   Download, FileVideo, Gamepad2, Image as ImageIcon,
-  Info, Link2, Loader2, Plus, Trash2,
+  Link2, Loader2, Monitor, Plus, Trash2,
 } from "lucide-react";
 
 export function GameSingleUpload() {
@@ -45,7 +46,7 @@ export function GameSingleUpload() {
     defaultValues: {
       title: "", description: "", coverUrl: "", gameType: "",
       isFree: true, version: "", originalName: "", originalAuthor: "",
-      originalAuthorUrl: "", fileSize: "", platforms: "",
+      originalAuthorUrl: "", fileSize: "", platforms: [],
     },
   });
 
@@ -65,7 +66,7 @@ export function GameSingleUpload() {
       if (data.originalAuthor) extraInfo.originalAuthor = data.originalAuthor;
       if (data.originalAuthorUrl) extraInfo.originalAuthorUrl = data.originalAuthorUrl;
       if (data.fileSize) extraInfo.fileSize = data.fileSize;
-      if (data.platforms) extraInfo.platforms = data.platforms.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      if (data.platforms && data.platforms.length > 0) extraInfo.platforms = data.platforms;
       const validScreenshots = screenshots.filter(s => s.trim());
       if (validScreenshots.length > 0) extraInfo.screenshots = validScreenshots;
       const validVideos = videos.filter(s => s.trim());
@@ -96,18 +97,11 @@ export function GameSingleUpload() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 左侧 */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* 基本信息 */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+          {/* 左侧主内容 */}
+          <div className="space-y-6 min-w-0">
             <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Gamepad2 className="h-5 w-5" />
-                  游戏基本信息
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem>
                     <FormLabel>游戏标题 *</FormLabel>
@@ -116,7 +110,7 @@ export function GameSingleUpload() {
                   </FormItem>
                 )} />
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <FormField control={form.control} name="gameType" render={({ field }) => (
                     <FormItem>
                       <FormLabel>游戏类型</FormLabel>
@@ -148,14 +142,14 @@ export function GameSingleUpload() {
 
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>游戏介绍（支持 Markdown / MDX）</FormLabel>
+                    <FormLabel>游戏介绍</FormLabel>
                     <FormControl>
                       <MdxEditor
                         value={field.value || ""}
                         onChange={field.onChange}
                         placeholder="游戏介绍，支持 Markdown 语法..."
                         maxLength={5000}
-                        minHeight="150px"
+                        minHeight="160px"
                       />
                     </FormControl>
                     <FormMessage />
@@ -164,26 +158,9 @@ export function GameSingleUpload() {
               </CardContent>
             </Card>
 
-            {/* 标签 */}
-            <TagPicker
-              allTags={allTags}
-              selectedTags={selectedTags}
-              newTags={newTags}
-              onToggleTag={toggleTag}
-              onAddNewTag={(name) => setNewTags([...newTags, name])}
-              onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
-            />
-
-            {/* 扩展信息 */}
+            {/* 扩展信息 Tabs */}
             <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Info className="h-5 w-5" />
-                  扩展信息
-                </CardTitle>
-                <CardDescription>原作信息、截图、下载链接等（可选）</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <Tabs defaultValue="origin" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="origin" className="text-xs">原作信息</TabsTrigger>
@@ -193,7 +170,7 @@ export function GameSingleUpload() {
                   </TabsList>
 
                   <TabsContent value="origin" className="space-y-4 mt-4">
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <FormField control={form.control} name="originalName" render={({ field }) => (
                         <FormItem><FormLabel>原作名称</FormLabel><FormControl><Input placeholder="游戏原名（日/英文）" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
@@ -210,12 +187,37 @@ export function GameSingleUpload() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <FormField control={form.control} name="fileSize" render={({ field }) => (
                         <FormItem><FormLabel>文件大小</FormLabel><FormControl><Input placeholder="如：2.5GB" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="platforms" render={({ field }) => (
-                        <FormItem><FormLabel>支持平台</FormLabel><FormControl><Input placeholder="Windows, Mac, Android（逗号分隔）" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1"><Monitor className="h-3.5 w-3.5" />支持平台</FormLabel>
+                          <FormControl>
+                            <div className="flex flex-wrap gap-1.5">
+                              {GAME_PLATFORMS.map((p) => {
+                                const selected = field.value?.includes(p) ?? false;
+                                return (
+                                  <Badge
+                                    key={p}
+                                    variant={selected ? "default" : "outline"}
+                                    className="cursor-pointer select-none transition-colors"
+                                    onClick={() => {
+                                      const next = selected
+                                        ? (field.value ?? []).filter((v: string) => v !== p)
+                                        : [...(field.value ?? []), p];
+                                      field.onChange(next);
+                                    }}
+                                  >
+                                    {p}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )} />
                     </div>
                   </TabsContent>
@@ -263,7 +265,7 @@ export function GameSingleUpload() {
                     </div>
                     {downloads.map((dl, i) => (
                       <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                        <div className="flex-1 grid gap-2 md:grid-cols-3">
+                        <div className="flex-1 grid gap-2 sm:grid-cols-3">
                           <Input placeholder="网盘名称" value={dl.name} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], name: e.target.value }; setDownloads(u); }} />
                           <Input placeholder="下载链接" value={dl.url} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], url: e.target.value }; setDownloads(u); }} />
                           <Input placeholder="提取码（可选）" value={dl.password || ""} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], password: e.target.value }; setDownloads(u); }} />
@@ -278,12 +280,28 @@ export function GameSingleUpload() {
             </Card>
           </div>
 
-          {/* 右侧 */}
-          <div className="space-y-6">
-            <CoverInput form={form} watchValue={gameCoverUrl} />
+          {/* 右侧边栏 */}
+          <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">封面</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CoverInput form={form} watchValue={gameCoverUrl} />
+              </CardContent>
+            </Card>
 
-            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading} size="lg">
-              {isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</> : <><Gamepad2 className="mr-2 h-5 w-5" />发布游戏</>}
+            <TagPicker
+              allTags={allTags}
+              selectedTags={selectedTags}
+              newTags={newTags}
+              onToggleTag={toggleTag}
+              onAddNewTag={(name) => setNewTags([...newTags, name])}
+              onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
+            />
+
+            <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
+              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</> : <><Gamepad2 className="mr-2 h-4 w-4" />发布游戏</>}
             </Button>
           </div>
         </div>

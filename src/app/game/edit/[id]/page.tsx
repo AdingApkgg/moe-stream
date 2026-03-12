@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { trpc } from "@/lib/trpc";
-import { GAME_TYPES } from "@/lib/constants";
+import { GAME_TYPES, GAME_PLATFORMS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,14 +35,13 @@ import {
   X,
   Image as ImageIcon,
   FileVideo,
-  Tag,
-  Info,
   Search,
   Download,
   Save,
   Gamepad2,
   Trash2,
   Monitor,
+  Link2,
 } from "lucide-react";
 import {
   Select,
@@ -77,13 +76,11 @@ export default function EditGamePage({ params }: Props) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Tags
   const [selectedTags, setSelectedTags] = useState<{ id: string; name: string }[]>([]);
   const [newTags, setNewTags] = useState<string[]>([]);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
 
-  // Extra info fields
   const [screenshots, setScreenshots] = useState<string[]>([""]);
   const [videos, setVideos] = useState<string[]>([""]);
   const [downloads, setDownloads] = useState<{ name: string; url: string; password?: string }[]>([]);
@@ -92,7 +89,6 @@ export default function EditGamePage({ params }: Props) {
   const [originalAuthorUrl, setOriginalAuthorUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [platforms, setPlatforms] = useState<string[]>([]);
-  const [platformInput, setPlatformInput] = useState("");
 
   const { data: game, isLoading: gameLoading } = trpc.admin.getGameForEdit.useQuery(
     { id },
@@ -125,7 +121,6 @@ export default function EditGamePage({ params }: Props) {
 
   const coverUrl = form.watch("coverUrl");
 
-  // Load game data into form
   useEffect(() => {
     if (!game) return;
     form.reset({
@@ -137,14 +132,12 @@ export default function EditGamePage({ params }: Props) {
       isFree: game.isFree,
     });
 
-    // Tags
     const gameTags = game.tags?.map((t: { tag: { id: string; name: string } }) => ({
       id: t.tag.id,
       name: t.tag.name,
     })) || [];
     setSelectedTags(gameTags);
 
-    // Extra info
     const extra = (game.extraInfo || {}) as Record<string, unknown>;
     setScreenshots((extra.screenshots as string[]) || [""]);
     setVideos((extra.videos as string[]) || [""]);
@@ -156,7 +149,6 @@ export default function EditGamePage({ params }: Props) {
     setPlatforms((extra.platforms as string[]) || []);
   }, [game, form]);
 
-  // Filter tags
   const filteredTags = allTags?.filter((tag: { id: string; name: string }) => {
     if (!tagSearch.trim()) return true;
     return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
@@ -185,17 +177,9 @@ export default function EditGamePage({ params }: Props) {
     setNewTagInput("");
   };
 
-  const handleAddPlatform = () => {
-    const p = platformInput.trim();
-    if (!p || platforms.includes(p)) return;
-    setPlatforms([...platforms, p]);
-    setPlatformInput("");
-  };
-
   const onSubmit = async (data: EditForm) => {
     setIsSubmitting(true);
     try {
-      // Build extraInfo
       const extraInfo: Record<string, unknown> = {};
       const validScreenshots = screenshots.filter((s) => s.trim());
       const validVideos = videos.filter((v) => v.trim());
@@ -227,7 +211,6 @@ export default function EditGamePage({ params }: Props) {
     }
   };
 
-  // Auth redirect
   if (!authLoading && !session) {
     router.replace(`/login?callbackUrl=/game/edit/${id}`);
     return null;
@@ -235,7 +218,7 @@ export default function EditGamePage({ params }: Props) {
 
   if (gameLoading || authLoading) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 px-4 space-y-6">
+      <div className="container max-w-5xl mx-auto py-8 px-4 space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-[400px] rounded-xl" />
       </div>
@@ -244,16 +227,16 @@ export default function EditGamePage({ params }: Props) {
 
   if (!game) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 px-4 text-center text-muted-foreground">
+      <div className="container max-w-5xl mx-auto py-8 px-4 text-center text-muted-foreground">
         游戏不存在
       </div>
     );
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4 space-y-6">
+    <div className="container max-w-5xl mx-auto py-8 px-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href={`/game/${id}`}>
             <ArrowLeft className="h-5 w-5" />
@@ -266,33 +249,10 @@ export default function EditGamePage({ params }: Props) {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="basic" className="gap-1 text-xs sm:text-sm">
-                <Gamepad2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">基本信息</span>
-              </TabsTrigger>
-              <TabsTrigger value="tags" className="gap-1 text-xs sm:text-sm">
-                <Tag className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">标签</span>
-              </TabsTrigger>
-              <TabsTrigger value="media" className="gap-1 text-xs sm:text-sm">
-                <ImageIcon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">媒体</span>
-              </TabsTrigger>
-              <TabsTrigger value="downloads" className="gap-1 text-xs sm:text-sm">
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">下载</span>
-              </TabsTrigger>
-              <TabsTrigger value="extra" className="gap-1 text-xs sm:text-sm">
-                <Info className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">扩展</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Basic Info */}
-            <TabsContent value="basic" className="space-y-4 mt-4">
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+            {/* 左侧主内容 */}
+            <div className="space-y-6 min-w-0">
               <Card>
                 <CardContent className="pt-6 space-y-4">
                   <FormField
@@ -302,34 +262,14 @@ export default function EditGamePage({ params }: Props) {
                       <FormItem>
                         <FormLabel>标题 *</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="游戏标题" />
+                          <Input {...field} placeholder="游戏标题" className="text-base" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>描述（支持 Markdown / MDX）</FormLabel>
-                        <FormControl>
-                          <MdxEditor
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            placeholder="游戏描述，支持 Markdown 语法..."
-                            maxLength={10000}
-                            minHeight="200px"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <FormField
                       control={form.control}
                       name="gameType"
@@ -344,9 +284,7 @@ export default function EditGamePage({ params }: Props) {
                             </FormControl>
                             <SelectContent>
                               {GAME_TYPES.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -360,11 +298,24 @@ export default function EditGamePage({ params }: Props) {
                       name="version"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>版本</FormLabel>
+                          <FormLabel>版本号</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="例如：Ver1.0.3" />
+                            <Input {...field} placeholder="Ver1.0.0" />
                           </FormControl>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="isFree"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5"><FormLabel>免费游戏</FormLabel></div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
                         </FormItem>
                       )}
                     />
@@ -372,91 +323,215 @@ export default function EditGamePage({ params }: Props) {
 
                   <FormField
                     control={form.control}
-                    name="isFree"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-3">
-                        <FormLabel className="mt-0">免费游戏</FormLabel>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="coverUrl"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>封面图片</FormLabel>
+                        <FormLabel>游戏介绍</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="https://..." />
+                          <MdxEditor
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="游戏介绍，支持 Markdown 语法..."
+                            maxLength={10000}
+                            minHeight="160px"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </CardContent>
+              </Card>
 
+              {/* 扩展信息 Tabs */}
+              <Card>
+                <CardContent className="pt-6">
+                  <Tabs defaultValue="origin" className="w-full">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="origin" className="text-xs">原作信息</TabsTrigger>
+                      <TabsTrigger value="screenshots" className="text-xs">游戏截图</TabsTrigger>
+                      <TabsTrigger value="videos" className="text-xs">游戏视频</TabsTrigger>
+                      <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="origin" className="space-y-4 mt-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">原作名称</label>
+                          <Input value={originalName} onChange={(e) => setOriginalName(e.target.value)} placeholder="游戏原名（日/英文）" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">原作作者</label>
+                          <Input value={originalAuthor} onChange={(e) => setOriginalAuthor(e.target.value)} placeholder="开发者/社团名称" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">原作链接</label>
+                        <div className="relative">
+                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input value={originalAuthorUrl} onChange={(e) => setOriginalAuthorUrl(e.target.value)} placeholder="https://..." className="pl-9" />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">文件大小</label>
+                          <Input value={fileSize} onChange={(e) => setFileSize(e.target.value)} placeholder="如：2.5GB" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium flex items-center gap-1">
+                            <Monitor className="h-3.5 w-3.5" />支持平台
+                          </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {GAME_PLATFORMS.map((p) => (
+                              <Badge
+                                key={p}
+                                variant={platforms.includes(p) ? "default" : "outline"}
+                                className="cursor-pointer select-none transition-colors"
+                                onClick={() => {
+                                  if (platforms.includes(p)) {
+                                    setPlatforms(platforms.filter((x) => x !== p));
+                                  } else {
+                                    setPlatforms([...platforms, p]);
+                                  }
+                                }}
+                              >
+                                {p}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="screenshots" className="space-y-4 mt-4">
+                      <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />截图链接</FormLabel>
+                      <Textarea
+                        value={screenshots.filter(Boolean).join("\n")}
+                        onChange={(e) => setScreenshots(e.target.value.split("\n"))}
+                        placeholder={"每行一个截图链接，例如：\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"}
+                        className="min-h-[100px] font-mono text-xs"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        每行一个 URL，已识别 {screenshots.filter(s => s.trim()).length} 张截图
+                      </p>
+                      {screenshots.some(s => s.trim()) && (
+                        <div className="flex gap-2 flex-wrap">
+                          {screenshots.filter(s => s.trim()).map((url, i) => (
+                            <div key={i} className="w-24 h-16 rounded border overflow-hidden bg-muted">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt={`截图 ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="videos" className="space-y-4 mt-4">
+                      <FormLabel className="flex items-center gap-2"><FileVideo className="h-4 w-4" />视频链接</FormLabel>
+                      <Textarea
+                        value={videos.filter(Boolean).join("\n")}
+                        onChange={(e) => setVideos(e.target.value.split("\n"))}
+                        placeholder={"每行一个视频链接，支持 mp4、webm、m3u8\nhttps://example.com/preview.mp4"}
+                        className="min-h-[80px] font-mono text-xs"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        每行一个 URL，已识别 {videos.filter(s => s.trim()).length} 个视频
+                      </p>
+                    </TabsContent>
+
+                    <TabsContent value="downloads" className="space-y-4 mt-4">
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="flex items-center gap-2"><Download className="h-4 w-4" />下载链接</FormLabel>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setDownloads([...downloads, { name: "", url: "" }])}>
+                          <Plus className="h-4 w-4 mr-1" />添加链接
+                        </Button>
+                      </div>
+                      {downloads.map((dl, i) => (
+                        <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
+                          <div className="flex-1 grid gap-2 sm:grid-cols-3">
+                            <Input placeholder="网盘名称" value={dl.name} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], name: e.target.value }; setDownloads(u); }} />
+                            <Input placeholder="下载链接" value={dl.url} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], url: e.target.value }; setDownloads(u); }} />
+                            <Input placeholder="提取码（可选）" value={dl.password || ""} onChange={(e) => { const u = [...downloads]; u[i] = { ...u[i], password: e.target.value || undefined }; setDownloads(u); }} />
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setDownloads(downloads.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      ))}
+                      {downloads.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">暂无下载链接，点击上方按钮添加</p>}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 右侧边栏 */}
+            <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+              {/* 封面 */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">封面</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <FormField
+                    control={form.control}
+                    name="coverUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} placeholder="封面图片链接" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   {coverUrl && (
-                    <div className="rounded-lg overflow-hidden border bg-muted max-w-xs">
+                    <div className="rounded-lg overflow-hidden border bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={coverUrl} alt="封面预览" className="w-full h-auto" />
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Tags */}
-            <TabsContent value="tags" className="space-y-4 mt-4">
+              {/* 标签 */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">标签管理</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">标签</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Selected tags */}
-                  <div className="flex flex-wrap gap-2">
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
                     {selectedTags.map((tag) => (
-                      <Badge key={tag.id} variant="secondary" className="gap-1">
+                      <Badge key={tag.id} variant="secondary" className="gap-1 text-xs">
                         {tag.name}
                         <X className="h-3 w-3 cursor-pointer" onClick={() => toggleTag(tag)} />
                       </Badge>
                     ))}
                     {newTags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="gap-1">
+                      <Badge key={tag} variant="outline" className="gap-1 text-xs">
                         {tag} (新)
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => setNewTags(newTags.filter((t) => t !== tag))}
-                        />
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => setNewTags(newTags.filter((t) => t !== tag))} />
                       </Badge>
                     ))}
-                    {selectedTags.length + newTags.length === 0 && (
-                      <span className="text-sm text-muted-foreground">未选择标签</span>
-                    )}
                   </div>
 
-                  {/* Search */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
                       placeholder="搜索标签..."
                       value={tagSearch}
                       onChange={(e) => setTagSearch(e.target.value)}
-                      className="pl-10"
+                      className="pl-8 h-8 text-xs"
                     />
                   </div>
 
-                  {/* Tag list */}
-                  <ScrollArea className="max-h-[200px]">
-                    <div className="flex flex-wrap gap-2">
+                  <ScrollArea className="max-h-[120px]">
+                    <div className="flex flex-wrap gap-1.5">
                       {filteredTags.map((tag: { id: string; name: string }) => {
                         const isSelected = selectedTags.some((t) => t.id === tag.id);
                         return (
                           <Badge
                             key={tag.id}
                             variant={isSelected ? "default" : "outline"}
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs"
                             onClick={() => toggleTag(tag)}
                           >
                             {tag.name}
@@ -466,256 +541,40 @@ export default function EditGamePage({ params }: Props) {
                     </div>
                   </ScrollArea>
 
-                  {/* Add new tag */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <Input
-                      placeholder="添加新标签..."
+                      placeholder="新标签..."
                       value={newTagInput}
                       onChange={(e) => setNewTagInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddNewTag())}
+                      className="h-8 text-xs"
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={handleAddNewTag}>
-                      <Plus className="h-4 w-4" />
+                    <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={handleAddNewTag}>
+                      <Plus className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    已选 {selectedTags.length + newTags.length}/10 个标签
+                    已选 {selectedTags.length + newTags.length}/10
                   </p>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {/* Media */}
-            <TabsContent value="media" className="space-y-4 mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    游戏截图
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Textarea
-                    value={screenshots.filter(Boolean).join("\n")}
-                    onChange={(e) => setScreenshots(e.target.value.split("\n"))}
-                    placeholder={"每行一个截图链接，例如：\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"}
-                    className="min-h-[100px] font-mono text-xs"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    每行一个 URL，已识别 {screenshots.filter(s => s.trim()).length} 张截图
-                  </p>
-                  {screenshots.some(s => s.trim()) && (
-                    <div className="flex gap-2 flex-wrap">
-                      {screenshots.filter(s => s.trim()).map((url, i) => (
-                        <div key={i} className="w-24 h-16 rounded border overflow-hidden bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt={`截图 ${i + 1}`} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                        </div>
-                      ))}
-                    </div>
+              {/* 操作按钮 */}
+              <div className="flex flex-col gap-2">
+                <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
                   )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileVideo className="h-4 w-4" />
-                    游戏视频
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Textarea
-                    value={videos.filter(Boolean).join("\n")}
-                    onChange={(e) => setVideos(e.target.value.split("\n"))}
-                    placeholder={"每行一个视频链接，支持 mp4、webm、m3u8\nhttps://example.com/preview.mp4"}
-                    className="min-h-[80px] font-mono text-xs"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    每行一个 URL，已识别 {videos.filter(s => s.trim()).length} 个视频
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Downloads */}
-            <TabsContent value="downloads" className="space-y-4 mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Download className="h-4 w-4" />
-                    下载链接
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {downloads.map((dl, i) => (
-                    <div key={i} className="flex gap-2 items-start">
-                      <div className="flex-1 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            value={dl.name}
-                            onChange={(e) => {
-                              const next = [...downloads];
-                              next[i] = { ...next[i], name: e.target.value };
-                              setDownloads(next);
-                            }}
-                            placeholder="名称（如：夸克网盘）"
-                          />
-                          <Input
-                            value={dl.password || ""}
-                            onChange={(e) => {
-                              const next = [...downloads];
-                              next[i] = { ...next[i], password: e.target.value || undefined };
-                              setDownloads(next);
-                            }}
-                            placeholder="密码（可选）"
-                          />
-                        </div>
-                        <Input
-                          value={dl.url}
-                          onChange={(e) => {
-                            const next = [...downloads];
-                            next[i] = { ...next[i], url: e.target.value };
-                            setDownloads(next);
-                          }}
-                          placeholder="下载 URL..."
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="mt-1"
-                        onClick={() => setDownloads(downloads.filter((_, j) => j !== i))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDownloads([...downloads, { name: "", url: "" }])}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    添加下载链接
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Extra Info */}
-            <TabsContent value="extra" className="space-y-4 mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    扩展信息
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">原作名称</label>
-                      <Input
-                        value={originalName}
-                        onChange={(e) => setOriginalName(e.target.value)}
-                        placeholder="原作/日文名称"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">文件大小</label>
-                      <Input
-                        value={fileSize}
-                        onChange={(e) => setFileSize(e.target.value)}
-                        placeholder="例如：2.5GB"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">作者/开发者</label>
-                      <Input
-                        value={originalAuthor}
-                        onChange={(e) => setOriginalAuthor(e.target.value)}
-                        placeholder="开发者名称"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">作者链接</label>
-                      <Input
-                        value={originalAuthorUrl}
-                        onChange={(e) => setOriginalAuthorUrl(e.target.value)}
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-
-                  {/* Platforms */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-1">
-                      <Monitor className="h-3.5 w-3.5" />
-                      支持平台
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {platforms.map((p) => (
-                        <Badge key={p} variant="secondary" className="gap-1">
-                          {p}
-                          <X
-                            className="h-3 w-3 cursor-pointer"
-                            onClick={() => setPlatforms(platforms.filter((x) => x !== p))}
-                          />
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        value={platformInput}
-                        onChange={(e) => setPlatformInput(e.target.value)}
-                        placeholder="输入平台名称..."
-                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddPlatform())}
-                      />
-                      <Button type="button" variant="outline" size="sm" onClick={handleAddPlatform}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {["Windows", "Mac", "Linux", "Android", "iOS"].map((p) => (
-                        <Badge
-                          key={p}
-                          variant={platforms.includes(p) ? "default" : "outline"}
-                          className="cursor-pointer text-xs"
-                          onClick={() => {
-                            if (platforms.includes(p)) {
-                              setPlatforms(platforms.filter((x) => x !== p));
-                            } else {
-                              setPlatforms([...platforms, p]);
-                            }
-                          }}
-                        >
-                          {p}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-
-          {/* Submit */}
-          <div className="flex gap-3 justify-end sticky bottom-4">
-            <Button type="button" variant="outline" asChild>
-              <Link href={`/game/${id}`}>取消</Link>
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              保存修改
-            </Button>
+                  保存修改
+                </Button>
+                <Button type="button" variant="outline" className="w-full" asChild>
+                  <Link href={`/game/${id}`}>取消</Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </form>
       </Form>

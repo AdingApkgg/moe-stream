@@ -205,6 +205,22 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       modelName: "user",
       fields: { name: "nickname", image: "avatar" },
       additionalFields: {
+        emailVerified: {
+          type: "boolean",
+          required: false,
+          defaultValue: false,
+          input: false,
+          fieldName: "emailVerified",
+          transform: {
+            input: (value: unknown) => {
+              if (typeof value === "boolean") return value ? new Date() : null;
+              return value;
+            },
+            output: (value: unknown) => {
+              return value instanceof Date || !!value;
+            },
+          },
+        },
         role: { type: "string", required: false, defaultValue: "USER", input: false },
         canUpload: { type: "boolean", required: false, defaultValue: false, input: false },
         adsEnabled: { type: "boolean", required: false, defaultValue: true, input: false },

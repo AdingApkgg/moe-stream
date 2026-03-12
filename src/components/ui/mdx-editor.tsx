@@ -107,7 +107,7 @@ export const MdxEditor = forwardRef<MdxEditorRef, MdxEditorProps>(
     );
 
     return (
-      <div className={cn("rounded-lg border bg-background", className)}>
+      <div className={cn("rounded-lg border bg-background overflow-hidden", className)}>
         {/* Header: tabs + toolbar */}
         <div className="flex items-center justify-between border-b px-2 py-1.5 gap-2">
           <Tabs
@@ -129,7 +129,7 @@ export const MdxEditor = forwardRef<MdxEditorRef, MdxEditorProps>(
 
           {tab === "edit" && (
             <TooltipProvider delayDuration={300}>
-              <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide min-w-0">
                 {TOOLBAR_ACTIONS.map((action) => (
                   <Tooltip key={action.label}>
                     <TooltipTrigger asChild>
@@ -162,7 +162,7 @@ export const MdxEditor = forwardRef<MdxEditorRef, MdxEditorProps>(
               onChange={(e) => onChange?.(e.target.value)}
               placeholder={placeholder}
               className={cn(
-                "w-full resize-none bg-transparent px-3 py-2.5 text-sm",
+                "w-full resize-y bg-transparent px-3 py-2.5 text-sm",
                 "placeholder:text-muted-foreground focus:outline-none",
                 "font-mono leading-relaxed",
               )}

@@ -20,7 +20,7 @@ export const gameUploadSchema = z.object({
   originalAuthor: z.string().max(200).optional().or(z.literal("")),
   originalAuthorUrl: z.string().url().optional().or(z.literal("")),
   fileSize: z.string().max(50).optional().or(z.literal("")),
-  platforms: z.string().max(200).optional().or(z.literal("")),
+  platforms: z.array(z.string()).optional().default([]),
 });
 
 export type GameUploadForm = z.infer<typeof gameUploadSchema>;

@@ -12,6 +12,12 @@ export const ADMIN_SCOPES = {
 
 export type AdminScope = keyof typeof ADMIN_SCOPES;
 
+/** 游戏平台预设选项 */
+export const GAME_PLATFORMS = [
+  "Windows", "Mac", "Linux", "Android", "iOS",
+  "PS5", "PS4", "Xbox", "Switch", "Web",
+] as const;
+
 /** 游戏类型常量（编辑页完整列表） */
 export const GAME_TYPES = [
   "ADV", "RPG", "ACT", "SLG", "PZL", "SIM", "STG", "FTG", "SPT", "RAC",

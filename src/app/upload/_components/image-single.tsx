@@ -82,18 +82,11 @@ export function ImageSingleUpload() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left side */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic info */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+          {/* 左侧主内容 */}
+          <div className="space-y-6 min-w-0">
             <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" />
-                  基本信息
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <FormField
                   control={form.control}
                   name="title"
@@ -115,7 +108,7 @@ export function ImageSingleUpload() {
                     <FormItem>
                       <FormLabel>描述</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="图片描述（可选）" className="min-h-[100px] resize-none" {...field} />
+                        <Textarea placeholder="图片描述（可选）" className="min-h-[80px] resize-y" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -124,7 +117,7 @@ export function ImageSingleUpload() {
               </CardContent>
             </Card>
 
-            {/* Image URLs */}
+            {/* 图片链接 */}
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -163,7 +156,6 @@ export function ImageSingleUpload() {
                   已添加 {validImages.length} 张有效图片
                 </p>
 
-                {/* Preview grid */}
                 {validImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 mt-3">
                     {validImages.map((url, i) => (
@@ -183,8 +175,10 @@ export function ImageSingleUpload() {
                 )}
               </CardContent>
             </Card>
+          </div>
 
-            {/* Tags */}
+          {/* 右侧边栏 */}
+          <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             <TagPicker
               allTags={allTags}
               selectedTags={selectedTags}
@@ -193,19 +187,16 @@ export function ImageSingleUpload() {
               onAddNewTag={(name) => setNewTags([...newTags, name])}
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
-          </div>
 
-          {/* Right side */}
-          <div className="space-y-6">
-            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading} size="lg">
+            <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   发布中...
                 </>
               ) : (
                 <>
-                  <Upload className="mr-2 h-5 w-5" />
+                  <Upload className="mr-2 h-4 w-4" />
                   发布图片
                 </>
               )}
