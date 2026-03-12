@@ -112,6 +112,7 @@ const configFormSchema = z.object({
   commentsPerPage: z.number().int().min(5).max(100),
   maxUploadSize: z.number().int().min(10).max(10000),
   allowedVideoFormats: z.string().max(200),
+  adminBatchLimit: z.number().int().min(100).max(100000),
   
   // 联系方式
   contactEmail: z.string().email("请输入有效的邮箱").optional().nullable().or(z.literal("")),
@@ -660,6 +661,7 @@ export default function AdminSettingsPage() {
       commentsPerPage: 20,
       maxUploadSize: 500,
       allowedVideoFormats: "mp4,webm,m3u8",
+      adminBatchLimit: 10000,
       contactEmail: "",
       privacyPolicy: "",
       termsOfService: "",
@@ -759,6 +761,7 @@ export default function AdminSettingsPage() {
         commentsPerPage: config.commentsPerPage,
         maxUploadSize: config.maxUploadSize,
         allowedVideoFormats: config.allowedVideoFormats,
+        adminBatchLimit: (config as Record<string, unknown>).adminBatchLimit as number ?? 10000,
         contactEmail: config.contactEmail || "",
         privacyPolicy: ((config as Record<string, unknown>).privacyPolicy as string) || "",
         termsOfService: ((config as Record<string, unknown>).termsOfService as string) || "",
@@ -2349,6 +2352,24 @@ export default function AdminSettingsPage() {
                             <Input {...field} placeholder="mp4,webm,m3u8" />
                           </FormControl>
                           <FormDescription>逗号分隔</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="adminBatchLimit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>后台批量操作上限</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 10000)}
+                            />
+                          </FormControl>
+                          <FormDescription>批量转移、删除等操作的最大数量</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -68,8 +68,10 @@ import {
   BookTemplate,
   Zap,
   Download,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatViews } from "@/lib/format";
 
 type GameStatus = "PENDING" | "PUBLISHED" | "REJECTED";
@@ -313,6 +315,7 @@ export default function DashboardGamesPage() {
   const [regexPreviewing, setRegexPreviewing] = useState(false);
   const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
   const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const limit = 50;
   const utils = trpc.useUtils();
@@ -659,6 +662,14 @@ export default function DashboardGamesPage() {
               </Button>
               {canManage && (
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTransferOpen(true)}
+                  >
+                    <ArrowRightLeft className="h-4 w-4 mr-1" />
+                    转移所有权
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1309,6 +1320,19 @@ export default function DashboardGamesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferOwnerDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        selectedCount={selectedIds.size}
+        selectedIds={Array.from(selectedIds)}
+        contentType="game"
+        contentLabel="游戏"
+        onSuccess={() => {
+          utils.admin.listAllGames.invalidate();
+          setSelectedIds(new Set());
+        }}
+      />
     </div>
   );
 }

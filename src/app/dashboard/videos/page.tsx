@@ -71,8 +71,10 @@ import {
   BookTemplate,
   Zap,
   Download,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
 import { getCoverUrl } from "@/lib/cover";
 
@@ -266,6 +268,7 @@ export default function AdminVideosPage() {
   const [regexPreviewing, setRegexPreviewing] = useState(false);
   const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
   const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const limit = 50;
   const utils = trpc.useUtils();
@@ -640,6 +643,14 @@ export default function AdminVideosPage() {
               </Button>
               {canManage && (
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTransferOpen(true)}
+                  >
+                    <ArrowRightLeft className="h-4 w-4 mr-1" />
+                    转移所有权
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1297,6 +1308,19 @@ export default function AdminVideosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferOwnerDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        selectedCount={selectedIds.size}
+        selectedIds={Array.from(selectedIds)}
+        contentType="video"
+        contentLabel="视频"
+        onSuccess={() => {
+          utils.admin.listAllVideos.invalidate();
+          setSelectedIds(new Set());
+        }}
+      />
     </div>
   );
 }

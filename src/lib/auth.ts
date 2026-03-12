@@ -166,7 +166,6 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       passkey({
         rpID: new URL(baseURL).hostname,
         rpName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
-        origin: baseURL,
       }),
       customSession(async ({ user, session }) => {
         if (!user?.id) return { user, session };

@@ -41,6 +41,22 @@ async function processSticker(
   return { data: processed, filename, width: outMeta.width, height: outMeta.height };
 }
 
+const DEFAULT_BATCH_LIMIT = 10000;
+
+async function getAdminBatchLimit(
+  prisma: typeof import("@/lib/prisma").prisma
+): Promise<number> {
+  try {
+    const config = await prisma.siteConfig.findUnique({
+      where: { id: "default" },
+      select: { adminBatchLimit: true },
+    });
+    return config?.adminBatchLimit ?? DEFAULT_BATCH_LIMIT;
+  } catch {
+    return DEFAULT_BATCH_LIMIT;
+  }
+}
+
 // 检查用户是否有特定权限
 async function hasScope(
   prisma: typeof import("@/lib/prisma").prisma,
@@ -2445,6 +2461,7 @@ export const adminRouter = router({
       commentsPerPage: z.number().int().min(5).max(100).optional(),
       maxUploadSize: z.number().int().min(10).max(10000).optional(),
       allowedVideoFormats: z.string().max(200).optional(),
+      adminBatchLimit: z.number().int().min(100).max(100000).optional(),
       
       // 联系方式
       contactEmail: z.string().email().optional().nullable().or(z.literal("")),
@@ -2613,7 +2630,7 @@ export const adminRouter = router({
         "allowComment", "requireLoginToComment", "requireEmailVerify",
         "sectionVideoEnabled", "sectionImageEnabled", "sectionGameEnabled",
         "videosPerPage", "commentsPerPage",
-        "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
+        "maxUploadSize", "allowedVideoFormats", "adminBatchLimit", "contactEmail", "socialLinks",
         "privacyPolicy", "termsOfService", "aboutPage",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
@@ -4884,6 +4901,94 @@ export const adminRouter = router({
         totalSuccess,
         totalFailed,
       };
+    }),
+
+  transferWorkItems: adminProcedure
+    .input(
+      z.object({
+        itemIds: z.array(z.string()).min(1),
+        contentType: z.enum(["video", "game", "image"]),
+        toUserId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无内容管理权限" });
+      }
+
+      const batchLimit = await getAdminBatchLimit(ctx.prisma);
+      if (input.itemIds.length > batchLimit) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `批量操作上限为 ${batchLimit} 个，当前 ${input.itemIds.length} 个，请在系统设置中调整`,
+        });
+      }
+
+      const toUser = await ctx.prisma.user.findUnique({
+        where: { id: input.toUserId },
+        select: { id: true, username: true },
+      });
+      if (!toUser) throw new TRPCError({ code: "NOT_FOUND", message: "目标用户不存在" });
+
+      let count = 0;
+      switch (input.contentType) {
+        case "video": {
+          const result = await ctx.prisma.video.updateMany({
+            where: { id: { in: input.itemIds } },
+            data: { uploaderId: input.toUserId },
+          });
+          count = result.count;
+          break;
+        }
+        case "game": {
+          const result = await ctx.prisma.game.updateMany({
+            where: { id: { in: input.itemIds } },
+            data: { uploaderId: input.toUserId },
+          });
+          count = result.count;
+          break;
+        }
+        case "image": {
+          const result = await ctx.prisma.imagePost.updateMany({
+            where: { id: { in: input.itemIds } },
+            data: { uploaderId: input.toUserId },
+          });
+          count = result.count;
+          break;
+        }
+      }
+
+      return { success: true, count };
+    }),
+
+  searchUsersForTransfer: adminProcedure
+    .input(z.object({ search: z.string().min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
+      if (!canManage) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
+      }
+
+      const users = await ctx.prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { contains: input.search, mode: "insensitive" } },
+            { nickname: { contains: input.search, mode: "insensitive" } },
+            { email: { contains: input.search, mode: "insensitive" } },
+            { id: input.search },
+          ],
+        },
+        take: 10,
+        select: {
+          id: true,
+          username: true,
+          nickname: true,
+          avatar: true,
+        },
+      });
+
+      return users;
     }),
 
   getStickerUsageStats: adminProcedure.query(async ({ ctx }) => {
