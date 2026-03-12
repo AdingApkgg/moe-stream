@@ -72,9 +72,14 @@ import {
   Zap,
   Download,
   ArrowRightLeft,
+  Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
+import { SeriesPanel } from "@/components/admin/series-panel";
+import { CoversPanel } from "@/components/admin/covers-panel";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
 import { getCoverUrl } from "@/lib/cover";
 
@@ -494,12 +499,31 @@ export default function AdminVideosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="videos" className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <TabsList>
+          <TabsTrigger value="videos" className="gap-1.5">
+            <Video className="h-4 w-4" />
+            视频
+          </TabsTrigger>
+          <TabsTrigger value="series" className="gap-1.5">
+            <Layers className="h-4 w-4" />
+            合集
+          </TabsTrigger>
+          <TabsTrigger value="covers" className="gap-1.5">
+            <ImageIcon className="h-4 w-4" />
+            封面
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="videos">
+      <div className="space-y-6">
       {/* 标题和统计 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
           <Video className="h-5 w-5" />
-          <h1 className="text-xl font-semibold">视频管理</h1>
+          <h2 className="text-xl font-semibold">视频管理</h2>
           <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
         </div>
 
@@ -1322,5 +1346,15 @@ export default function AdminVideosPage() {
         }}
       />
     </div>
+      </TabsContent>
+
+      <TabsContent value="series">
+        <SeriesPanel />
+      </TabsContent>
+
+      <TabsContent value="covers">
+        <CoversPanel />
+      </TabsContent>
+    </Tabs>
   );
 }

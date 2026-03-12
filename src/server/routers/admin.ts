@@ -4973,9 +4973,9 @@ export const adminRouter = router({
   searchUsersForTransfer: adminProcedure
     .input(z.object({ search: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
+      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
       if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "无内容管理权限" });
       }
 
       const users = await ctx.prisma.user.findMany({
