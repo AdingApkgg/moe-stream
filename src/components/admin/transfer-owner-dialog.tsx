@@ -31,7 +31,7 @@ interface TransferOwnerDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
   selectedIds: string[];
-  contentType: "video" | "game" | "image";
+  contentType: "video" | "game" | "image" | "series";
   contentLabel: string;
   onSuccess: () => void;
 }

@@ -4907,7 +4907,7 @@ export const adminRouter = router({
     .input(
       z.object({
         itemIds: z.array(z.string()).min(1),
-        contentType: z.enum(["video", "game", "image"]),
+        contentType: z.enum(["video", "game", "image", "series"]),
         toUserId: z.string(),
       })
     )
@@ -4953,6 +4953,14 @@ export const adminRouter = router({
           const result = await ctx.prisma.imagePost.updateMany({
             where: { id: { in: input.itemIds } },
             data: { uploaderId: input.toUserId },
+          });
+          count = result.count;
+          break;
+        }
+        case "series": {
+          const result = await ctx.prisma.series.updateMany({
+            where: { id: { in: input.itemIds } },
+            data: { creatorId: input.toUserId },
           });
           count = result.count;
           break;

@@ -57,8 +57,10 @@ import {
   ChevronsRight,
   Download,
   X,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
 import { getCoverUrl } from "@/lib/cover";
 
@@ -110,6 +112,8 @@ export default function AdminSeriesPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [batchAction, setBatchAction] = useState<"delete" | null>(null);
+
+  const [transferOpen, setTransferOpen] = useState(false);
 
   // 编辑对话框
   const [editData, setEditData] = useState<EditSeriesData | null>(null);
@@ -351,15 +355,25 @@ export default function AdminSeriesPage() {
             </span>
             <div className="flex items-center gap-2 ml-auto">
               {canManage && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setBatchAction("delete")}
-                  disabled={batchDeleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  批量删除
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTransferOpen(true)}
+                  >
+                    <ArrowRightLeft className="h-4 w-4 mr-1" />
+                    转移所有权
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBatchAction("delete")}
+                    disabled={batchDeleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    批量删除
+                  </Button>
+                </>
               )}
             </div>
           </>
@@ -888,6 +902,20 @@ export default function AdminSeriesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferOwnerDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        selectedCount={selectedIds.size}
+        selectedIds={Array.from(selectedIds)}
+        contentType="series"
+        contentLabel="合集"
+        onSuccess={() => {
+          utils.admin.listAllSeries.invalidate();
+          utils.admin.getSeriesStats.invalidate();
+          setSelectedIds(new Set());
+        }}
+      />
     </div>
   );
 }
