@@ -689,8 +689,9 @@ export const userRouter = router({
         // 支持完整 URL 或相对路径 (如 /uploads/avatar/xxx.jpg)
         avatar: z.string().refine(
           (val) => {
-            if (!val) return true; // 允许空字符串
-            if (val.startsWith("/")) return true; // 相对路径
+            if (!val) return true;
+            if (val.startsWith("blob:") || val.startsWith("data:")) return false;
+            if (val.startsWith("/")) return true;
             try {
               new URL(val);
               return true;

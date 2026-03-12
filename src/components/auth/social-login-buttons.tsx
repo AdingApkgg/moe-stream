@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast-with-sound";
@@ -116,6 +116,8 @@ export const PROVIDER_CONFIG: Record<OAuthProvider, { label: string; icon: React
   },
 };
 
+const LOADING_TIMEOUT_MS = 15_000;
+
 interface SocialLoginButtonsProps {
   callbackURL?: string;
 }
@@ -123,28 +125,50 @@ interface SocialLoginButtonsProps {
 export function SocialLoginButtons({ callbackURL = "/" }: SocialLoginButtonsProps) {
   const siteConfig = useSiteConfig();
   const [loading, setLoading] = useState<OAuthProvider | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const providers = (siteConfig?.oauthProviders ?? []).filter(
-    (p): p is OAuthProvider => p in PROVIDER_CONFIG
+    (p): p is OAuthProvider => p in PROVIDER_CONFIG,
   );
 
   if (providers.length === 0) return null;
 
+  function resetLoading() {
+    setLoading(null);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }
+
   async function handleSocialLogin(provider: OAuthProvider) {
     setLoading(provider);
+
+    timeoutRef.current = setTimeout(() => {
+      setLoading(null);
+    }, LOADING_TIMEOUT_MS);
+
     try {
       const result = await authClient.signIn.social({ provider, callbackURL });
       if (result?.error) {
         console.error("[auth] signIn.social error:", provider, result.error);
         toast.error("登录失败", {
-          description: result.error.message || `无法通过 ${PROVIDER_CONFIG[provider].label} 登录`,
+          description:
+            result.error.message ||
+            `无法通过 ${PROVIDER_CONFIG[provider].label} 登录`,
         });
-        setLoading(null);
+        resetLoading();
       }
     } catch (err) {
       console.error("[auth] signIn.social exception:", provider, err);
       toast.error("登录失败", { description: "无法连接到登录服务" });
-      setLoading(null);
+      resetLoading();
     }
   }
 

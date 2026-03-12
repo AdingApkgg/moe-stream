@@ -190,9 +190,11 @@ export default function ProfileSettingsPage() {
   };
 
   const handleSaveAvatar = async () => {
-    const url = avatarUrl || previewUrl;
-    if (!url) return toast.error("请先选择或上传头像");
-    await updateAvatarMutation.mutateAsync({ avatar: url });
+    if (!avatarUrl) {
+      if (isUploading) return toast.error("头像正在上传中，请稍候");
+      return toast.error("请先选择或上传头像");
+    }
+    await updateAvatarMutation.mutateAsync({ avatar: avatarUrl });
   };
 
   if (status === "loading" || userLoading) {

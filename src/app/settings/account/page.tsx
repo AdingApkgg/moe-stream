@@ -2,7 +2,7 @@
 
 import { useSession, authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -53,9 +53,16 @@ function OAuthAccountSection() {
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const linkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (linkTimeoutRef.current) clearTimeout(linkTimeoutRef.current);
+    };
+  }, []);
 
   const availableProviders = (siteConfig?.oauthProviders ?? []).filter(
-    (p): p is OAuthProvider => p in PROVIDER_CONFIG
+    (p): p is OAuthProvider => p in PROVIDER_CONFIG,
   );
 
   const fetchAccounts = useCallback(async () => {
@@ -76,15 +83,28 @@ function OAuthAccountSection() {
   }, [fetchAccounts]);
 
   const linkedProviderIds = new Set(
-    linkedAccounts.map((a) => a.providerId)
+    linkedAccounts.map((a) => a.providerId),
   );
 
   const hasCredentialAccount = linkedAccounts.some(
-    (a) => a.providerId === "credential"
+    (a) => a.providerId === "credential",
   );
+
+  function resetLinkLoading() {
+    setActionLoading(null);
+    if (linkTimeoutRef.current) {
+      clearTimeout(linkTimeoutRef.current);
+      linkTimeoutRef.current = null;
+    }
+  }
 
   async function handleLink(provider: OAuthProvider) {
     setActionLoading(provider);
+
+    linkTimeoutRef.current = setTimeout(() => {
+      setActionLoading(null);
+    }, 15_000);
+
     try {
       const callbackURL = `${window.location.origin}/settings/account`;
       const result = await authClient.linkSocial({
@@ -96,12 +116,12 @@ function OAuthAccountSection() {
         toast.error("绑定失败", {
           description: result.error.message || `无法通过 ${PROVIDER_CONFIG[provider].label} 绑定`,
         });
-        setActionLoading(null);
+        resetLinkLoading();
       }
     } catch (err) {
       console.error("[settings] linkSocial exception:", err);
       toast.error("绑定失败", { description: "无法连接到登录服务" });
-      setActionLoading(null);
+      resetLinkLoading();
     }
   }
 
@@ -111,9 +131,12 @@ function OAuthAccountSection() {
       toast.error("无法解绑", { description: "至少需要保留一种登录方式" });
       return;
     }
-    if (!hasCredentialAccount && totalLinked <= 1) {
-      toast.error("无法解绑", { description: "请先设置密码登录，再解绑第三方账号" });
-      return;
+    if (!hasCredentialAccount && totalLinked <= 2) {
+      const oauthCount = linkedAccounts.filter((a) => a.providerId !== "credential").length;
+      if (oauthCount <= 1) {
+        toast.error("无法解绑", { description: "请先设置密码登录，再解绑最后一个第三方账号" });
+        return;
+      }
     }
 
     setActionLoading(providerId);

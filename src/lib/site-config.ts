@@ -240,7 +240,7 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
           }
         }
 
-        if (!config) return defaultConfig;
+        if (!config) throw new Error("SiteConfig not available");
 
         const oauthProviderPairs = [
           ["Google", "google"], ["Github", "github"], ["Discord", "discord"],

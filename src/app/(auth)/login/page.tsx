@@ -62,6 +62,13 @@ function LoginForm() {
   }, []);
 
   useEffect(() => {
+    const oauthError = searchParams.get("error");
+    if (oauthError === "OAuthCallbackError") {
+      toast.error("第三方登录失败", { description: "OAuth 回调过程中发生异常，请重试" });
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
     Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable()).then((available) => {

@@ -132,7 +132,7 @@ echo "🔧 生成 Prisma Client..."
 pnpm db:generate
 
 echo "🗄️  同步数据库..."
-pnpm db:push --accept-data-loss
+pnpm db:push
 
 echo "🔨 构建项目..."
 # 备份旧静态资源，构建后合并回新产物实现平滑过渡

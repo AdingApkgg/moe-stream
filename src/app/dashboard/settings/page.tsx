@@ -869,7 +869,21 @@ export default function AdminSettingsPage() {
   };
 
   const onSubmit = (values: ConfigFormValues) => {
-    updateConfig.mutate(values);
+    const dirtyFields = form.formState.dirtyFields;
+    const dirtyKeys = Object.keys(dirtyFields).filter(
+      (key) => (dirtyFields as Record<string, unknown>)[key]
+    );
+
+    if (dirtyKeys.length === 0) {
+      toast.info("没有修改");
+      return;
+    }
+
+    const dirtyValues = Object.fromEntries(
+      dirtyKeys.map((key) => [key, (values as Record<string, unknown>)[key]])
+    );
+
+    updateConfig.mutate(dirtyValues as ConfigFormValues);
   };
 
   const onFormError = (errors: Record<string, unknown>) => {

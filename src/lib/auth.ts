@@ -7,26 +7,36 @@ import { hash, compare } from "@/lib/bcrypt-wasm";
 import { getOrSet, deleteCache } from "@/lib/redis";
 import { send2faOtpEmail } from "@/lib/email";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 interface OAuthProviderCredentials {
-  clientId?: string | null;
-  clientSecret?: string | null;
+  clientId: string;
+  clientSecret: string;
 }
 
-type OAuthConfig = Partial<Record<string, OAuthProviderCredentials>>;
+type OAuthConfig = Record<string, OAuthProviderCredentials>;
 
 const OAUTH_PROVIDER_KEYS = [
   "Google", "Github", "Discord", "Apple", "Twitter", "Facebook",
   "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit",
 ] as const;
 
+type OAuthProviderKey = (typeof OAUTH_PROVIDER_KEYS)[number];
+
 interface OAuthAndSiteConfig {
   oauth: OAuthConfig;
   siteUrl: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// OAuth config from DB (cached in Redis)
+// ---------------------------------------------------------------------------
+
 async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
   try {
-    return await getOrSet(
+    return await getOrSet<OAuthAndSiteConfig>(
       "oauth:config",
       async () => {
         const select: Record<string, true> = { siteUrl: true };
@@ -34,11 +44,14 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
           select[`oauth${k}ClientId`] = true;
           select[`oauth${k}ClientSecret`] = true;
         }
+
         const config = await prisma.siteConfig.findUnique({
           where: { id: "default" },
           select,
         }) as Record<string, string | null> | null;
+
         if (!config) return { oauth: {}, siteUrl: null };
+
         const oauth: OAuthConfig = {};
         for (const key of OAUTH_PROVIDER_KEYS) {
           const id = config[`oauth${key}ClientId`];
@@ -47,13 +60,15 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
             oauth[key.toLowerCase()] = { clientId: id, clientSecret: secret };
           }
         }
-        const enabledProviders = Object.keys(oauth);
-        if (enabledProviders.length > 0) {
-          console.log(`[auth] OAuth providers loaded: ${enabledProviders.join(", ")}`);
+
+        const names = Object.keys(oauth);
+        if (names.length > 0) {
+          console.log(`[auth] OAuth providers loaded: ${names.join(", ")}`);
         }
+
         return { oauth, siteUrl: config.siteUrl || null };
       },
-      300
+      300,
     );
   } catch (err) {
     console.error("[auth] Failed to load OAuth config:", err);
@@ -61,39 +76,53 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
   }
 }
 
-function buildSocialProviders(cfg: OAuthConfig) {
-  const providers: Record<string, { clientId: string; clientSecret: string }> = {};
-  for (const [name, creds] of Object.entries(cfg)) {
-    if (creds?.clientId && creds?.clientSecret) {
-      providers[name] = { clientId: creds.clientId, clientSecret: creds.clientSecret };
+// ---------------------------------------------------------------------------
+// Trusted‑origins helper
+// ---------------------------------------------------------------------------
+
+const LOCAL_ORIGIN_RE =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+
+function buildTrustedOrigins(baseURL: string) {
+  const staticOrigins = new Set(
+    [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v),
+  );
+
+  return (request?: Request) => {
+    const origins = [...staticOrigins];
+    const origin = request?.headers?.get("origin");
+    if (origin && LOCAL_ORIGIN_RE.test(origin)) {
+      origins.push(origin);
     }
-  }
-  return providers;
+    return origins;
+  };
 }
 
-const LOCAL_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+// ---------------------------------------------------------------------------
+// Auth instance factory
+// ---------------------------------------------------------------------------
+
+function resolveBaseURL(siteUrl?: string): string {
+  return (
+    siteUrl ||
+    process.env.BETTER_AUTH_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000"
+  );
+}
 
 function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
-  const baseURL = siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseURL = resolveBaseURL(siteUrl);
 
-  const socialProviderConfig = buildSocialProviders(oauthConfig);
-  console.log(`[auth] Creating auth instance: baseURL=${baseURL}, providers=${Object.keys(socialProviderConfig).join(",") || "none"}`);
-
-  const staticOrigins = new Set(
-    [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v)
+  console.log(
+    `[auth] Creating auth instance: baseURL=${baseURL}, providers=${Object.keys(oauthConfig).join(",") || "none"}`,
   );
 
   return betterAuth({
     baseURL,
-    trustedOrigins: (request?: Request) => {
-      const origins = [...staticOrigins];
-      const origin = request?.headers?.get("origin");
-      if (origin && LOCAL_ORIGIN_RE.test(origin)) {
-        origins.push(origin);
-      }
-      return origins;
-    },
+    trustedOrigins: buildTrustedOrigins(baseURL),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 6,
@@ -102,14 +131,20 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         verify: (data) => compare(data.password, data.hash),
       },
     },
-    socialProviders: socialProviderConfig as Parameters<typeof betterAuth>[0]["socialProviders"],
+
+    socialProviders: oauthConfig as Parameters<typeof betterAuth>[0]["socialProviders"],
+
     databaseHooks: {
       user: {
         create: {
           before: async (user) => {
             if (!user.username) {
-              const prefix = (user.email?.split("@")[0] || "user").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 14);
-              const suffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
+              const prefix = (user.email?.split("@")[0] || "user")
+                .replace(/[^a-zA-Z0-9_]/g, "_")
+                .slice(0, 14);
+              const suffix =
+                Date.now().toString(36).slice(-4) +
+                Math.random().toString(36).slice(2, 6);
               return { data: { ...user, username: `${prefix}_${suffix}` } };
             }
             return { data: user };
@@ -117,11 +152,9 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         },
       },
     },
+
     plugins: [
-      username({
-        minUsernameLength: 1,
-        maxUsernameLength: 64,
-      }),
+      username({ minUsernameLength: 1, maxUsernameLength: 64 }),
       twoFactor({
         issuer: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
         otpOptions: {
@@ -168,52 +201,26 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         };
       }),
     ],
+
     user: {
       modelName: "user",
-      fields: {
-        name: "nickname",
-        image: "avatar",
-      },
+      fields: { name: "nickname", image: "avatar" },
       additionalFields: {
-        role: {
-          type: "string",
-          required: false,
-          defaultValue: "USER",
-          input: false,
-        },
-        canUpload: {
-          type: "boolean",
-          required: false,
-          defaultValue: false,
-          input: false,
-        },
-        adsEnabled: {
-          type: "boolean",
-          required: false,
-          defaultValue: true,
-          input: false,
-        },
-        twoFactorEnabled: {
-          type: "boolean",
-          required: false,
-          defaultValue: false,
-          input: false,
-        },
+        role: { type: "string", required: false, defaultValue: "USER", input: false },
+        canUpload: { type: "boolean", required: false, defaultValue: false, input: false },
+        adsEnabled: { type: "boolean", required: false, defaultValue: true, input: false },
+        twoFactorEnabled: { type: "boolean", required: false, defaultValue: false, input: false },
       },
     },
+
     session: {
       modelName: "session",
-      fields: {
-        token: "sessionToken",
-        expiresAt: "expires",
-      },
+      fields: { token: "sessionToken", expiresAt: "expires" },
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24,
-      cookieCache: {
-        enabled: true,
-        maxAge: 60 * 5,
-      },
+      cookieCache: { enabled: true, maxAge: 60 * 5 },
     },
+
     account: {
       modelName: "account",
       fields: {
@@ -225,61 +232,59 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       },
       accountLinking: {
         enabled: true,
-        trustedProviders: [
-          "google", "github", "discord", "apple", "twitter", "facebook",
-          "microsoft", "twitch", "spotify", "linkedin", "gitlab", "reddit",
-        ],
+        trustedProviders: OAUTH_PROVIDER_KEYS.map(
+          (k) => k.toLowerCase(),
+        ) as Array<Lowercase<OAuthProviderKey>>,
       },
     },
-    verification: {
-      modelName: "verification",
-    },
-    pages: {
-      signIn: "/login",
-    },
-    advanced: {
-      database: {
-        generateId: false,
-      },
-    },
+
+    verification: { modelName: "verification" },
+    pages: { signIn: "/login" },
+    advanced: { database: { generateId: false } },
   });
 }
 
-let _cachedAuth: ReturnType<typeof createAuthInstance> | null = null;
-let _cachedConfigHash = "";
-let _pendingInit: Promise<ReturnType<typeof createAuthInstance>> | null = null;
+// ---------------------------------------------------------------------------
+// Singleton with proper concurrency & error recovery
+// ---------------------------------------------------------------------------
 
-/**
- * 获取包含最新 OAuth 配置的 auth 实例。
- * 使用 Promise 锁防止并发初始化创建多个实例。
- */
-export async function getAuthWithOAuth() {
+type AuthInstance = ReturnType<typeof createAuthInstance>;
+
+let _cached: { auth: AuthInstance; hash: string } | null = null;
+let _pending: Promise<AuthInstance> | null = null;
+
+export async function getAuthWithOAuth(): Promise<AuthInstance> {
   const { oauth, siteUrl } = await getOAuthAndSiteConfig();
   const configHash = JSON.stringify({ oauth, siteUrl });
 
-  if (_cachedAuth && _cachedConfigHash === configHash) {
-    return _cachedAuth;
+  if (_cached?.hash === configHash) {
+    return _cached.auth;
   }
 
-  if (!_pendingInit) {
-    _pendingInit = Promise.resolve().then(() => {
+  if (_pending) return _pending;
+
+  _pending = (async () => {
+    try {
       const instance = createAuthInstance(oauth, siteUrl || undefined);
-      _cachedAuth = instance;
-      _cachedConfigHash = configHash;
-      _pendingInit = null;
+      _cached = { auth: instance, hash: configHash };
       return instance;
-    });
-  }
+    } finally {
+      _pending = null;
+    }
+  })();
 
-  return _pendingInit;
+  return _pending;
 }
 
 export async function invalidateOAuthConfig() {
-  _cachedAuth = null;
-  _cachedConfigHash = "";
-  _pendingInit = null;
+  _cached = null;
+  _pending = null;
   await deleteCache("oauth:config");
 }
+
+// ---------------------------------------------------------------------------
+// Session helpers
+// ---------------------------------------------------------------------------
 
 export interface AppSession {
   user: {
@@ -296,11 +301,6 @@ export interface AppSession {
   session: { id: string; token: string; expiresAt: Date };
 }
 
-/**
- * 服务端获取当前 session（用于 tRPC、API 等）。
- * customSession 插件已在 session 读取时注入 role/canUpload/adsEnabled/nickname/avatar，
- * 此处直接使用插件返回的数据，避免二次查库。
- */
 export async function getSession(req?: Request): Promise<AppSession | null> {
   let reqHeaders: Headers;
   if (req) {
@@ -309,6 +309,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
     const { headers } = await import("next/headers");
     reqHeaders = await headers();
   }
+
   const authInstance = await getAuthWithOAuth();
   const result = await authInstance.api.getSession({ headers: reqHeaders });
   if (!result?.user) return null;

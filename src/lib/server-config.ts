@@ -68,7 +68,7 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
           })) as Record<string, unknown> | null;
         }
 
-        if (!row) return defaultConfig;
+        if (!row) throw new Error("SiteConfig not available");
 
         const smtpHost = row.smtpHost as string | null;
         const smtpUser = row.smtpUser as string | null;
