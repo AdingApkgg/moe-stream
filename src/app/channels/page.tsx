@@ -34,6 +34,7 @@ export default function ChannelsPage() {
       setName("");
       setSlug("");
       setDescription("");
+      setType("PUBLIC");
       utils.channel.list.invalidate();
     },
   });

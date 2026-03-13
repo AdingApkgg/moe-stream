@@ -4,26 +4,27 @@
 #
 # 开发环境（仅启动 PostgreSQL + Redis，应用在宿主机运行）:
 #   podman compose up -d postgres redis
-#   # 或
-#   docker compose up -d postgres redis
 #
-# 全栈启动（含应用容器）:
+# 全栈启动（含应用 + Socket.io 容器）:
 #   podman compose up -d
-#   # 或
-#   docker compose up -d
 #
 # 停止:
 #   podman compose down
 #
 # 查看日志:
-#   podman compose logs -f app
+#   podman compose logs -f app socket
 #
+# ============================================================
+# Rootless Podman 注意事项:
+#   - 卷会自动创建为 rootless 卷，权限由 Podman 管理
+#   - 端口映射需 > 1024（或配置 net.ipv4.ip_unprivileged_port_start）
+#   - 容器内 UID 映射由 /etc/subuid + /etc/subgid 控制
 # ============================================================
 
 services:
   # ---------- PostgreSQL ----------
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: ${APP_NAME:-acgn}-postgres
     restart: unless-stopped
     environment:
@@ -33,7 +34,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -42,28 +43,29 @@ services:
 
   # ---------- Redis ----------
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: ${APP_NAME:-acgn}-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ---------- 应用 ----------
+  # ---------- Next.js 应用 ----------
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     container_name: ${APP_NAME:-acgn}-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
       REDIS_URL: redis://redis:6379
@@ -72,6 +74,30 @@ services:
       - .env.production
     volumes:
       - uploads_data:/app/uploads
+      - data_dir:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------- Socket.io 实时通信 ----------
+  socket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: socket-runner
+    container_name: ${APP_NAME:-acgn}-socket
+    restart: unless-stopped
+    ports:
+      - "${SOCKET_PORT:-3001}:3001"
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
+      SOCKET_PORT: "3001"
+      NODE_ENV: production
+    env_file:
+      - .env.production
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,3 +108,4 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  data_dir:
