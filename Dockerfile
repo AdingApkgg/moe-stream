@@ -17,6 +17,8 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV REDIS_URL="redis://localhost:6379"
 RUN pnpm build
 
 # ---------- 生产依赖 ----------

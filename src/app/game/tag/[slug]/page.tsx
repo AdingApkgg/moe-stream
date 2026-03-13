@@ -25,14 +25,17 @@ const getTag = cache(async (slug: string) => {
 });
 
 export async function generateStaticParams() {
-  const popularTags = await prisma.tag.findMany({
-    where: { games: { some: { game: { status: "PUBLISHED" } } } },
-    take: 50,
-    orderBy: { games: { _count: "desc" } },
-    select: { slug: true },
-  });
-
-  return popularTags.map((tag) => ({ slug: tag.slug }));
+  try {
+    const popularTags = await prisma.tag.findMany({
+      where: { games: { some: { game: { status: "PUBLISHED" } } } },
+      take: 50,
+      orderBy: { games: { _count: "desc" } },
+      select: { slug: true },
+    });
+    return popularTags.map((tag) => ({ slug: tag.slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({
