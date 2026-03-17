@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isPrivileged } from "@/lib/permissions";
 import { submitVideosToIndexNow, submitGamesToIndexNow, submitSitePages, submitToIndexNow } from "@/lib/indexnow";
 import { submitSitemapToGoogle, isGoogleConfigured } from "@/lib/google-indexing";
 import { getServerConfig } from "@/lib/server-config";
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       select: { role: true },
     });
 
-    if (!user || (user.role !== "ADMIN" && user.role !== "OWNER")) {
+    if (!user || !isPrivileged(user.role)) {
       return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
     }
 

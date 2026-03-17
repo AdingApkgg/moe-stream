@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { awardPoints } from "@/lib/points";
+import { isPrivileged, canUploadContent } from "@/lib/permissions";
 
 async function generateImagePostId(prisma: PrismaClient): Promise<string> {
   const maxAttempts = 100;
@@ -169,8 +170,7 @@ export const imageRouter = router({
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
-      const isPrivileged = user.role === "ADMIN" || user.role === "OWNER";
-      if (!isPrivileged && !user.canUpload) {
+      if (!canUploadContent(user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
       }
 
@@ -192,7 +192,7 @@ export const imageRouter = router({
         }
       }
 
-      const status = isPrivileged ? "PUBLISHED" : "PENDING";
+      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
 
       const post = await ctx.prisma.imagePost.create({
         data: {
@@ -233,12 +233,11 @@ export const imageRouter = router({
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
-      const isPrivileged = user.role === "ADMIN" || user.role === "OWNER";
-      if (!isPrivileged && !user.canUpload) {
+      if (!canUploadContent(user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
       }
 
-      const status = isPrivileged ? "PUBLISHED" : "PENDING";
+      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
 
       const allTagNames = new Set<string>();
       for (const p of input.posts) {
@@ -342,9 +341,7 @@ export const imageRouter = router({
         where: { id: ctx.session.user.id },
         select: { role: true },
       });
-      const isPrivileged = user?.role === "ADMIN" || user?.role === "OWNER";
-
-      if (post.uploaderId !== ctx.session.user.id && !isPrivileged) {
+      if (post.uploaderId !== ctx.session.user.id && !(user && isPrivileged(user.role))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "无权编辑此图片帖" });
       }
 
@@ -372,8 +369,7 @@ export const imageRouter = router({
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
-      const isPrivileged = user.role === "ADMIN" || user.role === "OWNER";
-      if (!isPrivileged && !user.canUpload) {
+      if (!canUploadContent(user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "暂无编辑权限" });
       }
 

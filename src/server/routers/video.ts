@@ -7,6 +7,7 @@ import { submitVideoToIndexNow, submitVideosToIndexNow } from "@/lib/indexnow";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { awardPoints } from "@/lib/points";
 import { createNotification } from "@/lib/notification";
+import { isPrivileged, canUploadContent } from "@/lib/permissions";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
 
@@ -558,7 +559,7 @@ export const videoRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
       
-      const canUpload = user.role === "ADMIN" || user.role === "OWNER" || user.canUpload;
+      const canUpload = canUploadContent(user);
       if (!canUpload) {
         throw new TRPCError({ 
           code: "FORBIDDEN", 
@@ -687,7 +688,7 @@ export const videoRouter = router({
         select: { role: true, canUpload: true },
       });
       if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      const canUpload = user.role === "ADMIN" || user.role === "OWNER" || user.canUpload;
+      const canUpload = canUploadContent(user);
       if (!canUpload) {
         throw new TRPCError({ code: "FORBIDDEN", message: "您暂无投稿权限" });
       }
@@ -921,7 +922,7 @@ export const videoRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
       
-      const canUpload = user.role === "ADMIN" || user.role === "OWNER" || user.canUpload;
+      const canUpload = canUploadContent(user);
       if (!canUpload) {
         throw new TRPCError({ 
           code: "FORBIDDEN", 
@@ -938,7 +939,7 @@ export const videoRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      if (video.uploaderId !== ctx.session.user.id && user.role === "USER") {
+      if (video.uploaderId !== ctx.session.user.id && !isPrivileged(user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "只能编辑自己的视频" });
       }
 

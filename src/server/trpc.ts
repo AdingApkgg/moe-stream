@@ -4,6 +4,8 @@ import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { getSession, type AppSession } from "@/lib/auth";
+import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
+import { isPrivileged } from "@/lib/permissions";
 
 // Context 类型
 export interface Context {
@@ -124,24 +126,30 @@ const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
 // 需要登录的 procedure
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 
-// 管理员中间件（ADMIN 或 OWNER）
+// 管理员中间件（ADMIN 或 OWNER），同时将 role 和 scopes 注入 context
 const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  
+
   const user = await ctx.prisma.user.findUnique({
     where: { id: ctx.session.user.id },
-    select: { role: true },
+    select: { role: true, adminScopes: true },
   });
-  
-  if (user?.role !== "ADMIN" && user?.role !== "OWNER") {
+
+  if (!user || !isPrivileged(user.role)) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
-  
+
+  const scopes = user.role === "OWNER"
+    ? Object.keys(ADMIN_SCOPES)
+    : ((user.adminScopes as string[]) || []);
+
   return next({
     ctx: {
       session: { ...ctx.session, user: ctx.session.user },
+      adminRole: user.role as "ADMIN" | "OWNER",
+      adminScopes: scopes,
     },
   });
 });
@@ -151,22 +159,36 @@ const enforceUserIsOwner = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  
+
   const user = await ctx.prisma.user.findUnique({
     where: { id: ctx.session.user.id },
     select: { role: true },
   });
-  
+
   if (user?.role !== "OWNER") {
     throw new TRPCError({ code: "FORBIDDEN", message: "仅站长可执行此操作" });
   }
-  
+
   return next({
     ctx: {
       session: { ...ctx.session, user: ctx.session.user },
     },
   });
 });
+
+export function requireScope(scope: AdminScope) {
+  return t.middleware(async ({ ctx, next }) => {
+    // adminScopes 由 enforceUserIsAdmin 注入 context
+    const scopes = (ctx as Record<string, unknown>).adminScopes as string[] | undefined;
+    if (!scopes?.includes(scope)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `缺少权限: ${ADMIN_SCOPES[scope]}`,
+      });
+    }
+    return next();
+  });
+}
 
 // 管理员 procedure（ADMIN 或 OWNER）
 export const adminProcedure = t.procedure.use(enforceUserIsAdmin);

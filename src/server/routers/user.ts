@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, ownerProcedure, adminProcedure } from "../trpc";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";
+import { isOwner } from "@/lib/permissions";
 
 export const userRouter = router({
   // 注册
@@ -585,7 +586,7 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      if (user.role === "OWNER") {
+      if (isOwner(user.role)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "站长账号不能注销，请先转让站长权限",
@@ -780,7 +781,7 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      if (targetUser.role === "OWNER") {
+      if (isOwner(targetUser.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的角色" });
       }
 

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@/generated/prisma/client";
 import { getIpLocation } from "@/lib/ip-location";
 import { parseDeviceInfo, type DeviceInfo } from "@/lib/device-info";
+import { isPrivileged } from "@/lib/permissions";
 import { awardPoints } from "@/lib/points";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -367,7 +368,7 @@ export const imagePostCommentRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "评论不存在" });
       }
       const isOwner = comment.userId === ctx.session.user.id;
-      const isAdmin = ctx.session.user.role === "ADMIN" || ctx.session.user.role === "OWNER";
+      const isAdmin = isPrivileged(ctx.session.user.role ?? "");
       if (!isOwner && !isAdmin) {
         throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此评论" });
       }

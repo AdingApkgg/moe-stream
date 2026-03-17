@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
+import { isPrivileged } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -136,7 +137,7 @@ export function ImagePostCommentItem({
 
   const utils = trpc.useUtils();
   const isOwner = comment.userId && session?.user?.id === comment.userId;
-  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "OWNER";
+  const isAdmin = isPrivileged(session?.user?.role ?? "");
   const replyCount = comment._count?.replies ?? 0;
   const topLevelParentId = parentId || comment.id;
 

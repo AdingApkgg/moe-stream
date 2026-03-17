@@ -3,6 +3,7 @@
 import { createAuthClient } from "better-auth/react";
 import { usernameClient, twoFactorClient } from "better-auth/client/plugins";
 import { passkeyClient } from "@better-auth/passkey/client";
+import { isPrivileged } from "@/lib/permissions";
 
 export const authClient = createAuthClient({
   baseURL: typeof window !== "undefined" ? "" : process.env.NEXT_PUBLIC_APP_URL,
@@ -35,7 +36,7 @@ export function useSession() {
 
   const customUser = data?.user as NonNullable<typeof data>["user"] & CustomSessionUser | undefined;
   const role = customUser?.role as "USER" | "ADMIN" | "OWNER" | undefined;
-  const canUpload = role === "ADMIN" || role === "OWNER" || customUser?.canUpload === true;
+  const canUpload = isPrivileged(role ?? "") || customUser?.canUpload === true;
   const adsEnabled = customUser?.adsEnabled ?? true;
   const twoFactorEnabled = customUser?.twoFactorEnabled ?? false;
 

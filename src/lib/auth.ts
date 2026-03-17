@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { getOrSet, deleteCache } from "@/lib/redis";
 import { send2faOtpEmail } from "@/lib/email";
+import { isPrivileged } from "@/lib/permissions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,10 +183,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
           },
         });
         if (!dbUser) return { user, session };
-        const canUpload =
-          dbUser.role === "ADMIN" ||
-          dbUser.role === "OWNER" ||
-          dbUser.canUpload === true;
+        const canUpload = isPrivileged(dbUser.role) || dbUser.canUpload === true;
         return {
           session,
           user: {
@@ -348,7 +346,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
   };
 
   const role = (user.role as "USER" | "ADMIN" | "OWNER") ?? "USER";
-  const canUpload = role === "ADMIN" || role === "OWNER" || user.canUpload === true;
+  const canUpload = isPrivileged(role) || user.canUpload === true;
 
   return {
     jti: session?.token ?? undefined,

@@ -34,6 +34,7 @@ import {
   Layers,
 } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
+import { isPrivileged } from "@/lib/permissions";
 import { useTheme } from "next-themes";
 import { authClient } from "@/lib/auth-client";
 import { useSearchHistoryStore } from "@/stores/app";
@@ -198,7 +199,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               <Settings className="mr-2 h-4 w-4" />
               设置
             </CommandItem>
-            {(session.user.role === "ADMIN" || session.user.role === "OWNER") && (
+            {isPrivileged(session.user.role ?? "") && (
               <CommandItem onSelect={() => runCommand(() => router.push("/dashboard"))}>
                 <Shield className="mr-2 h-4 w-4" />
                 管理后台

@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { router, publicProcedure, protectedProcedure, adminProcedure, ownerProcedure } from "../trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure, ownerProcedure, requireScope } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
+import { ADMIN_SCOPES } from "@/lib/constants";
+import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
 import { Prisma } from "@/generated/prisma/client";
 import { nanoid } from "nanoid";
 import { parseShortcode } from "@/lib/shortcode-parser";
@@ -58,29 +59,6 @@ async function getAdminBatchLimit(
   }
 }
 
-// 检查用户是否有特定权限
-async function hasScope(
-  prisma: typeof import("@/lib/prisma").prisma,
-  userId: string,
-  scope: AdminScope
-): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, adminScopes: true },
-  });
-
-  if (!user) return false;
-
-  // 站长拥有所有权限
-  if (user.role === "OWNER") return true;
-
-  // 普通用户无管理权限
-  if (user.role === "USER") return false;
-
-  // 管理员检查 adminScopes
-  const scopes = (user.adminScopes as string[]) || [];
-  return scopes.includes(scope);
-}
 
 export const adminRouter = router({
   // 获取当前用户的管理权限信息
@@ -94,8 +72,8 @@ export const adminRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const isOwner = user.role === "OWNER";
-    const isAdmin = user.role === "ADMIN" || isOwner;
+    const isOwner = isOwnerRole(user.role);
+    const isAdmin = isPrivileged(user.role);
     const scopes = isOwner
       ? Object.keys(ADMIN_SCOPES)
       : ((user.adminScopes as string[]) || []);
@@ -704,12 +682,7 @@ export const adminRouter = router({
   // ========== 用户管理（站长专用）==========
 
   // 用户统计
-  getUserStats: adminProcedure.query(async ({ ctx }) => {
-    const canView = await hasScope(ctx.prisma, ctx.session.user.id, "user:view");
-    if (!canView) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无用户查看权限" });
-    }
-
+  getUserStats: adminProcedure.use(requireScope("user:view")).query(async ({ ctx }) => {
     const [total, users, admins, owners, banned] = await Promise.all([
       ctx.prisma.user.count(),
       ctx.prisma.user.count({ where: { role: "USER" } }),
@@ -723,6 +696,7 @@ export const adminRouter = router({
 
   // 获取用户列表（管理员可查看，站长可管理）
   listUsers: adminProcedure
+    .use(requireScope("user:view"))
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
@@ -733,11 +707,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canView = await hasScope(ctx.prisma, ctx.session.user.id, "user:view");
-      if (!canView) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户查看权限" });
-      }
-
       const { limit, page } = input;
       const where = {
         ...(input.role !== "ALL" && { role: input.role }),
@@ -787,13 +756,9 @@ export const adminRouter = router({
 
   // 封禁用户
   banUser: adminProcedure
+    .use(requireScope("user:manage"))
     .input(z.object({ userId: z.string(), reason: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
-      }
-
       const target = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
         select: { role: true },
@@ -803,7 +768,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      if (target.role === "OWNER") {
+      if (isOwnerRole(target.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "不能封禁站长" });
       }
 
@@ -817,13 +782,9 @@ export const adminRouter = router({
 
   // 解封用户
   unbanUser: adminProcedure
+    .use(requireScope("user:manage"))
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
-      }
-
       await ctx.prisma.user.update({
         where: { id: input.userId },
         data: { isBanned: false, banReason: null, bannedAt: null },
@@ -834,13 +795,9 @@ export const adminRouter = router({
 
   // 批量封禁用户
   batchBanUsers: adminProcedure
+    .use(requireScope("user:manage"))
     .input(z.object({ userIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
-      }
-
       const result = await ctx.prisma.user.updateMany({
         where: { id: { in: input.userIds }, role: { not: "OWNER" } },
         data: { isBanned: true, bannedAt: new Date() },
@@ -851,13 +808,9 @@ export const adminRouter = router({
 
   // 批量解封用户
   batchUnbanUsers: adminProcedure
+    .use(requireScope("user:manage"))
     .input(z.object({ userIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
-      }
-
       const result = await ctx.prisma.user.updateMany({
         where: { id: { in: input.userIds } },
         data: { isBanned: false, banReason: null, bannedAt: null },
@@ -888,7 +841,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      if (targetUser.role === "OWNER") {
+      if (isOwnerRole(targetUser.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的角色" });
       }
 
@@ -941,6 +894,7 @@ export const adminRouter = router({
 
   // 更新用户广告加载开关（站长或拥有 user:manage 的管理员）
   updateUserAdsEnabled: adminProcedure
+    .use(requireScope("user:manage"))
     .input(
       z.object({
         userId: z.string(),
@@ -948,11 +902,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "user:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无用户管理权限" });
-      }
-
       const targetUser = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
         select: { role: true },
@@ -962,7 +911,7 @@ export const adminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
       }
 
-      if (targetUser.role === "OWNER") {
+      if (isOwnerRole(targetUser.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的设置" });
       }
 
@@ -977,12 +926,7 @@ export const adminRouter = router({
   // ========== 视频管理 ==========
 
   // 视频统计
-  getVideoStats: adminProcedure.query(async ({ ctx }) => {
-    const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-    if (!canModerate) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-    }
-
+  getVideoStats: adminProcedure.use(requireScope("video:moderate")).query(async ({ ctx }) => {
     const [total, published, pending, rejected] = await Promise.all([
       ctx.prisma.video.count(),
       ctx.prisma.video.count({ where: { status: "PUBLISHED" } }),
@@ -995,6 +939,7 @@ export const adminRouter = router({
 
   // 获取所有视频列表（分页版）
   listAllVideos: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -1005,11 +950,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const { page, limit, status, search, sortBy } = input;
 
       const where: Prisma.VideoWhereInput = {
@@ -1054,6 +994,7 @@ export const adminRouter = router({
 
   // 获取所有视频 ID（用于全选）
   getAllVideoIds: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
@@ -1061,11 +1002,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const { status, search } = input;
 
       const where: Prisma.VideoWhereInput = {
@@ -1090,6 +1026,7 @@ export const adminRouter = router({
 
   // 审核视频
   moderateVideo: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         videoId: z.string(),
@@ -1097,11 +1034,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频审核权限" });
-      }
-
       const video = await ctx.prisma.video.update({
         where: { id: input.videoId },
         data: { status: input.status },
@@ -1124,13 +1056,9 @@ export const adminRouter = router({
 
   // 删除视频（管理员）
   deleteVideo: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ videoId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       // 获取视频所在的合集ID（删除前）
       const episodes = await ctx.prisma.seriesEpisode.findMany({
         where: { videoId: input.videoId },
@@ -1155,6 +1083,7 @@ export const adminRouter = router({
 
   // 批量审核视频
   batchModerateVideos: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         videoIds: z.array(z.string()).min(1).max(100),
@@ -1162,11 +1091,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频审核权限" });
-      }
-
       const result = await ctx.prisma.video.updateMany({
         where: { id: { in: input.videoIds } },
         data: { status: input.status },
@@ -1177,13 +1101,9 @@ export const adminRouter = router({
 
   // 批量删除视频
   batchDeleteVideos: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ videoIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       // 获取视频所在的合集ID（删除前）
       const episodes = await ctx.prisma.seriesEpisode.findMany({
         where: { videoId: { in: input.videoIds } },
@@ -1212,6 +1132,7 @@ export const adminRouter = router({
 
   // 正则批量编辑 - 预览
   batchRegexPreview: adminProcedure
+    .use(requireScope("video:manage"))
     .input(
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
@@ -1227,11 +1148,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -1304,6 +1220,7 @@ export const adminRouter = router({
 
   // 正则批量编辑 - 执行
   batchRegexUpdate: adminProcedure
+    .use(requireScope("video:manage"))
     .input(
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
@@ -1319,11 +1236,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -1405,6 +1317,7 @@ export const adminRouter = router({
 
   // 批量导入视频（解析短代码）
   batchImportVideos: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       videos: z.array(z.object({
         title: z.string().min(1).max(100),
@@ -1417,11 +1330,6 @@ export const adminRouter = router({
       })).min(1).max(100),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const results: { title: string; id?: string; error?: string }[] = [];
 
       for (const videoData of input.videos) {
@@ -1503,10 +1411,7 @@ export const adminRouter = router({
 
   // ========== 标签分类管理 ==========
 
-  listTagCategories: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-    if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
+  listTagCategories: adminProcedure.use(requireScope("tag:manage")).query(async ({ ctx }) => {
     return ctx.prisma.tagCategory.findMany({
       orderBy: { sortOrder: "asc" },
       include: { _count: { select: { tags: true } } },
@@ -1514,6 +1419,7 @@ export const adminRouter = router({
   }),
 
   createTagCategory: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       name: z.string().min(1).max(30),
       slug: z.string().min(1).max(30),
@@ -1521,9 +1427,6 @@ export const adminRouter = router({
       sortOrder: z.number().int().default(0),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const existing = await ctx.prisma.tagCategory.findFirst({
         where: { OR: [{ name: input.name }, { slug: input.slug }] },
       });
@@ -1535,6 +1438,7 @@ export const adminRouter = router({
     }),
 
   updateTagCategory: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       id: z.string(),
       name: z.string().min(1).max(30).optional(),
@@ -1543,9 +1447,6 @@ export const adminRouter = router({
       sortOrder: z.number().int().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const { id, ...data } = input;
       const cat = await ctx.prisma.tagCategory.update({ where: { id }, data });
       await deleteCachePattern("tag:*");
@@ -1553,11 +1454,9 @@ export const adminRouter = router({
     }),
 
   deleteTagCategory: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       await ctx.prisma.tagCategory.delete({ where: { id: input.id } });
       await deleteCachePattern("tag:*");
       return { success: true };
@@ -1565,10 +1464,7 @@ export const adminRouter = router({
 
   // ========== 标签管理 ==========
 
-  getTagStats: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-    if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
+  getTagStats: adminProcedure.use(requireScope("tag:manage")).query(async ({ ctx }) => {
     const [tags, categoryCount] = await Promise.all([
       ctx.prisma.tag.findMany({
         select: { categoryId: true, _count: { select: { videos: true, games: true, imagePosts: true } } },
@@ -1587,15 +1483,13 @@ export const adminRouter = router({
   }),
 
   createTag: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       name: z.string().min(1).max(50),
       slug: z.string().min(1).max(50).optional(),
       categoryId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const slug = input.slug || input.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
 
       const existing = await ctx.prisma.tag.findFirst({
@@ -1612,6 +1506,7 @@ export const adminRouter = router({
     }),
 
   listTags: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       limit: z.number().min(1).max(100).default(50),
       page: z.number().min(1).default(1),
@@ -1620,9 +1515,6 @@ export const adminRouter = router({
       uncategorized: z.boolean().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const { limit, page } = input;
       const conditions: Prisma.TagWhereInput[] = [];
 
@@ -1665,6 +1557,7 @@ export const adminRouter = router({
     }),
 
   updateTag: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       tagId: z.string(),
       name: z.string().min(1).max(50).optional(),
@@ -1672,9 +1565,6 @@ export const adminRouter = router({
       categoryId: z.string().nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const { tagId, ...data } = input;
       const tag = await ctx.prisma.tag.update({ where: { id: tagId }, data });
       await deleteCachePattern("tag:*");
@@ -1684,14 +1574,12 @@ export const adminRouter = router({
 
   // 批量修改标签分类
   batchUpdateTagCategory: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       tagIds: z.array(z.string()).min(1).max(100),
       categoryId: z.string().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const result = await ctx.prisma.tag.updateMany({
         where: { id: { in: input.tagIds } },
         data: { categoryId: input.categoryId },
@@ -1702,11 +1590,9 @@ export const adminRouter = router({
     }),
 
   deleteTag: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({ tagId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       await ctx.prisma.tag.delete({ where: { id: input.tagId } });
       await deleteCachePattern("tag:*");
 
@@ -1714,11 +1600,9 @@ export const adminRouter = router({
     }),
 
   batchDeleteTags: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({ tagIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const result = await ctx.prisma.tag.deleteMany({
         where: { id: { in: input.tagIds } },
       });
@@ -1728,14 +1612,12 @@ export const adminRouter = router({
     }),
 
   mergeTags: adminProcedure
+    .use(requireScope("tag:manage"))
     .input(z.object({
       sourceTagIds: z.array(z.string()).min(1).max(100),
       targetTagId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "tag:manage");
-      if (!canManage) throw new TRPCError({ code: "FORBIDDEN", message: "无标签管理权限" });
-
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
 
@@ -1781,6 +1663,7 @@ export const adminRouter = router({
 
   // 获取评论列表
   listComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
@@ -1790,11 +1673,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const { limit, page } = input;
       const where = {
         ...(input.search && {
@@ -1841,13 +1719,9 @@ export const adminRouter = router({
 
   // 隐藏/显示评论
   toggleCommentHidden: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string(), isHidden: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.comment.update({
         where: { id: input.commentId },
         data: { isHidden: input.isHidden },
@@ -1858,13 +1732,9 @@ export const adminRouter = router({
 
   // 删除评论（软删除）
   deleteComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.comment.update({
         where: { id: input.commentId },
         data: { isDeleted: true },
@@ -1875,13 +1745,9 @@ export const adminRouter = router({
 
   // 恢复评论
   restoreComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.comment.update({
         where: { id: input.commentId },
         data: { isDeleted: false },
@@ -1891,12 +1757,7 @@ export const adminRouter = router({
     }),
 
   // 评论统计
-  getCommentStats: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-    }
-
+  getCommentStats: adminProcedure.use(requireScope("comment:manage")).query(async ({ ctx }) => {
     const [total, visible, hidden, deleted] = await Promise.all([
       ctx.prisma.comment.count(),
       ctx.prisma.comment.count({ where: { isDeleted: false, isHidden: false } }),
@@ -1909,6 +1770,7 @@ export const adminRouter = router({
 
   // 批量评论操作
   batchCommentAction: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
@@ -1916,11 +1778,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const data = (() => {
         switch (input.action) {
           case "hide":
@@ -1944,13 +1801,9 @@ export const adminRouter = router({
 
   // 硬删除评论（彻底删除）
   hardDeleteComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       // 先删除所有子评论（回复）
       await ctx.prisma.comment.deleteMany({
         where: { parentId: input.commentId },
@@ -1971,13 +1824,9 @@ export const adminRouter = router({
 
   // 批量硬删除评论
   batchHardDeleteComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       // 先删除所有子评论
       await ctx.prisma.comment.deleteMany({
         where: { parentId: { in: input.commentIds } },
@@ -1999,6 +1848,7 @@ export const adminRouter = router({
   // ========== 游戏评论管理 ==========
 
   listGameComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
@@ -2008,11 +1858,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const { limit, page } = input;
       const where = {
         ...(input.search && {
@@ -2058,13 +1903,9 @@ export const adminRouter = router({
     }),
 
   toggleGameCommentHidden: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string(), isHidden: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.gameComment.update({
         where: { id: input.commentId },
         data: { isHidden: input.isHidden },
@@ -2074,13 +1915,9 @@ export const adminRouter = router({
     }),
 
   deleteGameComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.gameComment.update({
         where: { id: input.commentId },
         data: { isDeleted: true },
@@ -2090,13 +1927,9 @@ export const adminRouter = router({
     }),
 
   restoreGameComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.gameComment.update({
         where: { id: input.commentId },
         data: { isDeleted: false },
@@ -2105,12 +1938,7 @@ export const adminRouter = router({
       return { success: true };
     }),
 
-  getGameCommentStats: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-    }
-
+  getGameCommentStats: adminProcedure.use(requireScope("comment:manage")).query(async ({ ctx }) => {
     const [total, visible, hidden, deleted] = await Promise.all([
       ctx.prisma.gameComment.count(),
       ctx.prisma.gameComment.count({ where: { isDeleted: false, isHidden: false } }),
@@ -2122,6 +1950,7 @@ export const adminRouter = router({
   }),
 
   batchGameCommentAction: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
@@ -2129,11 +1958,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const data = (() => {
         switch (input.action) {
           case "hide":
@@ -2156,13 +1980,9 @@ export const adminRouter = router({
     }),
 
   hardDeleteGameComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.gameComment.deleteMany({
         where: { parentId: input.commentId },
       });
@@ -2179,13 +1999,9 @@ export const adminRouter = router({
     }),
 
   batchHardDeleteGameComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.gameComment.deleteMany({
         where: { parentId: { in: input.commentIds } },
       });
@@ -2204,6 +2020,7 @@ export const adminRouter = router({
   // ========== 图文评论管理 ==========
 
   listImagePostComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
@@ -2213,11 +2030,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const { limit, page } = input;
       const where = {
         ...(input.search && {
@@ -2263,13 +2075,9 @@ export const adminRouter = router({
     }),
 
   toggleImagePostCommentHidden: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string(), isHidden: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.imagePostComment.update({
         where: { id: input.commentId },
         data: { isHidden: input.isHidden },
@@ -2279,13 +2087,9 @@ export const adminRouter = router({
     }),
 
   deleteImagePostComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.imagePostComment.update({
         where: { id: input.commentId },
         data: { isDeleted: true },
@@ -2295,13 +2099,9 @@ export const adminRouter = router({
     }),
 
   restoreImagePostComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.imagePostComment.update({
         where: { id: input.commentId },
         data: { isDeleted: false },
@@ -2310,12 +2110,7 @@ export const adminRouter = router({
       return { success: true };
     }),
 
-  getImagePostCommentStats: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-    }
-
+  getImagePostCommentStats: adminProcedure.use(requireScope("comment:manage")).query(async ({ ctx }) => {
     const [total, visible, hidden, deleted] = await Promise.all([
       ctx.prisma.imagePostComment.count(),
       ctx.prisma.imagePostComment.count({ where: { isDeleted: false, isHidden: false } }),
@@ -2327,6 +2122,7 @@ export const adminRouter = router({
   }),
 
   batchImagePostCommentAction: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
@@ -2334,11 +2130,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       const data = (() => {
         switch (input.action) {
           case "hide":
@@ -2361,13 +2152,9 @@ export const adminRouter = router({
     }),
 
   hardDeleteImagePostComment: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.imagePostComment.deleteMany({
         where: { parentId: input.commentId },
       });
@@ -2384,13 +2171,9 @@ export const adminRouter = router({
     }),
 
   batchHardDeleteImagePostComments: adminProcedure
+    .use(requireScope("comment:manage"))
     .input(z.object({ commentIds: z.array(z.string()).min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "comment:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无评论管理权限" });
-      }
-
       await ctx.prisma.imagePostComment.deleteMany({
         where: { parentId: { in: input.commentIds } },
       });
@@ -2406,15 +2189,149 @@ export const adminRouter = router({
       return { success: true, count: result.count };
     }),
 
+  // ========== 留言板管理 ==========
+
+  listGuestbookMessages: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page } = input;
+      const where = {
+        ...(input.search && {
+          OR: [
+            { content: { contains: input.search, mode: "insensitive" as const } },
+            { user: { username: { contains: input.search, mode: "insensitive" as const } } },
+            { user: { nickname: { contains: input.search, mode: "insensitive" as const } } },
+            { guestName: { contains: input.search, mode: "insensitive" as const } },
+          ],
+        }),
+        ...(input.status === "VISIBLE" && { isDeleted: false, isHidden: false }),
+        ...(input.status === "HIDDEN" && { isHidden: true, isDeleted: false }),
+        ...(input.status === "DELETED" && { isDeleted: true }),
+      };
+
+      const [messages, totalCount] = await Promise.all([
+        ctx.prisma.guestbookMessage.findMany({
+          skip: (page - 1) * limit,
+          take: limit,
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: { select: { id: true, username: true, nickname: true, avatar: true } },
+          },
+        }),
+        ctx.prisma.guestbookMessage.count({ where }),
+      ]);
+
+      return {
+        messages,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  getGuestbookStats: adminProcedure.use(requireScope("comment:manage")).query(async ({ ctx }) => {
+    const [total, visible, hidden, deleted] = await Promise.all([
+      ctx.prisma.guestbookMessage.count(),
+      ctx.prisma.guestbookMessage.count({ where: { isDeleted: false, isHidden: false } }),
+      ctx.prisma.guestbookMessage.count({ where: { isHidden: true, isDeleted: false } }),
+      ctx.prisma.guestbookMessage.count({ where: { isDeleted: true } }),
+    ]);
+
+    return { total, visible, hidden, deleted };
+  }),
+
+  toggleGuestbookHidden: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(z.object({ messageId: z.string(), isHidden: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.guestbookMessage.update({
+        where: { id: input.messageId },
+        data: { isHidden: input.isHidden },
+      });
+      return { success: true };
+    }),
+
+  deleteGuestbookMessage: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.guestbookMessage.update({
+        where: { id: input.messageId },
+        data: { isDeleted: true },
+      });
+      return { success: true };
+    }),
+
+  restoreGuestbookMessage: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.guestbookMessage.update({
+        where: { id: input.messageId },
+        data: { isDeleted: false },
+      });
+      return { success: true };
+    }),
+
+  batchGuestbookAction: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(
+      z.object({
+        messageIds: z.array(z.string()).min(1).max(100),
+        action: z.enum(["hide", "show", "delete", "restore"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const dataMap = {
+        hide: { isHidden: true },
+        show: { isHidden: false },
+        delete: { isDeleted: true },
+        restore: { isDeleted: false },
+      };
+
+      const result = await ctx.prisma.guestbookMessage.updateMany({
+        where: { id: { in: input.messageIds } },
+        data: dataMap[input.action],
+      });
+
+      return { success: true, count: result.count };
+    }),
+
+  hardDeleteGuestbookMessage: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.guestbookMessage.delete({
+        where: { id: input.messageId },
+      });
+
+      return { success: true };
+    }),
+
+  batchHardDeleteGuestbookMessages: adminProcedure
+    .use(requireScope("comment:manage"))
+    .input(z.object({ messageIds: z.array(z.string()).min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.prisma.guestbookMessage.deleteMany({
+        where: { id: { in: input.messageIds } },
+      });
+
+      return { success: true, count: result.count };
+    }),
+
   // ========== 网站配置 ==========
 
   // 获取网站配置
-  getSiteConfig: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-    }
-
+  getSiteConfig: adminProcedure.use(requireScope("settings:manage")).query(async ({ ctx }) => {
     let config = await ctx.prisma.siteConfig.findUnique({
       where: { id: "default" },
     });
@@ -2629,11 +2546,6 @@ export const adminRouter = router({
       oauthRedditClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       // 仅保留 SiteConfig 存在的字段，空字符串转 null，并确保 Json 为可序列化值
       const allowedKeys = new Set([
         "siteName", "siteUrl", "siteDescription", "siteLogo", "siteFavicon", "siteKeywords",
@@ -2741,12 +2653,7 @@ export const adminRouter = router({
 
   // ==================== 配置备份与还原 ====================
 
-  exportSiteConfig: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-    }
-
+  exportSiteConfig: adminProcedure.use(requireScope("settings:manage")).query(async ({ ctx }) => {
     const [config, friendLinks] = await Promise.all([
       ctx.prisma.siteConfig.findUnique({ where: { id: "default" } }),
       ctx.prisma.friendLink.findMany({ orderBy: { sort: "desc" } }),
@@ -2770,15 +2677,11 @@ export const adminRouter = router({
   }),
 
   importSiteConfig: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({
       data: z.record(z.string(), z.unknown()),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       const { data } = input;
 
       const systemKeys = new Set(["_exportedAt", "_version", "_friendLinks", "id", "createdAt", "updatedAt"]);
@@ -2879,6 +2782,7 @@ export const adminRouter = router({
 
   // 重置视频封面：清除匹配模式的封面URL并触发自动生成
   resetCovers: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       // 匹配封面URL的模式，如 "/Picture/" 匹配合集封面
       urlPattern: z.string().min(1).max(200).optional(),
@@ -2892,11 +2796,6 @@ export const adminRouter = router({
       localOnly: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       // 构建查询条件
       const where: Prisma.VideoWhereInput = {
         coverUrl: { not: null },
@@ -2945,12 +2844,7 @@ export const adminRouter = router({
     }),
 
   // 获取封面生成统计和队列状态
-  getCoverStats: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-    }
-
+  getCoverStats: adminProcedure.use(requireScope("video:manage")).query(async ({ ctx }) => {
     const published: Prisma.VideoWhereInput = { status: "PUBLISHED" };
 
     const [stats, total, withCover, localCover, withBlur, noCover, recentNoCover, permFailedIds] = await Promise.all([
@@ -2985,64 +2879,46 @@ export const adminRouter = router({
   }),
 
   // 重置封面生成统计
-  resetCoverStats: adminProcedure.mutation(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-    }
+  resetCoverStats: adminProcedure.use(requireScope("video:manage")).mutation(async () => {
     await resetCoverStats();
     return { success: true };
   }),
 
   // 获取封面生成日志
   getCoverLogs: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       limit: z.number().min(1).max(200).default(100),
     }).optional())
-    .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
+    .query(async ({ input }) => {
       const logs = await getCoverLogs(input?.limit ?? 100);
       return { logs };
     }),
 
   // 清除封面生成日志
-  clearCoverLogs: adminProcedure.mutation(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-    }
+  clearCoverLogs: adminProcedure.use(requireScope("video:manage")).mutation(async () => {
     await clearCoverLogs();
     return { success: true };
   }),
 
   // 清除永久失败标记，允许重新尝试生成封面
   clearPermFailed: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       videoIds: z.array(z.string()).optional(),
     }).optional())
-    .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
+    .mutation(async ({ input }) => {
       const cleared = await clearPermFailed(input?.videoIds);
       return { cleared };
     }),
 
   // 手动触发补全缺失封面的视频
   triggerCoverBackfill: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       limit: z.number().min(1).max(500).default(50),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const videos = await ctx.prisma.video.findMany({
         where: {
           status: "PUBLISHED",
@@ -3063,15 +2939,11 @@ export const adminRouter = router({
 
   // 为指定视频重新生成封面
   regenerateCovers: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       videoIds: z.array(z.string()).min(1).max(100),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       // 清除旧封面URL，触发重新生成
       await ctx.prisma.video.updateMany({
         where: { id: { in: input.videoIds } },
@@ -3084,15 +2956,11 @@ export const adminRouter = router({
 
   // 立即生成封面（同步执行，不经过队列）
   generateCoverNow: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       videoId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       // 先清除旧数据
       await ctx.prisma.video.update({
         where: { id: input.videoId },
@@ -3124,16 +2992,12 @@ export const adminRouter = router({
 
   // 手动上传封面（base64 图片数据）
   uploadCover: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       videoId: z.string(),
       imageBase64: z.string().max(10 * 1024 * 1024),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const video = await ctx.prisma.video.findUnique({
         where: { id: input.videoId },
         select: { id: true },
@@ -3157,13 +3021,9 @@ export const adminRouter = router({
 
   /** 获取游戏用于编辑（管理员可编辑任意游戏） */
   getGameForEdit: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const game = await ctx.prisma.game.findUnique({
         where: { id: input.id },
         include: {
@@ -3181,12 +3041,7 @@ export const adminRouter = router({
     }),
 
   /** 游戏统计 */
-  getGameStats: adminProcedure.query(async ({ ctx }) => {
-    const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-    if (!canModerate) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-    }
-
+  getGameStats: adminProcedure.use(requireScope("video:moderate")).query(async ({ ctx }) => {
     const [total, pending, published, rejected] = await Promise.all([
       ctx.prisma.game.count(),
       ctx.prisma.game.count({ where: { status: "PENDING" } }),
@@ -3199,6 +3054,7 @@ export const adminRouter = router({
 
   /** 获取所有游戏列表（分页版） */
   listAllGames: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -3209,11 +3065,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const { page, limit, status, search, gameType } = input;
       const skip = (page - 1) * limit;
 
@@ -3261,6 +3112,7 @@ export const adminRouter = router({
 
   /** 审核游戏 */
   moderateGame: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         gameId: z.string(),
@@ -3268,11 +3120,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏审核权限" });
-      }
-
       await ctx.prisma.game.update({
         where: { id: input.gameId },
         data: { status: input.status },
@@ -3288,19 +3135,16 @@ export const adminRouter = router({
 
   /** 删除游戏 */
   deleteGame: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       await ctx.prisma.game.delete({ where: { id: input.gameId } });
       return { success: true };
     }),
 
   /** 创建游戏（管理员） */
   createGame: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         title: z.string().min(1).max(200),
@@ -3315,11 +3159,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       // 生成游戏 ID
       const maxAttempts = 100;
       let gameId = "";
@@ -3379,6 +3218,7 @@ export const adminRouter = router({
 
   /** 更新游戏 */
   updateGame: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         gameId: z.string(),
@@ -3393,11 +3233,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const { gameId, tagNames, ...updateData } = input;
 
       // 更新基本信息
@@ -3431,6 +3266,7 @@ export const adminRouter = router({
 
   /** 获取所有游戏 ID（用于全选） */
   getAllGameIds: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
@@ -3438,11 +3274,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const { status, search } = input;
       const where: Prisma.GameWhereInput = {};
       if (status !== "ALL") where.status = status;
@@ -3463,6 +3294,7 @@ export const adminRouter = router({
 
   /** 批量审核游戏 */
   batchModerateGames: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         gameIds: z.array(z.string()).min(1).max(1000),
@@ -3470,11 +3302,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏审核权限" });
-      }
-
       const result = await ctx.prisma.game.updateMany({
         where: { id: { in: input.gameIds } },
         data: { status: input.status },
@@ -3490,13 +3317,9 @@ export const adminRouter = router({
 
   /** 批量删除游戏 */
   batchDeleteGames: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ gameIds: z.array(z.string()).min(1).max(1000) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const result = await ctx.prisma.game.deleteMany({
         where: { id: { in: input.gameIds } },
       });
@@ -3506,12 +3329,7 @@ export const adminRouter = router({
 
   // ========== 图片管理 ==========
 
-  getImageStats: adminProcedure.query(async ({ ctx }) => {
-    const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-    if (!canModerate) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-    }
-
+  getImageStats: adminProcedure.use(requireScope("video:moderate")).query(async ({ ctx }) => {
     const [total, pending, published, rejected] = await Promise.all([
       ctx.prisma.imagePost.count(),
       ctx.prisma.imagePost.count({ where: { status: "PENDING" } }),
@@ -3523,6 +3341,7 @@ export const adminRouter = router({
   }),
 
   listAllImages: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -3532,11 +3351,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       const { page, limit, status, search } = input;
       const skip = (page - 1) * limit;
 
@@ -3578,6 +3392,7 @@ export const adminRouter = router({
     }),
 
   moderateImage: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         imageId: z.string(),
@@ -3585,11 +3400,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片审核权限" });
-      }
-
       await ctx.prisma.imagePost.update({
         where: { id: input.imageId },
         data: { status: input.status },
@@ -3599,18 +3409,15 @@ export const adminRouter = router({
     }),
 
   deleteImage: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ imageId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       await ctx.prisma.imagePost.delete({ where: { id: input.imageId } });
       return { success: true };
     }),
 
   getAllImageIds: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
@@ -3618,11 +3425,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       const { status, search } = input;
       const where: Prisma.ImagePostWhereInput = {};
       if (status !== "ALL") where.status = status;
@@ -3642,6 +3444,7 @@ export const adminRouter = router({
     }),
 
   batchModerateImages: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         imageIds: z.array(z.string()).min(1).max(1000),
@@ -3649,11 +3452,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片审核权限" });
-      }
-
       const result = await ctx.prisma.imagePost.updateMany({
         where: { id: { in: input.imageIds } },
         data: { status: input.status },
@@ -3663,13 +3461,9 @@ export const adminRouter = router({
     }),
 
   batchDeleteImages: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ imageIds: z.array(z.string()).min(1).max(1000) }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       const result = await ctx.prisma.imagePost.deleteMany({
         where: { id: { in: input.imageIds } },
       });
@@ -3678,6 +3472,7 @@ export const adminRouter = router({
     }),
 
   batchImageRegexPreview: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         imageIds: z.array(z.string()).min(1).max(500),
@@ -3688,11 +3483,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -3736,6 +3526,7 @@ export const adminRouter = router({
     }),
 
   batchImageRegexUpdate: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         imageIds: z.array(z.string()).min(1).max(500),
@@ -3746,11 +3537,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -3796,13 +3582,9 @@ export const adminRouter = router({
   // ========== 导出功能 ==========
 
   exportVideos: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(z.object({ videoIds: z.array(z.string()).min(1).max(5000) }))
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无视频管理权限" });
-      }
-
       const videos = await ctx.prisma.video.findMany({
         where: { id: { in: input.videoIds } },
         include: {
@@ -3880,13 +3662,9 @@ export const adminRouter = router({
     }),
 
   exportGames: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(z.object({ gameIds: z.array(z.string()).min(1).max(5000) }))
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       const games = await ctx.prisma.game.findMany({
         where: { id: { in: input.gameIds } },
         include: {
@@ -3907,13 +3685,9 @@ export const adminRouter = router({
     }),
 
   exportImages: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(z.object({ imageIds: z.array(z.string()).min(1).max(5000) }))
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无图片管理权限" });
-      }
-
       const posts = await ctx.prisma.imagePost.findMany({
         where: { id: { in: input.imageIds } },
         include: {
@@ -3931,15 +3705,12 @@ export const adminRouter = router({
 
   // ========== 友情链接管理 ==========
 
-  listFriendLinks: adminProcedure.query(async ({ ctx }) => {
-    const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-    if (!canManage) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
-    }
+  listFriendLinks: adminProcedure.use(requireScope("settings:manage")).query(async ({ ctx }) => {
     return ctx.prisma.friendLink.findMany({ orderBy: [{ sort: "desc" }, { createdAt: "desc" }] });
   }),
 
   createFriendLink: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(
       z.object({
         name: z.string().min(1).max(100),
@@ -3951,14 +3722,11 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
-      }
       return ctx.prisma.friendLink.create({ data: input });
     }),
 
   updateFriendLink: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(
       z.object({
         id: z.string(),
@@ -3971,21 +3739,14 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
-      }
       const { id, ...data } = input;
       return ctx.prisma.friendLink.update({ where: { id }, data });
     }),
 
   deleteFriendLink: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无设置管理权限" });
-      }
       await ctx.prisma.friendLink.delete({ where: { id: input.id } });
       return { success: true };
     }),
@@ -3997,6 +3758,7 @@ export const adminRouter = router({
 
   // 正则批量编辑 - 预览
   batchGameRegexPreview: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         gameIds: z.array(z.string()).min(1).max(500),
@@ -4012,11 +3774,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -4090,6 +3847,7 @@ export const adminRouter = router({
 
   // 正则批量编辑 - 执行
   batchGameRegexUpdate: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         gameIds: z.array(z.string()).min(1).max(500),
@@ -4105,11 +3863,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无游戏管理权限" });
-      }
-
       let regex: RegExp;
       try {
         regex = new RegExp(input.pattern, input.flags);
@@ -4190,16 +3943,12 @@ export const adminRouter = router({
   // ========== 数据备份 ==========
 
   listBackups: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({
       page: z.number().int().min(1).default(1),
       pageSize: z.number().int().min(5).max(50).default(20),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       const page = input?.page ?? 1;
       const pageSize = input?.pageSize ?? 20;
 
@@ -4224,17 +3973,13 @@ export const adminRouter = router({
     }),
 
   triggerBackup: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({
       includeDatabase: z.boolean().default(true),
       includeUploads: z.boolean().default(true),
       includeConfig: z.boolean().default(true),
     }).optional())
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       const { createBackup } = await import("@/lib/backup");
 
       const running = await ctx.prisma.backupRecord.findFirst({
@@ -4255,26 +4000,18 @@ export const adminRouter = router({
     }),
 
   deleteBackup: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
+    .mutation(async ({ input }) => {
       const { deleteBackupById } = await import("@/lib/backup");
       await deleteBackupById(input.id);
       return { success: true };
     }),
 
   getBackupDownloadUrl: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       const record = await ctx.prisma.backupRecord.findUnique({
         where: { id: input.id },
       });
@@ -4293,13 +4030,9 @@ export const adminRouter = router({
     }),
 
   restoreBackup: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "settings:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无系统设置权限" });
-      }
-
       const record = await ctx.prisma.backupRecord.findUnique({
         where: { id: input.id },
       });
@@ -4322,12 +4055,7 @@ export const adminRouter = router({
 
   // ==================== 合集管理 ====================
 
-  getSeriesStats: adminProcedure.query(async ({ ctx }) => {
-    const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-    if (!canModerate) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-    }
-
+  getSeriesStats: adminProcedure.use(requireScope("video:moderate")).query(async ({ ctx }) => {
     const [total, totalEpisodes] = await Promise.all([
       ctx.prisma.series.count(),
       ctx.prisma.seriesEpisode.count(),
@@ -4337,6 +4065,7 @@ export const adminRouter = router({
   }),
 
   listAllSeries: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -4345,11 +4074,6 @@ export const adminRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       const { page, limit, search } = input;
 
       const where: Prisma.SeriesWhereInput = {};
@@ -4394,13 +4118,9 @@ export const adminRouter = router({
     }),
 
   getSeriesDetail: adminProcedure
+    .use(requireScope("video:moderate"))
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const canModerate = await hasScope(ctx.prisma, ctx.session.user.id, "video:moderate");
-      if (!canModerate) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.id },
         include: {
@@ -4434,6 +4154,7 @@ export const adminRouter = router({
     }),
 
   adminUpdateSeries: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       id: z.string(),
       title: z.string().min(1).max(100).optional(),
@@ -4443,11 +4164,6 @@ export const adminRouter = router({
       downloadNote: z.string().max(1000).optional().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.id },
       });
@@ -4471,13 +4187,9 @@ export const adminRouter = router({
     }),
 
   adminDeleteSeries: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ seriesId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.seriesId },
       });
@@ -4494,16 +4206,12 @@ export const adminRouter = router({
     }),
 
   adminRemoveEpisode: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       seriesId: z.string(),
       videoId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       await ctx.prisma.seriesEpisode.delete({
         where: {
           seriesId_videoId: {
@@ -4517,15 +4225,11 @@ export const adminRouter = router({
     }),
 
   adminBatchDeleteSeries: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({
       seriesIds: z.array(z.string()).min(1).max(500),
     }))
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无合集管理权限" });
-      }
-
       const result = await ctx.prisma.series.deleteMany({
         where: { id: { in: input.seriesIds } },
       });
@@ -4916,6 +4620,7 @@ export const adminRouter = router({
     }),
 
   transferWorkItems: adminProcedure
+    .use(requireScope("video:manage"))
     .input(
       z.object({
         itemIds: z.array(z.string()).min(1),
@@ -4924,11 +4629,6 @@ export const adminRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无内容管理权限" });
-      }
-
       const batchLimit = await getAdminBatchLimit(ctx.prisma);
       if (input.itemIds.length > batchLimit) {
         throw new TRPCError({
@@ -4983,13 +4683,9 @@ export const adminRouter = router({
     }),
 
   searchUsersForTransfer: adminProcedure
+    .use(requireScope("video:manage"))
     .input(z.object({ search: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
-      const canManage = await hasScope(ctx.prisma, ctx.session.user.id, "video:manage");
-      if (!canManage) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无内容管理权限" });
-      }
-
       const users = await ctx.prisma.user.findMany({
         where: {
           OR: [

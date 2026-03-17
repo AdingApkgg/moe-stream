@@ -56,6 +56,7 @@ import {
   Video,
   Gamepad2,
   ImageIcon,
+  BookOpen,
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
@@ -1190,6 +1191,666 @@ function BatchActions({
   );
 }
 
+interface GuestbookCardProps {
+  message: {
+    id: string;
+    content: string;
+    userId: string | null;
+    user: { id: string; username: string; nickname: string | null; avatar: string | null } | null;
+    isDeleted: boolean;
+    isHidden: boolean;
+    createdAt: Date;
+    ipv4Address: string | null;
+    ipv4Location: string | null;
+    ipv6Address: string | null;
+    ipv6Location: string | null;
+    deviceInfo: unknown;
+    userAgent: string | null;
+    guestName: string | null;
+    guestEmail: string | null;
+    guestWebsite: string | null;
+  };
+  isSelected: boolean;
+  isExpanded: boolean;
+  onToggleSelect: () => void;
+  onToggleExpand: () => void;
+  onToggleHidden: () => void;
+  onDelete: () => void;
+  onRestore: () => void;
+  onHardDelete: () => void;
+}
+
+function GuestbookCard({
+  message,
+  isSelected,
+  isExpanded,
+  onToggleSelect,
+  onToggleExpand,
+  onToggleHidden,
+  onDelete,
+  onRestore,
+  onHardDelete,
+}: GuestbookCardProps) {
+  const deviceInfo = message.deviceInfo as DeviceInfoType | null;
+  const isGuest = !message.user;
+  const displayName = isGuest
+    ? (message.guestName || "访客")
+    : (message.user!.nickname || message.user!.username);
+
+  return (
+    <Card
+      className={cn(
+        "transition-colors",
+        isSelected && "ring-2 ring-primary",
+        message.isDeleted && "opacity-60"
+      )}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="mt-1"
+          />
+
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage src={isGuest ? undefined : (message.user!.avatar || undefined)} />
+            <AvatarFallback>
+              {displayName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isGuest ? (
+                <span className="font-medium text-muted-foreground">
+                  {displayName}
+                  <span className="ml-1 text-xs">(访客)</span>
+                </span>
+              ) : (
+                <Link
+                  href={`/user/${message.user!.id}`}
+                  className="font-medium hover:underline"
+                >
+                  {displayName}
+                </Link>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {formatRelativeTime(message.createdAt)}
+              </span>
+              {message.isDeleted && (
+                <Badge variant="destructive" className="text-xs">已删除</Badge>
+              )}
+              {message.isHidden && !message.isDeleted && (
+                <Badge variant="secondary" className="text-xs">已隐藏</Badge>
+              )}
+            </div>
+
+            <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+              {message.content}
+            </p>
+
+            <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+              {message.guestEmail && (
+                <span className="flex items-center gap-1">
+                  邮箱: {message.guestEmail}
+                </span>
+              )}
+              {message.guestWebsite && (
+                <a
+                  href={message.guestWebsite}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:underline text-primary"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {message.guestWebsite}
+                </a>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {message.ipv4Location && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                  <Globe className="h-3 w-3 text-blue-500" />
+                  {message.ipv4Location}
+                </span>
+              )}
+              {message.ipv6Location && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                  <Globe2 className="h-3 w-3 text-purple-500" />
+                  {message.ipv6Location}
+                </span>
+              )}
+              {deviceInfo && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                  <DeviceIcon deviceType={deviceInfo?.deviceType} className="h-3 w-3" />
+                  {[deviceInfo.os, deviceInfo.osVersion].filter(Boolean).join(" ")}
+                  {deviceInfo.browser && ` · ${deviceInfo.browser}`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleHidden}
+              title={message.isHidden ? "显示" : "隐藏"}
+            >
+              {message.isHidden ? (
+                <Eye className="h-4 w-4" />
+              ) : (
+                <EyeOff className="h-4 w-4" />
+              )}
+            </Button>
+
+            {message.isDeleted ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onRestore}
+                  title="恢复"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      title="彻底删除"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>确定彻底删除吗？</AlertDialogTitle>
+                      <AlertDialogDescription className="text-destructive">
+                        将永久删除此留言，此操作不可恢复！
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>取消</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={onHardDelete}
+                      >
+                        永久删除
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    title="删除"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>确定删除这条留言吗？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      删除后可通过「已删除」筛选找到并恢复。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>取消</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete}>
+                      删除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onToggleExpand}
+              title="详情"
+            >
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <Collapsible open={isExpanded}>
+          <CollapsibleContent>
+            <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="font-medium text-foreground mb-1">留言 ID</div>
+                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{message.id}</code>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground mb-1">IPv4 地址</div>
+                  {message.ipv4Address || "-"}
+                </div>
+                <div>
+                  <div className="font-medium text-foreground mb-1">IPv6 地址</div>
+                  <span className="break-all">{message.ipv6Address || "-"}</span>
+                </div>
+                <div>
+                  <div className="font-medium text-foreground mb-1">创建时间</div>
+                  {new Date(message.createdAt).toLocaleString("zh-CN")}
+                </div>
+              </div>
+
+              {deviceInfo && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                  <div>
+                    <div className="font-medium text-foreground mb-1">设备类型</div>
+                    {deviceInfo.deviceType || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">操作系统</div>
+                    {[deviceInfo.os, deviceInfo.osVersion].filter(Boolean).join(" ") || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">浏览器</div>
+                    {[deviceInfo.browser, deviceInfo.browserVersion].filter(Boolean).join(" ") || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">设备</div>
+                    {[deviceInfo.brand, deviceInfo.model].filter(Boolean).join(" ") || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">屏幕</div>
+                    {deviceInfo.screen || "-"} {deviceInfo.pixelRatio && `@${deviceInfo.pixelRatio}x`}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">语言</div>
+                    {deviceInfo.language || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">时区</div>
+                    {deviceInfo.timezone || "-"}
+                  </div>
+                  <div>
+                    <div className="font-medium text-foreground mb-1">平台</div>
+                    {deviceInfo.platform || "-"}
+                  </div>
+                </div>
+              )}
+
+              {message.userAgent && (
+                <div className="mt-3">
+                  <div className="font-medium text-foreground mb-1">User-Agent</div>
+                  <code className="text-xs bg-muted px-2 py-1 rounded block break-all">
+                    {message.userAgent}
+                  </code>
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GuestbookList({ initialPage }: { initialPage: number }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
+  const handleStatusChange = (value: StatusFilter) => {
+    setStatus(value);
+    setCurrentPage(1);
+  };
+
+  const utils = trpc.useUtils();
+
+  const { data, isLoading } = trpc.admin.listGuestbookMessages.useQuery(
+    { limit: 20, page: currentPage, search: search || undefined, status }
+  );
+
+  const { data: stats } = trpc.admin.getGuestbookStats.useQuery();
+
+  const messages = useMemo(() => data?.messages ?? [], [data?.messages]);
+
+  const toggleHiddenMutation = trpc.admin.toggleGuestbookHidden.useMutation({
+    onSuccess: () => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      toast.success("操作成功");
+    },
+    onError: (error) => toast.error(error.message || "操作失败"),
+  });
+
+  const deleteMutation = trpc.admin.deleteGuestbookMessage.useMutation({
+    onSuccess: () => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success("留言已删除");
+    },
+    onError: (error) => toast.error(error.message || "删除失败"),
+  });
+
+  const restoreMutation = trpc.admin.restoreGuestbookMessage.useMutation({
+    onSuccess: () => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      toast.success("留言已恢复");
+    },
+    onError: (error) => toast.error(error.message || "恢复失败"),
+  });
+
+  const batchMutation = trpc.admin.batchGuestbookAction.useMutation({
+    onSuccess: (result) => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success(`已处理 ${result.count} 条留言`);
+    },
+    onError: (error) => toast.error(error.message || "批量操作失败"),
+  });
+
+  const hardDeleteMutation = trpc.admin.hardDeleteGuestbookMessage.useMutation({
+    onSuccess: () => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      toast.success("留言已彻底删除");
+    },
+    onError: (error) => toast.error(error.message || "删除失败"),
+  });
+
+  const batchHardDeleteMutation = trpc.admin.batchHardDeleteGuestbookMessages.useMutation({
+    onSuccess: (result) => {
+      utils.admin.listGuestbookMessages.invalidate();
+      utils.admin.getGuestbookStats.invalidate();
+      setSelectedIds(new Set());
+      toast.success(`已彻底删除 ${result.count} 条留言`);
+    },
+    onError: (error) => toast.error(error.message || "批量删除失败"),
+  });
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === messages.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(messages.map((m) => m.id)));
+  }, [messages, selectedIds.size]);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBatchAction = useCallback(
+    (action: "hide" | "show" | "delete" | "restore") => {
+      if (selectedIds.size === 0) return;
+      batchMutation.mutate({ messageIds: Array.from(selectedIds), action });
+    },
+    [selectedIds, batchMutation]
+  );
+
+  return (
+    <div className="space-y-6">
+      {stats && (
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">总计</span>
+            <Badge variant="outline">{stats.total}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">可见</span>
+            <Badge variant="secondary">{stats.visible}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">隐藏</span>
+            <Badge variant="outline">{stats.hidden}</Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">删除</span>
+            <Badge variant="destructive">{stats.deleted}</Badge>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input
+          placeholder="搜索留言内容 / 用户 / 访客昵称"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="sm:max-w-md"
+        />
+        <Select value={status} onValueChange={(v) => handleStatusChange(v as StatusFilter)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">全部</SelectItem>
+            <SelectItem value="VISIBLE">可见</SelectItem>
+            <SelectItem value="HIDDEN">已隐藏</SelectItem>
+            <SelectItem value="DELETED">已删除</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <GuestbookBatchActions
+        selectedIds={selectedIds}
+        messages={messages}
+        toggleSelectAll={toggleSelectAll}
+        handleBatchAction={handleBatchAction}
+        batchMutation={batchMutation}
+        batchHardDeleteMutation={batchHardDeleteMutation}
+      />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      ) : messages.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            暂无留言
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {messages.map((message) => (
+            <GuestbookCard
+              key={message.id}
+              message={message as GuestbookCardProps["message"]}
+              isSelected={selectedIds.has(message.id)}
+              isExpanded={expandedIds.has(message.id)}
+              onToggleSelect={() => toggleSelect(message.id)}
+              onToggleExpand={() => toggleExpand(message.id)}
+              onToggleHidden={() =>
+                toggleHiddenMutation.mutate({
+                  messageId: message.id,
+                  isHidden: !message.isHidden,
+                })
+              }
+              onDelete={() => deleteMutation.mutate({ messageId: message.id })}
+              onRestore={() => restoreMutation.mutate({ messageId: message.id })}
+              onHardDelete={() => hardDeleteMutation.mutate({ messageId: message.id })}
+            />
+          ))}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={data?.totalPages ?? 1}
+            basePath="/dashboard/comments"
+            onPageChange={setCurrentPage}
+            className="mt-6"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface GuestbookBatchActionsProps {
+  selectedIds: Set<string>;
+  messages: { id: string }[];
+  toggleSelectAll: () => void;
+  handleBatchAction: (action: "hide" | "show" | "delete" | "restore") => void;
+  batchMutation: { isPending: boolean };
+  batchHardDeleteMutation: { isPending: boolean; mutate: (input: { messageIds: string[] }) => void };
+}
+
+function GuestbookBatchActions({
+  selectedIds,
+  messages,
+  toggleSelectAll,
+  handleBatchAction,
+  batchMutation,
+  batchHardDeleteMutation,
+}: GuestbookBatchActionsProps) {
+  if (messages.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggleSelectAll}
+        className="gap-1"
+      >
+        {selectedIds.size === messages.length ? (
+          <CheckSquare className="h-4 w-4" />
+        ) : (
+          <Square className="h-4 w-4" />
+        )}
+        {selectedIds.size === messages.length ? "取消全选" : "全选"}
+      </Button>
+
+      {selectedIds.size > 0 && (
+        <>
+          <span className="text-sm text-muted-foreground">
+            已选 {selectedIds.size} 条
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBatchAction("hide")}
+              disabled={batchMutation.isPending}
+            >
+              <EyeOff className="h-4 w-4 mr-1" />
+              批量隐藏
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBatchAction("show")}
+              disabled={batchMutation.isPending}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              批量显示
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                  disabled={batchMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  批量删除
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确定批量删除吗？</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    将删除 {selectedIds.size} 条留言，此操作可通过「已删除」筛选后恢复。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleBatchAction("delete")}>
+                    确定删除
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleBatchAction("restore")}
+              disabled={batchMutation.isPending}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              批量恢复
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={batchHardDeleteMutation.isPending}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  彻底删除
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确定彻底删除吗？</AlertDialogTitle>
+                  <AlertDialogDescription className="text-destructive">
+                    将永久删除 {selectedIds.size} 条留言，此操作不可恢复！
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => batchHardDeleteMutation.mutate({ messageIds: Array.from(selectedIds) })}
+                  >
+                    永久删除
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminCommentsClient({ page }: { page: number }) {
   return (
     <div className="space-y-6">
@@ -1212,6 +1873,10 @@ export default function AdminCommentsClient({ page }: { page: number }) {
             <ImageIcon className="h-4 w-4" />
             图文评论
           </TabsTrigger>
+          <TabsTrigger value="guestbook" className="gap-1.5">
+            <BookOpen className="h-4 w-4" />
+            留言板
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="video" className="mt-4">
           <VideoCommentList initialPage={page} />
@@ -1221,6 +1886,9 @@ export default function AdminCommentsClient({ page }: { page: number }) {
         </TabsContent>
         <TabsContent value="image" className="mt-4">
           <ImagePostCommentList initialPage={page} />
+        </TabsContent>
+        <TabsContent value="guestbook" className="mt-4">
+          <GuestbookList initialPage={page} />
         </TabsContent>
       </Tabs>
     </div>

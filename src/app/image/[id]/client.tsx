@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
+import { isPrivileged } from "@/lib/permissions";
 import { ArrowLeft, Eye, Calendar, User, Images, Pencil, ThumbsUp, ThumbsDown, Heart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
   const imageUrls = post.images ?? [];
 
   const hasMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const canEdit = hasMounted && (session?.user?.id === post.uploader.id || session?.user?.role === "ADMIN" || session?.user?.role === "OWNER");
+  const canEdit = hasMounted && (session?.user?.id === post.uploader.id || isPrivileged(session?.user?.role ?? ""));
 
   const { data: interaction } = trpc.image.getUserInteraction.useQuery(
     { imagePostId: post.id },

@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { getOrSet } from "@/lib/redis";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 import { awardPoints } from "@/lib/points";
+import { isPrivileged, canUploadContent } from "@/lib/permissions";
 
 const GAME_CACHE_TTL = 60; // 1 minute
 
@@ -267,8 +268,7 @@ export const gameRouter = router({
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
 
-      const isPrivileged = user.role === "ADMIN" || user.role === "OWNER";
-      if (!isPrivileged && !user.canUpload) {
+      if (!canUploadContent(user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
       }
 
@@ -294,7 +294,7 @@ export const gameRouter = router({
       }
 
       // 管理员/站长直接发布，普通用户待审核
-      const status = isPrivileged ? "PUBLISHED" : "PENDING";
+      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
 
       const game = await ctx.prisma.game.create({
         data: {
@@ -352,12 +352,11 @@ export const gameRouter = router({
       if (!user) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
       }
-      const isPrivileged = user.role === "ADMIN" || user.role === "OWNER";
-      if (!isPrivileged && !user.canUpload) {
+      if (!canUploadContent(user)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
       }
 
-      const status = isPrivileged ? "PUBLISHED" : "PENDING";
+      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
 
       // 批量预处理标签
       const allTagNames = new Set<string>();
