@@ -66,7 +66,7 @@ docker compose build
 # 3. 数据库迁移
 if [ "$SKIP_MIGRATE" = false ]; then
   log_step "执行数据库迁移..."
-  docker compose run --rm migrate prisma db push
+  docker compose run --rm --build migrate pnpm exec prisma db push
 else
   log_warn "跳过数据库迁移"
 fi
