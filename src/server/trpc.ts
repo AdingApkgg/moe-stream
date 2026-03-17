@@ -108,6 +108,7 @@ const t = initTRPC.context<Context>().create({
 
 // 导出 router 和 procedure
 export const router = t.router;
+export const mergeRouters = t.mergeRouters;
 export const publicProcedure = t.procedure;
 export const createCallerFactory = t.createCallerFactory;
 

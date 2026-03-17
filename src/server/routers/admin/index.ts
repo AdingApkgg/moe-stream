@@ -1,0 +1,32 @@
+import { mergeRouters } from "../../trpc";
+import { adminStatsRouter } from "./stats";
+import { adminUsersRouter } from "./users";
+import { adminVideosRouter } from "./videos";
+import { adminTagsRouter } from "./tags";
+import { adminCommentsRouter } from "./comments";
+import { adminConfigRouter } from "./config";
+import { adminCoversRouter } from "./covers";
+import { adminGamesRouter } from "./games";
+import { adminImagesRouter } from "./images";
+import { adminExportRouter } from "./export";
+import { adminLinksRouter } from "./links";
+import { adminBackupsRouter } from "./backups";
+import { adminSeriesRouter } from "./series";
+import { adminStickersRouter } from "./stickers";
+
+export const adminRouter = mergeRouters(
+  adminStatsRouter,
+  adminUsersRouter,
+  adminVideosRouter,
+  adminTagsRouter,
+  adminCommentsRouter,
+  adminConfigRouter,
+  adminCoversRouter,
+  adminGamesRouter,
+  adminImagesRouter,
+  adminExportRouter,
+  adminLinksRouter,
+  adminBackupsRouter,
+  adminSeriesRouter,
+  adminStickersRouter
+);
