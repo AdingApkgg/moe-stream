@@ -2,6 +2,7 @@ import path from "node:path";
 import { defineConfig } from "prisma/config";
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { config } = require("dotenv");
   const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
   config({ path: path.join(__dirname, envFile) });
