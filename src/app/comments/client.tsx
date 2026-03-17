@@ -159,8 +159,8 @@ function CommentCard({
     content: string;
     createdAt: Date;
     user?: { id: string; username: string; nickname: string | null; avatar: string | null; role: string } | null;
-    guestName?: string;
-    guestEmail?: string;
+    guestName?: string | null;
+    guestEmail?: string | null;
   };
   type: keyof typeof TYPE_CONFIG;
   targetTitle: string;
