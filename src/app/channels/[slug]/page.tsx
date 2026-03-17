@@ -184,6 +184,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     sendMutation.mutate({
       channelId: channel.id,
       type: "STICKER",
+      replyToId: replyTo?.id,
       metadata: {
         stickerId: sticker.stickerId,
         stickerUrl: sticker.imageUrl,
@@ -198,6 +199,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
     sendMutation.mutate({
       channelId: channel.id,
       type: isImage ? "IMAGE" : "FILE",
+      replyToId: replyTo?.id,
       metadata: {
         fileUrl: file.url,
         fileName: file.name,

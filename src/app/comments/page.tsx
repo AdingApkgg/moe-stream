@@ -1,5 +1,10 @@
 import CommentsClient from "./client";
 
-export default function CommentsPage() {
-  return <CommentsClient page={1} />;
+export default async function CommentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  return <CommentsClient page={1} tab={tab} />;
 }

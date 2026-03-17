@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,7 +42,7 @@ import { toast } from "@/lib/toast-with-sound";
 
 // ==================== 评论动态 Tab ====================
 
-function VideoCommentsTab({ page }: { page: number }) {
+function VideoCommentsTab({ page, onPageChange }: { page: number; onPageChange: (p: number) => void }) {
   const { data, isLoading } = trpc.comment.listRecent.useQuery({ limit: 20, page });
   const comments = data?.comments ?? [];
   const totalCount = data?.totalCount ?? 0;
@@ -67,14 +68,14 @@ function VideoCommentsTab({ page }: { page: number }) {
               targetHref={`/video/${comment.video.id}`}
             />
           ))}
-          <Pagination currentPage={page} totalPages={totalPages} basePath="/comments" className="mt-4" />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
     </div>
   );
 }
 
-function GameCommentsTab({ page }: { page: number }) {
+function GameCommentsTab({ page, onPageChange }: { page: number; onPageChange: (p: number) => void }) {
   const { data, isLoading } = trpc.gameComment.listRecent.useQuery({ limit: 20, page });
   const comments = data?.comments ?? [];
   const totalCount = data?.totalCount ?? 0;
@@ -100,14 +101,14 @@ function GameCommentsTab({ page }: { page: number }) {
               targetHref={`/game/${comment.game.id}`}
             />
           ))}
-          <Pagination currentPage={page} totalPages={totalPages} basePath="/comments" className="mt-4" />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
     </div>
   );
 }
 
-function ImageCommentsTab({ page }: { page: number }) {
+function ImageCommentsTab({ page, onPageChange }: { page: number; onPageChange: (p: number) => void }) {
   const { data, isLoading } = trpc.imagePostComment.listRecent.useQuery({ limit: 20, page });
   const comments = data?.comments ?? [];
   const totalCount = data?.totalCount ?? 0;
@@ -133,7 +134,7 @@ function ImageCommentsTab({ page }: { page: number }) {
               targetHref={`/image/${comment.imagePost.id}`}
             />
           ))}
-          <Pagination currentPage={page} totalPages={totalPages} basePath="/comments" className="mt-4" />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
     </div>
@@ -516,8 +517,9 @@ function GuestbookSection() {
 
 // ==================== 主页面 ====================
 
-export default function CommentsClient({ page }: { page: number }) {
+export default function CommentsClient({ page, tab }: { page: number; tab?: string }) {
   const siteConfig = useSiteConfig();
+  const router = useRouter();
 
   const videoEnabled = siteConfig?.sectionVideoEnabled !== false;
   const imageEnabled = siteConfig?.sectionImageEnabled !== false;
@@ -533,7 +535,18 @@ export default function CommentsClient({ page }: { page: number }) {
   );
 
   const defaultTab = tabs[0]?.id ?? "video";
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const activeTab = (tab && tabs.some((t) => t.id === tab)) ? tab : defaultTab;
+
+  const handleTabChange = useCallback((newTab: string) => {
+    const tabParam = newTab !== defaultTab ? `?tab=${newTab}` : "";
+    router.push(`/comments${tabParam}`);
+  }, [defaultTab, router]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    const tabParam = activeTab !== defaultTab ? `?tab=${activeTab}` : "";
+    const base = newPage === 1 ? "/comments" : `/comments/page/${newPage}`;
+    router.push(`${base}${tabParam}`);
+  }, [activeTab, defaultTab, router]);
 
   return (
     <div className="container py-6 max-w-3xl">
@@ -551,31 +564,31 @@ export default function CommentsClient({ page }: { page: number }) {
       {/* 评论 Tabs */}
       <Card>
         <CardContent className="pt-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="w-full">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
+              {tabs.map((t) => {
+                const Icon = t.icon;
                 return (
-                  <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">
+                  <TabsTrigger key={t.id} value={t.id} className="gap-1.5">
                     <Icon className="h-3.5 w-3.5" />
-                    {tab.label}
+                    {t.label}
                   </TabsTrigger>
                 );
               })}
             </TabsList>
             {videoEnabled && (
               <TabsContent value="video">
-                <VideoCommentsTab page={page} />
+                <VideoCommentsTab page={page} onPageChange={handlePageChange} />
               </TabsContent>
             )}
             {gameEnabled && (
               <TabsContent value="game">
-                <GameCommentsTab page={page} />
+                <GameCommentsTab page={page} onPageChange={handlePageChange} />
               </TabsContent>
             )}
             {imageEnabled && (
               <TabsContent value="image">
-                <ImageCommentsTab page={page} />
+                <ImageCommentsTab page={page} onPageChange={handlePageChange} />
               </TabsContent>
             )}
           </Tabs>
