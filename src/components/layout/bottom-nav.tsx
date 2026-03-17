@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   Upload,
-  Heart,
   User,
   Compass,
   MessageSquare,

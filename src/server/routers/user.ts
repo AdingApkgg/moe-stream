@@ -838,14 +838,14 @@ export const userRouter = router({
               OR: [
                 { username: { contains: input.query, mode: "insensitive" } },
                 { nickname: { contains: input.query, mode: "insensitive" } },
-                { name: { contains: input.query, mode: "insensitive" } },
+                { nickname: { contains: input.query, mode: "insensitive" } },
               ],
             },
           ],
         },
-        select: { id: true, name: true, image: true, email: true },
+        select: { id: true, nickname: true, avatar: true, email: true, username: true },
         take: input.limit,
-        orderBy: { name: "asc" },
+        orderBy: { nickname: "asc" },
       });
 
       return { users };

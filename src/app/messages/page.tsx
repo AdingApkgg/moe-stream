@@ -174,13 +174,13 @@ function UserSearchList({ onSelect }: { onSelect: (userId: string) => void }) {
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/50 transition-colors"
           >
             <Avatar className="h-9 w-9">
-              <AvatarImage src={user.image || undefined} />
+              <AvatarImage src={user.avatar || undefined} />
               <AvatarFallback className="text-xs">
-                {(user.name || "?")[0]}
+                {(user.nickname || user.username || "?")[0]}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 text-left">
-              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-sm font-medium truncate">{user.nickname || user.username}</p>
               {user.email && (
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               )}
