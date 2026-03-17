@@ -1,5 +1,5 @@
 # ============================================================
-# 多阶段构建 - 兼容 Docker / Podman (rootless)
+# 多阶段构建
 # ============================================================
 
 # ---------- 基础镜像 ----------
@@ -76,4 +76,4 @@ RUN mkdir -p logs && chown -R nextjs:nodejs logs
 USER nextjs
 EXPOSE 3001
 
-CMD ["node", "node_modules/.bin/tsx", "src/socket/server.ts"]
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "src/socket/server.ts"]
