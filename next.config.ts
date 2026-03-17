@@ -1,71 +1,72 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createMDX from "@next/mdx";
 
-const nextConfig: NextConfig = {
-  output: "standalone",
-  pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
-  // Turbopack 配置 (Next.js 16 默认使用 Turbopack)
-  turbopack: {},
-  images: {
-    // 启用图片优化（封面图片通过 /api/cover 代理缓存到本地）
-    unoptimized: false,
-    // 本地图片和代理图片不需要 remotePatterns
-    // 但保留以支持直接使用外部图片
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-      {
-        protocol: "http",
-        hostname: "**",
-      },
-    ],
-    // 图片优化配置
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    formats: ["image/avif", "image/webp"],
-    minimumCacheTTL: 31536000, // 1 年
-  },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "10mb",
+export default function config(phase: string) {
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    process.env.NEXT_BUILD = "1";
+  }
+
+  const nextConfig: NextConfig = {
+    output: "standalone",
+    pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
+    turbopack: {},
+    images: {
+      unoptimized: false,
+      remotePatterns: [
+        {
+          protocol: "https",
+          hostname: "**",
+        },
+        {
+          protocol: "http",
+          hostname: "**",
+        },
+      ],
+      deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+      imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+      formats: ["image/avif", "image/webp"],
+      minimumCacheTTL: 31536000,
     },
-    // 优化预加载行为，减少不必要的 CSS 预加载警告
-    optimizeCss: true,
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/uploads/:path*",
-        destination: "/api/cover/uploads/:path*",
+    experimental: {
+      serverActions: {
+        bodySizeLimit: "10mb",
       },
-    ];
-  },
-  async redirects() {
-    if (process.env.NODE_ENV !== "production") return [];
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (!appUrl) return [];
-    const urlObj = new URL(appUrl);
-    const host = urlObj.hostname.replace(/\./g, "\\.");
-    return [
-      {
-        source: "/:path*",
-        has: [
-          {
-            type: "host",
-            value: `(?!^${host}$).*`,
-          },
-        ],
-        destination: `${appUrl}/:path*`,
-        permanent: true,
-      },
-    ];
-  },
-};
+      optimizeCss: true,
+    },
+    async rewrites() {
+      return [
+        {
+          source: "/uploads/:path*",
+          destination: "/api/cover/uploads/:path*",
+        },
+      ];
+    },
+    async redirects() {
+      if (process.env.NODE_ENV !== "production") return [];
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!appUrl) return [];
+      const urlObj = new URL(appUrl);
+      const host = urlObj.hostname.replace(/\./g, "\\.");
+      return [
+        {
+          source: "/:path*",
+          has: [
+            {
+              type: "host",
+              value: `(?!^${host}$).*`,
+            },
+          ],
+          destination: `${appUrl}/:path*`,
+          permanent: true,
+        },
+      ];
+    },
+  };
 
-const withMDX = createMDX({
-  extension: /\.mdx?$/,
-});
+  const withMDX = createMDX({
+    extension: /\.mdx?$/,
+  });
 
-export default withMDX(nextConfig);
+  return withMDX(nextConfig);
+}

@@ -13,10 +13,10 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-log_step() { echo -e "\n${GREEN}▶ $1${NC}"; }
-log_warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
-log_err()  { echo -e "${RED}✖ $1${NC}"; }
-log_ok()   { echo -e "${GREEN}✔ $1${NC}"; }
+log_step() { printf "\n${GREEN}▶ %s${NC}\n" "$1"; }
+log_warn() { printf "${YELLOW}⚠ %s${NC}\n" "$1"; }
+log_err()  { printf "${RED}✖ %s${NC}\n" "$1"; }
+log_ok()   { printf "${GREEN}✔ %s${NC}\n" "$1"; }
 
 SKIP_PULL=false
 SKIP_MIGRATE=false

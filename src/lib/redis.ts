@@ -1,6 +1,8 @@
 import Redis from "ioredis";
 import { env } from "@/env";
 
+const IS_BUILD = process.env.NEXT_BUILD === "1";
+
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined;
   redisErrorLogged: boolean | undefined;
@@ -8,7 +10,6 @@ const globalForRedis = globalThis as unknown as {
 
 const MAX_RECONNECT_ATTEMPTS = process.env.NODE_ENV === "production" ? Infinity : 5;
 
-// 使用 WHATWG URL API 解析，避免 ioredis 内部调用已废弃的 url.parse()
 function parseRedisUrl(url: string) {
   const parsed = new URL(url);
   return {
@@ -20,9 +21,11 @@ function parseRedisUrl(url: string) {
   };
 }
 
-export const redis =
-  globalForRedis.redis ??
-  new Redis({
+function createRedis(): Redis {
+  if (IS_BUILD) {
+    return new Redis({ lazyConnect: true, enableOfflineQueue: false });
+  }
+  return new Redis({
     ...parseRedisUrl(env.REDIS_URL),
     maxRetriesPerRequest: 3,
     lazyConnect: true,
@@ -35,23 +38,24 @@ export const redis =
       return Math.min(times * 500, 10000);
     },
   });
+}
+
+export const redis = globalForRedis.redis ?? createRedis();
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
-// 连接事件监控（避免重复日志刷屏）
-redis.on("error", () => {
-  if (!globalForRedis.redisErrorLogged) {
-    globalForRedis.redisErrorLogged = true;
-    console.warn("[Redis] 连接失败，缓存将降级。如需 Redis 请确保服务已启动。");
-  }
-});
-redis.on("connect", () => {
-  globalForRedis.redisErrorLogged = false;
-  console.log("[Redis] Connected");
-});
-redis.on("reconnecting", () => {
-  // 静默，不再重复打印
-});
+if (!IS_BUILD) {
+  redis.on("error", () => {
+    if (!globalForRedis.redisErrorLogged) {
+      globalForRedis.redisErrorLogged = true;
+      console.warn("[Redis] 连接失败，缓存将降级。如需 Redis 请确保服务已启动。");
+    }
+  });
+  redis.on("connect", () => {
+    globalForRedis.redisErrorLogged = false;
+    console.log("[Redis] Connected");
+  });
+}
 
 export default redis;
 
