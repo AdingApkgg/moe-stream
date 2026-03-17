@@ -12,6 +12,56 @@ const urlRegex = /^https?:\/\/.+/;
 const SortType = z.enum(["newest", "oldest", "popular"]);
 
 export const imagePostCommentRouter = router({
+  listRecent: publicProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit } = input;
+      const where = {
+        isDeleted: false,
+        isHidden: false,
+        imagePost: { status: "PUBLISHED" as const },
+      };
+
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.imagePostComment.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+                role: true,
+              },
+            },
+            imagePost: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        }),
+        ctx.prisma.imagePostComment.count({ where }),
+      ]);
+
+      return {
+        comments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
   list: publicProcedure
     .input(
       z.object({

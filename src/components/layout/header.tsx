@@ -43,7 +43,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MobileSidebarContent } from "./sidebar";
+import { SidebarContent } from "./sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { useIsMounted } from "@/components/motion";
 import { trpc } from "@/lib/trpc";
 import { useDebounce, useStableSession } from "@/lib/hooks";
@@ -458,8 +460,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0">
-                <SheetHeader className="border-b px-4 py-4">
+              <SheetContent side="left" className="w-72 p-0 flex flex-col">
+                <SheetHeader className="shrink-0 border-b px-4 py-4">
                   <SheetTitle>
                     <Link 
                       href="/" 
@@ -470,7 +472,13 @@ export function Header({ onMenuClick }: HeaderProps) {
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
-                <MobileSidebarContent onClose={() => setMobileMenuOpen(false)} />
+                <ScrollArea className="flex-1 min-h-0 py-4">
+                  <SidebarContent onItemClick={() => setMobileMenuOpen(false)} />
+                </ScrollArea>
+                {/* 广告位 - 固定底部 */}
+                <div className="shrink-0 border-t px-3 py-2">
+                  <AdSlot slotId="sidebar" minHeight={100} />
+                </div>
               </SheetContent>
             </Sheet>
 

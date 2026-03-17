@@ -83,16 +83,19 @@ function NavLink({
   item,
   collapsed,
   isActive,
+  onClick,
 }: {
   item: NavItem;
   collapsed: boolean;
   isActive: boolean;
+  onClick?: () => void;
 }) {
   if (collapsed) {
     // YouTube mini sidebar: icon centered + small text below
     return (
       <Link
         href={item.href}
+        onClick={onClick}
         className={cn(
           "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-3 transition-[background-color] duration-150 ease-out",
           "hover:bg-accent/60",
@@ -113,6 +116,7 @@ function NavLink({
   return (
     <Link
       href={item.href}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-5 rounded-xl px-3 py-2 text-sm transition-[background-color] duration-150 ease-out",
         "hover:bg-accent/60",
@@ -133,12 +137,14 @@ function NavGroup({
   collapsed,
   pathname,
   session,
+  onItemClick,
 }: {
   title?: string;
   items: NavItem[];
   collapsed: boolean;
   pathname: string;
   session: SessionWithUser;
+  onItemClick?: () => void;
 }) {
   const filteredItems = items.filter((item) => {
     if (item.auth && !session) return false;
@@ -165,6 +171,7 @@ function NavGroup({
             item={item}
             collapsed={collapsed}
             isActive={isActive}
+            onClick={onItemClick}
           />
         );
       })}
@@ -296,10 +303,63 @@ function UserProfileLink({ collapsed, session }: { collapsed: boolean; session: 
   );
 }
 
-export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) {
+/** 侧栏导航内容（桌面 & 移动端共用） */
+export function SidebarContent({
+  collapsed = false,
+  onItemClick,
+}: {
+  collapsed?: boolean;
+  onItemClick?: () => void;
+}) {
   const pathname = usePathname();
   const { session } = useStableSession();
 
+  return (
+    <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>
+      <ContentModeSwitcher collapsed={collapsed} />
+
+      <NavGroup items={mainNavItems} collapsed={collapsed} pathname={pathname} session={session} onItemClick={onItemClick} />
+
+      {session && (
+        <>
+          <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />
+
+          <UserProfileLink collapsed={collapsed} session={session} />
+
+          <NavGroup
+            title={collapsed ? undefined : "社区"}
+            items={communityNavItems}
+            collapsed={collapsed}
+            pathname={pathname}
+            session={session}
+            onItemClick={onItemClick}
+          />
+
+          <NavGroup
+            title={collapsed ? undefined : "你的内容"}
+            items={userNavItems}
+            collapsed={collapsed}
+            pathname={pathname}
+            session={session}
+            onItemClick={onItemClick}
+          />
+        </>
+      )}
+
+      <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />
+
+      <NavGroup
+        items={moreNavItems}
+        collapsed={collapsed}
+        pathname={pathname}
+        session={session}
+        onItemClick={onItemClick}
+      />
+    </div>
+  );
+}
+
+export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) {
   return (
     <>
       {/* 遮罩层 - 覆盖模式展开时显示 */}
@@ -321,161 +381,14 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
         )}
       >
         <ScrollArea className="flex-1 min-h-0 py-2">
-          <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>
-            {/* 内容模式切换 */}
-            <ContentModeSwitcher collapsed={collapsed} />
-            
-            {/* 主导航 */}
-            <NavGroup items={mainNavItems} collapsed={collapsed} pathname={pathname} session={session} />
-            
-            {session && (
-              <>
-                <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />
-                
-                <UserProfileLink collapsed={collapsed} session={session} />
-
-                <NavGroup
-                  title={collapsed ? undefined : "社区"}
-                  items={communityNavItems}
-                  collapsed={collapsed}
-                  pathname={pathname}
-                  session={session}
-                />
-                
-                <NavGroup
-                  title={collapsed ? undefined : "你的内容"}
-                  items={userNavItems}
-                  collapsed={collapsed}
-                  pathname={pathname}
-                  session={session}
-                />
-              </>
-            )}
-            
-            <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />
-            
-            <NavGroup
-              items={moreNavItems}
-              collapsed={collapsed}
-              pathname={pathname}
-              session={session}
-            />
-          </div>
+          <SidebarContent collapsed={collapsed} />
         </ScrollArea>
 
-        {/* 广告位 */}
-        <div className={cn(collapsed ? "px-1 pb-2" : "px-3 pb-2")}>
+        {/* 广告位 - 固定底部，不随导航滚动 */}
+        <div className={cn("shrink-0 border-t", collapsed ? "px-1 py-2" : "px-3 py-2")}>
           <AdSlot slotId="sidebar" minHeight={100} />
         </div>
       </aside>
     </>
-  );
-}
-
-// 移动端侧边栏内容（用于 Sheet）
-export function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
-  const pathname = usePathname();
-  const { session } = useStableSession();
-  const handleClick = () => {
-    onClose?.();
-  };
-
-  return (
-    <ScrollArea className="h-full py-4">
-      <div className="space-y-4 px-3">
-        {/* 视频/图片/游戏 模式切换 */}
-        <ContentModeSwitcher collapsed={false} />
-        <NavGroupMobile
-          items={mainNavItems}
-          pathname={pathname}
-          session={session}
-          onClick={handleClick}
-        />
-        
-        {session && (
-          <>
-            <Separator />
-            <NavGroupMobile
-              title="社区"
-              items={communityNavItems}
-              pathname={pathname}
-              session={session}
-              onClick={handleClick}
-            />
-            <Separator />
-            <NavGroupMobile
-              title="你的内容"
-              items={userNavItems}
-              pathname={pathname}
-              session={session}
-              onClick={handleClick}
-            />
-          </>
-        )}
-        
-        <Separator />
-        
-        <NavGroupMobile
-          items={moreNavItems}
-          pathname={pathname}
-          session={session}
-          onClick={handleClick}
-        />
-      </div>
-    </ScrollArea>
-  );
-}
-
-function NavGroupMobile({
-  title,
-  items,
-  pathname,
-  session,
-  onClick,
-}: {
-  title?: string;
-  items: NavItem[];
-  pathname: string;
-  session: SessionWithUser;
-  onClick?: () => void;
-}) {
-  const filteredItems = items.filter((item) => {
-    if (item.auth && !session) return false;
-    if (item.requireUpload && (!session || !session.user?.canUpload)) return false;
-    return true;
-  });
-
-  if (filteredItems.length === 0) return null;
-
-  return (
-    <div className="space-y-1">
-      {title && (
-        <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          {title}
-        </h3>
-      )}
-      {filteredItems.map((item) => {
-        const isActive = item.href === "/"
-          ? pathname === "/" || pathname === "/video" || pathname === "/image" || pathname === "/game"
-          : pathname === item.href || pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onClick}
-            className={cn(
-              "flex items-center gap-5 rounded-xl px-3 py-2 text-sm transition-[background-color] duration-150 ease-out",
-              "hover:bg-accent/60",
-              isActive
-                ? "bg-accent font-semibold"
-                : "font-normal text-foreground"
-            )}
-          >
-            <item.icon className={cn("h-[22px] w-[22px] shrink-0", isActive ? "stroke-[2.5px]" : "stroke-[1.5px]")} />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </div>
   );
 }

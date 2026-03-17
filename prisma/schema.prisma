@@ -99,6 +99,7 @@ model User {
   createdChannels    Channel[]
   channelMemberships ChannelMember[]
   channelMessages    ChannelMessage[]
+  guestbookMessages  GuestbookMessage[] @relation("GuestbookAuthor")
 
   @@index([email])
   @@index([username])
@@ -1522,6 +1523,36 @@ model ChannelMessage {
   replies ChannelMessage[] @relation("ChannelMessageReply")
 
   @@index([channelId, createdAt])
+}
+
+// ==================== 留言板 ====================
+
+model GuestbookMessage {
+  id            String   @id @default(cuid())
+  content       String   @db.Text
+  userId        String?
+  guestName     String?
+  guestEmail    String?
+  guestWebsite  String?
+
+  ipv4Address   String?
+  ipv4Location  String?
+  ipv6Address   String?
+  ipv6Location  String?
+  deviceInfo    Json?
+  userAgent     String?
+
+  likes         Int      @default(0)
+  isDeleted     Boolean  @default(false)
+  isHidden      Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User? @relation("GuestbookAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 // ==================== 友情链接 ====================

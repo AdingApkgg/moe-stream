@@ -19,6 +19,7 @@ import { notificationRouter } from "./notification";
 import { followRouter } from "./follow";
 import { messageRouter } from "./message";
 import { channelRouter } from "./channel";
+import { guestbookRouter } from "./guestbook";
 
 export const appRouter = router({
   user: userRouter,
@@ -41,6 +42,7 @@ export const appRouter = router({
   follow: followRouter,
   message: messageRouter,
   channel: channelRouter,
+  guestbook: guestbookRouter,
 });
 
 export type AppRouter = typeof appRouter;

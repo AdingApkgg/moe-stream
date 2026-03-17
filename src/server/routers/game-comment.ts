@@ -12,6 +12,57 @@ const urlRegex = /^https?:\/\/.+/;
 const SortType = z.enum(["newest", "oldest", "popular"]);
 
 export const gameCommentRouter = router({
+  listRecent: publicProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit } = input;
+      const where = {
+        isDeleted: false,
+        isHidden: false,
+        game: { status: "PUBLISHED" as const },
+      };
+
+      const [comments, totalCount] = await Promise.all([
+        ctx.prisma.gameComment.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
+                role: true,
+              },
+            },
+            game: {
+              select: {
+                id: true,
+                title: true,
+                coverUrl: true,
+              },
+            },
+          },
+        }),
+        ctx.prisma.gameComment.count({ where }),
+      ]);
+
+      return {
+        comments,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
   // 获取游戏评论列表
   list: publicProcedure
     .input(
