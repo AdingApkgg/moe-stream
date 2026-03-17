@@ -55,6 +55,7 @@ CMD ["node", "server.js"]
 FROM base AS migrator
 ENV PATH="/app/node_modules/.bin:$PATH"
 COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
