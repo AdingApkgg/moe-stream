@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { getCoverUrl } from "@/lib/cover";
 import { AdCard } from "@/components/ads/ad-card";
-import { useRandomAds } from "@/hooks/use-ads";
+import { useInlineAds } from "@/hooks/use-inline-ads";
 import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
 
@@ -112,50 +112,15 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
   const series = seriesData?.items ?? [];
   const seriesTotalPages = seriesData?.totalPages ?? 1;
 
-  // 广告选取：首页第一页用服务端预选的 initialAds（SSR 直出），后续页客户端按权重随机选取
   const isFirstPage = videoPage === 1 && sortBy === "latest" && selectedTag === null;
   const adSeed = `${videoPage}-${sortBy}-${selectedTag ?? ""}`;
-  const { ads: clientAds, showAds } = useRandomAds(4, adSeed);
-  const pickedAds = isFirstPage && initialAds.length > 0 ? initialAds : clientAds;
-
-  // 计算 4 个广告的插入位置（均匀分散在视频列表中，加一点随机偏移）
-  const adInsertPositions = useMemo(() => {
-    if (!showAds || pickedAds.length === 0 || videos.length < 4) return [];
-    const count = Math.min(pickedAds.length, Math.floor(videos.length / 3)); // 每 3 个视频最多插 1 条
-    if (count === 0) return [];
-    const step = Math.floor(videos.length / (count + 1));
-    const positions: number[] = [];
-    // 简易确定性 hash：用 adSeed 做偏移种子
-    let seedNum = 0;
-    for (let i = 0; i < adSeed.length; i++) seedNum = (seedNum * 31 + adSeed.charCodeAt(i)) | 0;
-    for (let i = 0; i < count; i++) {
-      const base = step * (i + 1);
-      const offset = Math.abs(seedNum + i * 7) % Math.max(1, Math.floor(step / 2));
-      positions.push(Math.min(base + offset, videos.length));
-    }
-    // 去重并排序（从大到小插入不影响前面的索引）
-    return [...new Set(positions)].sort((a, b) => a - b);
-  }, [showAds, pickedAds.length, videos.length, adSeed]);
-
-  // 视频 + 广告混合列表（用于网格渲染）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type GridItem = { type: "video"; video: any } | { type: "ad"; adIndex: number };
-  const gridItems = useMemo((): GridItem[] => {
-    if (adInsertPositions.length === 0) return videos.map((v) => ({ type: "video" as const, video: v }));
-    const items: GridItem[] = [];
-    let adIdx = 0;
-    for (let i = 0; i <= videos.length; i++) {
-      // 在当前位置插入广告（可能有多条）
-      while (adIdx < adInsertPositions.length && adInsertPositions[adIdx] === i) {
-        items.push({ type: "ad", adIndex: adIdx });
-        adIdx++;
-      }
-      if (i < videos.length) {
-        items.push({ type: "video", video: videos[i] });
-      }
-    }
-    return items;
-  }, [videos, adInsertPositions]);
+  const { gridItems, pickedAds, hasAds } = useInlineAds<any>({
+    items: videos,
+    seed: adSeed,
+    initialAds,
+    useInitialAds: isFirstPage && initialAds.length > 0,
+  });
 
   // 视图模式选项
   const viewModeOptions: { id: ViewMode; label: string }[] = [
@@ -281,7 +246,7 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
               <div key={`${sortBy}-${selectedTag}-${videoPage}`}>
                 {videoLoading && videos.length === 0 ? (
                   <VideoGrid videos={[]} isLoading />
-                ) : gridItems.some((x) => x.type === "ad") ? (
+                ) : hasAds ? (
                   <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                     {gridItems.map((item, index) =>
                       item.type === "ad" ? (
@@ -290,7 +255,7 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                           ad={pickedAds[item.adIndex]}
                         />
                       ) : (
-                        <VideoCard key={item.video.id} video={item.video} index={index} />
+                        <VideoCard key={item.data.id} video={item.data} index={index} />
                       )
                     )}
                   </div>

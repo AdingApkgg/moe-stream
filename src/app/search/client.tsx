@@ -2,7 +2,9 @@
 
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
+import { VideoCard } from "@/components/video/video-card";
 import { GameGrid } from "@/components/game/game-grid";
+import { GameCard } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useSearchHistoryStore } from "@/stores/app";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { AdCard } from "@/components/ads/ad-card";
+import { useInlineAds } from "@/hooks/use-inline-ads";
 
 interface SearchContentProps {
   query: string;
@@ -210,6 +214,27 @@ export function SearchContent({ query }: SearchContentProps) {
 
   const tags = tagData ?? [];
 
+  const videoAdSeed = `search-video-${query}-${videoPage}-${sortBy}-${timeRange}`;
+  const { gridItems: videoGridItems, pickedAds: videoPickedAds, hasAds: videoHasAds } = useInlineAds({
+    items: videos,
+    count: 2,
+    seed: videoAdSeed,
+  });
+
+  const gameAdSeed = `search-game-${query}-${gamePage}-${sortBy}-${timeRange}`;
+  const { gridItems: gameGridItems, pickedAds: gamePickedAds, hasAds: gameHasAds } = useInlineAds({
+    items: games,
+    count: 2,
+    seed: gameAdSeed,
+  });
+
+  const imageAdSeed = `search-image-${query}-${imagePage}`;
+  const { gridItems: imageGridItems, pickedAds: imagePickedAds, hasAds: imageHasAds } = useInlineAds({
+    items: posts,
+    count: 2,
+    seed: imageAdSeed,
+  });
+
   const currentLoading = {
     video: videoLoading,
     game: gameLoading,
@@ -292,7 +317,21 @@ export function SearchContent({ query }: SearchContentProps) {
       {/* 视频结果 */}
       {searchTab === "video" && (
         <>
-          <VideoGrid videos={videos} isLoading={currentLoading} />
+          {currentLoading ? (
+            <VideoGrid videos={[]} isLoading />
+          ) : videoHasAds ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {videoGridItems.map((item, index) =>
+                item.type === "ad" ? (
+                  <AdCard key={`ad-${item.adIndex}`} ad={videoPickedAds[item.adIndex]} />
+                ) : (
+                  <VideoCard key={item.data.id} video={item.data} index={index} />
+                )
+              )}
+            </div>
+          ) : (
+            <VideoGrid videos={videos} isLoading={false} />
+          )}
           {currentTotalPages > 1 && (
             <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
           )}
@@ -305,7 +344,21 @@ export function SearchContent({ query }: SearchContentProps) {
       {/* 游戏结果 */}
       {searchTab === "game" && (
         <>
-          <GameGrid games={games} isLoading={currentLoading} columns={4} />
+          {currentLoading ? (
+            <GameGrid games={[]} isLoading columns={4} />
+          ) : gameHasAds ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {gameGridItems.map((item, index) =>
+                item.type === "ad" ? (
+                  <AdCard key={`ad-${item.adIndex}`} ad={gamePickedAds[item.adIndex]} />
+                ) : (
+                  <GameCard key={item.data.id} game={item.data} index={index} />
+                )
+              )}
+            </div>
+          ) : (
+            <GameGrid games={games} isLoading={false} columns={4} />
+          )}
           {currentTotalPages > 1 && (
             <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
           )}
@@ -323,6 +376,16 @@ export function SearchContent({ query }: SearchContentProps) {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
               ))}
+            </div>
+          ) : imageHasAds ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+              {imageGridItems.map((item, index) =>
+                item.type === "ad" ? (
+                  <AdCard key={`ad-${item.adIndex}`} ad={imagePickedAds[item.adIndex]} />
+                ) : (
+                  <ImagePostCard key={item.data.id} post={item.data} index={index} />
+                )
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">

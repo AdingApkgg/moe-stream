@@ -7,7 +7,8 @@ import { trpc } from "@/lib/trpc";
 
 export function useNotifications(userId: string | undefined) {
   const connected = useSocketStore((s) => s.connected);
-  const incrementUnread = useSocketStore((s) => s.incrementUnreadNotifications);
+  const incrementUnreadNotif = useSocketStore((s) => s.incrementUnreadNotifications);
+  const incrementUnreadMsg = useSocketStore((s) => s.incrementUnreadMessages);
 
   const utils = trpc.useUtils();
 
@@ -16,15 +17,22 @@ export function useNotifications(userId: string | undefined) {
 
     const socket = getSocket();
 
-    const handler = () => {
-      incrementUnread();
+    const handleNotification = () => {
+      incrementUnreadNotif();
       utils.notification.unreadCount.invalidate();
       utils.notification.list.invalidate();
     };
 
-    socket.on("notification:new", handler);
-    return () => {
-      socket.off("notification:new", handler);
+    const handleUnreadMessage = () => {
+      incrementUnreadMsg();
+      utils.message.conversations.invalidate();
     };
-  }, [userId, connected, incrementUnread, utils]);
+
+    socket.on("notification:new", handleNotification);
+    socket.on("message:unread", handleUnreadMessage);
+    return () => {
+      socket.off("notification:new", handleNotification);
+      socket.off("message:unread", handleUnreadMessage);
+    };
+  }, [userId, connected, incrementUnreadNotif, incrementUnreadMsg, utils]);
 }

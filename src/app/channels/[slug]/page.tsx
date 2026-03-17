@@ -5,9 +5,13 @@ import { trpc } from "@/lib/trpc";
 import { useStableSession } from "@/lib/hooks";
 import { getSocket } from "@/lib/socket-client";
 import { useSocketStore } from "@/stores/socket";
+import { useTyping } from "@/hooks/use-typing";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TypingIndicator } from "@/components/shared/typing-indicator";
+import { StickerPicker } from "@/components/shared/sticker-picker";
+import { ChatFileUpload } from "@/components/shared/chat-file-upload";
 import { cn } from "@/lib/utils";
 import {
   Hash,
@@ -18,6 +22,10 @@ import {
   LogOut as LogOutIcon,
   ArrowLeft,
   Lock,
+  Reply,
+  X,
+  Trash2,
+  FileIcon,
 } from "lucide-react";
 import Link from "next/link";
 import dayjs from "dayjs";
@@ -25,18 +33,26 @@ import "dayjs/locale/zh-cn";
 
 dayjs.locale("zh-cn");
 
+interface ReplyTarget {
+  id: string;
+  senderName: string;
+  content: string;
+}
+
 export default function ChannelPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const { session } = useStableSession();
   const connected = useSocketStore((s) => s.connected);
   const [showMembers, setShowMembers] = useState(false);
   const [input, setInput] = useState("");
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const utils = trpc.useUtils();
   const userId = session?.user?.id;
 
   const { data: channel, isLoading: channelLoading } = trpc.channel.getBySlug.useQuery({ slug });
+  const { typingUsers, onInput: onTypingInput } = useTyping("channel", channel?.id);
 
   const {
     data: messagesData,
@@ -81,8 +97,15 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
   const sendMutation = trpc.channel.send.useMutation({
     onSuccess: () => {
       setInput("");
+      setReplyTo(null);
       utils.channel.messages.invalidate({ channelId: channel?.id });
       if (textareaRef.current) textareaRef.current.style.height = "auto";
+    },
+  });
+
+  const deleteMutation = trpc.channel.deleteMessage.useMutation({
+    onSuccess: () => {
+      utils.channel.messages.invalidate({ channelId: channel?.id });
     },
   });
 
@@ -130,7 +153,12 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || !channel?.id || sendMutation.isPending) return;
-    sendMutation.mutate({ channelId: channel.id, content: trimmed, type: "TEXT" });
+    sendMutation.mutate({
+      channelId: channel.id,
+      content: trimmed,
+      type: "TEXT",
+      replyToId: replyTo?.id,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -138,13 +166,45 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
       e.preventDefault();
       handleSend();
     }
+    if (e.key === "Escape" && replyTo) {
+      setReplyTo(null);
+    }
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    onTypingInput();
     const el = e.target;
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  };
+
+  const handleStickerSelect = (sticker: { stickerId: string; imageUrl: string; name: string }) => {
+    if (!channel?.id) return;
+    sendMutation.mutate({
+      channelId: channel.id,
+      type: "STICKER",
+      metadata: {
+        stickerId: sticker.stickerId,
+        stickerUrl: sticker.imageUrl,
+        stickerName: sticker.name,
+      },
+    });
+  };
+
+  const handleFileUpload = (file: { url: string; name: string; size: number; type: string }) => {
+    if (!channel?.id) return;
+    const isImage = file.type.startsWith("image/");
+    sendMutation.mutate({
+      channelId: channel.id,
+      type: isImage ? "IMAGE" : "FILE",
+      metadata: {
+        fileUrl: file.url,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+      },
+    });
   };
 
   if (channelLoading) {
@@ -167,6 +227,9 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
   const allMessages = messagesData?.pages.flatMap((p) => p.messages).reverse() ?? [];
   const membersList = membersData?.members ?? [];
   const userIsMember = membershipData?.isMember ?? false;
+  const typingNames = typingUsers
+    .filter((u) => u.userId !== userId)
+    .map((u) => u.userId.slice(0, 6));
 
   return (
     <div className="mx-auto max-w-5xl px-0 md:px-4 py-0 md:py-6">
@@ -244,21 +307,44 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
               <div className="space-y-3">
                 {allMessages.map((msg) => {
                   const isMine = msg.senderId === userId;
+                  const senderName = msg.sender.nickname || msg.sender.username || "?";
+                  const meta = msg.metadata as Record<string, string> | null;
                   return (
                     <div key={msg.id} className="flex items-start gap-2.5 group">
                       <Avatar className="h-8 w-8 shrink-0 mt-0.5">
                         <AvatarImage src={msg.sender.avatar || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {(msg.sender.nickname || msg.sender.username || "?")[0]}
-                        </AvatarFallback>
+                        <AvatarFallback className="text-xs">{senderName[0]}</AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
                           <span className={cn("text-sm font-medium", isMine && "text-primary")}>
-                            {msg.sender.nickname || msg.sender.username}
+                            {senderName}
                           </span>
                           <span className="text-[10px] text-muted-foreground/60">
                             {dayjs(msg.createdAt).format("MM/DD HH:mm")}
+                          </span>
+                          {/* Action buttons on hover */}
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ml-auto">
+                            {userIsMember && (
+                              <button
+                                type="button"
+                                onClick={() => setReplyTo({ id: msg.id, senderName, content: msg.content || "" })}
+                                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                                title="回复"
+                              >
+                                <Reply className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {isMine && (
+                              <button
+                                type="button"
+                                onClick={() => deleteMutation.mutate({ messageId: msg.id })}
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                                title="删除"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </span>
                         </div>
                         {msg.replyTo && (
@@ -272,7 +358,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                         {msg.type === "IMAGE" && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={(msg.metadata as Record<string, string>)?.fileUrl || msg.content || ""}
+                            src={meta?.fileUrl || msg.content || ""}
                             alt="图片"
                             className="max-w-xs rounded-lg mt-1"
                           />
@@ -280,10 +366,21 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                         {msg.type === "STICKER" && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={(msg.metadata as Record<string, string>)?.stickerUrl || ""}
+                            src={meta?.stickerUrl || ""}
                             alt="表情"
                             className="h-24 w-24 object-contain mt-1"
                           />
+                        )}
+                        {msg.type === "FILE" && (
+                          <a
+                            href={meta?.fileUrl || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mt-1"
+                          >
+                            <FileIcon className="h-4 w-4" />
+                            {meta?.fileName || "文件"}
+                          </a>
                         )}
                       </div>
                     </div>
@@ -296,25 +393,45 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
 
           {/* Input */}
           {userId && userIsMember ? (
-            <div className="border-t bg-background px-4 py-3">
-              <div className="flex items-end gap-2">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={handleInput}
-                  onKeyDown={handleKeyDown}
-                  placeholder={`在 #${channel.name} 中发言...`}
-                  rows={1}
-                  className="flex-1 resize-none bg-muted/50 border rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-[40px] max-h-[120px]"
-                />
-                <Button
-                  size="icon"
-                  className="h-10 w-10 rounded-full shrink-0"
-                  disabled={!input.trim() || sendMutation.isPending}
-                  onClick={handleSend}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
+            <div className="border-t bg-background">
+              <TypingIndicator userNames={typingNames} />
+              {replyTo && (
+                <div className="flex items-center gap-2 px-4 pt-2 text-xs text-muted-foreground">
+                  <Reply className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="truncate">
+                    回复 <b>{replyTo.senderName}</b>: {replyTo.content.slice(0, 50)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setReplyTo(null)}
+                    className="ml-auto shrink-0 p-0.5 rounded hover:bg-accent"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className="px-4 py-3">
+                <div className="flex items-end gap-1">
+                  <ChatFileUpload onUpload={handleFileUpload} />
+                  <StickerPicker onSelect={handleStickerSelect} />
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={handleInput}
+                    onKeyDown={handleKeyDown}
+                    placeholder={`在 #${channel.name} 中发言...`}
+                    rows={1}
+                    className="flex-1 resize-none bg-muted/50 border rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring min-h-[40px] max-h-[120px]"
+                  />
+                  <Button
+                    size="icon"
+                    className="h-10 w-10 rounded-full shrink-0"
+                    disabled={!input.trim() || sendMutation.isPending}
+                    onClick={handleSend}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (

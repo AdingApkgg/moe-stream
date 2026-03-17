@@ -68,7 +68,7 @@ function getNotificationUrl(notification: NotificationData): string | null {
       if (data.imagePostId) return `/image/${data.imagePostId}`;
       return null;
     case "NEW_MESSAGE":
-      return data.conversationId ? `/messages` : null;
+      return data.senderId ? `/messages?user=${data.senderId}` : "/messages";
     case "CONTENT_STATUS":
       if (data.videoId) return `/video/${data.videoId}`;
       if (data.gameId) return `/game/${data.gameId}`;

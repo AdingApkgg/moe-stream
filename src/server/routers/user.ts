@@ -823,4 +823,31 @@ export const userRouter = router({
 
       return { success: true };
     }),
+
+  search: protectedProcedure
+    .input(z.object({
+      query: z.string().min(1).max(50),
+      limit: z.number().min(1).max(30).default(15),
+    }))
+    .query(async ({ ctx, input }) => {
+      const users = await ctx.prisma.user.findMany({
+        where: {
+          AND: [
+            { id: { not: ctx.session.user.id } },
+            {
+              OR: [
+                { username: { contains: input.query, mode: "insensitive" } },
+                { nickname: { contains: input.query, mode: "insensitive" } },
+                { name: { contains: input.query, mode: "insensitive" } },
+              ],
+            },
+          ],
+        },
+        select: { id: true, name: true, image: true, email: true },
+        take: input.limit,
+        orderBy: { name: "asc" },
+      });
+
+      return { users };
+    }),
 });

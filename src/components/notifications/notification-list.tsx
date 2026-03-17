@@ -5,13 +5,15 @@ import { NotificationItem } from "./notification-item";
 import { Button } from "@/components/ui/button";
 import { Loader2, Bell, CheckCheck, Trash2 } from "lucide-react";
 import { useSocketStore } from "@/stores/socket";
+import type { NotificationType } from "@/generated/prisma/client";
 
 interface NotificationListProps {
   compact?: boolean;
   onNavigate?: () => void;
+  typeFilter?: NotificationType;
 }
 
-export function NotificationList({ compact, onNavigate }: NotificationListProps) {
+export function NotificationList({ compact, onNavigate, typeFilter }: NotificationListProps) {
   const setUnread = useSocketStore((s) => s.setUnreadNotifications);
 
   const {
@@ -21,7 +23,7 @@ export function NotificationList({ compact, onNavigate }: NotificationListProps)
     fetchNextPage,
     isFetchingNextPage,
   } = trpc.notification.list.useInfiniteQuery(
-    { limit: compact ? 8 : 20 },
+    { limit: compact ? 8 : 20, type: typeFilter },
     { getNextPageParam: (last) => last.nextCursor },
   );
 

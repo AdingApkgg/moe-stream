@@ -36,6 +36,8 @@ import {
   Volume2,
   VolumeX,
   Coins,
+  MessageSquare,
+  Mail,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -53,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/contexts/site-config";
 import { showPointsToast } from "@/lib/toast-with-sound";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useSocketStore } from "@/stores/socket";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -186,6 +189,22 @@ function SoundToggleButton() {
       ) : (
         <VolumeX className="h-4 w-4 text-muted-foreground" />
       )}
+    </Button>
+  );
+}
+
+function MessageButton() {
+  const unread = useSocketStore((s) => s.unreadMessages);
+  return (
+    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative" asChild>
+      <Link href="/messages" aria-label="私信">
+        <MessageSquare className="h-4 w-4" />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </Link>
     </Button>
   );
 }
@@ -573,6 +592,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             {/* Sound Toggle */}
             <SoundToggleButton />
 
+            {/* Messages */}
+            {session?.user && <MessageButton />}
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -633,6 +655,18 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem asChild>
+                    <Link href="/channels">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      聊天频道
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/messages">
+                      <Mail className="mr-2 h-4 w-4" />
+                      私信
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/favorites">
                       <Heart className="mr-2 h-4 w-4" />

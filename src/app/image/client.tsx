@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
+import { AdCard } from "@/components/ads/ad-card";
+import { useInlineAds } from "@/hooks/use-inline-ads";
 import { useUIStore } from "@/stores/app";
 
 type SortBy = "latest" | "views";
@@ -74,6 +76,13 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   );
   const totalPages = postData?.totalPages ?? 1;
 
+  const adSeed = `image-${page}-${sortBy}-${selectedTag ?? ""}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { gridItems, pickedAds, hasAds } = useInlineAds<any>({
+    items: posts,
+    seed: adSeed,
+  });
+
   const sortOptions: { id: SortBy; label: string }[] = [
     { id: "latest", label: "最新" },
     { id: "views", label: "热门" },
@@ -136,6 +145,16 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                     <Skeleton className="h-3 w-1/2" />
                   </div>
                 ))}
+              </div>
+            ) : hasAds ? (
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+                {gridItems.map((item, index) =>
+                  item.type === "ad" ? (
+                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} />
+                  ) : (
+                    <ImagePostCard key={item.data.id} post={item.data} index={index} />
+                  )
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">

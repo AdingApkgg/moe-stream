@@ -17,6 +17,8 @@ import {
   Gamepad2,
   Play,
   TrendingUp,
+  Hash,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -59,6 +61,11 @@ const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: LucideIcon }
   { id: "video", label: "视频", icon: Play },
   { id: "image", label: "图片", icon: Image },
   { id: "game", label: "游戏", icon: Gamepad2 },
+];
+
+const communityNavItems: NavItem[] = [
+  { href: "/channels", icon: Hash, label: "频道", auth: true },
+  { href: "/messages", icon: Mail, label: "私信", auth: true },
 ];
 
 const userNavItems: NavItem[] = [
@@ -313,7 +320,7 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
             : collapsed ? "w-[72px]" : "w-[220px]"
         )}
       >
-        <ScrollArea className="flex-1 py-2">
+        <ScrollArea className="flex-1 min-h-0 py-2">
           <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>
             {/* 内容模式切换 */}
             <ContentModeSwitcher collapsed={collapsed} />
@@ -326,6 +333,14 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
                 <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />
                 
                 <UserProfileLink collapsed={collapsed} session={session} />
+
+                <NavGroup
+                  title={collapsed ? undefined : "社区"}
+                  items={communityNavItems}
+                  collapsed={collapsed}
+                  pathname={pathname}
+                  session={session}
+                />
                 
                 <NavGroup
                   title={collapsed ? undefined : "你的内容"}
@@ -349,11 +364,9 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
         </ScrollArea>
 
         {/* 广告位 */}
-        {!collapsed && (
-          <div className="px-3 pb-2">
-            <AdSlot slotId="sidebar" minHeight={100} />
-          </div>
-        )}
+        <div className={cn(collapsed ? "px-1 pb-2" : "px-3 pb-2")}>
+          <AdSlot slotId="sidebar" minHeight={100} />
+        </div>
       </aside>
     </>
   );
@@ -381,6 +394,14 @@ export function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
         
         {session && (
           <>
+            <Separator />
+            <NavGroupMobile
+              title="社区"
+              items={communityNavItems}
+              pathname={pathname}
+              session={session}
+              onClick={handleClick}
+            />
             <Separator />
             <NavGroupMobile
               title="你的内容"
