@@ -59,6 +59,13 @@ export default redis;
 // 缓存工具函数（所有操作均安全降级，Redis 故障不影响主流程）
 // ============================================================
 
+const redisWarnLogged = new Set<string>();
+function redisWarn(label: string, err: unknown) {
+  if (redisWarnLogged.has(label)) return;
+  redisWarnLogged.add(label);
+  console.warn(`[Redis] ${label} — 缓存降级`, (err as Error)?.message ?? "");
+}
+
 /**
  * 获取缓存，JSON 解析失败或 Redis 故障时返回 null
  */
@@ -68,7 +75,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
     if (!data) return null;
     return JSON.parse(data) as T;
   } catch (err) {
-    console.error(`[Redis] getCache("${key}") error:`, err);
+    redisWarn(`getCache("${key}")`, err);
     return null;
   }
 }
@@ -84,7 +91,7 @@ export async function setCache<T>(
   try {
     await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   } catch (err) {
-    console.error(`[Redis] setCache("${key}") error:`, err);
+    redisWarn(`setCache("${key}")`, err);
   }
 }
 
@@ -126,7 +133,7 @@ export async function deleteCache(key: string): Promise<void> {
   try {
     await redis.del(key);
   } catch (err) {
-    console.error(`[Redis] deleteCache("${key}") error:`, err);
+    redisWarn(`deleteCache("${key}")`, err);
   }
 }
 
@@ -142,7 +149,7 @@ export async function deleteCacheKeys(keys: string[]): Promise<void> {
     }
     await pipeline.exec();
   } catch (err) {
-    console.error(`[Redis] deleteCacheKeys error:`, err);
+    redisWarn("deleteCacheKeys", err);
   }
 }
 
@@ -174,7 +181,7 @@ export async function deleteCachePattern(pattern: string): Promise<number> {
 
     return deletedCount;
   } catch (err) {
-    console.error(`[Redis] deleteCachePattern("${pattern}") error:`, err);
+    redisWarn(`deleteCachePattern("${pattern}")`, err);
     return 0;
   }
 }
@@ -193,7 +200,7 @@ export async function setCacheMultiple<T>(
     }
     await pipeline.exec();
   } catch (err) {
-    console.error("[Redis] setCacheMultiple error:", err);
+    redisWarn("setCacheMultiple", err);
   }
 }
 
@@ -213,7 +220,7 @@ export async function getCacheMultiple<T>(keys: string[]): Promise<(T | null)[]>
       }
     });
   } catch (err) {
-    console.error("[Redis] getCacheMultiple error:", err);
+    redisWarn("getCacheMultiple", err);
     return keys.map(() => null);
   }
 }
@@ -226,7 +233,7 @@ export async function hasCache(key: string): Promise<boolean> {
     const exists = await redis.exists(key);
     return exists === 1;
   } catch (err) {
-    console.error(`[Redis] hasCache("${key}") error:`, err);
+    redisWarn(`hasCache("${key}")`, err);
     return false;
   }
 }
@@ -238,7 +245,7 @@ export async function getCacheTTL(key: string): Promise<number> {
   try {
     return redis.ttl(key);
   } catch (err) {
-    console.error(`[Redis] getCacheTTL("${key}") error:`, err);
+    redisWarn(`getCacheTTL("${key}")`, err);
     return -2;
   }
 }

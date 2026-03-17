@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPublicSiteConfig } from "@/lib/site-config";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 export async function GET() {
@@ -66,8 +67,8 @@ ${[...videoTagUrls, ...gameTagUrls, ...imageTagUrls].join("\n")}
         "Cache-Control": "public, max-age=3600",
       },
     });
-  } catch (error) {
-    console.error("Tags sitemap error:", error);
+  } catch {
+    if (process.env.NODE_ENV !== "production") console.warn("Tags sitemap: DB unavailable, returning empty");
     return new NextResponse(
       `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
       {
