@@ -1,7 +1,6 @@
 import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { join } from "path";
 
 export const adminBackupsRouter = router({
   // ========== 数据备份 ==========
