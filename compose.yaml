@@ -17,6 +17,9 @@
 # 重新构建并启动:
 #   docker compose up -d --build
 #
+# 数据库迁移:
+#   docker compose run --rm migrate prisma db push
+#
 # ============================================================
 
 x-logging: &default-logging
@@ -120,6 +123,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # ---------- Prisma 数据库迁移 ----------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
 
 volumes:
   postgres_data:
