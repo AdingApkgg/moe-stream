@@ -114,12 +114,16 @@ export const adminConfigRouter = router({
       })).max(50).optional().nullable(),
 
       // 验证码 / 人机验证
-      captchaLogin: z.enum(["none", "math", "turnstile"]).optional(),
-      captchaRegister: z.enum(["none", "math", "turnstile"]).optional(),
-      captchaComment: z.enum(["none", "math", "turnstile"]).optional(),
-      captchaForgotPassword: z.enum(["none", "math", "turnstile"]).optional(),
+      captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).optional(),
+      captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).optional(),
+      captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).optional(),
+      captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).optional(),
       turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
       turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      recaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      recaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      hcaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+      hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
       // 对象存储
       storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).optional(),
@@ -242,6 +246,8 @@ export const adminConfigRouter = router({
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
         "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",
         "turnstileSiteKey", "turnstileSecretKey",
+        "recaptchaSiteKey", "recaptchaSecretKey",
+        "hcaptchaSiteKey", "hcaptchaSecretKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
@@ -380,6 +386,8 @@ export const adminConfigRouter = router({
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
         "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",
         "turnstileSiteKey", "turnstileSecretKey",
+        "recaptchaSiteKey", "recaptchaSecretKey",
+        "hcaptchaSiteKey", "hcaptchaSecretKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",

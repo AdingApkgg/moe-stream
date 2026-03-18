@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { verifyCaptcha, signMathAnswer, type CaptchaType } from "@/lib/captcha";
+import { verifyCaptcha, signMathAnswer, signSliderAnswer, type CaptchaType } from "@/lib/captcha";
 
 function generateMathCaptcha() {
   const num1 = Math.floor(Math.random() * 10) + 1;
@@ -43,7 +43,35 @@ function generateMathCaptcha() {
   return { svg, answer: answer.toString() };
 }
 
-export async function GET() {
+function generateSliderTarget(): number {
+  return 20 + Math.floor(Math.random() * 60); // 20–80%
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const mode = url.searchParams.get("mode");
+
+  if (mode === "slider") {
+    try {
+      const target = generateSliderTarget();
+      const cookieStore = await cookies();
+      cookieStore.set("captcha", await signSliderAnswer(target), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 5,
+        path: "/",
+      });
+      return NextResponse.json(
+        { target },
+        { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+      );
+    } catch (error) {
+      console.error("Slider captcha generation error:", error);
+      return NextResponse.json({ error: "Failed to generate slider" }, { status: 500 });
+    }
+  }
+
   try {
     const { svg, answer } = generateMathCaptcha();
 
@@ -80,8 +108,18 @@ export async function POST(request: Request) {
       turnstileToken?: string;
     };
 
-    if (type === "turnstile") {
-      const result = await verifyCaptcha("turnstile", turnstileToken, undefined);
+    if (type === "turnstile" || type === "recaptcha" || type === "hcaptcha") {
+      const result = await verifyCaptcha(type, turnstileToken, undefined);
+      return NextResponse.json(result);
+    }
+
+    if (type === "slider") {
+      const cookieStore = await cookies();
+      const storedCaptcha = cookieStore.get("captcha")?.value;
+      const result = await verifyCaptcha("slider", captcha, storedCaptcha);
+      if (result.valid) {
+        cookieStore.delete("captcha");
+      }
       return NextResponse.json(result);
     }
 

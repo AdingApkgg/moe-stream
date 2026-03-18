@@ -59,7 +59,7 @@ export function AdGate() {
 
   // 随机选一条用于「随机观看广告」按钮
   const randomAd = useMemo(
-    () => pickWeightedRandomAds(enabledAds, 1)[0] ?? null,
+    () => pickWeightedRandomAds(enabledAds, 1, "ad-gate")[0] ?? null,
     [enabledAds]
   );
 

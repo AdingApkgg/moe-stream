@@ -27,7 +27,7 @@ const emptySubscribe = () => () => {};
  */
 export function AdSlot({ slotId = "default", slotPosition, minHeight, compact, className, children }: AdSlotProps) {
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
-  const { ads, showAds } = useRandomAds(1, slotId, slotPosition ?? slotId);
+  const { ads, showAds } = useRandomAds(1, slotId, slotPosition);
   const ad = ads[0];
 
   if (!mounted || !showAds) return null;

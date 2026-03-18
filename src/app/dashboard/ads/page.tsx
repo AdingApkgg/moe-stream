@@ -240,14 +240,14 @@ export default function AdsManagementPage() {
       return;
     }
 
+    const isEdit = !!editingId;
     let newAds: Ad[];
-    if (editingId) {
+    if (isEdit) {
       newAds = allAds.map((ad) =>
         ad.id === editingId
           ? { ...ad, ...form, id: editingId }
           : ad
       );
-      toast.success("广告已更新");
     } else {
       const newAd: Ad = {
         ...form,
@@ -255,10 +255,14 @@ export default function AdsManagementPage() {
         createdAt: new Date().toISOString(),
       };
       newAds = [...allAds, newAd];
-      toast.success("广告已创建");
     }
-    await saveAds(newAds);
-    setDialogOpen(false);
+    try {
+      await saveAds(newAds);
+      toast.success(isEdit ? "广告已更新" : "广告已创建");
+      setDialogOpen(false);
+    } catch {
+      toast.error("保存失败，请重试");
+    }
   };
 
   const handleDelete = async () => {
@@ -748,7 +752,7 @@ export default function AdsManagementPage() {
                   <Input
                     type="date"
                     value={form.startDate ? form.startDate.slice(0, 10) : ""}
-                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value ? new Date(e.target.value).toISOString() : null }))}
+                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value ? new Date(e.target.value + "T00:00:00").toISOString() : null }))}
                   />
                   <p className="text-[11px] text-muted-foreground">留空表示立即投放</p>
                 </div>

@@ -52,6 +52,8 @@ export interface PublicSiteConfig {
   captchaComment: string;
   captchaForgotPassword: string;
   turnstileSiteKey: string | null;
+  recaptchaSiteKey: string | null;
+  hcaptchaSiteKey: string | null;
   referralEnabled: boolean;
   sectionVideoEnabled: boolean;
   sectionImageEnabled: boolean;
@@ -110,6 +112,8 @@ const selectFields = {
   captchaComment: true,
   captchaForgotPassword: true,
   turnstileSiteKey: true,
+  recaptchaSiteKey: true,
+  hcaptchaSiteKey: true,
   referralEnabled: true,
   sectionVideoEnabled: true,
   sectionImageEnabled: true,
@@ -193,6 +197,8 @@ const defaultConfig: PublicSiteConfig = {
   captchaComment: "none",
   captchaForgotPassword: "none",
   turnstileSiteKey: null,
+  recaptchaSiteKey: null,
+  hcaptchaSiteKey: null,
   referralEnabled: false,
   sectionVideoEnabled: true,
   sectionImageEnabled: true,

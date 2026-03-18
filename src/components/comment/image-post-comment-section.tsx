@@ -44,11 +44,20 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
 
   const requireLogin = siteConfig?.requireLoginToComment ?? false;
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const recaptchaSiteKey = siteConfig?.recaptchaSiteKey;
+  const hcaptchaSiteKey = siteConfig?.hcaptchaSiteKey;
   const rawCaptchaType = (siteConfig?.captchaComment as CaptchaType) || "none";
-  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "math" : rawCaptchaType;
+  const captchaType = (() => {
+    if (rawCaptchaType === "turnstile" && !turnstileSiteKey) return "math" as CaptchaType;
+    if (rawCaptchaType === "recaptcha" && !recaptchaSiteKey) return "math" as CaptchaType;
+    if (rawCaptchaType === "hcaptcha" && !hcaptchaSiteKey) return "math" as CaptchaType;
+    return rawCaptchaType;
+  })();
+  const isTokenCaptcha = captchaType === "turnstile" || captchaType === "recaptcha" || captchaType === "hcaptcha";
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaValue, setCaptchaValue] = useState("");
+  const [sliderValue, setSliderValue] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleTurnstileExpire = useCallback(() => {
@@ -137,14 +146,18 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
 
     if (captchaType !== "none") {
       try {
+        let captchaBody: Record<string, unknown>;
+        if (isTokenCaptcha) {
+          captchaBody = { type: captchaType, turnstileToken };
+        } else if (captchaType === "slider") {
+          captchaBody = { type: "slider", captcha: String(sliderValue ?? 0) };
+        } else {
+          captchaBody = { type: "math", captcha: captchaValue };
+        }
         const captchaRes = await fetch("/api/captcha", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            captchaType === "turnstile"
-              ? { type: "turnstile", turnstileToken }
-              : { captcha: captchaValue, type: "math" }
-          ),
+          body: JSON.stringify(captchaBody),
         });
         const captchaResult = await captchaRes.json();
         if (!captchaResult.valid) {
@@ -152,6 +165,7 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
           setCaptchaKey((k) => k + 1);
           setTurnstileToken("");
           setCaptchaValue("");
+          setSliderValue(null);
           setIsSubmitting(false);
           return;
         }
@@ -194,7 +208,8 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
     setCaptchaKey((k) => k + 1);
     setTurnstileToken("");
     setCaptchaValue("");
-  }, [newComment, isSubmitting, createMutation, imagePostId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, turnstileToken, captchaValue, getVisitorId]);
+    setSliderValue(null);
+  }, [newComment, isSubmitting, createMutation, imagePostId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, isTokenCaptcha, turnstileToken, captchaValue, sliderValue, getVisitorId]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 
@@ -303,10 +318,13 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
             <UnifiedCaptcha
               type={captchaType}
               turnstileSiteKey={turnstileSiteKey}
+              recaptchaSiteKey={recaptchaSiteKey}
+              hcaptchaSiteKey={hcaptchaSiteKey}
               mathValue={captchaValue}
               onMathChange={setCaptchaValue}
               onTurnstileVerify={setTurnstileToken}
               onTurnstileExpire={handleTurnstileExpire}
+              onSliderVerify={(p) => setSliderValue(p)}
               refreshKey={captchaKey}
             />
           )}
@@ -330,7 +348,8 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
                 disabled={
                   !newComment.trim() || isSubmitting || (!session && !guestName.trim()) ||
                   (captchaType === "math" && !captchaValue.trim()) ||
-                  (captchaType === "turnstile" && !turnstileToken)
+                  (isTokenCaptcha && !turnstileToken) ||
+                  (captchaType === "slider" && sliderValue === null)
                 }
               >
                 {isSubmitting ? "发表中..." : "发表评论"}

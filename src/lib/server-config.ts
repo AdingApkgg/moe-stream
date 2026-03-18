@@ -19,6 +19,8 @@ export interface ServerConfig {
   googleServiceAccountEmail: string | null;
   googlePrivateKey: string | null;
   turnstileSecretKey: string | null;
+  recaptchaSecretKey: string | null;
+  hcaptchaSecretKey: string | null;
 }
 
 const selectFields = {
@@ -34,6 +36,8 @@ const selectFields = {
   googleServiceAccountEmail: true,
   googlePrivateKey: true,
   turnstileSecretKey: true,
+  recaptchaSecretKey: true,
+  hcaptchaSecretKey: true,
 } as const;
 
 const defaultConfig: ServerConfig = {
@@ -45,6 +49,8 @@ const defaultConfig: ServerConfig = {
   googleServiceAccountEmail: null,
   googlePrivateKey: null,
   turnstileSecretKey: null,
+  recaptchaSecretKey: null,
+  hcaptchaSecretKey: null,
 };
 
 /**
@@ -103,6 +109,8 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
             (row.googleServiceAccountEmail as string) || null,
           googlePrivateKey: (row.googlePrivateKey as string) || null,
           turnstileSecretKey: (row.turnstileSecretKey as string) || null,
+          recaptchaSecretKey: (row.recaptchaSecretKey as string) || null,
+          hcaptchaSecretKey: (row.hcaptchaSecretKey as string) || null,
         };
       },
       300

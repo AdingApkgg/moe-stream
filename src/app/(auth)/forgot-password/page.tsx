@@ -23,11 +23,20 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const recaptchaSiteKey = siteConfig?.recaptchaSiteKey;
+  const hcaptchaSiteKey = siteConfig?.hcaptchaSiteKey;
   const rawCaptchaType = (siteConfig?.captchaForgotPassword as CaptchaType) || "none";
-  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "math" : rawCaptchaType;
+  const captchaType = (() => {
+    if (rawCaptchaType === "turnstile" && !turnstileSiteKey) return "math";
+    if (rawCaptchaType === "recaptcha" && !recaptchaSiteKey) return "math";
+    if (rawCaptchaType === "hcaptcha" && !hcaptchaSiteKey) return "math";
+    return rawCaptchaType;
+  })();
+  const isTokenCaptcha = captchaType === "turnstile" || captchaType === "recaptcha" || captchaType === "hcaptcha";
 
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [sliderValue, setSliderValue] = useState<number | null>(null);
 
   const resetPasswordSchema = z.object({
     email: z.string().email("请输入有效的邮箱地址"),
@@ -78,14 +87,18 @@ export default function ForgotPasswordPage() {
     try {
       // 验证验证码
       if (captchaType !== "none") {
+        let captchaBody: Record<string, unknown>;
+        if (isTokenCaptcha) {
+          captchaBody = { type: captchaType, turnstileToken };
+        } else if (captchaType === "slider") {
+          captchaBody = { type: "slider", captcha: String(sliderValue ?? 0) };
+        } else {
+          captchaBody = { type: "math", captcha: data.captcha };
+        }
         const captchaRes = await fetch("/api/captcha", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            captchaType === "turnstile"
-              ? { type: "turnstile", turnstileToken }
-              : { captcha: data.captcha, type: "math" }
-          ),
+          body: JSON.stringify(captchaBody),
         });
         const captchaResult = await captchaRes.json();
 
@@ -93,6 +106,7 @@ export default function ForgotPasswordPage() {
           toast.error(captchaResult.message || "验证失败");
           setCaptchaKey((k) => k + 1);
           setTurnstileToken("");
+          setSliderValue(null);
           form.setValue("captcha", "");
           setIsLoading(false);
           return;
@@ -216,11 +230,22 @@ export default function ForgotPasswordPage() {
                   )}
                 />
               )}
-              {captchaType === "turnstile" && (
+              {captchaType === "slider" && (
                 <div className="space-y-2">
                   <UnifiedCaptcha
-                    type="turnstile"
+                    type="slider"
+                    onSliderVerify={(p) => setSliderValue(p)}
+                    refreshKey={captchaKey}
+                  />
+                </div>
+              )}
+              {isTokenCaptcha && (
+                <div className="space-y-2">
+                  <UnifiedCaptcha
+                    type={captchaType}
                     turnstileSiteKey={turnstileSiteKey}
+                    recaptchaSiteKey={recaptchaSiteKey}
+                    hcaptchaSiteKey={hcaptchaSiteKey}
                     onTurnstileVerify={handleTurnstileVerify}
                     onTurnstileExpire={handleTurnstileExpire}
                     refreshKey={captchaKey}
@@ -230,7 +255,7 @@ export default function ForgotPasswordPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || (captchaType === "turnstile" && !turnstileToken)}
+                disabled={isLoading || (isTokenCaptcha && !turnstileToken) || (captchaType === "slider" && sliderValue === null)}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 重置密码

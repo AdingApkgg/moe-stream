@@ -150,12 +150,16 @@ const configFormSchema = z.object({
   })),
 
   // 验证码 / 人机验证
-  captchaLogin: z.enum(["none", "math", "turnstile"]).catch("math"),
-  captchaRegister: z.enum(["none", "math", "turnstile"]).catch("none"),
-  captchaComment: z.enum(["none", "math", "turnstile"]).catch("none"),
-  captchaForgotPassword: z.enum(["none", "math", "turnstile"]).catch("none"),
+  captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("math"),
+  captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
+  captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
+  captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
   turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
   turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  recaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  recaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  hcaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
+  hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
   // SMTP 邮件
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -691,6 +695,10 @@ export default function AdminSettingsPage() {
       captchaForgotPassword: "none",
       turnstileSiteKey: "",
       turnstileSecretKey: "",
+      recaptchaSiteKey: "",
+      recaptchaSecretKey: "",
+      hcaptchaSiteKey: "",
+      hcaptchaSecretKey: "",
       smtpHost: "",
       smtpPort: 465,
       smtpUser: "",
@@ -793,12 +801,16 @@ export default function AdminSettingsPage() {
           weight: item.weight ?? 1,
           enabled: item.enabled !== false,
         })),
-        captchaLogin: validEnum((config as Record<string, unknown>).captchaLogin, ["none", "math", "turnstile"] as const, "math"),
-        captchaRegister: validEnum((config as Record<string, unknown>).captchaRegister, ["none", "math", "turnstile"] as const, "none"),
-        captchaComment: validEnum((config as Record<string, unknown>).captchaComment, ["none", "math", "turnstile"] as const, "none"),
-        captchaForgotPassword: validEnum((config as Record<string, unknown>).captchaForgotPassword, ["none", "math", "turnstile"] as const, "none"),
+        captchaLogin: validEnum((config as Record<string, unknown>).captchaLogin, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "math"),
+        captchaRegister: validEnum((config as Record<string, unknown>).captchaRegister, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
+        captchaComment: validEnum((config as Record<string, unknown>).captchaComment, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
+        captchaForgotPassword: validEnum((config as Record<string, unknown>).captchaForgotPassword, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
         turnstileSiteKey: ((config as Record<string, unknown>).turnstileSiteKey as string) || "",
         turnstileSecretKey: ((config as Record<string, unknown>).turnstileSecretKey as string) || "",
+        recaptchaSiteKey: ((config as Record<string, unknown>).recaptchaSiteKey as string) || "",
+        recaptchaSecretKey: ((config as Record<string, unknown>).recaptchaSecretKey as string) || "",
+        hcaptchaSiteKey: ((config as Record<string, unknown>).hcaptchaSiteKey as string) || "",
+        hcaptchaSecretKey: ((config as Record<string, unknown>).hcaptchaSecretKey as string) || "",
         smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
         smtpPort: ((config as Record<string, unknown>).smtpPort as number) ?? 465,
         smtpUser: ((config as Record<string, unknown>).smtpUser as string) || "",
@@ -1965,7 +1977,7 @@ export default function AdminSettingsPage() {
                     验证码 / 人机验证
                   </CardTitle>
                   <CardDescription>
-                    为不同场景配置验证码方式。支持无验证、数学验证码和 Cloudflare Turnstile 人机验证。
+                    为不同场景配置验证码方式。支持本地验证（数学、滑块）和第三方平台（Turnstile、reCAPTCHA、hCaptcha）。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1974,31 +1986,47 @@ export default function AdminSettingsPage() {
                     <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm text-muted-foreground whitespace-nowrap">统一设置所有场景</span>
                     <Select onValueChange={(v) => {
-                      const val = v as "none" | "math" | "turnstile";
+                      const val = v as "none" | "math" | "slider" | "turnstile" | "recaptcha" | "hcaptcha";
                       form.setValue("captchaLogin", val, { shouldDirty: true });
                       form.setValue("captchaRegister", val, { shouldDirty: true });
                       form.setValue("captchaComment", val, { shouldDirty: true });
                       form.setValue("captchaForgotPassword", val, { shouldDirty: true });
                     }}>
-                      <SelectTrigger className="w-48">
+                      <SelectTrigger className="w-52">
                         <SelectValue placeholder="选择类型..." />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">全部关闭</SelectItem>
                         <SelectItem value="math">全部数学验证码</SelectItem>
+                        <SelectItem value="slider">全部滑块验证</SelectItem>
                         <SelectItem value="turnstile">全部 Turnstile</SelectItem>
+                        <SelectItem value="recaptcha">全部 reCAPTCHA</SelectItem>
+                        <SelectItem value="hcaptcha">全部 hCaptcha</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Turnstile 密钥缺失警告 */}
-                  {[form.watch("captchaLogin"), form.watch("captchaRegister"), form.watch("captchaComment"), form.watch("captchaForgotPassword")].includes("turnstile") &&
-                    (!form.watch("turnstileSiteKey")?.trim() || !form.watch("turnstileSecretKey")?.trim()) && (
-                    <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
-                      <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
-                      <span>已选择 Turnstile 验证方式，但密钥尚未配置。未配置密钥时前端将自动跳过验证，请在下方填写 Cloudflare Turnstile 密钥。</span>
-                    </div>
-                  )}
+                  {/* 第三方密钥缺失警告 */}
+                  {(() => {
+                    const vals = [form.watch("captchaLogin"), form.watch("captchaRegister"), form.watch("captchaComment"), form.watch("captchaForgotPassword")];
+                    const warnings: string[] = [];
+                    if (vals.includes("turnstile") && (!form.watch("turnstileSiteKey")?.trim() || !form.watch("turnstileSecretKey")?.trim())) {
+                      warnings.push("Turnstile 密钥未配置");
+                    }
+                    if (vals.includes("recaptcha") && (!form.watch("recaptchaSiteKey")?.trim() || !form.watch("recaptchaSecretKey")?.trim())) {
+                      warnings.push("reCAPTCHA 密钥未配置");
+                    }
+                    if (vals.includes("hcaptcha") && (!form.watch("hcaptchaSiteKey")?.trim() || !form.watch("hcaptchaSecretKey")?.trim())) {
+                      warnings.push("hCaptcha 密钥未配置");
+                    }
+                    if (warnings.length === 0) return null;
+                    return (
+                      <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
+                        <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>{warnings.join("、")}。未配置密钥时前端将自动跳过验证，请在下方填写对应平台密钥。</span>
+                      </div>
+                    );
+                  })()}
 
                   {/* 各场景验证码选择器 */}
                   <div className="space-y-4">
@@ -2007,80 +2035,162 @@ export default function AdminSettingsPage() {
                       { name: "captchaRegister" as const, label: "注册", desc: "用户注册时需要完成的验证（邮箱验证码独立于此设置）" },
                       { name: "captchaComment" as const, label: "评论", desc: "用户发表评论时需要完成的验证" },
                       { name: "captchaForgotPassword" as const, label: "忘记密码", desc: "用户重置密码时需要完成的验证" },
-                    ]).map(({ name, label, desc }) => (
+                    ]).map(({ name, label, desc }) => {
+                      const captchaLabels: Record<string, string> = { none: "关闭", math: "数学", slider: "滑块", turnstile: "Turnstile", recaptcha: "reCAPTCHA", hcaptcha: "hCaptcha" };
+                      return (
+                        <FormField
+                          key={name}
+                          control={form.control}
+                          name={name}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                {label}
+                                <Badge variant={field.value === "none" ? "outline" : "default"} className="text-[10px] px-1.5 py-0 font-normal">
+                                  {captchaLabels[field.value] ?? field.value}
+                                </Badge>
+                              </FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="选择验证码类型" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="none">无验证</SelectItem>
+                                  <SelectItem value="math">数学验证码</SelectItem>
+                                  <SelectItem value="slider">滑块验证</SelectItem>
+                                  <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                                  <SelectItem value="recaptcha">Google reCAPTCHA v2</SelectItem>
+                                  <SelectItem value="hcaptcha">hCaptcha</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>{desc}</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Cloudflare Turnstile */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium">Cloudflare Turnstile 配置</h4>
+                    <FormDescription className="mt-0">
+                      在 <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Cloudflare Dashboard</a> 创建 Turnstile 站点后获取密钥。
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
-                        key={name}
                         control={form.control}
-                        name={name}
+                        name="turnstileSiteKey"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              {label}
-                              <Badge variant={field.value === "none" ? "outline" : "default"} className="text-[10px] px-1.5 py-0 font-normal">
-                                {field.value === "none" ? "关闭" : field.value === "math" ? "数学" : "Turnstile"}
-                              </Badge>
-                            </FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="选择验证码类型" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">无验证</SelectItem>
-                                <SelectItem value="math">数学验证码</SelectItem>
-                                <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>{desc}</FormDescription>
+                            <FormLabel>Site Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="0x..." />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    ))}
+                      <FormField
+                        control={form.control}
+                        name="turnstileSecretKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Secret Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} type="password" placeholder="0x..." />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
+                  {/* Google reCAPTCHA */}
                   <div className="border-t pt-6 space-y-4">
-                    <h4 className="font-medium">Cloudflare Turnstile 配置</h4>
+                    <h4 className="font-medium">Google reCAPTCHA v2 配置</h4>
                     <FormDescription className="mt-0">
-                      在 <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Cloudflare Dashboard</a> 创建 Turnstile 站点后获取密钥。选择了 Turnstile 验证方式时才需要填写。
+                      在 <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA 管理后台</a> 创建 v2 (Checkbox) 类型站点后获取密钥。
                     </FormDescription>
-                    <FormField
-                      control={form.control}
-                      name="turnstileSiteKey"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Site Key</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="0x..." />
-                          </FormControl>
-                          <FormDescription>前端展示验证组件使用</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="turnstileSecretKey"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Secret Key</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} type="password" placeholder="0x..." />
-                          </FormControl>
-                          <FormDescription>服务端验证 Token 使用</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="recaptchaSiteKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Site Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="6Le..." />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="recaptchaSecretKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Secret Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} type="password" placeholder="6Le..." />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* hCaptcha */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h4 className="font-medium">hCaptcha 配置</h4>
+                    <FormDescription className="mt-0">
+                      在 <a href="https://dashboard.hcaptcha.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">hCaptcha Dashboard</a> 创建站点后获取密钥。hCaptcha 注重隐私保护，是 reCAPTCHA 的替代方案。
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="hcaptchaSiteKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Site Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="站点密钥" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="hcaptchaSecretKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Secret Key</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} type="password" placeholder="密钥" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium mb-1">验证码类型说明</p>
                     <ul className="list-disc list-inside text-xs space-y-0.5">
                       <li><strong>无验证</strong>：不需要任何额外验证</li>
-                      <li><strong>数学验证码</strong>：答案通过 HMAC 签名存储，防止自动化绕过</li>
-                      <li><strong>Cloudflare Turnstile</strong>：无感人机验证，需要配置 Cloudflare 密钥</li>
+                      <li><strong>数学验证码</strong>：本地生成，答案通过 HMAC 签名验证，无需外部服务</li>
+                      <li><strong>滑块验证</strong>：本地拖拽交互验证，无需外部服务，体验友好</li>
+                      <li><strong>Cloudflare Turnstile</strong>：无感人机验证，需配置 Cloudflare 密钥</li>
+                      <li><strong>Google reCAPTCHA v2</strong>：复选框人机验证，需配置 Google 密钥</li>
+                      <li><strong>hCaptcha</strong>：注重隐私的人机验证，需配置 hCaptcha 密钥</li>
                     </ul>
                   </div>
 

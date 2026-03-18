@@ -30,11 +30,20 @@ function LoginForm() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
+  const recaptchaSiteKey = siteConfig?.recaptchaSiteKey;
+  const hcaptchaSiteKey = siteConfig?.hcaptchaSiteKey;
   const rawCaptchaType = (siteConfig?.captchaLogin as CaptchaType) || "math";
-  const captchaType = rawCaptchaType === "turnstile" && !turnstileSiteKey ? "none" : rawCaptchaType;
+  const captchaType = (() => {
+    if (rawCaptchaType === "turnstile" && !turnstileSiteKey) return "none";
+    if (rawCaptchaType === "recaptcha" && !recaptchaSiteKey) return "none";
+    if (rawCaptchaType === "hcaptcha" && !hcaptchaSiteKey) return "none";
+    return rawCaptchaType;
+  })();
+  const isTokenCaptcha = captchaType === "turnstile" || captchaType === "recaptcha" || captchaType === "hcaptcha";
 
   const [captchaKey, setCaptchaKey] = useState(0);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [sliderValue, setSliderValue] = useState<number | null>(null);
 
   const loginSchema = z.object({
     identifier: z.string().min(1, "请输入邮箱或用户名"),
@@ -127,14 +136,18 @@ function LoginForm() {
     setIsLoading(true);
     try {
       if (captchaType !== "none") {
+        let captchaBody: Record<string, unknown>;
+        if (isTokenCaptcha) {
+          captchaBody = { type: captchaType, turnstileToken };
+        } else if (captchaType === "slider") {
+          captchaBody = { type: "slider", captcha: String(sliderValue ?? 0) };
+        } else {
+          captchaBody = { type: "math", captcha: data.captcha };
+        }
         const captchaRes = await fetch("/api/captcha", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            captchaType === "turnstile"
-              ? { type: "turnstile", turnstileToken }
-              : { captcha: data.captcha, type: "math" }
-          ),
+          body: JSON.stringify(captchaBody),
         });
         const captchaResult = await captchaRes.json();
 
@@ -142,6 +155,7 @@ function LoginForm() {
           toast.error(captchaResult.message || "验证失败");
           setCaptchaKey((k) => k + 1);
           setTurnstileToken("");
+          setSliderValue(null);
           form.setValue("captcha", "");
           setIsLoading(false);
           return;
@@ -251,11 +265,22 @@ function LoginForm() {
                   )}
                 />
               )}
-              {captchaType === "turnstile" && (
+              {captchaType === "slider" && (
                 <div className="space-y-2">
                   <UnifiedCaptcha
-                    type="turnstile"
+                    type="slider"
+                    onSliderVerify={(p) => setSliderValue(p)}
+                    refreshKey={captchaKey}
+                  />
+                </div>
+              )}
+              {isTokenCaptcha && (
+                <div className="space-y-2">
+                  <UnifiedCaptcha
+                    type={captchaType}
                     turnstileSiteKey={turnstileSiteKey}
+                    recaptchaSiteKey={recaptchaSiteKey}
+                    hcaptchaSiteKey={hcaptchaSiteKey}
                     onTurnstileVerify={handleTurnstileVerify}
                     onTurnstileExpire={handleTurnstileExpire}
                     refreshKey={captchaKey}
@@ -265,7 +290,7 @@ function LoginForm() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || (captchaType === "turnstile" && !turnstileToken)}
+                disabled={isLoading || (isTokenCaptcha && !turnstileToken) || (captchaType === "slider" && sliderValue === null)}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 登录

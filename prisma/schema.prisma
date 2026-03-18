@@ -1070,12 +1070,16 @@ model SiteConfig {
   googlePrivateKey           String?  @db.Text
 
   // 验证码 / 人机验证
-  captchaLogin          String  @default("math")    // 登录验证码类型：none | math | turnstile
-  captchaRegister       String  @default("none")    // 注册验证码类型：none | math | turnstile
-  captchaComment        String  @default("none")    // 评论验证码类型：none | math | turnstile
-  captchaForgotPassword String  @default("none")    // 忘记密码验证码类型：none | math | turnstile
-  turnstileSiteKey      String?                      // Cloudflare Turnstile Site Key
-  turnstileSecretKey    String?                      // Cloudflare Turnstile Secret Key
+  captchaLogin          String  @default("math")    // none | math | slider | turnstile | recaptcha | hcaptcha
+  captchaRegister       String  @default("none")
+  captchaComment        String  @default("none")
+  captchaForgotPassword String  @default("none")
+  turnstileSiteKey      String?
+  turnstileSecretKey    String?
+  recaptchaSiteKey      String?
+  recaptchaSecretKey    String?
+  hcaptchaSiteKey       String?
+  hcaptchaSecretKey     String?
 
   // 推广系统
   referralEnabled         Boolean @default(false)
