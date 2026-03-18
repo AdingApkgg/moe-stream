@@ -25,7 +25,10 @@ export default function ChannelsPage() {
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
 
-  const { data, isLoading } = trpc.channel.list.useQuery({ limit: 50 });
+  const { data, isLoading } = trpc.channel.list.useQuery(
+    { limit: 50 },
+    { placeholderData: (prev) => prev },
+  );
   const utils = trpc.useUtils();
 
   const createMutation = trpc.channel.create.useMutation({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTabParam } from "@/hooks/use-tab-param";
 import { useForm, useFieldArray, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -623,7 +624,11 @@ export default function AdminSettingsPage() {
     setPendingImport(null);
   };
 
-  const [engineStatus, setEngineStatus] = useState<SearchEngineStatus | null>(null);
+  const { data: engineStatus = null } = useQuery<SearchEngineStatus>({
+    queryKey: ["indexnow-status"],
+    queryFn: () => fetch("/api/indexnow").then((res) => res.json()),
+    staleTime: 60 * 1000,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recentDays, setRecentDays] = useState(7);
   const [lastResult, setLastResult] = useState<{ type: string; message: string; time: Date } | null>(null);
@@ -839,15 +844,6 @@ export default function AdminSettingsPage() {
     }
   }, [config, form]);
 
-  useEffect(() => {
-    fetch("/api/indexnow")
-      .then((res) => res.json())
-      .then(setEngineStatus)
-      .catch(() => setEngineStatus({
-        indexnow: { configured: false, keyFile: null },
-        google: { configured: false, note: null },
-      }));
-  }, []);
 
   const handleSubmitIndex = async (type: "recent" | "all" | "site" | "sitemap") => {
     setIsSubmitting(true);

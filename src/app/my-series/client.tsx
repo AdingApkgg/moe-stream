@@ -70,7 +70,7 @@ export default function MySeriesClient({ page }: { page: number }) {
 
   const { data, isLoading } = trpc.series.listByUser.useQuery(
     { limit: 20, page },
-    { enabled: !!session }
+    { enabled: !!session, placeholderData: (prev) => prev }
   );
 
   const createMutation = trpc.series.create.useMutation({

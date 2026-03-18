@@ -24,7 +24,7 @@ export function ImageSingleUpload() {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([""]);
 
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
+  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const createMutation = trpc.image.create.useMutation({
     onError: (e) => toast.error("发布失败", { description: e.message }),
   });

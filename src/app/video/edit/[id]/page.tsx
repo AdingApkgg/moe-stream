@@ -96,7 +96,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
     { enabled: !!session }
   );
 
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
+  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
 
   // 获取用户的合集列表
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery(

@@ -54,7 +54,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
     { enabled: !!session }
   );
 
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
+  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
 
   const updateMutation = trpc.image.update.useMutation({
     onSuccess: () => {

@@ -94,7 +94,7 @@ export default function EditGamePage({ params }: Props) {
     { enabled: !!session }
   );
 
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100, type: "game" });
+  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100, type: "game" }, { staleTime: 10 * 60 * 1000 });
 
   const updateMutation = trpc.admin.updateGame.useMutation({
     onSuccess: () => {

@@ -38,7 +38,7 @@ export function VideoSingleUpload() {
   const [newSeriesTitle, setNewSeriesTitle] = useState("");
   const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
 
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 });
+  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery({ limit: 50 });
 
   const createSeriesMutation = trpc.series.create.useMutation({

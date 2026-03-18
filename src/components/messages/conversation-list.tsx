@@ -19,7 +19,11 @@ interface ConversationListProps {
 export function ConversationList({ activeId, onSelect }: ConversationListProps) {
   const { data, isLoading } = trpc.message.conversations.useQuery(
     { limit: 50 },
-    { refetchInterval: 30_000 },
+    {
+      staleTime: 30_000,
+      refetchInterval: 30_000,
+      refetchOnWindowFocus: true,
+    },
   );
 
   if (isLoading) {
