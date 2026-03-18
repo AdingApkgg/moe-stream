@@ -99,6 +99,7 @@ export const adminConfigRouter = router({
 
       // 广告列表（统一管理，广告门和页面广告位共用）
       sponsorAds: z.array(z.object({
+        id: z.string().max(50).optional(),
         title: z.string().min(1).max(200),
         platform: z.string().max(100).optional().default(""),
         url: z.string().url(),
@@ -106,6 +107,10 @@ export const adminConfigRouter = router({
         imageUrl: z.string().max(2000).optional().default(""),
         weight: z.number().int().min(1).max(100).optional().default(1),
         enabled: z.boolean().optional().default(true),
+        position: z.enum(["all", "sidebar", "header", "in-feed", "video-page", "ad-gate"]).optional().default("all"),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+        createdAt: z.string().optional(),
       })).max(50).optional().nullable(),
 
       // 验证码 / 人机验证

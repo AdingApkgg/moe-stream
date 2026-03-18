@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 /** 从 JSON 解析广告列表（兼容旧格式） */
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => ({
+  return raw.map((item, idx) => ({
+    id: item.id ?? `legacy-${idx}`,
     title: item.title ?? "",
     platform: item.platform ?? "",
     url: item.url ?? "",
@@ -24,6 +25,10 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
+    position: item.position ?? "all",
+    startDate: item.startDate ?? null,
+    endDate: item.endDate ?? null,
+    createdAt: item.createdAt ?? undefined,
   }));
 }
 

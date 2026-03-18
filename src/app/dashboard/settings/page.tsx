@@ -626,7 +626,13 @@ export default function AdminSettingsPage() {
 
   const { data: engineStatus = null } = useQuery<SearchEngineStatus>({
     queryKey: ["indexnow-status"],
-    queryFn: () => fetch("/api/indexnow").then((res) => res.json()),
+    queryFn: () =>
+      fetch("/api/indexnow")
+        .then((res) => res.json())
+        .catch(() => ({
+          indexnow: { configured: false, keyFile: null },
+          google: { configured: false, note: null },
+        })),
     staleTime: 60 * 1000,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2858,7 +2864,7 @@ export default function AdminSettingsPage() {
                     广告设置
                   </CardTitle>
                   <CardDescription>
-                    统一管理全站广告。广告将随机展示在首页视频列表、侧栏、视频页等广告位中，广告门也使用同一广告列表。可为每条广告设置权重来调整展示概率。
+                    广告管理已升级为独立页面，支持广告位投放、投放时间管理和实时预览。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -2878,83 +2884,20 @@ export default function AdminSettingsPage() {
                     )}
                   />
 
-                  {/* 广告列表 */}
-                  <div className="space-y-3">
-                    <FormLabel>广告列表</FormLabel>
-                    <FormDescription>
-                      配置多条广告，系统会按权重随机选取展示。每条广告可设置图片、跳转链接、平台名和权重。
-                    </FormDescription>
-                    <AdsFieldArray
-                      control={form.control}
-                      fields={adsFields}
-                      append={appendAd}
-                      remove={removeAd}
-                    />
-                  </div>
-
-                  {/* 广告门 */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h4 className="font-medium">广告门</h4>
-                    <FormDescription className="mt-0">
-                      启用后，用户访问站点时需先点击广告链接并返回本页，满足指定次数后在设定时间内不再显示广告门。广告门使用上方同一广告列表。
-                    </FormDescription>
-                    <FormField
-                      control={form.control}
-                      name="adGateEnabled"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>启用广告门</FormLabel>
-                            <FormDescription>开启后，未达成次数时访问站点会先看到广告页</FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="adGateViewsRequired"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>需观看/点击次数</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={20}
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 3)}
-                              />
-                            </FormControl>
-                            <FormDescription>例如 3 次</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="adGateHours"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>免广告时长（小时）</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={168}
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 12)}
-                              />
-                            </FormControl>
-                            <FormDescription>达成后多少小时内不再显示，例如 12</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+                    <Megaphone className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <div>
+                      <p className="font-medium text-sm">广告列表和广告门已迁移至独立管理页面</p>
+                      <p className="text-xs text-muted-foreground mt-1">支持广告位投放、投放时间、实时预览等更多功能</p>
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.location.href = "/dashboard/ads"}
+                    >
+                      <Megaphone className="h-4 w-4 mr-2" />
+                      前往广告管理
+                    </Button>
                   </div>
 
                   <Button type="submit" disabled={updateConfig.isPending}>

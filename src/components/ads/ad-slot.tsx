@@ -6,8 +6,10 @@ import { AdCard } from "./ad-card";
 import { cn } from "@/lib/utils";
 
 export interface AdSlotProps {
-  /** 广告位标识（用于数据统计） */
+  /** 广告位标识（用于数据统计和位置过滤） */
   slotId?: string;
+  /** 广告位类型（用于匹配广告的 position 字段） */
+  slotPosition?: string;
   /** 占位最小高度（px） */
   minHeight?: number;
   /** 紧凑模式（侧栏等小空间） */
@@ -23,9 +25,9 @@ const emptySubscribe = () => () => {};
  * 广告位容器：从统一广告列表中随机选取一条展示。
  * 仅当「系统设置中启用广告」且「用户未被关闭广告」时渲染。
  */
-export function AdSlot({ slotId = "default", minHeight, compact, className, children }: AdSlotProps) {
+export function AdSlot({ slotId = "default", slotPosition, minHeight, compact, className, children }: AdSlotProps) {
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
-  const { ads, showAds } = useRandomAds(1, slotId);
+  const { ads, showAds } = useRandomAds(1, slotId, slotPosition ?? slotId);
   const ad = ads[0];
 
   if (!mounted || !showAds) return null;

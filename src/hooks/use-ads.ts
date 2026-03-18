@@ -10,14 +10,19 @@ import { pickWeightedRandomAds } from "@/lib/ads";
 /** 从 JSON 解析广告列表（兼容旧格式） */
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => ({
+  return raw.map((item, idx) => ({
+    id: item.id ?? `legacy-${idx}`,
     title: item.title ?? "",
     platform: item.platform ?? "",
     url: item.url ?? "",
     description: item.description ?? undefined,
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
-    enabled: item.enabled !== false, // 兼容旧数据（没有 enabled 字段时默认启用）
+    enabled: item.enabled !== false,
+    position: item.position ?? "all",
+    startDate: item.startDate ?? null,
+    endDate: item.endDate ?? null,
+    createdAt: item.createdAt ?? undefined,
   }));
 }
 
@@ -63,14 +68,15 @@ export function useAds() {
  * 按权重随机选取 N 条广告（客户端每次 mount 时重新选取）
  * @param count 需要的广告数量
  * @param seed  可选：改变 seed 会触发重新选取（例如页码）
+ * @param slotPosition 广告位标识（可选，按位置过滤）
  */
-export function useRandomAds(count: number, seed?: string | number) {
+export function useRandomAds(count: number, seed?: string | number, slotPosition?: string) {
   const { showAds, enabledAds } = useAds();
 
   const picked = useMemo(
-    () => (showAds ? pickWeightedRandomAds(enabledAds, count) : []),
+    () => (showAds ? pickWeightedRandomAds(enabledAds, count, slotPosition) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showAds, enabledAds, count, seed]
+    [showAds, enabledAds, count, seed, slotPosition]
   );
 
   return { ads: picked, showAds };

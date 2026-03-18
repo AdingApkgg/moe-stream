@@ -6,7 +6,7 @@ import { useSiteConfigForAds } from "@/hooks/use-ads";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds } from "@/lib/ads";
+import { pickWeightedRandomAds, getActiveAds } from "@/lib/ads";
 
 const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
 const STORAGE_VIEW_COUNT = "acgn_ad_gate_view_count";
@@ -17,7 +17,8 @@ const MAX_AWAY_MS = 10 * 60 * 1000;
 /** 从 JSON 解析广告列表（兼容旧格式） */
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => ({
+  return raw.map((item, idx) => ({
+    id: item.id ?? `legacy-${idx}`,
     title: item.title ?? "",
     platform: item.platform ?? "",
     url: item.url ?? "",
@@ -25,6 +26,10 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
+    position: item.position ?? "all",
+    startDate: item.startDate ?? null,
+    endDate: item.endDate ?? null,
+    createdAt: item.createdAt ?? undefined,
   }));
 }
 
@@ -39,7 +44,7 @@ export function AdGate() {
   const [now, setNow] = useState(0);
 
   const allAds = useMemo(() => parseAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
-  const enabledAds = useMemo(() => allAds.filter((a) => a.enabled), [allAds]);
+  const enabledAds = useMemo(() => getActiveAds(allAds, "ad-gate"), [allAds]);
 
   const gateOn =
     siteConfig?.adsEnabled === true &&

@@ -42,6 +42,7 @@ import {
   UserCog,
   User,
   Wallet,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 
@@ -86,6 +87,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "系统",
     items: [
+      { href: "/dashboard/ads", label: "广告管理", icon: Megaphone, scope: "settings:manage" },
       { href: "/dashboard/links", label: "友情链接", icon: Link2, scope: "settings:manage" },
       { href: "/dashboard/backups", label: "数据备份", icon: DatabaseBackup, scope: "settings:manage" },
       { href: "/dashboard/settings", label: "系统设置", icon: Settings, scope: "settings:manage" },

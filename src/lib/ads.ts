@@ -2,8 +2,22 @@
  * 广告系统 —— 共享类型与工具函数
  */
 
+/** 广告位标识 */
+export type AdPosition = "all" | "sidebar" | "header" | "in-feed" | "video-page" | "ad-gate";
+
+export const AD_POSITIONS: { value: AdPosition; label: string }[] = [
+  { value: "all", label: "全部位置" },
+  { value: "sidebar", label: "侧栏" },
+  { value: "header", label: "顶栏" },
+  { value: "in-feed", label: "信息流" },
+  { value: "video-page", label: "视频页" },
+  { value: "ad-gate", label: "仅广告门" },
+];
+
 /** 单条广告的数据结构（存储在 SiteConfig.sponsorAds JSON 中） */
 export interface Ad {
+  /** 唯一标识（uuid，用于编辑/删除） */
+  id: string;
   /** 广告标题 / 名称 */
   title: string;
   /** 广告平台名（如"Google""百度联盟"等） */
@@ -18,22 +32,60 @@ export interface Ad {
   weight: number;
   /** 是否启用（false 时不展示） */
   enabled: boolean;
+  /** 广告位（默认 "all" 表示所有位置） */
+  position: AdPosition;
+  /** 投放开始时间（ISO string，为空表示立即开始） */
+  startDate?: string | null;
+  /** 投放结束时间（ISO string，为空表示长期有效） */
+  endDate?: string | null;
+  /** 创建时间 */
+  createdAt?: string;
+}
+
+/** 检查广告是否在投放时间范围内 */
+export function isAdInSchedule(ad: Ad, now = new Date()): boolean {
+  if (ad.startDate) {
+    const start = new Date(ad.startDate);
+    if (now < start) return false;
+  }
+  if (ad.endDate) {
+    const end = new Date(ad.endDate);
+    if (now > end) return false;
+  }
+  return true;
+}
+
+/** 检查广告是否匹配指定广告位 */
+export function isAdForPosition(ad: Ad, slotPosition?: string): boolean {
+  if (!ad.position || ad.position === "all") return true;
+  if (!slotPosition) return false;
+  return ad.position === slotPosition;
+}
+
+/**
+ * 获取可用广告：启用 + 时间范围内 + 匹配广告位
+ */
+export function getActiveAds(ads: Ad[], slotPosition?: string): Ad[] {
+  const now = new Date();
+  return ads.filter(
+    (a) => a.enabled && isAdInSchedule(a, now) && isAdForPosition(a, slotPosition)
+  );
 }
 
 /**
  * 按权重随机选取 N 条不重复广告
  * @param ads    全量广告列表（仅启用的会参与选取）
  * @param count  需要选取的数量
+ * @param slotPosition 广告位标识（可选，按位置过滤）
  * @returns      选中的广告数组（最多 count 条，如可用广告不足则返回全部可用）
  */
-export function pickWeightedRandomAds(ads: Ad[], count: number): Ad[] {
-  const enabled = ads.filter((a) => a.enabled);
-  if (enabled.length === 0) return [];
-  if (enabled.length <= count) return shuffle(enabled);
+export function pickWeightedRandomAds(ads: Ad[], count: number, slotPosition?: string): Ad[] {
+  const active = getActiveAds(ads, slotPosition);
+  if (active.length === 0) return [];
+  if (active.length <= count) return shuffle(active);
 
   const picked: Ad[] = [];
-  // 复制一份可变池
-  const pool = enabled.map((a) => ({ ad: a, weight: Math.max(a.weight, 1) }));
+  const pool = active.map((a) => ({ ad: a, weight: Math.max(a.weight, 1) }));
 
   for (let i = 0; i < count && pool.length > 0; i++) {
     const totalWeight = pool.reduce((s, p) => s + p.weight, 0);
@@ -47,7 +99,7 @@ export function pickWeightedRandomAds(ads: Ad[], count: number): Ad[] {
       }
     }
     picked.push(pool[idx].ad);
-    pool.splice(idx, 1); // 不重复选取
+    pool.splice(idx, 1);
   }
 
   return picked;
