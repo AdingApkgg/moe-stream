@@ -36,8 +36,13 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
   }, []);
 
   useEffect(() => {
-    fetchTarget();
-  }, [fetchTarget]);
+    let active = true;
+    fetch(`/api/captcha?mode=slider&t=${Date.now()}`)
+      .then((res) => res.json())
+      .then((data) => { if (active) setTarget(data.target); })
+      .catch(() => { if (active) setTarget(50); });
+    return () => { active = false; };
+  }, []);
 
   const toPercent = (px: number) => Math.round((px / MAX_DRAG) * 100);
 

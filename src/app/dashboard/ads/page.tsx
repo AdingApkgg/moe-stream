@@ -275,25 +275,6 @@ export default function AdsManagementPage() {
     });
   }, [filteredAds]);
 
-  const handleBatchToggle = useCallback(async (enabled: boolean) => {
-    if (selectedIds.size === 0) return;
-    const newAds = allAds.map((ad) =>
-      selectedIds.has(ad.id) ? { ...ad, enabled } : ad
-    );
-    await saveAds(newAds);
-    setSelectedIds(new Set());
-    toast.success(`已批量${enabled ? "启用" : "禁用"} ${selectedIds.size} 个广告`);
-  }, [selectedIds, allAds, saveAds]);
-
-  const handleBatchDelete = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-    const newAds = allAds.filter((ad) => !selectedIds.has(ad.id));
-    await saveAds(newAds);
-    const count = selectedIds.size;
-    setSelectedIds(new Set());
-    toast.success(`已删除 ${count} 个广告`);
-  }, [selectedIds, allAds, saveAds]);
-
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
 
   const saveAds = useCallback(async (newAds: Ad[]) => {
@@ -319,6 +300,25 @@ export default function AdsManagementPage() {
       setSaving(false);
     }
   }, [updateConfig]);
+
+  const handleBatchToggle = useCallback(async (enabled: boolean) => {
+    if (selectedIds.size === 0) return;
+    const newAds = allAds.map((ad) =>
+      selectedIds.has(ad.id) ? { ...ad, enabled } : ad
+    );
+    await saveAds(newAds);
+    setSelectedIds(new Set());
+    toast.success(`已批量${enabled ? "启用" : "禁用"} ${selectedIds.size} 个广告`);
+  }, [selectedIds, allAds, saveAds]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const newAds = allAds.filter((ad) => !selectedIds.has(ad.id));
+    await saveAds(newAds);
+    const count = selectedIds.size;
+    setSelectedIds(new Set());
+    toast.success(`已删除 ${count} 个广告`);
+  }, [selectedIds, allAds, saveAds]);
 
   const handleOpenCreate = () => {
     setEditingId(null);

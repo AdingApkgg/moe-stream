@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTabParam } from "@/hooks/use-tab-param";
-import { useForm, useFieldArray, type Control } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { trpc } from "@/lib/trpc";
@@ -48,8 +48,6 @@ import {
   Link2,
   Shield,
   Megaphone,
-  Plus,
-  Trash2,
   HardDrive,
   Download,
   Upload,
@@ -245,141 +243,6 @@ const configFormSchema = z.object({
 });
 
 type ConfigFormValues = z.infer<typeof configFormSchema>;
-
-type AdsFieldArrayProps = {
-  control: Control<ConfigFormValues>;
-  fields: Array<{ id: string }>;
-  append: (item: { title: string; platform: string; url: string; description: string; imageUrl: string; weight: number; enabled: boolean }) => void;
-  remove: (index: number) => void;
-};
-
-function AdsFieldArray({ control, fields, append, remove }: AdsFieldArrayProps) {
-  return (
-    <div className="space-y-3">
-      {fields.map((field, index) => (
-        <div key={field.id} className="flex flex-col gap-2 rounded-lg border p-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">广告 #{index + 1}</span>
-            <div className="flex items-center gap-2">
-              <FormField
-                control={control}
-                name={`sponsorAds.${index}.enabled`}
-                render={({ field: f }) => (
-                  <FormItem className="flex items-center gap-1.5 space-y-0">
-                    <FormLabel className="text-xs text-muted-foreground">启用</FormLabel>
-                    <FormControl>
-                      <Switch checked={f.value ?? true} onCheckedChange={f.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.title`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">广告标题</FormLabel>
-                  <FormControl>
-                    <Input {...f} placeholder="例如：XXX推广" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.platform`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">广告平台名</FormLabel>
-                  <FormControl>
-                    <Input {...f} value={f.value ?? ""} placeholder="例如：Google、百度联盟" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.url`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">跳转链接</FormLabel>
-                  <FormControl>
-                    <Input {...f} type="url" placeholder="https://..." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.imageUrl`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">图片链接</FormLabel>
-                  <FormControl>
-                    <Input {...f} value={f.value ?? ""} placeholder="https://...图片URL" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.description`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">描述（可选）</FormLabel>
-                  <FormControl>
-                    <Input {...f} value={f.value ?? ""} placeholder="简短广告描述" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`sponsorAds.${index}.weight`}
-              render={({ field: f }) => (
-                <FormItem>
-                  <FormLabel className="text-xs">权重（1-100）</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={f.value ?? 1}
-                      onChange={(e) => f.onChange(parseInt(e.target.value, 10) || 1)}
-                      placeholder="1"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-[10px]">数值越大展示概率越高</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => append({ title: "", platform: "", url: "", description: "", imageUrl: "", weight: 1, enabled: true })}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        添加广告
-      </Button>
-    </div>
-  );
-}
 
 function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animations }: {
   hue: number;
@@ -747,10 +610,6 @@ export default function AdminSettingsPage() {
       usdtMinAmount: null,
       usdtMaxAmount: null,
     },
-  });
-  const { fields: adsFields, append: appendAd, remove: removeAd } = useFieldArray({
-    control: form.control,
-    name: "sponsorAds",
   });
 
   // 当配置加载完成后，更新表单
