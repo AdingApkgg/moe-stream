@@ -14,6 +14,21 @@ export const AD_POSITIONS: { value: AdPosition; label: string }[] = [
   { value: "ad-gate", label: "仅广告门" },
 ];
 
+const SLOT_ID_TO_POSITION: Record<string, AdPosition> = {
+  sidebar: "sidebar",
+  header: "header",
+  "in-feed": "in-feed",
+  "video-page": "video-page",
+  "video-sidebar": "sidebar",
+  "video-before-comments": "video-page",
+  "ad-gate": "ad-gate",
+};
+
+/** 从 slotId 推导对应的 AdPosition，未知 slotId 返回 undefined（仅匹配 "all" 广告） */
+export function resolveSlotPosition(slotId: string): AdPosition | undefined {
+  return SLOT_ID_TO_POSITION[slotId];
+}
+
 /** 单条广告的数据结构（存储在 SiteConfig.sponsorAds JSON 中） */
 export interface Ad {
   /** 唯一标识（uuid，用于编辑/删除） */

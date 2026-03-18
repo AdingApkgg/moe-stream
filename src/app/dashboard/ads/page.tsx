@@ -45,6 +45,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast-with-sound";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Megaphone,
   Plus,
@@ -66,8 +73,33 @@ import {
   Clock,
   XCircle,
   MonitorPlay,
+  X,
+  ChevronsUpDown,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type SortField = "title" | "weight" | "createdAt" | "status" | "platform";
+type SortDir = "asc" | "desc";
+
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: "title", label: "标题" },
+  { value: "platform", label: "平台" },
+  { value: "weight", label: "权重" },
+  { value: "createdAt", label: "创建时间" },
+  { value: "status", label: "状态" },
+];
+
+function getAdStatusOrder(ad: Ad): number {
+  if (!ad.enabled) return 3;
+  if (!isAdInSchedule(ad)) {
+    const now = new Date();
+    if (ad.startDate && new Date(ad.startDate) > now) return 1;
+    return 4;
+  }
+  return 0;
+}
 
 function genId() {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -130,9 +162,13 @@ export default function AdsManagementPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterPosition, setFilterPosition] = useState<string>("all-filter");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPlatform, setFilterPlatform] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [previewAd, setPreviewAd] = useState<Ad | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
   const { data: config, isLoading } = trpc.admin.getSiteConfig.useQuery(undefined, {
@@ -148,10 +184,19 @@ export default function AdsManagementPage() {
 
   const allAds = useMemo(() => parseAds(config?.sponsorAds), [config?.sponsorAds]);
 
+  const platforms = useMemo(() => {
+    const set = new Set<string>();
+    allAds.forEach((a) => { if (a.platform) set.add(a.platform); });
+    return Array.from(set).sort();
+  }, [allAds]);
+
   const filteredAds = useMemo(() => {
     let result = allAds;
     if (filterPosition !== "all-filter") {
       result = result.filter((ad) => ad.position === filterPosition);
+    }
+    if (filterPlatform !== "all") {
+      result = result.filter((ad) => ad.platform === filterPlatform);
     }
     if (filterStatus === "active") {
       result = result.filter((ad) => ad.enabled && isAdInSchedule(ad));
@@ -167,11 +212,23 @@ export default function AdsManagementPage() {
       result = result.filter((ad) =>
         ad.title.toLowerCase().includes(q) ||
         ad.platform.toLowerCase().includes(q) ||
-        ad.url.toLowerCase().includes(q)
+        ad.url.toLowerCase().includes(q) ||
+        (ad.description || "").toLowerCase().includes(q)
       );
     }
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "title": cmp = a.title.localeCompare(b.title, "zh-CN"); break;
+        case "platform": cmp = (a.platform || "").localeCompare(b.platform || "", "zh-CN"); break;
+        case "weight": cmp = a.weight - b.weight; break;
+        case "createdAt": cmp = (a.createdAt || "").localeCompare(b.createdAt || ""); break;
+        case "status": cmp = getAdStatusOrder(a) - getAdStatusOrder(b); break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
     return result;
-  }, [allAds, filterPosition, filterStatus, searchQuery]);
+  }, [allAds, filterPosition, filterPlatform, filterStatus, searchQuery, sortField, sortDir]);
 
   const stats = useMemo(() => {
     const total = allAds.length;
@@ -180,6 +237,64 @@ export default function AdsManagementPage() {
     const scheduled = allAds.filter((a) => a.enabled && a.startDate && new Date(a.startDate) > new Date()).length;
     return { total, active, disabled, scheduled };
   }, [allAds]);
+
+  const activeFilterCount = useMemo(() => {
+    let c = 0;
+    if (filterPosition !== "all-filter") c++;
+    if (filterStatus !== "all") c++;
+    if (filterPlatform !== "all") c++;
+    if (searchQuery.trim()) c++;
+    return c;
+  }, [filterPosition, filterStatus, filterPlatform, searchQuery]);
+
+  const clearAllFilters = useCallback(() => {
+    setFilterPosition("all-filter");
+    setFilterStatus("all");
+    setFilterPlatform("all");
+    setSearchQuery("");
+  }, []);
+
+  const handleStatCardClick = useCallback((status: string) => {
+    setFilterStatus((prev) => prev === status ? "all" : status);
+  }, []);
+
+  const toggleSelectAd = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filteredAds.length && filteredAds.every((a) => prev.has(a.id))) {
+        return new Set();
+      }
+      return new Set(filteredAds.map((a) => a.id));
+    });
+  }, [filteredAds]);
+
+  const handleBatchToggle = useCallback(async (enabled: boolean) => {
+    if (selectedIds.size === 0) return;
+    const newAds = allAds.map((ad) =>
+      selectedIds.has(ad.id) ? { ...ad, enabled } : ad
+    );
+    await saveAds(newAds);
+    setSelectedIds(new Set());
+    toast.success(`已批量${enabled ? "启用" : "禁用"} ${selectedIds.size} 个广告`);
+  }, [selectedIds, allAds, saveAds]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const newAds = allAds.filter((ad) => !selectedIds.has(ad.id));
+    await saveAds(newAds);
+    const count = selectedIds.size;
+    setSelectedIds(new Set());
+    toast.success(`已删除 ${count} 个广告`);
+  }, [selectedIds, allAds, saveAds]);
+
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
 
   const saveAds = useCallback(async (newAds: Ad[]) => {
     setSaving(true);
@@ -362,9 +477,12 @@ export default function AdsManagementPage() {
         </div>
       </div>
 
-      {/* 统计卡片 */}
+      {/* 统计卡片 —— 可点击快速筛选 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "all" && activeFilterCount === 0 && "ring-2 ring-primary/30")}
+          onClick={() => { clearAllFilters(); }}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -377,7 +495,10 @@ export default function AdsManagementPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "active" && "ring-2 ring-green-500/40")}
+          onClick={() => handleStatCardClick("active")}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -390,7 +511,10 @@ export default function AdsManagementPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "disabled" && "ring-2 ring-muted-foreground/30")}
+          onClick={() => handleStatCardClick("disabled")}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -403,7 +527,10 @@ export default function AdsManagementPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "scheduled" && "ring-2 ring-blue-500/40")}
+          onClick={() => handleStatCardClick("scheduled")}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -433,39 +560,181 @@ export default function AdsManagementPage() {
         {/* 广告列表 */}
         <TabsContent value="list" className="space-y-4">
           {/* 过滤栏 */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索广告标题、平台、链接..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索广告标题、平台、链接、描述..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Select value={filterPosition} onValueChange={setFilterPosition}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="广告位" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-filter">全部广告位</SelectItem>
+                  {AD_POSITIONS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部状态</SelectItem>
+                  <SelectItem value="active">投放中</SelectItem>
+                  <SelectItem value="disabled">已禁用</SelectItem>
+                  <SelectItem value="scheduled">待投放</SelectItem>
+                  <SelectItem value="expired">已过期</SelectItem>
+                </SelectContent>
+              </Select>
+              {platforms.length > 0 && (
+                <Select value={filterPlatform} onValueChange={setFilterPlatform}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="平台" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部平台</SelectItem>
+                    {platforms.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <ChevronsUpDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">排序方式</div>
+                  {SORT_OPTIONS.map((opt) => (
+                    <DropdownMenuItem
+                      key={opt.value}
+                      onClick={() => {
+                        if (sortField === opt.value) {
+                          setSortDir((d) => d === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortField(opt.value);
+                          setSortDir("asc");
+                        }
+                      }}
+                      className="justify-between"
+                    >
+                      {opt.label}
+                      {sortField === opt.value && (
+                        <span className="text-xs text-muted-foreground">{sortDir === "asc" ? "↑" : "↓"}</span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Select value={filterPosition} onValueChange={setFilterPosition}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="广告位" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all-filter">全部广告位</SelectItem>
-                {AD_POSITIONS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="active">投放中</SelectItem>
-                <SelectItem value="disabled">已禁用</SelectItem>
-                <SelectItem value="scheduled">待投放</SelectItem>
-                <SelectItem value="expired">已过期</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* 筛选状态栏：计数 + 活跃筛选标签 + 清除 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground">
+                  {filteredAds.length === allAds.length
+                    ? `共 ${allAds.length} 个广告`
+                    : `${filteredAds.length} / ${allAds.length} 个广告`}
+                </span>
+                {activeFilterCount > 0 && (
+                  <>
+                    <span className="text-muted-foreground/40">|</span>
+                    {searchQuery.trim() && (
+                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setSearchQuery("")}>
+                        搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    )}
+                    {filterStatus !== "all" && (
+                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterStatus("all")}>
+                        {filterStatus === "active" ? "投放中" : filterStatus === "disabled" ? "已禁用" : filterStatus === "scheduled" ? "待投放" : "已过期"}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    )}
+                    {filterPosition !== "all-filter" && (
+                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterPosition("all-filter")}>
+                        {AD_POSITIONS.find((p) => p.value === filterPosition)?.label}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    )}
+                    {filterPlatform !== "all" && (
+                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterPlatform("all")}>
+                        {filterPlatform}
+                        <X className="h-3 w-3" />
+                      </Badge>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearAllFilters}>
+                      清除全部
+                    </Button>
+                  </>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground hidden sm:block">
+                按{SORT_OPTIONS.find((o) => o.value === sortField)?.label} {sortDir === "asc" ? "升序" : "降序"}
+              </div>
+            </div>
+
+            {/* 批量操作工具栏 */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2.5 animate-in slide-in-from-top-2">
+                <span className="text-sm font-medium">
+                  已选择 {selectedIds.size} 项
+                </span>
+                <div className="h-4 w-px bg-border" />
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => handleBatchToggle(true)} disabled={saving}>
+                        <Power className="h-3.5 w-3.5" />
+                        启用
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>批量启用所选广告</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => handleBatchToggle(false)} disabled={saving}>
+                        <PowerOff className="h-3.5 w-3.5" />
+                        禁用
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>批量禁用所选广告</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setBatchDeleteOpen(true)} disabled={saving}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                        删除
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>批量删除所选广告</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <div className="ml-auto">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedIds(new Set())}>
+                    取消选择
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 广告列表 */}
@@ -479,26 +748,51 @@ export default function AdsManagementPage() {
                   {allAds.length === 0 ? "还没有广告" : "没有匹配的广告"}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {allAds.length === 0 ? "点击「新建广告」开始创建第一个广告" : "尝试调整过滤条件"}
+                  {allAds.length === 0
+                    ? "点击「新建广告」开始创建第一个广告"
+                    : "尝试调整过滤条件，或"}
                 </p>
-                {allAds.length === 0 && (
+                {allAds.length === 0 ? (
                   <Button onClick={handleOpenCreate}>
                     <Plus className="h-4 w-4 mr-2" />
                     新建广告
                   </Button>
-                )}
+                ) : activeFilterCount > 0 ? (
+                  <Button variant="outline" onClick={clearAllFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    清除所有筛选
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
+              {/* 全选行 */}
+              {filteredAds.length > 1 && (
+                <div className="flex items-center gap-3 px-4 py-1">
+                  <Checkbox
+                    checked={filteredAds.length > 0 && filteredAds.every((a) => selectedIds.has(a.id))}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-xs text-muted-foreground">全选当前页</span>
+                </div>
+              )}
               {filteredAds.map((ad) => {
                 const status = getAdStatus(ad);
                 const StatusIcon = status.icon;
                 const posLabel = AD_POSITIONS.find((p) => p.value === ad.position)?.label ?? "全部位置";
+                const isSelected = selectedIds.has(ad.id);
                 return (
-                  <Card key={ad.id} className={cn("transition-all", !ad.enabled && "opacity-60")}>
+                  <Card key={ad.id} className={cn("transition-all", !ad.enabled && "opacity-60", isSelected && "ring-2 ring-primary/30 bg-primary/[0.02]")}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
+                        <div className="flex items-center pt-0.5">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelectAd(ad.id)}
+                          />
+                        </div>
+
                         {/* 图片缩略图 */}
                         <div className="hidden sm:flex shrink-0 w-24 h-16 rounded-md overflow-hidden bg-muted items-center justify-center">
                           {ad.imageUrl ? (
@@ -518,7 +812,13 @@ export default function AdsManagementPage() {
                               {status.label}
                             </Badge>
                             {ad.platform && (
-                              <Badge variant="outline" className="text-[11px]">{ad.platform}</Badge>
+                              <Badge
+                                variant="outline"
+                                className="text-[11px] cursor-pointer hover:bg-accent"
+                                onClick={() => setFilterPlatform(filterPlatform === ad.platform ? "all" : ad.platform)}
+                              >
+                                {ad.platform}
+                              </Badge>
                             )}
                           </div>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
@@ -846,6 +1146,27 @@ export default function AdsManagementPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 批量删除确认 */}
+      <AlertDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认批量删除 {selectedIds.size} 个广告？</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后无法恢复，所选广告将全部从所有广告位中移除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { handleBatchDelete(); setBatchDeleteOpen(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除 {selectedIds.size} 个广告
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
