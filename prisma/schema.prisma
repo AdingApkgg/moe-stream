@@ -404,11 +404,27 @@ model Game {
   dislikes      GameDislike[]
   viewHistory   GameViewHistory[]
   comments      GameComment[]
+  versions      GameVersion[]
 
   @@index([uploaderId])
   @@index([status])
   @@index([createdAt])
   @@index([gameType])
+}
+
+model GameVersion {
+  id          String   @id @default(cuid())
+  gameId      String
+  label       String   // 版本标记 (e.g., "v1.0", "v2.0 汉化版")
+  description String?  @db.Text // 版本描述（支持 Markdown）
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  game  Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, sortOrder])
 }
 
 model GameViewHistory {

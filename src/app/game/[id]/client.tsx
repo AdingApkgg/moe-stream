@@ -92,9 +92,10 @@ interface GamePageClientProps {
   initialGame: SerializedGame;
   descriptionContent?: React.ReactNode;
   characterIntroContent?: React.ReactNode;
+  versionContents?: Record<string, React.ReactNode>;
 }
 
-export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent }: GamePageClientProps) {
+export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent, versionContents }: GamePageClientProps) {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -184,6 +185,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
   const hasScreenshots = imageUrls.length > 0;
   const hasVideos = videoUrls.length > 0;
   const hasDownloads = extra.downloads && extra.downloads.length > 0;
+  const hasVersions = initialGame.versions && initialGame.versions.length > 0;
 
   const totalVotes = (initialGame._count.likes || 0) + (initialGame._count.dislikes || 0);
   const likeRatio = totalVotes > 0 ? Math.round((initialGame._count.likes / totalVotes) * 100) : 100;
@@ -203,11 +205,12 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
     const tabs: { value: string; label: string; shortLabel: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [];
     if (hasScreenshots) tabs.push({ value: "screenshots", label: "游戏截图", shortLabel: "截图", icon: ImageIcon, count: imageUrls.length });
     if (descriptionContent) tabs.push({ value: "intro", label: "游戏介绍", shortLabel: "介绍", icon: Gamepad2 });
+    if (hasVersions) tabs.push({ value: "versions", label: "更新版本", shortLabel: "版本", icon: Tag, count: initialGame.versions.length });
     if (hasVideos) tabs.push({ value: "videos", label: "PV 鉴赏", shortLabel: "PV", icon: Play, count: videoUrls.length });
     if (characterIntroContent) tabs.push({ value: "characters", label: "角色介绍", shortLabel: "角色", icon: Users });
     if (relatedGames && relatedGames.length > 0) tabs.push({ value: "related", label: "相关推荐", shortLabel: "推荐", icon: Tag, count: relatedGames.length });
     return tabs;
-  }, [descriptionContent, hasScreenshots, hasVideos, characterIntroContent, imageUrls.length, videoUrls.length, relatedGames]);
+  }, [descriptionContent, hasScreenshots, hasVideos, hasVersions, characterIntroContent, imageUrls.length, videoUrls.length, initialGame.versions, relatedGames]);
 
   const defaultTab = availableTabs[0]?.value ?? "intro";
 
@@ -657,6 +660,40 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                           {descriptionContent}
                         </CardContent>
                       </Card>
+                    </TabsContent>
+                  )}
+
+                  {/* 更新版本 */}
+                  {hasVersions && (
+                    <TabsContent value="versions">
+                      <div className="space-y-1">
+                        <Tabs defaultValue={initialGame.versions[0]?.id} className="w-full">
+                          <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+                            <TabsList className="w-max justify-start h-auto flex-wrap gap-1 bg-transparent p-0 mb-3">
+                              {initialGame.versions.map((ver) => (
+                                <TabsTrigger
+                                  key={ver.id}
+                                  value={ver.id}
+                                  className="text-xs px-3 py-1.5 rounded-full border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary"
+                                >
+                                  {ver.label}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+                          </div>
+                          {initialGame.versions.map((ver) => (
+                            <TabsContent key={ver.id} value={ver.id}>
+                              <Card>
+                                <CardContent className="p-3 sm:p-6">
+                                  {versionContents?.[ver.id] || (
+                                    <p className="text-sm text-muted-foreground">暂无版本描述</p>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </TabsContent>
+                          ))}
+                        </Tabs>
+                      </div>
                     </TabsContent>
                   )}
 

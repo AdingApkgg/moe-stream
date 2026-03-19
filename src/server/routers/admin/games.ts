@@ -18,6 +18,9 @@ export const adminGamesRouter = router({
           tags: {
             include: { tag: { select: { id: true, name: true, slug: true } } },
           },
+          versions: {
+            orderBy: { sortOrder: "asc" },
+          },
         },
       });
 
@@ -218,10 +221,15 @@ export const adminGamesRouter = router({
         version: z.string().optional(),
         extraInfo: z.any().optional(),
         tagNames: z.array(z.string()).optional(),
+        versions: z.array(z.object({
+          id: z.string().optional(),
+          label: z.string().min(1).max(100),
+          description: z.string().max(10000).optional(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { gameId, tagNames, ...updateData } = input;
+      const { gameId, tagNames, versions, ...updateData } = input;
 
       // 更新基本信息
       await ctx.prisma.game.update({
@@ -242,6 +250,21 @@ export const adminGamesRouter = router({
           });
           await ctx.prisma.tagOnGame.create({
             data: { gameId, tagId: tag.id },
+          });
+        }
+      }
+
+      // 更新版本列表：全量替换
+      if (versions !== undefined) {
+        await ctx.prisma.gameVersion.deleteMany({ where: { gameId } });
+        if (versions.length > 0) {
+          await ctx.prisma.gameVersion.createMany({
+            data: versions.map((v, i) => ({
+              gameId,
+              label: v.label,
+              description: v.description || null,
+              sortOrder: i,
+            })),
           });
         }
       }

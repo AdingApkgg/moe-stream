@@ -23,7 +23,7 @@ import { CoverInput } from "./cover-input";
 import type { TagItem } from "../_lib/types";
 import {
   Download, FileVideo, Gamepad2, Image as ImageIcon,
-  Link2, Loader2, Monitor, Plus, Trash2,
+  Link2, Loader2, Monitor, Plus, Trash2, GitBranch, GripVertical,
 } from "lucide-react";
 
 export function GameSingleUpload() {
@@ -35,6 +35,7 @@ export function GameSingleUpload() {
   const [screenshots, setScreenshots] = useState<string[]>([""]);
   const [videos, setVideos] = useState<string[]>([""]);
   const [downloads, setDownloads] = useState<{ name: string; url: string; password?: string }[]>([]);
+  const [versions, setVersions] = useState<{ label: string; description: string }[]>([]);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const createMutation = trpc.game.create.useMutation({
@@ -73,6 +74,8 @@ export function GameSingleUpload() {
       if (validVideos.length > 0) extraInfo.videos = validVideos;
       if (downloads.length > 0) extraInfo.downloads = downloads.filter(d => d.url.trim());
 
+      const validVersions = versions.filter(v => v.label.trim());
+
       const result = await createMutation.mutateAsync({
         title: data.title,
         description: data.description || undefined,
@@ -83,6 +86,7 @@ export function GameSingleUpload() {
         tagIds: selectedTags.map(t => t.id),
         tagNames: newTags,
         extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
+        versions: validVersions.length > 0 ? validVersions : undefined,
       });
 
       toast.success(result.status === "PUBLISHED" ? "发布成功" : "提交成功，等待审核");
@@ -162,11 +166,12 @@ export function GameSingleUpload() {
             <Card>
               <CardContent className="pt-6">
                 <Tabs defaultValue="origin" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="origin" className="text-xs">原作信息</TabsTrigger>
                     <TabsTrigger value="screenshots" className="text-xs">游戏截图</TabsTrigger>
                     <TabsTrigger value="videos" className="text-xs">游戏视频</TabsTrigger>
                     <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
+                    <TabsTrigger value="versions" className="text-xs">更新版本</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="origin" className="space-y-4 mt-4">
@@ -274,6 +279,37 @@ export function GameSingleUpload() {
                       </div>
                     ))}
                     {downloads.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">暂无下载链接，点击上方按钮添加</p>}
+                  </TabsContent>
+
+                  <TabsContent value="versions" className="space-y-4 mt-4">
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="flex items-center gap-2"><GitBranch className="h-4 w-4" />更新版本</FormLabel>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setVersions([...versions, { label: "", description: "" }])}><Plus className="h-4 w-4 mr-1" />添加版本</Button>
+                    </div>
+                    {versions.map((ver, i) => (
+                      <div key={i} className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <Input
+                            placeholder="版本标记，如：v1.0、v2.0 汉化版"
+                            value={ver.label}
+                            onChange={(e) => { const u = [...versions]; u[i] = { ...u[i], label: e.target.value }; setVersions(u); }}
+                            className="flex-1"
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setVersions(versions.filter((_, j) => j !== i))}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <MdxEditor
+                          value={ver.description}
+                          onChange={(val) => { const u = [...versions]; u[i] = { ...u[i], description: val }; setVersions(u); }}
+                          placeholder="版本描述（更新内容、注意事项等），支持 Markdown..."
+                          maxLength={10000}
+                          minHeight="100px"
+                        />
+                      </div>
+                    ))}
+                    {versions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">暂无更新版本，点击上方按钮添加</p>}
                   </TabsContent>
                 </Tabs>
               </CardContent>

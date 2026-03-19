@@ -139,6 +139,9 @@ export const gameRouter = router({
           tags: {
             include: { tag: { select: { id: true, name: true, slug: true } } },
           },
+          versions: {
+            orderBy: { sortOrder: "asc" },
+          },
           _count: {
             select: { likes: true, dislikes: true, favorites: true, comments: true },
           },
@@ -253,10 +256,14 @@ export const gameRouter = router({
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
         extraInfo: z.any().optional(),
+        versions: z.array(z.object({
+          label: z.string().min(1).max(100),
+          description: z.string().max(10000).optional(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { tagIds, tagNames, ...data } = input;
+      const { tagIds, tagNames, versions, ...data } = input;
 
       // 检查投稿权限
       const user = await ctx.prisma.user.findUnique({
@@ -311,6 +318,9 @@ export const gameRouter = router({
           tags: {
             create: tagConnections,
           },
+          versions: versions && versions.length > 0
+            ? { create: versions.map((v, i) => ({ label: v.label, description: v.description || null, sortOrder: i })) }
+            : undefined,
         },
       });
 

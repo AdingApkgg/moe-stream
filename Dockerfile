@@ -36,7 +36,7 @@ ENV HOSTNAME="0.0.0.0"
 
 WORKDIR /app
 
-RUN apk add --no-cache postgresql16-client && \
+RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main postgresql18-client && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 

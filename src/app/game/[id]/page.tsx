@@ -34,6 +34,9 @@ const getGame = cache(async (id: string) => {
           },
         },
       },
+      versions: {
+        orderBy: { sortOrder: "asc" as const },
+      },
       _count: {
         select: {
           likes: true,
@@ -127,6 +130,12 @@ function serializeGame(game: NonNullable<Awaited<ReturnType<typeof getGame>>>) {
     extraInfo: game.extraInfo as GameExtraInfo | null,
     uploader: game.uploader,
     tags: game.tags,
+    versions: game.versions.map((v) => ({
+      id: v.id,
+      label: v.label,
+      description: v.description,
+      sortOrder: v.sortOrder,
+    })),
     _count: game._count,
   };
 }
@@ -153,6 +162,19 @@ export default async function GamePage({ params }: GamePageProps) {
     ? <MdxContent source={extra.characterIntro} />
     : null;
 
+  const versionContents = await Promise.all(
+    game.versions
+      .filter((v) => v.description)
+      .map(async (v) => ({
+        id: v.id,
+        content: <MdxContent source={v.description!} />,
+      }))
+  );
+  const versionContentMap: Record<string, React.ReactNode> = {};
+  for (const vc of versionContents) {
+    versionContentMap[vc.id] = vc.content;
+  }
+
   return (
     <Suspense fallback={<GamePageSkeleton />}>
       <GamePageClient
@@ -160,6 +182,7 @@ export default async function GamePage({ params }: GamePageProps) {
         initialGame={serializedGame}
         descriptionContent={descriptionContent}
         characterIntroContent={characterIntroContent}
+        versionContents={versionContentMap}
       />
     </Suspense>
   );
