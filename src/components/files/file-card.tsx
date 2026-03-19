@@ -86,6 +86,7 @@ export function FileCard({
     <Card className={cn("group overflow-hidden", className)}>
       <div className="relative aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
         {isImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={file.url}
             alt={file.filename}

@@ -36,7 +36,8 @@ ENV HOSTNAME="0.0.0.0"
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache postgresql16-client && \
+    addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # standalone 输出已内联精简后的 node_modules，无需单独安装
