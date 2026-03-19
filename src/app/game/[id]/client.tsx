@@ -26,6 +26,7 @@ import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
+import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { useSession } from "@/lib/auth-client";
 import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
@@ -749,6 +750,11 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
               <section className="mb-6 sm:mb-8">
                 <GameCommentSection gameId={id} />
               </section>
+            </FadeIn>
+
+            {/* 附件资源 */}
+            <FadeIn delay={0.4}>
+              <FileAttachmentPanel contentType="game" contentId={id} uploaderId={initialGame.uploader.id} />
             </FadeIn>
           </div>
 

@@ -13,6 +13,8 @@ import { adminLinksRouter } from "./links";
 import { adminBackupsRouter } from "./backups";
 import { adminSeriesRouter } from "./series";
 import { adminStickersRouter } from "./stickers";
+import { adminFilesRouter } from "./files";
+import { adminStoragePoliciesRouter } from "./storage-policies";
 
 export const adminRouter = mergeRouters(
   adminStatsRouter,
@@ -28,5 +30,7 @@ export const adminRouter = mergeRouters(
   adminLinksRouter,
   adminBackupsRouter,
   adminSeriesRouter,
-  adminStickersRouter
+  adminStickersRouter,
+  adminFilesRouter,
+  adminStoragePoliciesRouter,
 );

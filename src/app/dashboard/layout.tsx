@@ -43,6 +43,8 @@ import {
   User,
   Wallet,
   Megaphone,
+  HardDrive,
+  FolderCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -82,6 +84,13 @@ const menuGroups: MenuGroup[] = [
       { href: "/dashboard/referral", label: "推广中心", icon: TrendingUp, scope: null },
       { href: "/dashboard/points", label: "积分管理", icon: Coins, scope: "settings:manage" },
       { href: "/dashboard/payment", label: "支付管理", icon: Wallet, scope: "settings:manage" },
+    ],
+  },
+  {
+    label: "存储",
+    items: [
+      { href: "/dashboard/storage", label: "存储策略", icon: FolderCog, scope: "settings:manage" },
+      { href: "/dashboard/files", label: "文件管理", icon: HardDrive, scope: "settings:manage" },
     ],
   },
   {

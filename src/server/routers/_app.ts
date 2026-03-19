@@ -20,6 +20,7 @@ import { followRouter } from "./follow";
 import { messageRouter } from "./message";
 import { channelRouter } from "./channel";
 import { guestbookRouter } from "./guestbook";
+import { fileRouter } from "./file";
 
 export const appRouter = router({
   user: userRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   message: messageRouter,
   channel: channelRouter,
   guestbook: guestbookRouter,
+  file: fileRouter,
 });
 
 export type AppRouter = typeof appRouter;

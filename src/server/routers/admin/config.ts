@@ -125,6 +125,14 @@ export const adminConfigRouter = router({
       hcaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
       hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
+      // 用户文件上传
+      fileUploadEnabled: z.boolean().optional(),
+      fileStorageRouteRules: z.array(z.object({
+        mimePattern: z.string(),
+        policyId: z.string(),
+      })).optional().nullable(),
+      fileDefaultPolicyId: z.string().optional().nullable().or(z.literal("")),
+
       // 对象存储
       storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).optional(),
       storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),

@@ -4,6 +4,10 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "@/lib/prisma";
@@ -187,4 +191,132 @@ export async function headObject(
   } finally {
     client.destroy();
   }
+}
+
+export async function getPresignedUploadUrl(
+  config: StorageConfig,
+  key: string,
+  contentType: string,
+  expiresIn = 3600,
+): Promise<string> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  const url = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: config.bucket!,
+      Key: fullKey,
+      ContentType: contentType,
+    }),
+    { expiresIn },
+  );
+  client.destroy();
+  return url;
+}
+
+export async function createMultipartUpload(
+  config: StorageConfig,
+  key: string,
+  contentType: string,
+): Promise<string> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  const resp = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: config.bucket!,
+      Key: fullKey,
+      ContentType: contentType,
+    }),
+  );
+  client.destroy();
+
+  if (!resp.UploadId) throw new Error("Failed to create multipart upload");
+  return resp.UploadId;
+}
+
+export async function getPresignedPartUrls(
+  config: StorageConfig,
+  key: string,
+  uploadId: string,
+  partCount: number,
+  expiresIn = 3600,
+): Promise<{ partNumber: number; url: string }[]> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  const parts: { partNumber: number; url: string }[] = [];
+  for (let i = 1; i <= partCount; i++) {
+    const url = await getSignedUrl(
+      client,
+      new UploadPartCommand({
+        Bucket: config.bucket!,
+        Key: fullKey,
+        UploadId: uploadId,
+        PartNumber: i,
+      }),
+      { expiresIn },
+    );
+    parts.push({ partNumber: i, url });
+  }
+
+  client.destroy();
+  return parts;
+}
+
+export async function completeMultipartUpload(
+  config: StorageConfig,
+  key: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[],
+): Promise<void> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  await client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: config.bucket!,
+      Key: fullKey,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: parts.map((p) => ({
+          PartNumber: p.partNumber,
+          ETag: p.etag,
+        })),
+      },
+    }),
+  );
+  client.destroy();
+}
+
+export async function abortMultipartUpload(
+  config: StorageConfig,
+  key: string,
+  uploadId: string,
+): Promise<void> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  await client.send(
+    new AbortMultipartUploadCommand({
+      Bucket: config.bucket!,
+      Key: fullKey,
+      UploadId: uploadId,
+    }),
+  );
+  client.destroy();
+}
+
+/** Build the public-facing URL for a stored object */
+export function getPublicUrl(config: StorageConfig, key: string): string {
+  const fullKey = resolveKey(config, key);
+  if (config.customDomain) {
+    const base = config.customDomain.replace(/\/+$/, "");
+    return `${base}/${fullKey}`;
+  }
+  if (config.endpoint && config.bucket) {
+    return `${config.endpoint.replace(/\/+$/, "")}/${config.bucket}/${fullKey}`;
+  }
+  return `/${fullKey}`;
 }

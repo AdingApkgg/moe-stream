@@ -63,6 +63,7 @@ export interface PublicSiteConfig {
   analyticsCfToken: string | null;
   analyticsClarityId: string | null;
   analyticsBingVerification: string | null;
+  fileUploadEnabled: boolean;
 }
 
 const selectFields = {
@@ -123,6 +124,7 @@ const selectFields = {
   analyticsCfToken: true,
   analyticsClarityId: true,
   analyticsBingVerification: true,
+  fileUploadEnabled: true,
   oauthGoogleClientId: true,
   oauthGoogleClientSecret: true,
   oauthGithubClientId: true,
@@ -208,6 +210,7 @@ const defaultConfig: PublicSiteConfig = {
   analyticsCfToken: null,
   analyticsClarityId: null,
   analyticsBingVerification: null,
+  fileUploadEnabled: false,
 };
 
 /**

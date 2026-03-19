@@ -16,6 +16,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ImagePostCommentSection } from "@/components/comment/image-post-comment-section";
+import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import type { SerializedImagePost } from "./page";
 
 function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
@@ -312,6 +313,11 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
         <section className="mt-8 mb-8">
           <ImagePostCommentSection imagePostId={post.id} />
         </section>
+      </FadeIn>
+
+      {/* 附件资源 */}
+      <FadeIn delay={0.35}>
+        <FileAttachmentPanel contentType="imagePost" contentId={post.id} uploaderId={post.uploader.id} />
       </FadeIn>
 
       {/* Image viewer lightbox */}

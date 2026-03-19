@@ -34,6 +34,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { useSound } from "@/hooks/use-sound";
 import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
+import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getCoverUrl } from "@/lib/cover";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -987,6 +988,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             {/* 评论区 */}
             <div className="px-3 md:px-0">
               <CommentSection videoId={currentVideoId} />
+            </div>
+
+            {/* 附件资源 */}
+            <div className="px-3 md:px-0">
+              <FileAttachmentPanel contentType="video" contentId={currentVideoId} uploaderId={displayVideo.uploader.id} />
             </div>
           </div>
 

@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Hash,
   Mail,
+  HardDrive,
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -70,6 +71,7 @@ const communityNavItems: NavItem[] = [
 
 const userNavItems: NavItem[] = [
   { href: "/my-works", icon: Layers, label: "我的作品", auth: true, requireUpload: true },
+  { href: "/my-files", icon: HardDrive, label: "我的文件", auth: true },
   { href: "/favorites", icon: Heart, label: "收藏", auth: true },
   { href: "/history", icon: History, label: "历史", auth: true },
 ];
