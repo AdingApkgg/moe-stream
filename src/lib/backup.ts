@@ -23,7 +23,7 @@ function log(msg: string, ...args: unknown[]) {
 }
 
 async function ensureTempDir() {
-  await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => {});
+  await fs.mkdir(TEMP_DIR, { recursive: true });
 }
 
 async function cleanTempDir() {
