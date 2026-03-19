@@ -50,7 +50,8 @@ function formatBytes(bytes: number): string {
 }
 
 export default function MyFilesPage() {
-  const { data: session, isPending: sessionLoading } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const sessionLoading = sessionStatus === "loading";
   const router = useRouter();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);

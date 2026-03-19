@@ -82,7 +82,7 @@ export const adminFilesRouter = router({
       return { success: true };
     }),
 
-  getUserStats: adminProcedure
+  getFileUserStats: adminProcedure
     .use(requireScope("settings:manage"))
     .input(z.object({ limit: z.number().int().min(1).max(100).default(20) }))
     .query(async ({ ctx, input }) => {

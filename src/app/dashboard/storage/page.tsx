@@ -194,7 +194,7 @@ export default function StoragePoliciesPage() {
 
     const data = {
       name: form.name.trim(),
-      provider: form.provider,
+      provider: form.provider as "local" | "s3" | "r2" | "minio" | "oss" | "cos",
       endpoint: form.endpoint || null,
       bucket: form.bucket || null,
       region: form.region || null,

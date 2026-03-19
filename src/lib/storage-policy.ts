@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { StoragePolicy } from "@/generated/prisma";
+import type { StoragePolicy } from "@/generated/prisma/client";
 import type { StorageConfig } from "@/lib/s3-client";
 import {
   getPresignedUploadUrl as s3PresignedPut,
@@ -126,7 +126,7 @@ export async function initUpload(opts: {
   const policy = await resolvePolicy(opts.mimeType, opts.size);
 
   if (policy.allowedTypes.length > 0) {
-    const allowed = policy.allowedTypes.some((t) => mimeMatches(t, opts.mimeType));
+    const allowed = policy.allowedTypes.some((t: string) => mimeMatches(t, opts.mimeType));
     if (!allowed) {
       throw new Error(`该存储策略不允许上传 ${opts.mimeType} 类型的文件`);
     }
@@ -196,6 +196,8 @@ export async function completeUpload(opts: {
   userId: string;
   uploadId?: string;
   parts?: { partNumber: number; etag: string }[];
+  /** Actual bytes written (local uploads). Overrides the declared size for accurate quota tracking. */
+  actualSize?: number;
 }): Promise<void> {
   const file = await prisma.userFile.findUnique({
     where: { id: opts.fileId },
@@ -207,6 +209,7 @@ export async function completeUpload(opts: {
   if (file.status !== "UPLOADING") throw new Error("文件状态不正确");
 
   const policy = file.storagePolicy;
+  let verifiedSize = file.size;
 
   if (policy.provider !== "local") {
     const config = policyToStorageConfig(policy);
@@ -217,6 +220,9 @@ export async function completeUpload(opts: {
 
     const head = await headObject(config, file.storageKey);
     if (!head) throw new Error("文件在存储中未找到，上传可能失败");
+    verifiedSize = BigInt(head.size);
+  } else if (opts.actualSize !== undefined) {
+    verifiedSize = BigInt(opts.actualSize);
   }
 
   const url =
@@ -230,13 +236,14 @@ export async function completeUpload(opts: {
       data: {
         status: "UPLOADED",
         url,
+        size: verifiedSize,
         uploadedAt: new Date(),
       },
     }),
     prisma.user.update({
       where: { id: opts.userId },
       data: {
-        storageUsed: { increment: file.size },
+        storageUsed: { increment: verifiedSize },
       },
     }),
   ]);

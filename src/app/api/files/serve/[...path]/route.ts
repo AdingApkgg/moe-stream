@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, stat } from "fs/promises";
+import { stat } from "fs/promises";
+import { createReadStream } from "fs";
 import { join } from "path";
+import { Readable } from "stream";
 import { prisma } from "@/lib/prisma";
 import { getPresignedDownloadUrl } from "@/lib/s3-client";
 import { policyToStorageConfig } from "@/lib/storage-policy";
@@ -50,20 +52,24 @@ export async function GET(
     const uploadDir = policy.uploadDir || "./uploads";
     const filePath = join(uploadDir, storageKey);
 
+    let fileInfo: { size: number };
     try {
-      await stat(filePath);
+      const s = await stat(filePath);
+      fileInfo = { size: s.size };
     } catch {
       return NextResponse.json({ error: "文件不存在" }, { status: 404 });
     }
 
-    const data = await readFile(filePath);
     const ext = storageKey.split(".").pop()?.toLowerCase() ?? "";
     const contentType = MIME_MAP[ext] || "application/octet-stream";
 
-    return new NextResponse(data, {
+    const nodeStream = createReadStream(filePath);
+    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
+    return new NextResponse(webStream, {
       headers: {
         "Content-Type": contentType,
-        "Content-Length": data.length.toString(),
+        "Content-Length": fileInfo.size.toString(),
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });

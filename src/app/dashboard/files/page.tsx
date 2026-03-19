@@ -50,7 +50,7 @@ import {
   ExternalLink,
   Users,
   BarChart3,
-  Broom,
+  Eraser,
   FileIcon,
   ImageIcon,
   VideoIcon,
@@ -111,12 +111,12 @@ export default function AdminFilesPage() {
   );
 
   const { data: userStats, isLoading: statsLoading } =
-    trpc.admin.getUserStats.useQuery({ limit: 20 });
+    trpc.admin.getFileUserStats.useQuery({ limit: 20 });
 
   const deleteMutation = trpc.admin.deleteFile.useMutation({
     onSuccess: () => {
       utils.admin.listFiles.invalidate();
-      utils.admin.getUserStats.invalidate();
+      utils.admin.getFileUserStats.invalidate();
       toast.success("文件已删除");
     },
     onError: (err) => toast.error(err.message),
@@ -174,7 +174,7 @@ export default function AdminFilesPage() {
           {cleanMutation.isPending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-            <Broom className="h-4 w-4 mr-2" />
+            <Eraser className="h-4 w-4 mr-2" />
           )}
           清理过期上传
         </Button>

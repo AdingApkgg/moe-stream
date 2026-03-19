@@ -42,6 +42,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "请选择文件" }, { status: 400 });
     }
 
+    const actualSize = file.size;
+    const maxFileSize = Number(record.storagePolicy.maxFileSize);
+    if (actualSize > maxFileSize) {
+      const maxMB = (maxFileSize / (1024 * 1024)).toFixed(0);
+      return NextResponse.json(
+        { error: `文件大小超过限制 (最大 ${maxMB} MB)` },
+        { status: 400 },
+      );
+    }
+
     const uploadDir = record.storagePolicy.uploadDir || "./uploads";
     const filePath = join(uploadDir, record.storageKey);
     const dir = dirname(filePath);
@@ -56,6 +66,7 @@ export async function POST(request: NextRequest) {
     await completeUpload({
       fileId: record.id,
       userId: session.user.id,
+      actualSize,
     });
 
     const updated = await prisma.userFile.findUnique({ where: { id: fileId } });
