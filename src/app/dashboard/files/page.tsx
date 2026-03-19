@@ -65,12 +65,12 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) return ImageIcon;
-  if (mimeType.startsWith("video/")) return VideoIcon;
+function renderFileIcon(mimeType: string, className: string) {
+  if (mimeType.startsWith("image/")) return <ImageIcon className={className} />;
+  if (mimeType.startsWith("video/")) return <VideoIcon className={className} />;
   if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("7z"))
-    return FileArchive;
-  return FileIcon;
+    return <FileArchive className={className} />;
+  return <FileIcon className={className} />;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -245,13 +245,13 @@ export default function AdminFilesPage() {
                     </TableRow>
                   ) : (
                     allFiles.map((file) => {
-                      const Icon = getFileIcon(file.mimeType);
+                      
                       const statusInfo = STATUS_MAP[file.status] || STATUS_MAP.UPLOADED;
                       return (
                         <TableRow key={file.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              {renderFileIcon(file.mimeType, "h-4 w-4 text-muted-foreground shrink-0")}
                               <span className="truncate max-w-[240px] text-sm" title={file.filename}>
                                 {file.filename}
                               </span>

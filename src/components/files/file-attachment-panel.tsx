@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useStableSession } from "@/lib/hooks";
-import { FileUploader, type UploadedFile } from "./file-uploader";
+import { FileUploader } from "./file-uploader";
 import { FileCard } from "./file-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +67,7 @@ export function FileAttachmentPanel({
   });
 
   const handleUploadComplete = useCallback(
-    (_files: UploadedFile[]) => {
+    () => {
       utils.file.getByContent.invalidate({ contentType, contentId });
       utils.file.getStorageUsage.invalidate();
       setUploadOpen(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,13 +41,10 @@ import {
   Edit2,
   Trash2,
   Loader2,
-  CheckCircle2,
-  XCircle,
   Wifi,
   Star,
   Database,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
   { value: "local", label: "本地存储" },

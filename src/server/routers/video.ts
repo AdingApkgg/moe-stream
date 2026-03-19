@@ -1849,6 +1849,7 @@ export const videoRouter = router({
           return b.views - a.views;
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const result = related.slice(0, limit).map(({ tags: _tags, ...rest }) => rest);
 
         if (result.length >= limit) return result;

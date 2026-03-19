@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "public/ccl.min.js",
     // IDE local history
     ".history/**",
+    // Claude Code worktrees
+    ".claude/**",
   ]),
 ]);
 

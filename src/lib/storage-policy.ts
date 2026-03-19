@@ -6,7 +6,6 @@ import {
   createMultipartUpload as s3CreateMultipart,
   getPresignedPartUrls as s3PresignedParts,
   completeMultipartUpload as s3CompleteMultipart,
-  abortMultipartUpload as s3AbortMultipart,
   deleteFromS3,
   headObject,
   getPublicUrl as s3PublicUrl,
@@ -48,6 +47,7 @@ function mimeMatches(pattern: string, mime: string): boolean {
  */
 export async function resolvePolicy(
   mimeType: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _size: number,
 ): Promise<StoragePolicy> {
   const siteConfig = await prisma.siteConfig.findUnique({

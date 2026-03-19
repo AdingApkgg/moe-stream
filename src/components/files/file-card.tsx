@@ -43,18 +43,18 @@ interface FileCardProps {
   className?: string;
 }
 
-function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) return ImageIcon;
-  if (mimeType.startsWith("video/")) return VideoIcon;
-  if (mimeType.startsWith("audio/")) return FileAudio;
+function renderFileIcon(mimeType: string, className: string) {
+  if (mimeType.startsWith("image/")) return <ImageIcon className={className} />;
+  if (mimeType.startsWith("video/")) return <VideoIcon className={className} />;
+  if (mimeType.startsWith("audio/")) return <FileAudio className={className} />;
   if (
     mimeType.includes("zip") ||
     mimeType.includes("rar") ||
     mimeType.includes("7z") ||
     mimeType.includes("tar")
   )
-    return FileArchive;
-  return FileIcon;
+    return <FileArchive className={className} />;
+  return <FileIcon className={className} />;
 }
 
 function formatFileSize(bytes: number): string {
@@ -79,7 +79,6 @@ export function FileCard({
   showAttachInfo = true,
   className,
 }: FileCardProps) {
-  const Icon = getFileIcon(file.mimeType);
   const isImage = file.mimeType.startsWith("image/");
   const isVideo = file.mimeType.startsWith("video/");
 
@@ -101,7 +100,7 @@ export function FileCard({
             preload="metadata"
           />
         ) : (
-          <Icon className="h-12 w-12 text-muted-foreground" />
+          renderFileIcon(file.mimeType, "h-12 w-12 text-muted-foreground")
         )}
 
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">

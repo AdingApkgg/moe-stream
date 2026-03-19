@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { FileUploader, type UploadedFile } from "@/components/files/file-uploader";
+import { FileUploader } from "@/components/files/file-uploader";
 import { FileCard } from "@/components/files/file-card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -109,7 +109,7 @@ export default function MyFilesPage() {
   );
 
   const handleUploadComplete = useCallback(
-    (_files: UploadedFile[]) => {
+    () => {
       utils.file.list.invalidate();
       utils.file.getStorageUsage.invalidate();
     },
