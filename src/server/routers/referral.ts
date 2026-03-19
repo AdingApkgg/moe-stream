@@ -230,20 +230,39 @@ export const referralRouter = router({
       z.object({
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        channel: z.string().optional(),
+        isActive: z.boolean().optional(),
+        sortBy: z.enum(["createdAt", "clicks", "uniqueClicks", "registers"]).default("createdAt"),
+        sortDir: z.enum(["asc", "desc"]).default("desc"),
       })
     )
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { limit, page } = input;
+      const { limit, page, search, channel, isActive, sortBy, sortDir } = input;
+
+      const where: Record<string, unknown> = { userId };
+      if (search?.trim()) {
+        where.OR = [
+          { label: { contains: search.trim(), mode: "insensitive" } },
+          { code: { contains: search.trim(), mode: "insensitive" } },
+        ];
+      }
+      if (channel !== undefined && channel !== "") {
+        where.channel = channel === "_none" ? null : channel;
+      }
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
 
       const [links, totalCount] = await Promise.all([
         ctx.prisma.referralLink.findMany({
-          where: { userId },
+          where,
           skip: (page - 1) * limit,
           take: limit,
-          orderBy: { createdAt: "desc" },
+          orderBy: { [sortBy]: sortDir },
         }),
-        ctx.prisma.referralLink.count({ where: { userId } }),
+        ctx.prisma.referralLink.count({ where }),
       ]);
 
       return {
@@ -346,15 +365,34 @@ export const referralRouter = router({
       z.object({
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        linkId: z.string().optional(),
+        channel: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { limit, page } = input;
+      const { limit, page, search, linkId, channel } = input;
+
+      const where: Record<string, unknown> = { referrerId: userId };
+      if (linkId) {
+        where.referralLinkId = linkId;
+      }
+      if (channel !== undefined && channel !== "") {
+        where.referralLink = { channel: channel === "_none" ? null : channel };
+      }
+      if (search?.trim()) {
+        where.referredUser = {
+          OR: [
+            { username: { contains: search.trim(), mode: "insensitive" } },
+            { nickname: { contains: search.trim(), mode: "insensitive" } },
+          ],
+        };
+      }
 
       const [records, totalCount] = await Promise.all([
         ctx.prisma.referralRecord.findMany({
-          where: { referrerId: userId },
+          where,
           skip: (page - 1) * limit,
           take: limit,
           orderBy: { createdAt: "desc" },
@@ -367,7 +405,7 @@ export const referralRouter = router({
             },
           },
         }),
-        ctx.prisma.referralRecord.count({ where: { referrerId: userId } }),
+        ctx.prisma.referralRecord.count({ where }),
       ]);
 
       return {
@@ -383,20 +421,32 @@ export const referralRouter = router({
       z.object({
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
+        type: z.string().optional(),
+        amountDir: z.enum(["income", "expense"]).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { limit, page } = input;
+      const { limit, page, type, amountDir } = input;
+
+      const where: Record<string, unknown> = { userId };
+      if (type) {
+        where.type = type;
+      }
+      if (amountDir === "income") {
+        where.amount = { gt: 0 };
+      } else if (amountDir === "expense") {
+        where.amount = { lt: 0 };
+      }
 
       const [transactions, totalCount] = await Promise.all([
         ctx.prisma.pointsTransaction.findMany({
-          where: { userId },
+          where,
           skip: (page - 1) * limit,
           take: limit,
           orderBy: { createdAt: "desc" },
         }),
-        ctx.prisma.pointsTransaction.count({ where: { userId } }),
+        ctx.prisma.pointsTransaction.count({ where }),
       ]);
 
       return {

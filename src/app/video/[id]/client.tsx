@@ -29,7 +29,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
-import { formatViews, formatRelativeTime } from "@/lib/format";
+import { formatViews, formatRelativeTime, formatDuration } from "@/lib/format";
+import { VideoCover } from "@/components/video/video-cover";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { useSound } from "@/hooks/use-sound";
 import Link from "next/link";
@@ -996,13 +997,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             </div>
           </div>
 
-          {/* 桌面端侧边栏 - sticky 定位，占满右侧高度 */}
+          {/* 桌面端侧边栏 */}
           <div className="hidden lg:block lg:col-span-1">
-            <div className="sticky top-[4.5rem] flex flex-col" style={{ maxHeight: 'calc(100vh - 5.5rem)' }}>
-              {/* 合集选集 - 不折叠，占满高度 */}
+            <div className="space-y-4">
+              {/* 合集选集 */}
               {seriesData?.series && (
-                <div className="border rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b shrink-0">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
                     <Layers className="h-4 w-4 text-primary" />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm truncate">
@@ -1015,7 +1016,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       </p>
                     </div>
                   </div>
-                  <div ref={episodeListRef} className="overflow-y-auto flex-1">
+                  <div ref={episodeListRef} className="max-h-[400px] overflow-y-auto">
                     {seriesEpisodes.map((ep) => {
                       const isCurrentVideo = ep.video.id === currentVideoId;
                       return (
@@ -1065,17 +1066,17 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                 </div>
               )}
 
-              {/* 分P列表 - 不折叠，占满高度 */}
+              {/* 分P列表 */}
               {hasPages && displayVideo.pages && !seriesData?.series && (
-                <div className="border rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b shrink-0">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
                     <List className="h-4 w-4 text-primary" />
                     <h3 className="font-medium text-sm">视频选集</h3>
                     <Badge variant="secondary" className="text-xs">
                       {(displayVideo.pages as { page: number; title: string }[]).length}P
                     </Badge>
                   </div>
-                  <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                  <div className="max-h-[400px] overflow-y-auto p-2 space-y-1">
                     {(displayVideo.pages as { page: number; title: string }[]).map((page) => (
                       <button
                         key={page.page}
@@ -1101,7 +1102,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
               {/* 如果同时有合集和分P，分P显示在合集下方 */}
               {hasPages && displayVideo.pages && seriesData?.series && (
-                <div className="border rounded-lg overflow-hidden mt-4 shrink-0">
+                <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
                     <List className="h-4 w-4 text-primary" />
                     <h3 className="font-medium text-sm">视频选集</h3>
@@ -1109,7 +1110,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       {(displayVideo.pages as { page: number; title: string }[]).length}P
                     </Badge>
                   </div>
-                  <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                  <div className="max-h-[400px] overflow-y-auto p-2 space-y-1">
                     {(displayVideo.pages as { page: number; title: string }[]).map((page) => (
                       <button
                         key={page.page}
@@ -1133,10 +1134,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                 </div>
               )}
 
-              {/* 右侧栏广告位 - 选集框下方 */}
-              <div className="mt-4 shrink-0">
-                <AdSlot slotId="video-sidebar" minHeight={100} className="w-full" />
-              </div>
+              {/* 右侧栏广告位 */}
+              <AdSlot slotId="video-sidebar" minHeight={100} className="w-full" />
+
+              {/* 相关推荐 */}
+              <SidebarRecommendations videoId={currentVideoId} />
             </div>
           </div>
         </div>
@@ -1307,5 +1309,94 @@ function VideoExtraInfoSection({ extraInfo }: { extraInfo: import("@/lib/shortco
         </div>
       )}
     </div>
+  );
+}
+
+function SidebarRecommendations({ videoId }: { videoId: string }) {
+  const { data: recommendations, isLoading } = trpc.video.getRecommendations.useQuery(
+    { videoId, limit: 20 },
+    { staleTime: 60_000 },
+  );
+
+  if (isLoading) {
+    return (
+      <div className="mt-4">
+        <h3 className="font-medium text-sm flex items-center gap-2 px-1 mb-3">
+          <Layers className="h-4 w-4 text-primary" />
+          相关推荐
+        </h3>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex gap-2 animate-pulse">
+              <div className="w-[120px] aspect-video rounded bg-muted shrink-0" />
+              <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                <div className="h-3 bg-muted rounded w-full" />
+                <div className="h-3 bg-muted rounded w-2/3" />
+                <div className="h-2.5 bg-muted rounded w-1/2 mt-2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!recommendations || recommendations.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <h3 className="font-medium text-sm flex items-center gap-2 px-1 mb-3">
+        <Layers className="h-4 w-4 text-primary" />
+        相关推荐
+      </h3>
+      <div className="space-y-2">
+        {recommendations.map((v) => (
+          <RecommendationItem key={v.id} video={v} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecommendationItem({ video }: { video: { id: string; title: string; coverUrl?: string | null; coverBlurHash?: string | null; duration?: number | null; views: number; createdAt: Date | string; extraInfo?: unknown; uploader: { nickname?: string | null; username: string }; _count: { likes: number; dislikes: number } } }) {
+  const totalVotes = video._count.likes + video._count.dislikes;
+  const likeRatio = totalVotes > 0 ? Math.round((video._count.likes / totalVotes) * 100) : 100;
+  const extra = video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? (video.extraInfo as Record<string, unknown>) : null;
+  const authorName = (extra?.author as string) || video.uploader.nickname || video.uploader.username;
+
+  return (
+    <Link
+      href={`/video/${video.id}`}
+      className="flex gap-2 group rounded-md hover:bg-muted/50 transition-colors p-1 -mx-1"
+    >
+      <div className="relative w-[120px] aspect-video rounded overflow-hidden bg-muted shrink-0">
+        <VideoCover
+          videoId={video.id}
+          coverUrl={video.coverUrl}
+          blurDataURL={video.coverBlurHash}
+          title={video.title}
+          thumbWidth={240}
+          className="transition-transform duration-300 group-hover:scale-105"
+        />
+        {video.duration != null && (
+          <div className="absolute bottom-0.5 right-0.5 bg-black/75 text-white text-[10px] px-1 py-px rounded font-medium tabular-nums">
+            {formatDuration(video.duration)}
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 py-0.5">
+        <p className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+          {video.title}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1 truncate">
+          {authorName}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+          <span>{formatViews(video.views)}次</span>
+          <span>·</span>
+          <span>{likeRatio}%好评</span>
+        </p>
+      </div>
+    </Link>
   );
 }

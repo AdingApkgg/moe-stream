@@ -1796,7 +1796,6 @@ export const videoRouter = router({
       return { success: true, count: input.videoIds.length };
     }),
 
-  // 获取相关视频（简单列表，按最新排序）
   getRecommendations: publicProcedure
     .input(
       z.object({
@@ -1807,23 +1806,68 @@ export const videoRouter = router({
     .query(async ({ ctx, input }) => {
       const { videoId, limit } = input;
 
-      // 简单返回最新视频，排除当前视频
+      const videoSelect = {
+        id: true,
+        title: true,
+        coverUrl: true,
+        coverBlurHash: true,
+        duration: true,
+        views: true,
+        createdAt: true,
+        extraInfo: true,
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
+        },
+        _count: { select: { likes: true, dislikes: true } },
+      } as const;
+
+      const currentTags = await ctx.prisma.tagOnVideo.findMany({
+        where: { videoId },
+        select: { tagId: true },
+      });
+      const tagIds = currentTags.map((t) => t.tagId);
+
+      if (tagIds.length > 0) {
+        const related = await ctx.prisma.video.findMany({
+          where: {
+            id: { not: videoId },
+            status: "PUBLISHED",
+            tags: { some: { tagId: { in: tagIds } } },
+          },
+          select: {
+            ...videoSelect,
+            tags: { select: { tagId: true } },
+          },
+          take: limit * 3,
+        });
+
+        related.sort((a, b) => {
+          const tagSet = new Set(tagIds);
+          const aMatch = a.tags.filter((t) => tagSet.has(t.tagId)).length;
+          const bMatch = b.tags.filter((t) => tagSet.has(t.tagId)).length;
+          if (bMatch !== aMatch) return bMatch - aMatch;
+          return b.views - a.views;
+        });
+
+        const result = related.slice(0, limit).map(({ tags: _tags, ...rest }) => rest);
+
+        if (result.length >= limit) return result;
+
+        const excludeIds = [videoId, ...result.map((v) => v.id)];
+        const filler = await ctx.prisma.video.findMany({
+          where: { id: { notIn: excludeIds }, status: "PUBLISHED" },
+          orderBy: { views: "desc" },
+          take: limit - result.length,
+          select: videoSelect,
+        });
+        return [...result, ...filler];
+      }
+
       return ctx.prisma.video.findMany({
-        where: {
-          id: { not: videoId },
-          status: "PUBLISHED",
-        },
-        orderBy: { createdAt: "desc" },
+        where: { id: { not: videoId }, status: "PUBLISHED" },
+        orderBy: { views: "desc" },
         take: limit,
-        include: {
-          uploader: {
-            select: { id: true, username: true, nickname: true, avatar: true },
-          },
-          tags: {
-            include: { tag: { select: { id: true, name: true, slug: true } } },
-          },
-          _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
-        },
+        select: videoSelect,
       });
     }),
 });

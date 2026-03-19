@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ import {
   ArrowUpRight,
   UserPlus,
   Filter,
+  Search,
   X,
   Wallet,
   CheckCircle,
@@ -246,7 +247,7 @@ function LinkFilter({
   );
 }
 
-function StatsCards({ linkIds }: { linkIds?: string[] }) {
+function StatsCards({ linkIds, onNavigate }: { linkIds?: string[]; onNavigate?: (tab: string) => void }) {
   const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery(
     linkIds?.length ? { linkIds } : undefined
   );
@@ -272,29 +273,37 @@ function StatsCards({ linkIds }: { linkIds?: string[] }) {
       icon: Users, color: "text-blue-500",
       today: stats?.todayRegisters ?? 0, yesterday: stats?.yesterdayRegisters ?? 0,
       sub: stats?.todayRegisters ? `今日 +${stats.todayRegisters}` : undefined,
+      tab: "referrals",
     },
     {
       label: "独立访客", value: stats?.totalUniqueClicks ?? 0,
       icon: MousePointerClick, color: "text-purple-500",
       today: stats?.todayUniqueClicks ?? 0, yesterday: stats?.yesterdayUniqueClicks ?? 0,
       sub: `总点击 ${stats?.totalClicks ?? 0}（含重复）`,
+      tab: "analytics",
     },
     {
       label: "转化率", value: stats?.conversionRate ?? 0,
       icon: Target, color: "text-green-500", suffix: "%",
       sub: `${stats?.totalRegisters ?? 0} 注册 / ${stats?.totalUniqueClicks ?? 0} 独立访客`,
+      tab: "analytics",
     },
     {
       label: "推广积分", value: stats?.earnedPoints ?? 0,
       icon: Award, color: "text-amber-500",
       sub: `当前余额 ${stats?.points ?? 0}`,
+      tab: "points",
     },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {primaryItems.map((item) => (
-        <Card key={item.label}>
+        <Card
+          key={item.label}
+          className="cursor-pointer transition-all hover:shadow-md"
+          onClick={() => onNavigate?.(item.tab)}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -318,6 +327,15 @@ function StatsCards({ linkIds }: { linkIds?: string[] }) {
   );
 }
 
+type LinkSortBy = "createdAt" | "clicks" | "uniqueClicks" | "registers";
+
+const LINK_SORT_OPTIONS: { value: LinkSortBy; label: string }[] = [
+  { value: "createdAt", label: "创建时间" },
+  { value: "clicks", label: "总点击" },
+  { value: "uniqueClicks", label: "独立访客" },
+  { value: "registers", label: "注册数" },
+];
+
 function LinksManager() {
   const siteConfig = useSiteConfig();
   const siteUrl = siteConfig?.siteUrl || (typeof window !== "undefined" ? window.location.origin : "");
@@ -328,9 +346,32 @@ function LinksManager() {
   const [newLabel, setNewLabel] = useState("");
   const [newChannel, setNewChannel] = useState("");
   const [newTargetUrl, setNewTargetUrl] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterChannel, setFilterChannel] = useState<string>("");
+  const [filterActive, setFilterActive] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<LinkSortBy>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const queryInput = {
+    page,
+    limit: 20,
+    search: searchQuery.trim() || undefined,
+    channel: filterChannel || undefined,
+    isActive: filterActive === "all" ? undefined : filterActive === "active",
+    sortBy,
+    sortDir,
+  };
 
   const utils = trpc.useUtils();
-  const { data, isLoading } = trpc.referral.getMyLinks.useQuery({ page, limit: 20 });
+  const { data, isLoading } = trpc.referral.getMyLinks.useQuery(queryInput);
+
+  const hasFilters = !!(searchQuery.trim() || filterChannel || filterActive !== "all");
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterChannel("");
+    setFilterActive("all");
+    setPage(1);
+  };
 
   const createMutation = trpc.referral.createLink.useMutation({
     onSuccess: () => {
@@ -376,7 +417,94 @@ function LinksManager() {
             新建
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* 筛选栏 */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索标签或推广码..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                className="pl-9 h-9 pr-8"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Select value={filterChannel} onValueChange={(v) => { setFilterChannel(v === "_all" ? "" : v); setPage(1); }}>
+              <SelectTrigger className="w-[120px] h-9">
+                <SelectValue placeholder="全部渠道" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">全部渠道</SelectItem>
+                {CHANNEL_OPTIONS.filter((c) => c.value).map((c) => (
+                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                ))}
+                <SelectItem value="_none">无渠道</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterActive} onValueChange={(v) => { setFilterActive(v); setPage(1); }}>
+              <SelectTrigger className="w-[100px] h-9">
+                <SelectValue placeholder="全部状态" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="active">启用中</SelectItem>
+                <SelectItem value="inactive">已停用</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={`${sortBy}-${sortDir}`} onValueChange={(v) => {
+              const [field, dir] = v.split("-") as [LinkSortBy, "asc" | "desc"];
+              setSortBy(field); setSortDir(dir); setPage(1);
+            }}>
+              <SelectTrigger className="w-[130px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LINK_SORT_OPTIONS.map((opt) => (
+                  <React.Fragment key={opt.value}>
+                    <SelectItem value={`${opt.value}-desc`}>{opt.label} ↓</SelectItem>
+                    <SelectItem value={`${opt.value}-asc`}>{opt.label} ↑</SelectItem>
+                  </React.Fragment>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 筛选状态提示 */}
+          {hasFilters && (
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="text-muted-foreground">
+                {data?.totalCount ?? 0} 条结果
+              </span>
+              <span className="text-muted-foreground/40">|</span>
+              {searchQuery.trim() && (
+                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setSearchQuery(""); setPage(1); }}>
+                  搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              {filterChannel && (
+                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterChannel(""); setPage(1); }}>
+                  {filterChannel === "_none" ? "无渠道" : (CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel)}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              {filterActive !== "all" && (
+                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterActive("all"); setPage(1); }}>
+                  {filterActive === "active" ? "启用中" : "已停用"}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearFilters}>
+                清除全部
+              </Button>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -386,7 +514,17 @@ function LinksManager() {
           ) : !data?.links.length ? (
             <div className="text-center py-8 text-muted-foreground">
               <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>还没有推广链接，点击右上角创建一个</p>
+              {hasFilters ? (
+                <>
+                  <p>没有匹配的推广链接</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={clearFilters}>
+                    <X className="h-4 w-4 mr-1" />
+                    清除筛选
+                  </Button>
+                </>
+              ) : (
+                <p>还没有推广链接，点击右上角创建一个</p>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -401,7 +539,11 @@ function LinksManager() {
                         {link.label || link.code}
                       </span>
                       {link.channel && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs cursor-pointer hover:bg-accent"
+                          onClick={() => { setFilterChannel(filterChannel === link.channel ? "" : (link.channel ?? "")); setPage(1); }}
+                        >
                           {CHANNEL_OPTIONS.find((c) => c.value === link.channel)?.label || link.channel}
                         </Badge>
                       )}
@@ -462,26 +604,31 @@ function LinksManager() {
               ))}
 
               {data.totalPages > 1 && (
-                <div className="flex justify-center gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    上一页
-                  </Button>
-                  <span className="text-sm text-muted-foreground flex items-center px-2">
-                    {page} / {data.totalPages}
+                <div className="flex items-center justify-between pt-4">
+                  <span className="text-xs text-muted-foreground">
+                    共 {data.totalCount} 条
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= data.totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    下一页
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                    >
+                      上一页
+                    </Button>
+                    <span className="text-sm text-muted-foreground flex items-center px-2">
+                      {page} / {data.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= data.totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      下一页
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -577,21 +724,19 @@ function LinksManager() {
 
 function ReferralsList() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = trpc.referral.getMyReferrals.useQuery({ page, limit: 20 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterChannel, setFilterChannel] = useState<string>("");
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const queryInput = {
+    page,
+    limit: 20,
+    search: searchQuery.trim() || undefined,
+    channel: filterChannel || undefined,
+  };
+
+  const { data, isLoading } = trpc.referral.getMyReferrals.useQuery(queryInput);
+
+  const hasFilters = !!(searchQuery.trim() || filterChannel);
 
   return (
     <Card>
@@ -599,11 +744,79 @@ function ReferralsList() {
         <CardTitle className="text-lg">推广用户</CardTitle>
         <CardDescription>通过你的链接注册的用户</CardDescription>
       </CardHeader>
-      <CardContent>
-        {!data?.records.length ? (
+      <CardContent className="space-y-4">
+        {/* 筛选栏 */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索用户名或昵称..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="pl-9 h-9 pr-8"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <Select value={filterChannel || "_all"} onValueChange={(v) => { setFilterChannel(v === "_all" ? "" : v); setPage(1); }}>
+            <SelectTrigger className="w-[120px] h-9">
+              <SelectValue placeholder="全部渠道" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">全部渠道</SelectItem>
+              {CHANNEL_OPTIONS.filter((c) => c.value).map((c) => (
+                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+              ))}
+              <SelectItem value="_none">无渠道</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasFilters && (
+          <div className="flex items-center gap-2 flex-wrap text-sm">
+            <span className="text-muted-foreground">{data?.totalCount ?? 0} 条结果</span>
+            <span className="text-muted-foreground/40">|</span>
+            {searchQuery.trim() && (
+              <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setSearchQuery(""); setPage(1); }}>
+                搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
+                <X className="h-3 w-3" />
+              </Badge>
+            )}
+            {filterChannel && (
+              <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterChannel(""); setPage(1); }}>
+                {filterChannel === "_none" ? "无渠道" : (CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel)}
+                <X className="h-3 w-3" />
+              </Badge>
+            )}
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => { setSearchQuery(""); setFilterChannel(""); setPage(1); }}>
+              清除
+            </Button>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : !data?.records.length ? (
           <div className="text-center py-8 text-muted-foreground">
             <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>暂无推广用户</p>
+            {hasFilters ? (
+              <>
+                <p>没有匹配的推广用户</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setSearchQuery(""); setFilterChannel(""); setPage(1); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  清除筛选
+                </Button>
+              </>
+            ) : (
+              <p>暂无推广用户</p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -624,7 +837,15 @@ function ReferralsList() {
                     {record.referralLink && (
                       <span className="ml-2">
                         via {record.referralLink.label || record.referralLink.code}
-                        {record.referralLink.channel && ` (${record.referralLink.channel})`}
+                        {record.referralLink.channel && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] ml-1 cursor-pointer hover:bg-accent"
+                            onClick={() => { setFilterChannel(filterChannel === record.referralLink!.channel ? "" : (record.referralLink!.channel ?? "")); setPage(1); }}
+                          >
+                            {CHANNEL_OPTIONS.find((c) => c.value === record.referralLink!.channel)?.label || record.referralLink!.channel}
+                          </Badge>
+                        )}
                       </span>
                     )}
                   </div>
@@ -642,26 +863,31 @@ function ReferralsList() {
             ))}
 
             {data.totalPages > 1 && (
-              <div className="flex justify-center gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  上一页
-                </Button>
-                <span className="text-sm text-muted-foreground flex items-center px-2">
-                  {page} / {data.totalPages}
+              <div className="flex items-center justify-between pt-4">
+                <span className="text-xs text-muted-foreground">
+                  共 {data.totalCount} 条
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  下一页
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <span className="text-sm text-muted-foreground flex items-center px-2">
+                    {page} / {data.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= data.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -671,45 +897,52 @@ function ReferralsList() {
   );
 }
 
+const POINTS_TYPE_LABELS: Record<string, string> = {
+  REFERRAL_REWARD: "推广奖励",
+  ADMIN_ADJUST: "管理员调整",
+  POINTS_CONSUME: "积分消耗",
+  CHECKIN: "每日签到",
+  DAILY_LOGIN: "每日登录",
+  WATCH_VIDEO: "观看视频",
+  LIKE_VIDEO: "点赞视频",
+  FAVORITE_VIDEO: "收藏视频",
+  COMMENT_VIDEO: "评论视频",
+  VIEW_GAME: "浏览游戏",
+  LIKE_GAME: "点赞游戏",
+  FAVORITE_GAME: "收藏游戏",
+  COMMENT_GAME: "评论游戏",
+  VIEW_IMAGE: "浏览图片",
+  LIKE_IMAGE: "点赞图片",
+  FAVORITE_IMAGE: "收藏图片",
+  COMMENT_IMAGE: "评论图片",
+  REDEEM_CODE: "兑换码兑换",
+  USDT_RECHARGE: "USDT 充值",
+};
+
+const POINTS_TYPE_GROUPS: { label: string; types: string[] }[] = [
+  { label: "推广 & 签到", types: ["REFERRAL_REWARD", "CHECKIN", "DAILY_LOGIN"] },
+  { label: "视频互动", types: ["WATCH_VIDEO", "LIKE_VIDEO", "FAVORITE_VIDEO", "COMMENT_VIDEO"] },
+  { label: "游戏互动", types: ["VIEW_GAME", "LIKE_GAME", "FAVORITE_GAME", "COMMENT_GAME"] },
+  { label: "图片互动", types: ["VIEW_IMAGE", "LIKE_IMAGE", "FAVORITE_IMAGE", "COMMENT_IMAGE"] },
+  { label: "充值 & 兑换", types: ["USDT_RECHARGE", "REDEEM_CODE"] },
+  { label: "其他", types: ["ADMIN_ADJUST", "POINTS_CONSUME"] },
+];
+
 function PointsHistory() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = trpc.referral.getPointsHistory.useQuery({ page, limit: 20 });
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterDir, setFilterDir] = useState<string>("all");
 
-  const typeLabels: Record<string, string> = {
-    REFERRAL_REWARD: "推广奖励",
-    ADMIN_ADJUST: "管理员调整",
-    POINTS_CONSUME: "积分消耗",
-    CHECKIN: "每日签到",
-    DAILY_LOGIN: "每日登录",
-    WATCH_VIDEO: "观看视频",
-    LIKE_VIDEO: "点赞视频",
-    FAVORITE_VIDEO: "收藏视频",
-    COMMENT_VIDEO: "评论视频",
-    VIEW_GAME: "浏览游戏",
-    LIKE_GAME: "点赞游戏",
-    FAVORITE_GAME: "收藏游戏",
-    COMMENT_GAME: "评论游戏",
-    VIEW_IMAGE: "浏览图片",
-    LIKE_IMAGE: "点赞图片",
-    FAVORITE_IMAGE: "收藏图片",
-    COMMENT_IMAGE: "评论图片",
-    REDEEM_CODE: "兑换码兑换",
-    USDT_RECHARGE: "USDT 充值",
+  const queryInput = {
+    page,
+    limit: 20,
+    type: filterType || undefined,
+    amountDir: filterDir === "all" ? undefined : (filterDir as "income" | "expense"),
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const { data, isLoading } = trpc.referral.getPointsHistory.useQuery(queryInput);
+
+  const hasFilters = !!(filterType || filterDir !== "all");
 
   return (
     <Card>
@@ -717,11 +950,77 @@ function PointsHistory() {
         <CardTitle className="text-lg">积分流水</CardTitle>
         <CardDescription>积分变动记录</CardDescription>
       </CardHeader>
-      <CardContent>
-        {!data?.transactions.length ? (
+      <CardContent className="space-y-4">
+        {/* 筛选栏 */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Select value={filterType || "_all"} onValueChange={(v) => { setFilterType(v === "_all" ? "" : v); setPage(1); }}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="全部类型" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">全部类型</SelectItem>
+              {POINTS_TYPE_GROUPS.map((group) => (
+                <React.Fragment key={group.label}>
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{group.label}</div>
+                  {group.types.map((t) => (
+                    <SelectItem key={t} value={t}>{POINTS_TYPE_LABELS[t] || t}</SelectItem>
+                  ))}
+                </React.Fragment>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterDir} onValueChange={(v) => { setFilterDir(v); setPage(1); }}>
+            <SelectTrigger className="w-[110px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部方向</SelectItem>
+              <SelectItem value="income">收入</SelectItem>
+              <SelectItem value="expense">支出</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasFilters && (
+            <div className="flex items-center gap-2">
+              {filterType && (
+                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterType(""); setPage(1); }}>
+                  {POINTS_TYPE_LABELS[filterType] || filterType}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              {filterDir !== "all" && (
+                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterDir("all"); setPage(1); }}>
+                  {filterDir === "income" ? "收入" : "支出"}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => { setFilterType(""); setFilterDir("all"); setPage(1); }}>
+                清除
+              </Button>
+              <span className="text-xs text-muted-foreground ml-1">{data?.totalCount ?? 0} 条结果</span>
+            </div>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : !data?.transactions.length ? (
           <div className="text-center py-8 text-muted-foreground">
             <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>暂无积分记录</p>
+            {hasFilters ? (
+              <>
+                <p>没有匹配的积分记录</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setFilterType(""); setFilterDir("all"); setPage(1); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  清除筛选
+                </Button>
+              </>
+            ) : (
+              <p>暂无积分记录</p>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -731,8 +1030,18 @@ function PointsHistory() {
                 className="flex items-center gap-3 p-3 rounded-lg border"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">
-                    {typeLabels[tx.type] || tx.type}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="font-medium text-sm cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => { setFilterType(filterType === tx.type ? "" : tx.type); setPage(1); }}
+                    >
+                      {POINTS_TYPE_LABELS[tx.type] || tx.type}
+                    </span>
+                    {filterType === tx.type && (
+                      <Badge variant="default" className="text-[10px] gap-0.5">
+                        筛选中
+                      </Badge>
+                    )}
                   </div>
                   {tx.description && (
                     <div className="text-xs text-muted-foreground truncate">
@@ -758,26 +1067,31 @@ function PointsHistory() {
             ))}
 
             {data.totalPages > 1 && (
-              <div className="flex justify-center gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  上一页
-                </Button>
-                <span className="text-sm text-muted-foreground flex items-center px-2">
-                  {page} / {data.totalPages}
+              <div className="flex items-center justify-between pt-4">
+                <span className="text-xs text-muted-foreground">
+                  共 {data.totalCount} 条
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= data.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  下一页
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <span className="text-sm text-muted-foreground flex items-center px-2">
+                    {page} / {data.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= data.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -1427,6 +1741,7 @@ function RedeemCodeCard() {
 
 export default function ReferralPage() {
   const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("analytics");
   const linkIds = selectedLinkIds.length > 0 ? selectedLinkIds : undefined;
 
   return (
@@ -1457,9 +1772,9 @@ export default function ReferralPage() {
 
       <RechargeCard />
 
-      <StatsCards linkIds={linkIds} />
+      <StatsCards linkIds={linkIds} onNavigate={setActiveTab} />
 
-      <Tabs defaultValue="analytics">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="analytics">
             <BarChart3 className="h-4 w-4 mr-1" />
