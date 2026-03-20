@@ -37,6 +37,9 @@ const getGame = cache(async (id: string) => {
       versions: {
         orderBy: { sortOrder: "asc" as const },
       },
+      customTabs: {
+        orderBy: { sortOrder: "asc" as const },
+      },
       _count: {
         select: {
           likes: true,
@@ -136,6 +139,12 @@ function serializeGame(game: NonNullable<Awaited<ReturnType<typeof getGame>>>) {
       description: v.description,
       sortOrder: v.sortOrder,
     })),
+    customTabs: game.customTabs.map((t) => ({
+      id: t.id,
+      title: t.title,
+      icon: t.icon,
+      sortOrder: t.sortOrder,
+    })),
     _count: game._count,
   };
 }
@@ -175,6 +184,19 @@ export default async function GamePage({ params }: GamePageProps) {
     versionContentMap[vc.id] = vc.content;
   }
 
+  const customTabRendered = await Promise.all(
+    game.customTabs
+      .filter((t) => t.content)
+      .map(async (t) => ({
+        id: t.id,
+        content: <MdxContent source={t.content} />,
+      }))
+  );
+  const customTabContentMap: Record<string, React.ReactNode> = {};
+  for (const ct of customTabRendered) {
+    customTabContentMap[ct.id] = ct.content;
+  }
+
   return (
     <Suspense fallback={<GamePageSkeleton />}>
       <GamePageClient
@@ -183,6 +205,7 @@ export default async function GamePage({ params }: GamePageProps) {
         descriptionContent={descriptionContent}
         characterIntroContent={characterIntroContent}
         versionContents={versionContentMap}
+        customTabContents={customTabContentMap}
       />
     </Suspense>
   );

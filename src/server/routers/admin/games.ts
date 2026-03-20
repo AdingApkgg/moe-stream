@@ -21,6 +21,9 @@ export const adminGamesRouter = router({
           versions: {
             orderBy: { sortOrder: "asc" },
           },
+          customTabs: {
+            orderBy: { sortOrder: "asc" },
+          },
         },
       });
 
@@ -226,10 +229,16 @@ export const adminGamesRouter = router({
           label: z.string().min(1).max(100),
           description: z.string().max(10000).optional(),
         })).optional(),
+        customTabs: z.array(z.object({
+          id: z.string().optional(),
+          title: z.string().min(1).max(100),
+          icon: z.string().max(50).optional(),
+          content: z.string().max(50000),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { gameId, tagNames, versions, ...updateData } = input;
+      const { gameId, tagNames, versions, customTabs, ...updateData } = input;
 
       // 更新基本信息
       await ctx.prisma.game.update({
@@ -263,6 +272,22 @@ export const adminGamesRouter = router({
               gameId,
               label: v.label,
               description: v.description || null,
+              sortOrder: i,
+            })),
+          });
+        }
+      }
+
+      // 更新自定义 Tab：全量替换
+      if (customTabs !== undefined) {
+        await ctx.prisma.gameCustomTab.deleteMany({ where: { gameId } });
+        if (customTabs.length > 0) {
+          await ctx.prisma.gameCustomTab.createMany({
+            data: customTabs.map((t, i) => ({
+              gameId,
+              title: t.title,
+              icon: t.icon || null,
+              content: t.content,
               sortOrder: i,
             })),
           });

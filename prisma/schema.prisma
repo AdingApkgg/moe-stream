@@ -405,6 +405,7 @@ model Game {
   viewHistory   GameViewHistory[]
   comments      GameComment[]
   versions      GameVersion[]
+  customTabs    GameCustomTab[]
 
   @@index([uploaderId])
   @@index([status])
@@ -423,6 +424,22 @@ model GameVersion {
   updatedAt   DateTime @updatedAt
 
   game  Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, sortOrder])
+}
+
+model GameCustomTab {
+  id        String   @id @default(cuid())
+  gameId    String
+  title     String   // Tab 标题 (如 "攻略", "MOD 列表")
+  icon      String?  // lucide 图标名 (如 "book-open", "puzzle")
+  content   String   @db.Text // MDX 内容
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([gameId, sortOrder])
 }

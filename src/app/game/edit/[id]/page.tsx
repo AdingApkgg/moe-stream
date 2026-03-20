@@ -43,7 +43,9 @@ import {
   Link2,
   GitBranch,
   GripVertical,
+  LayoutGrid,
 } from "lucide-react";
+import { TAB_ICON_OPTIONS } from "@/lib/game-tab-icons";
 import {
   Select,
   SelectContent,
@@ -91,6 +93,7 @@ export default function EditGamePage({ params }: Props) {
   const [fileSize, setFileSize] = useState("");
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [versions, setVersions] = useState<{ id?: string; label: string; description: string }[]>([]);
+  const [customTabs, setCustomTabs] = useState<{ id?: string; title: string; icon: string; content: string }[]>([]);
 
   const { data: game, isLoading: gameLoading } = trpc.admin.getGameForEdit.useQuery(
     { id },
@@ -157,6 +160,15 @@ export default function EditGamePage({ params }: Props) {
         description: v.description || "",
       })));
     }
+
+    if (game.customTabs && game.customTabs.length > 0) {
+      setCustomTabs(game.customTabs.map((t: { id: string; title: string; icon: string | null; content: string }) => ({
+        id: t.id,
+        title: t.title,
+        icon: t.icon || "file-text",
+        content: t.content,
+      })));
+    }
   }, [game, form]);
 
   const filteredTags = allTags?.filter((tag: { id: string; name: string }) => {
@@ -211,6 +223,13 @@ export default function EditGamePage({ params }: Props) {
         description: v.description || undefined,
       }));
 
+      const validCustomTabs = customTabs.filter(t => t.title.trim() && t.content.trim()).map(t => ({
+        id: t.id,
+        title: t.title,
+        icon: t.icon || undefined,
+        content: t.content,
+      }));
+
       await updateMutation.mutateAsync({
         gameId: id,
         title: data.title,
@@ -222,6 +241,7 @@ export default function EditGamePage({ params }: Props) {
         extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
         tagNames: tagNames.length > 0 ? tagNames : undefined,
         versions: validVersions,
+        customTabs: validCustomTabs,
       });
     } finally {
       setIsSubmitting(false);
@@ -364,12 +384,13 @@ export default function EditGamePage({ params }: Props) {
               <Card>
                 <CardContent className="pt-6">
                   <Tabs defaultValue="origin" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5">
+                    <TabsList className="grid w-full grid-cols-6">
                       <TabsTrigger value="origin" className="text-xs">原作信息</TabsTrigger>
                       <TabsTrigger value="screenshots" className="text-xs">游戏截图</TabsTrigger>
                       <TabsTrigger value="videos" className="text-xs">游戏视频</TabsTrigger>
                       <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
                       <TabsTrigger value="versions" className="text-xs">更新版本</TabsTrigger>
+                      <TabsTrigger value="customTabs" className="text-xs">自定义页面</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="origin" className="space-y-4 mt-4">
@@ -509,6 +530,57 @@ export default function EditGamePage({ params }: Props) {
                       ))}
                       {versions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">暂无更新版本，点击上方按钮添加</p>}
                     </TabsContent>
+
+                    <TabsContent value="customTabs" className="space-y-4 mt-4">
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" />自定义页面</FormLabel>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setCustomTabs([...customTabs, { title: "", icon: "file-text", content: "" }])}>
+                          <Plus className="h-4 w-4 mr-1" />添加页面
+                        </Button>
+                      </div>
+                      {customTabs.map((tab, i) => (
+                        <div key={i} className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <Select
+                              value={tab.icon || "file-text"}
+                              onValueChange={(val) => { const u = [...customTabs]; u[i] = { ...u[i], icon: val }; setCustomTabs(u); }}
+                            >
+                              <SelectTrigger className="w-[120px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TAB_ICON_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    <span className="flex items-center gap-1.5">
+                                      <opt.icon className="h-3.5 w-3.5" />
+                                      {opt.label}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="页面标题，如：攻略、MOD 列表"
+                              value={tab.title}
+                              onChange={(e) => { const u = [...customTabs]; u[i] = { ...u[i], title: e.target.value }; setCustomTabs(u); }}
+                              className="flex-1"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => setCustomTabs(customTabs.filter((_, j) => j !== i))}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <MdxEditor
+                            value={tab.content}
+                            onChange={(val) => { const u = [...customTabs]; u[i] = { ...u[i], content: val }; setCustomTabs(u); }}
+                            placeholder="页面内容，支持 Markdown / MDX 语法..."
+                            maxLength={50000}
+                            minHeight="150px"
+                          />
+                        </div>
+                      ))}
+                      {customTabs.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">暂无自定义页面，点击上方按钮添加</p>}
+                    </TabsContent>
                   </Tabs>
                 </CardContent>
               </Card>
@@ -574,7 +646,7 @@ export default function EditGamePage({ params }: Props) {
                     />
                   </div>
 
-                  <ScrollArea className="max-h-[120px]">
+                  <ScrollArea className="h-[120px] [&_[data-slot=scroll-area-viewport]>div]:!block">
                     <div className="flex flex-wrap gap-1.5">
                       {filteredTags.map((tag: { id: string; name: string }) => {
                         const isSelected = selectedTags.some((t) => t.id === tag.id);

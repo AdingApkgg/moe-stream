@@ -260,10 +260,15 @@ export const gameRouter = router({
           label: z.string().min(1).max(100),
           description: z.string().max(10000).optional(),
         })).optional(),
+        customTabs: z.array(z.object({
+          title: z.string().min(1).max(100),
+          icon: z.string().max(50).optional(),
+          content: z.string().max(50000),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { tagIds, tagNames, versions, ...data } = input;
+      const { tagIds, tagNames, versions, customTabs, ...data } = input;
 
       // 检查投稿权限
       const user = await ctx.prisma.user.findUnique({
@@ -320,6 +325,9 @@ export const gameRouter = router({
           },
           versions: versions && versions.length > 0
             ? { create: versions.map((v, i) => ({ label: v.label, description: v.description || null, sortOrder: i })) }
+            : undefined,
+          customTabs: customTabs && customTabs.length > 0
+            ? { create: customTabs.map((t, i) => ({ title: t.title, icon: t.icon || null, content: t.content, sortOrder: i })) }
             : undefined,
         },
       });

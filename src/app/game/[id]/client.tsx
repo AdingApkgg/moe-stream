@@ -33,6 +33,7 @@ import { useSound } from "@/hooks/use-sound";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import type { SerializedGame } from "./page";
 import type { GameExtraInfo } from "./page";
+import { getTabIcon } from "@/lib/game-tab-icons";
 
 const GAME_TYPE_COLORS: Record<string, string> = {
   ADV: "bg-blue-500 text-white",
@@ -93,9 +94,10 @@ interface GamePageClientProps {
   descriptionContent?: React.ReactNode;
   characterIntroContent?: React.ReactNode;
   versionContents?: Record<string, React.ReactNode>;
+  customTabContents?: Record<string, React.ReactNode>;
 }
 
-export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent, versionContents }: GamePageClientProps) {
+export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent, versionContents, customTabContents }: GamePageClientProps) {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -208,9 +210,17 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
     if (hasVersions) tabs.push({ value: "versions", label: "更新版本", shortLabel: "版本", icon: Tag, count: initialGame.versions.length });
     if (hasVideos) tabs.push({ value: "videos", label: "PV 鉴赏", shortLabel: "PV", icon: Play, count: videoUrls.length });
     if (characterIntroContent) tabs.push({ value: "characters", label: "角色介绍", shortLabel: "角色", icon: Users });
+    if (initialGame.customTabs && initialGame.customTabs.length > 0) {
+      for (const ct of initialGame.customTabs) {
+        if (customTabContents?.[ct.id]) {
+          const shortLabel = ct.title.length > 3 ? ct.title.slice(0, 3) : ct.title;
+          tabs.push({ value: `custom-${ct.id}`, label: ct.title, shortLabel, icon: getTabIcon(ct.icon) });
+        }
+      }
+    }
     if (relatedGames && relatedGames.length > 0) tabs.push({ value: "related", label: "相关推荐", shortLabel: "推荐", icon: Tag, count: relatedGames.length });
     return tabs;
-  }, [descriptionContent, hasScreenshots, hasVideos, hasVersions, characterIntroContent, imageUrls.length, videoUrls.length, initialGame.versions, relatedGames]);
+  }, [descriptionContent, hasScreenshots, hasVideos, hasVersions, characterIntroContent, imageUrls.length, videoUrls.length, initialGame.versions, initialGame.customTabs, customTabContents, relatedGames]);
 
   const defaultTab = availableTabs[0]?.value ?? "intro";
 
@@ -748,6 +758,19 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                         </CardContent>
                       </Card>
                     </TabsContent>
+                  )}
+
+                  {/* 自定义页面 */}
+                  {initialGame.customTabs?.map((ct) =>
+                    customTabContents?.[ct.id] ? (
+                      <TabsContent key={ct.id} value={`custom-${ct.id}`}>
+                        <Card>
+                          <CardContent className="p-3 sm:p-6">
+                            {customTabContents[ct.id]}
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    ) : null
                   )}
 
                   {/* 相关推荐 */}
