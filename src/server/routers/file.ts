@@ -5,15 +5,94 @@ import {
   initUpload,
   completeUpload,
   deleteUserFile,
+  resolvePolicy,
+  generateStorageKey,
+  policyToStorageConfig,
+  PART_SIZE,
 } from "@/lib/storage-policy";
+import {
+  getPresignedPartUrls as s3PresignedParts,
+} from "@/lib/s3-client";
 
 export const fileRouter = router({
+  /** Check if a file with the same hash already exists (flash upload / 闪传) */
+  checkHash: protectedProcedure
+    .input(
+      z.object({
+        hash: z.string().length(64),
+        size: z.number().int().positive(),
+        mimeType: z.string().min(1),
+        filename: z.string().min(1).max(255),
+        contentType: z.enum(["video", "game", "imagePost"]).optional(),
+        contentId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const siteConfig = await ctx.prisma.siteConfig.findUnique({
+        where: { id: "default" },
+        select: { fileUploadEnabled: true },
+      });
+      if (!siteConfig?.fileUploadEnabled) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "文件上传功能未启用" });
+      }
+
+      const existing = await ctx.prisma.userFile.findFirst({
+        where: {
+          hash: input.hash,
+          size: BigInt(input.size),
+          status: "UPLOADED",
+        },
+        include: { storagePolicy: true },
+      });
+
+      if (!existing) return { found: false as const };
+
+      // Check quota
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { storageQuota: true, storageUsed: true },
+      });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+      if (user.storageUsed + BigInt(input.size) > user.storageQuota) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "存储空间不足" });
+      }
+
+      // Create a new UserFile referencing the same storage object
+      const newFile = await ctx.prisma.userFile.create({
+        data: {
+          userId: ctx.session.user.id,
+          storagePolicyId: existing.storagePolicyId,
+          filename: input.filename,
+          storageKey: existing.storageKey,
+          url: existing.url,
+          mimeType: input.mimeType,
+          size: existing.size,
+          hash: input.hash,
+          contentType: input.contentType || null,
+          contentId: input.contentId || null,
+          status: "UPLOADED",
+          uploadedAt: new Date(),
+        },
+      });
+
+      await ctx.prisma.user.update({
+        where: { id: ctx.session.user.id },
+        data: { storageUsed: { increment: existing.size } },
+      });
+
+      return {
+        found: true as const,
+        file: serializeFile(newFile),
+      };
+    }),
+
   initUpload: protectedProcedure
     .input(
       z.object({
         filename: z.string().min(1).max(255),
         size: z.number().int().positive(),
         mimeType: z.string().min(1),
+        hash: z.string().length(64).optional(),
         contentType: z.enum(["video", "game", "imagePost"]).optional(),
         contentId: z.string().optional(),
       }),
@@ -52,6 +131,7 @@ export const fileRouter = router({
           filename: input.filename,
           size: input.size,
           mimeType: input.mimeType,
+          hash: input.hash,
           contentType: input.contentType,
           contentId: input.contentId,
         });
@@ -64,6 +144,70 @@ export const fileRouter = router({
       }
     }),
 
+  /** Get upload progress for resumable uploads */
+  getUploadProgress: protectedProcedure
+    .input(z.object({ fileId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.prisma.userFile.findUnique({
+        where: { id: input.fileId },
+        include: { storagePolicy: true },
+      });
+
+      if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
+      if (file.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无权查看" });
+      }
+
+      return {
+        fileId: file.id,
+        status: file.status,
+        totalChunks: file.totalChunks ?? 1,
+        uploadedChunks: (file.uploadedChunks as { index: number; etag?: string }[] | null) ?? [],
+        isLocal: file.storagePolicy.provider === "local",
+        s3UploadId: file.s3UploadId,
+      };
+    }),
+
+  /** Get fresh presigned URLs for remaining S3 parts (for resume after URL expiry) */
+  getResumeUrls: protectedProcedure
+    .input(
+      z.object({
+        fileId: z.string(),
+        partNumbers: z.array(z.number().int().positive()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const file = await ctx.prisma.userFile.findUnique({
+        where: { id: input.fileId },
+        include: { storagePolicy: true },
+      });
+
+      if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
+      if (file.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "无权操作" });
+      }
+      if (file.status !== "UPLOADING") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "文件未在上传中" });
+      }
+      if (file.storagePolicy.provider === "local") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "本地存储不需要此操作" });
+      }
+      if (!file.s3UploadId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无 multipart upload ID" });
+      }
+
+      const config = policyToStorageConfig(file.storagePolicy);
+      const allParts = await s3PresignedParts(
+        config,
+        file.storageKey,
+        file.s3UploadId,
+        file.totalChunks ?? 1,
+      );
+
+      const requested = new Set(input.partNumbers);
+      return allParts.filter((p) => requested.has(p.partNumber));
+    }),
+
   completeUpload: protectedProcedure
     .input(
       z.object({
@@ -72,6 +216,7 @@ export const fileRouter = router({
         parts: z
           .array(z.object({ partNumber: z.number(), etag: z.string() }))
           .optional(),
+        hash: z.string().length(64).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -81,6 +226,7 @@ export const fileRouter = router({
           userId: ctx.session.user.id,
           uploadId: input.uploadId,
           parts: input.parts,
+          hash: input.hash,
         });
 
         const file = await ctx.prisma.userFile.findUnique({

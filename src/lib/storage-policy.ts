@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import type { StoragePolicy } from "@/generated/prisma/client";
 import type { StorageConfig } from "@/lib/s3-client";
 import {
@@ -11,8 +12,8 @@ import {
   getPublicUrl as s3PublicUrl,
 } from "@/lib/s3-client";
 
-const MULTIPART_THRESHOLD = 100 * 1024 * 1024; // 100 MB
-const PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
+const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10 MB — lowered from 100 MB for resumable uploads
+export const PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
 
 export function policyToStorageConfig(policy: StoragePolicy): StorageConfig {
   return {
@@ -109,17 +110,19 @@ export interface InitUploadResult {
   uploadId?: string;
   parts?: { partNumber: number; url: string }[];
   isLocal: boolean;
+  totalChunks?: number;
 }
 
 /**
  * Initialize an upload: creates a UserFile record in UPLOADING state
- * and returns presigned URLs (or local upload endpoint info).
+ * and returns presigned URLs (or local chunked upload info).
  */
 export async function initUpload(opts: {
   userId: string;
   filename: string;
   size: number;
   mimeType: string;
+  hash?: string;
   contentType?: string;
   contentId?: string;
 }): Promise<InitUploadResult> {
@@ -138,6 +141,7 @@ export async function initUpload(opts: {
   }
 
   const storageKey = generateStorageKey(opts.userId, opts.filename, opts.mimeType);
+  const totalChunks = Math.max(1, Math.ceil(opts.size / PART_SIZE));
 
   const file = await prisma.userFile.create({
     data: {
@@ -148,8 +152,11 @@ export async function initUpload(opts: {
       url: "",
       mimeType: opts.mimeType,
       size: BigInt(opts.size),
+      hash: opts.hash || null,
       contentType: opts.contentType || null,
       contentId: opts.contentId || null,
+      totalChunks,
+      uploadedChunks: [],
       status: "UPLOADING",
     },
   });
@@ -158,8 +165,9 @@ export async function initUpload(opts: {
     return {
       fileId: file.id,
       method: "POST",
-      uploadUrl: `/api/files/upload-local?fileId=${file.id}`,
+      uploadUrl: `/api/files/upload-chunk?fileId=${file.id}&index=0`,
       isLocal: true,
+      totalChunks,
     };
   }
 
@@ -172,31 +180,39 @@ export async function initUpload(opts: {
       method: "PUT",
       uploadUrl,
       isLocal: false,
+      totalChunks: 1,
     };
   }
 
-  const uploadId = await s3CreateMultipart(config, storageKey, opts.mimeType);
+  const s3UploadId = await s3CreateMultipart(config, storageKey, opts.mimeType);
   const partCount = Math.ceil(opts.size / PART_SIZE);
-  const parts = await s3PresignedParts(config, storageKey, uploadId, partCount);
+  const parts = await s3PresignedParts(config, storageKey, s3UploadId, partCount);
+
+  await prisma.userFile.update({
+    where: { id: file.id },
+    data: { s3UploadId, totalChunks: partCount },
+  });
 
   return {
     fileId: file.id,
     method: "PUT",
-    uploadId,
+    uploadId: s3UploadId,
     parts,
     isLocal: false,
+    totalChunks: partCount,
   };
 }
 
 /**
- * Complete an upload: verify the file exists in storage and update status.
+ * Complete an upload: for local chunked uploads, assemble chunks into the
+ * final file. For S3, complete the multipart upload. Then update status.
  */
 export async function completeUpload(opts: {
   fileId: string;
   userId: string;
   uploadId?: string;
   parts?: { partNumber: number; etag: string }[];
-  /** Actual bytes written (local uploads). Overrides the declared size for accurate quota tracking. */
+  hash?: string;
   actualSize?: number;
 }): Promise<void> {
   const file = await prisma.userFile.findUnique({
@@ -211,7 +227,55 @@ export async function completeUpload(opts: {
   const policy = file.storagePolicy;
   let verifiedSize = file.size;
 
-  if (policy.provider !== "local") {
+  if (policy.provider === "local") {
+    const { readdir, stat, createWriteStream } = await import("fs/promises").then(
+      (m) => ({ readdir: m.readdir, stat: m.stat, createWriteStream: null }),
+    );
+    const fs = await import("fs");
+    const { join, dirname } = await import("path");
+    const { mkdir, unlink, rm } = await import("fs/promises");
+
+    const uploadDir = policy.uploadDir || "./uploads";
+    const chunkDir = join(uploadDir, ".chunks", file.id);
+    const finalPath = join(uploadDir, file.storageKey);
+
+    await mkdir(dirname(finalPath), { recursive: true });
+
+    const chunks = (file.uploadedChunks as { index: number }[] | null) ?? [];
+    const totalExpected = file.totalChunks ?? 1;
+
+    if (chunks.length < totalExpected) {
+      throw new Error(`分片不完整: ${chunks.length}/${totalExpected}`);
+    }
+
+    // Assemble chunks in order using streams to avoid memory issues
+    const writeStream = fs.createWriteStream(finalPath);
+    let totalBytes = 0;
+
+    for (let i = 0; i < totalExpected; i++) {
+      const chunkPath = join(chunkDir, String(i));
+      const chunkStat = await stat(chunkPath);
+      totalBytes += Number(chunkStat.size);
+
+      await new Promise<void>((resolve, reject) => {
+        const rs = fs.createReadStream(chunkPath);
+        rs.pipe(writeStream, { end: false });
+        rs.on("end", resolve);
+        rs.on("error", reject);
+      });
+    }
+
+    writeStream.end();
+    await new Promise<void>((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    verifiedSize = BigInt(totalBytes);
+
+    // Clean up chunk directory
+    await rm(chunkDir, { recursive: true, force: true }).catch(() => {});
+  } else {
     const config = policyToStorageConfig(policy);
 
     if (opts.uploadId && opts.parts) {
@@ -221,8 +285,6 @@ export async function completeUpload(opts: {
     const head = await headObject(config, file.storageKey);
     if (!head) throw new Error("文件在存储中未找到，上传可能失败");
     verifiedSize = BigInt(head.size);
-  } else if (opts.actualSize !== undefined) {
-    verifiedSize = BigInt(opts.actualSize);
   }
 
   const url =
@@ -237,7 +299,10 @@ export async function completeUpload(opts: {
         status: "UPLOADED",
         url,
         size: verifiedSize,
+        hash: opts.hash || file.hash || null,
         uploadedAt: new Date(),
+        s3UploadId: null,
+        uploadedChunks: Prisma.DbNull,
       },
     }),
     prisma.user.update({
@@ -249,7 +314,11 @@ export async function completeUpload(opts: {
   ]);
 }
 
-/** Delete a file from storage and mark as DELETED */
+/**
+ * Delete a file from storage and mark as DELETED.
+ * If other UserFiles share the same storageKey (flash upload dedup),
+ * skip deleting the actual storage object.
+ */
 export async function deleteUserFile(fileId: string, userId: string): Promise<void> {
   const file = await prisma.userFile.findUnique({
     where: { id: fileId },
@@ -262,17 +331,29 @@ export async function deleteUserFile(fileId: string, userId: string): Promise<vo
 
   const policy = file.storagePolicy;
 
-  try {
-    if (policy.provider === "local") {
-      const { unlink } = await import("fs/promises");
-      const { join } = await import("path");
-      const dir = policy.uploadDir || "./uploads";
-      await unlink(join(dir, file.storageKey)).catch(() => {});
-    } else {
-      await deleteFromS3(policyToStorageConfig(policy), file.storageKey);
+  // Check if other non-deleted files share the same storageKey (flash upload dedup)
+  const otherRefs = await prisma.userFile.count({
+    where: {
+      storageKey: file.storageKey,
+      storagePolicyId: file.storagePolicyId,
+      status: "UPLOADED",
+      id: { not: fileId },
+    },
+  });
+
+  if (otherRefs === 0) {
+    try {
+      if (policy.provider === "local") {
+        const { unlink } = await import("fs/promises");
+        const { join } = await import("path");
+        const dir = policy.uploadDir || "./uploads";
+        await unlink(join(dir, file.storageKey)).catch(() => {});
+      } else {
+        await deleteFromS3(policyToStorageConfig(policy), file.storageKey);
+      }
+    } catch (err) {
+      console.error("Failed to delete file from storage:", err);
     }
-  } catch (err) {
-    console.error("Failed to delete file from storage:", err);
   }
 
   const wasUploaded = file.status === "UPLOADED";

@@ -5,6 +5,7 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { FileUploader } from "@/components/files/file-uploader";
+import { ImportDialog } from "@/components/files/import-dialog";
 import { FileCard } from "@/components/files/file-card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -37,6 +38,7 @@ import { toast } from "@/lib/toast-with-sound";
 import {
   HardDrive,
   Upload,
+  Download,
   FolderOpen,
   Loader2,
 } from "lucide-react";
@@ -54,6 +56,7 @@ export default function MyFilesPage() {
   const sessionLoading = sessionStatus === "loading";
   const router = useRouter();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [mimeFilter, setMimeFilter] = useState("all");
 
@@ -150,10 +153,16 @@ export default function MyFilesPage() {
             管理上传的文件和附件资源
           </p>
         </div>
-        <Button onClick={() => setUploadDialogOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          上传文件
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <Download className="h-4 w-4 mr-2" />
+            网盘导入
+          </Button>
+          <Button onClick={() => setUploadDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            上传文件
+          </Button>
+        </div>
       </div>
 
       {/* 存储用量 */}
@@ -242,6 +251,13 @@ export default function MyFilesPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* 网盘导入弹窗 */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImportComplete={handleUploadComplete}
+      />
 
       {/* 删除确认 */}
       <AlertDialog open={!!deleteFileId} onOpenChange={(open) => !open && setDeleteFileId(null)}>

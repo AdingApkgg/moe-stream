@@ -105,6 +105,7 @@ model User {
   storageQuota    BigInt   @default(5368709120) // 5GB 默认配额
   storageUsed     BigInt   @default(0)
   files           UserFile[]
+  importTasks     ImportTask[]
 
   @@index([email])
   @@index([username])
@@ -1045,6 +1046,10 @@ model SiteConfig {
   fileStorageRouteRules   Json?    // [{ mimePattern: "image/*", policyId: "xxx" }]
   fileDefaultPolicyId     String?
 
+  // 网盘导入
+  cloudImportEnabled      Boolean @default(false)
+  dropboxAppKey           String?  // Dropbox Chooser App Key
+
   // 对象存储
   storageProvider     String   @default("local") // local | s3 | r2 | minio | oss | cos
   storageEndpoint     String?  // S3 兼容端点 URL
@@ -1659,6 +1664,11 @@ model UserFile {
   contentType     String?    // "video" | "game" | "imagePost"
   contentId       String?
 
+  // 断点续传
+  s3UploadId      String?    // S3 multipart upload ID（持久化以支持恢复）
+  totalChunks     Int?       // 总分片数
+  uploadedChunks  Json?      // 已完成的分片 [{ index: number, etag?: string }]
+
   status          FileStatus @default(UPLOADING)
   uploadedAt      DateTime?
   createdAt       DateTime   @default(now())
@@ -1666,6 +1676,7 @@ model UserFile {
 
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   storagePolicy   StoragePolicy @relation(fields: [storagePolicyId], references: [id])
+  importTasks     ImportTask[]
 
   @@index([userId])
   @@index([storagePolicyId])
@@ -1679,4 +1690,42 @@ enum FileStatus {
   UPLOADED
   FAILED
   DELETED
+}
+
+// ==================== 网盘导入任务 ====================
+
+model ImportTask {
+  id              String       @id @default(cuid())
+  userId          String
+  provider        String       // "google" | "onedrive" | "dropbox" | "url"
+  sourceUrl       String       @db.Text
+  sourceFileId    String?      // 网盘文件 ID
+  sourceName      String       // 原始文件名
+  sourceSize      BigInt?      // 预估大小
+  sourceMimeType  String?
+
+  status          ImportStatus @default(PENDING)
+  progress        Int          @default(0)   // 0-100
+  downloadedBytes BigInt       @default(0)
+  error           String?      @db.Text
+
+  userFileId      String?      // 下载完成后关联的 UserFile
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userFile        UserFile?    @relation(fields: [userFileId], references: [id])
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum ImportStatus {
+  PENDING
+  DOWNLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

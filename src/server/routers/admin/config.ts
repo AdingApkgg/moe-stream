@@ -133,6 +133,10 @@ export const adminConfigRouter = router({
       })).optional().nullable(),
       fileDefaultPolicyId: z.string().optional().nullable().or(z.literal("")),
 
+      // 网盘导入
+      cloudImportEnabled: z.boolean().optional(),
+      dropboxAppKey: z.string().max(200).optional().nullable().or(z.literal("")),
+
       // 对象存储
       storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).optional(),
       storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -256,6 +260,8 @@ export const adminConfigRouter = router({
         "turnstileSiteKey", "turnstileSecretKey",
         "recaptchaSiteKey", "recaptchaSecretKey",
         "hcaptchaSiteKey", "hcaptchaSecretKey",
+        "fileUploadEnabled", "fileStorageRouteRules", "fileDefaultPolicyId",
+        "cloudImportEnabled", "dropboxAppKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
@@ -306,6 +312,9 @@ export const adminConfigRouter = router({
       }
       if (cleaned.pointsRules != null && typeof cleaned.pointsRules === "object") {
         cleaned.pointsRules = JSON.parse(JSON.stringify(cleaned.pointsRules)) as Prisma.InputJsonValue;
+      }
+      if (Array.isArray(cleaned.fileStorageRouteRules)) {
+        cleaned.fileStorageRouteRules = JSON.parse(JSON.stringify(cleaned.fileStorageRouteRules)) as Prisma.InputJsonValue;
       }
 
       const config = await ctx.prisma.siteConfig.upsert({
@@ -396,6 +405,8 @@ export const adminConfigRouter = router({
         "turnstileSiteKey", "turnstileSecretKey",
         "recaptchaSiteKey", "recaptchaSecretKey",
         "hcaptchaSiteKey", "hcaptchaSecretKey",
+        "fileUploadEnabled", "fileStorageRouteRules", "fileDefaultPolicyId",
+        "cloudImportEnabled", "dropboxAppKey",
         "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",

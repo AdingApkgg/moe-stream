@@ -266,6 +266,15 @@ export default function StoragePoliciesPage() {
               }
             />
           </div>
+          <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
+            <span className="text-sm text-muted-foreground">网盘导入</span>
+            <Switch
+              checked={siteConfig?.cloudImportEnabled ?? false}
+              onCheckedChange={(enabled) =>
+                updateConfigMutation.mutate({ cloudImportEnabled: enabled })
+              }
+            />
+          </div>
           <Button onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 mr-2" />
             新建策略
