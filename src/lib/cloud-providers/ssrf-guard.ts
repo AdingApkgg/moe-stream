@@ -34,3 +34,34 @@ export function isUrlSafe(parsed: URL): boolean {
 
   return true;
 }
+
+const MAX_REDIRECTS = 10;
+
+/**
+ * SSRF-safe fetch that validates every redirect target before following it.
+ * Uses `redirect: "manual"` and re-checks each Location header with isUrlSafe.
+ */
+export async function safeFetch(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  let currentUrl = url;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    const parsed = new URL(currentUrl);
+    if (!isUrlSafe(parsed)) {
+      throw new Error("该 URL 不允许访问（内部地址）");
+    }
+
+    const resp = await fetch(currentUrl, { ...init, redirect: "manual" });
+
+    if (resp.status >= 300 && resp.status < 400) {
+      const location = resp.headers.get("location");
+      if (!location) throw new Error("重定向缺少 Location 头");
+      currentUrl = new URL(location, currentUrl).href;
+      continue;
+    }
+
+    return resp;
+  }
+  throw new Error("重定向次数过多");
+}

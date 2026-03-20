@@ -277,15 +277,6 @@ export function FileUploader({
           const result = await uploadFile(item);
           if (!result) continue; // paused or aborted
 
-          const isFlash = item.status === "checking" || !item.fileId;
-          updateItem(item.id, {
-            status: "completed",
-            progress: 100,
-            result,
-            isFlashUpload: isFlash,
-          });
-
-          // Re-check for flash: if checkHash returned found, the item never got fileId set
           setItems((prev) =>
             prev.map((it) =>
               it.id === item.id
@@ -327,17 +318,18 @@ export function FileUploader({
 
       updateItem(itemId, { status: "uploading" });
 
-      // For now, restart the upload — a full resume would query getUploadProgress
-      // and skip already completed chunks. This simplified version re-uploads.
       try {
         const result = await uploadFile(item);
         if (result) {
-          updateItem(itemId, {
-            status: "completed",
-            progress: 100,
-            result,
-          });
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === itemId
+                ? { ...it, status: "completed", progress: 100, result, isFlashUpload: !it.fileId }
+                : it,
+            ),
+          );
           onFileUploaded?.(result);
+          onAllComplete?.([result]);
         }
       } catch (err) {
         updateItem(itemId, {
@@ -346,7 +338,7 @@ export function FileUploader({
         });
       }
     },
-    [items, uploadFile, updateItem, onFileUploaded],
+    [items, uploadFile, updateItem, onFileUploaded, onAllComplete],
   );
 
   const handleDrop = useCallback(

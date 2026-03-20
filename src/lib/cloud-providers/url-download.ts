@@ -1,5 +1,5 @@
 import type { CloudProvider, CloudFileInfo, DownloadResult } from "./index";
-import { isUrlSafe } from "./ssrf-guard";
+import { isUrlSafe, safeFetch } from "./ssrf-guard";
 
 export class UrlDownloadProvider implements CloudProvider {
   id = "url";
@@ -18,7 +18,7 @@ export class UrlDownloadProvider implements CloudProvider {
       let size: number | undefined;
       let mimeType: string | undefined;
       try {
-        const head = await fetch(url, { method: "HEAD", redirect: "follow" });
+        const head = await safeFetch(url, { method: "HEAD" });
         if (head.ok) {
           const cl = head.headers.get("content-length");
           if (cl) size = parseInt(cl, 10);
@@ -43,15 +43,7 @@ export class UrlDownloadProvider implements CloudProvider {
     const url = fileInfo.downloadUrl;
     if (!url) throw new Error("缺少下载链接");
 
-    try {
-      const parsed = new URL(url);
-      if (!isUrlSafe(parsed)) throw new Error("该 URL 不允许访问（内部地址）");
-    } catch (e) {
-      if (e instanceof Error && e.message.includes("不允许")) throw e;
-      throw new Error("无效的 URL");
-    }
-
-    const resp = await fetch(url, { redirect: "follow" });
+    const resp = await safeFetch(url);
     if (!resp.ok) throw new Error(`下载失败: ${resp.status}`);
     if (!resp.body) throw new Error("响应体为空");
 

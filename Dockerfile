@@ -1,5 +1,5 @@
 # ============================================================
-# 多阶段构建
+# 多阶段构建（优化版）
 # ============================================================
 
 # ---------- 基础镜像 ----------
@@ -7,11 +7,11 @@ FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
-# ---------- 依赖安装 ----------
+# ---------- 依赖安装（与 prisma schema 解耦）----------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
-COPY prisma ./prisma/
-RUN pnpm install --frozen-lockfile --prod=false
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod=false
 
 # ---------- 构建 ----------
 FROM base AS builder
@@ -19,12 +19,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV REDIS_URL="redis://localhost:6379"
-RUN pnpm build
+RUN --mount=type=cache,id=nextjs-cache,target=/app/.next/cache \
+    pnpm build
 
 # ---------- 生产依赖（仅 Socket 服务需要）----------
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --prod
 
 # ---------- Next.js 运行（standalone 模式）----------
 FROM node:22-alpine AS runner
@@ -40,7 +42,6 @@ RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/m
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# standalone 输出已内联精简后的 node_modules，无需单独安装
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
