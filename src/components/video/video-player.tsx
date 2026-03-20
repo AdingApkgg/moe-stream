@@ -163,12 +163,32 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
           controls
           autoPlay={autoStart}
         />
-        {/* 封面图作为加载占位，视频就绪后隐藏 */}
-        {poster && !isReady && (
-          <div 
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-300"
-            style={{ backgroundImage: `url(${poster})` }}
-          />
+        {/* 封面图 + 加载指示器，视频就绪后隐藏 */}
+        {!isReady && (
+          <div className="absolute inset-0 transition-opacity duration-300">
+            {poster && (
+              <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${poster})` }}
+              />
+            )}
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div className="relative">
+                {/* 旋转的加载环 */}
+                <div className="w-16 h-16 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+                {/* 中央播放图标 */}
+                <svg 
+                  className="absolute inset-0 m-auto w-6 h-6 text-white drop-shadow-lg" 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <span className="text-sm text-white/80 font-medium">视频加载中...</span>
+            </div>
+          </div>
         )}
       </div>
     );
