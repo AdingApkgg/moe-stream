@@ -54,7 +54,8 @@ export async function safeFetch(
 
     const resp = await fetch(currentUrl, { ...init, redirect: "manual" });
 
-    if (resp.status >= 300 && resp.status < 400) {
+    const REDIRECT_CODES = new Set([301, 302, 303, 307, 308]);
+    if (REDIRECT_CODES.has(resp.status)) {
       const location = resp.headers.get("location");
       if (!location) throw new Error("重定向缺少 Location 头");
       currentUrl = new URL(location, currentUrl).href;
