@@ -15,7 +15,7 @@ export async function GET(
   const { provider } = await params;
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // userId
+  const state = searchParams.get("state"); // nonce
   const error = searchParams.get("error");
 
   if (error) {
@@ -25,7 +25,13 @@ export async function GET(
     return redirectWithMessage("缺少授权参数");
   }
 
-  const userId = state;
+  // Verify the CSRF nonce and recover the userId.
+  // The nonce is consumed (deleted) to prevent replay.
+  const userId = await redis.get(`cloud:oauth_nonce:${state}`);
+  if (!userId) {
+    return redirectWithMessage("授权已过期或无效，请重新发起授权");
+  }
+  await redis.del(`cloud:oauth_nonce:${state}`);
 
   try {
     const config = await prisma.siteConfig.findUnique({

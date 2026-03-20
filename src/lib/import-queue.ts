@@ -48,13 +48,11 @@ async function processTask(taskId: string): Promise<boolean> {
   try {
     const provider = getProvider(task.provider as CloudProviderType);
 
-    // Get access token from Redis (stored during OAuth flow)
+    // Try to get access token from Redis (stored during OAuth flow).
+    // If not available, providers will fallback to public share link download.
     let accessToken: string | undefined;
     if (task.provider !== "url" && task.provider !== "dropbox") {
       accessToken = await redis.get(`cloud:token:${task.userId}:${task.provider}`) ?? undefined;
-      if (!accessToken) {
-        throw new Error(`${provider.name} 授权已过期，请重新授权`);
-      }
     }
 
     const fileInfo = {
@@ -95,6 +93,7 @@ async function processTask(taskId: string): Promise<boolean> {
     let downloadedBytes = 0;
     let lastProgressUpdate = 0;
 
+    let cancelled = false;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -102,9 +101,19 @@ async function processTask(taskId: string): Promise<boolean> {
       chunks.push(value);
       downloadedBytes += value.length;
 
-      // Throttle progress updates to every 500ms
       const now = Date.now();
       if (now - lastProgressUpdate > 500) {
+        // Re-check cancellation during download
+        const current = await prisma.importTask.findUnique({
+          where: { id: taskId },
+          select: { status: true },
+        });
+        if (current?.status === "CANCELLED") {
+          cancelled = true;
+          reader.cancel();
+          break;
+        }
+
         const progress = totalSize > 0 ? Math.min(95, Math.round((downloadedBytes / totalSize) * 100)) : 0;
         await prisma.importTask.update({
           where: { id: taskId },
@@ -112,6 +121,29 @@ async function processTask(taskId: string): Promise<boolean> {
         });
         lastProgressUpdate = now;
       }
+    }
+
+    if (cancelled) {
+      await prisma.userFile.update({
+        where: { id: userFile.id },
+        data: { status: "FAILED" },
+      });
+      log(`已取消: ${taskId}`);
+      return true;
+    }
+
+    // Final cancellation check before writing to storage
+    const preWriteCheck = await prisma.importTask.findUnique({
+      where: { id: taskId },
+      select: { status: true },
+    });
+    if (preWriteCheck?.status === "CANCELLED") {
+      await prisma.userFile.update({
+        where: { id: userFile.id },
+        data: { status: "FAILED" },
+      });
+      log(`已取消: ${taskId}`);
+      return true;
     }
 
     const fullBuffer = Buffer.concat(chunks);
@@ -143,8 +175,33 @@ async function processTask(taskId: string): Promise<boolean> {
             return getPublicUrl(policyToStorageConfig(policy), storageKey);
           })();
 
-    // Finalize
+    // Finalize — use conditional update so a concurrent CANCELLED status is not overwritten
     const actualSize = BigInt(fullBuffer.length);
+    const finalCheck = await prisma.importTask.findUnique({
+      where: { id: taskId },
+      select: { status: true },
+    });
+    if (finalCheck?.status === "CANCELLED") {
+      // Task was cancelled while we were writing; clean up the stored file
+      try {
+        if (policy.provider === "local") {
+          const { unlink } = await import("fs/promises");
+          const { join } = await import("path");
+          const uploadDir = policy.uploadDir || "./uploads";
+          await unlink(join(uploadDir, storageKey)).catch(() => {});
+        } else {
+          const { deleteFromS3 } = await import("@/lib/s3-client");
+          await deleteFromS3(policyToStorageConfig(policy), storageKey);
+        }
+      } catch { /* best-effort cleanup */ }
+      await prisma.userFile.update({
+        where: { id: userFile.id },
+        data: { status: "FAILED" },
+      });
+      log(`已取消: ${taskId} (写入后清理)`);
+      return true;
+    }
+
     await prisma.$transaction([
       prisma.userFile.update({
         where: { id: userFile.id },

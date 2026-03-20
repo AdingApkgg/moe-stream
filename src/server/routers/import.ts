@@ -174,6 +174,11 @@ export const importRouter = router({
       const siteUrl = config.siteUrl || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       const redirectUri = `${siteUrl}/api/cloud-auth/${input.provider}/callback`;
 
+      // Generate a CSRF nonce and store it in Redis bound to the userId.
+      // The callback will verify the nonce instead of trusting a raw userId in state.
+      const nonce = crypto.randomUUID();
+      await redis.set(`cloud:oauth_nonce:${nonce}`, ctx.session.user.id, "EX", 600);
+
       if (input.provider === "google") {
         const clientId = config.oauthGoogleClientId;
         if (!clientId) throw new TRPCError({ code: "BAD_REQUEST", message: "Google OAuth 未配置" });
@@ -185,7 +190,7 @@ export const importRouter = router({
         url.searchParams.set("response_type", "code");
         url.searchParams.set("scope", scope);
         url.searchParams.set("access_type", "offline");
-        url.searchParams.set("state", ctx.session.user.id);
+        url.searchParams.set("state", nonce);
         return { url: url.toString() };
       }
 
@@ -199,7 +204,7 @@ export const importRouter = router({
         url.searchParams.set("redirect_uri", redirectUri);
         url.searchParams.set("response_type", "code");
         url.searchParams.set("scope", scope);
-        url.searchParams.set("state", ctx.session.user.id);
+        url.searchParams.set("state", nonce);
         return { url: url.toString() };
       }
 

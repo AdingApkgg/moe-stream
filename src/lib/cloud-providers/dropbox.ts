@@ -9,8 +9,7 @@ export class DropboxProvider implements CloudProvider {
   async parseShareUrl(url: string): Promise<CloudFileInfo | null> {
     if (!DROPBOX_REGEX.test(url)) return null;
 
-    // Convert share URL to direct download by replacing dl=0 with dl=1
-    let downloadUrl = url.replace(/[?&]dl=0/, "?dl=1");
+    let downloadUrl = url.replace(/([?&])dl=0/, "$1dl=1");
     if (!downloadUrl.includes("dl=1")) {
       downloadUrl += (downloadUrl.includes("?") ? "&" : "?") + "dl=1";
     }

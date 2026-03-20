@@ -184,58 +184,58 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
 
           {/* Google Drive */}
           <TabsContent value="google" className="mt-4 space-y-3">
-            <div className="flex flex-col items-center gap-3 py-4">
-              <p className="text-sm text-muted-foreground text-center">
-                授权后可选择 Google Drive 中的文件导入
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => handleOAuth("google")}
-                disabled={getOAuthUrlMutation.isPending}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                授权 Google Drive
-              </Button>
-            </div>
             <div className="flex gap-2">
               <Input
-                placeholder="或粘贴 Google Drive 分享链接..."
+                placeholder="粘贴 Google Drive 分享链接..."
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleImportUrl()}
               />
-              <Button onClick={handleImportUrl} disabled={parsing || !urlInput.trim()} size="sm">
-                导入
+              <Button onClick={handleImportUrl} disabled={parsing || !urlInput.trim()}>
+                {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              公开分享的文件可直接导入。私有文件需先授权：
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => handleOAuth("google")}
+              disabled={getOAuthUrlMutation.isPending}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              授权 Google 账号（可选）
+            </Button>
           </TabsContent>
 
           {/* OneDrive */}
           <TabsContent value="onedrive" className="mt-4 space-y-3">
-            <div className="flex flex-col items-center gap-3 py-4">
-              <p className="text-sm text-muted-foreground text-center">
-                授权后可选择 OneDrive 中的文件导入
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => handleOAuth("onedrive")}
-                disabled={getOAuthUrlMutation.isPending}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                授权 OneDrive
-              </Button>
-            </div>
             <div className="flex gap-2">
               <Input
-                placeholder="或粘贴 OneDrive 分享链接..."
+                placeholder="粘贴 OneDrive 分享链接..."
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleImportUrl()}
               />
-              <Button onClick={handleImportUrl} disabled={parsing || !urlInput.trim()} size="sm">
-                导入
+              <Button onClick={handleImportUrl} disabled={parsing || !urlInput.trim()}>
+                {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              公开分享的文件可直接导入。私有文件需先授权：
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => handleOAuth("onedrive")}
+              disabled={getOAuthUrlMutation.isPending}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              授权 Microsoft 账号（可选）
+            </Button>
           </TabsContent>
 
           {/* Dropbox */}
