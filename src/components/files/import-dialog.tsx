@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Cloud,
@@ -44,7 +43,6 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
   const [urlInput, setUrlInput] = useState("");
   const [parsing, setParsing] = useState(false);
 
-  const utils = trpc.useUtils();
   const parseUrlMutation = trpc.import.parseUrl.useMutation();
   const createTaskMutation = trpc.import.createTask.useMutation();
   const getOAuthUrlMutation = trpc.import.getOAuthUrl.useMutation();

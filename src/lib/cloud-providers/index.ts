@@ -32,15 +32,23 @@ export { UrlDownloadProvider } from "./url-download";
 
 export type CloudProviderType = "google" | "onedrive" | "dropbox" | "url";
 
-export function getProvider(type: CloudProviderType): CloudProvider {
+export async function getProvider(type: CloudProviderType): Promise<CloudProvider> {
   switch (type) {
-    case "google":
-      return new (require("./google-drive").GoogleDriveProvider)();
-    case "onedrive":
-      return new (require("./onedrive").OneDriveProvider)();
-    case "dropbox":
-      return new (require("./dropbox").DropboxProvider)();
-    case "url":
-      return new (require("./url-download").UrlDownloadProvider)();
+    case "google": {
+      const { GoogleDriveProvider } = await import("./google-drive");
+      return new GoogleDriveProvider();
+    }
+    case "onedrive": {
+      const { OneDriveProvider } = await import("./onedrive");
+      return new OneDriveProvider();
+    }
+    case "dropbox": {
+      const { DropboxProvider } = await import("./dropbox");
+      return new DropboxProvider();
+    }
+    case "url": {
+      const { UrlDownloadProvider } = await import("./url-download");
+      return new UrlDownloadProvider();
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
-import { join, dirname } from "path";
+import { join } from "path";
 import { existsSync } from "fs";
 import { prisma } from "@/lib/prisma";
 

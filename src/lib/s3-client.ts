@@ -308,6 +308,32 @@ export async function abortMultipartUpload(
   client.destroy();
 }
 
+/** Server-side upload of a single part (for background import streaming). */
+export async function uploadPart(
+  config: StorageConfig,
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  body: Buffer | Uint8Array,
+): Promise<string> {
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+
+  const resp = await client.send(
+    new UploadPartCommand({
+      Bucket: config.bucket!,
+      Key: fullKey,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+      Body: body,
+    }),
+  );
+  client.destroy();
+
+  if (!resp.ETag) throw new Error(`UploadPart ${partNumber} returned no ETag`);
+  return resp.ETag;
+}
+
 /** Build the public-facing URL for a stored object */
 export function getPublicUrl(config: StorageConfig, key: string): string {
   const fullKey = resolveKey(config, key);

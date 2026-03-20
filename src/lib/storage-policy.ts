@@ -228,12 +228,9 @@ export async function completeUpload(opts: {
   let verifiedSize = file.size;
 
   if (policy.provider === "local") {
-    const { readdir, stat, createWriteStream } = await import("fs/promises").then(
-      (m) => ({ readdir: m.readdir, stat: m.stat, createWriteStream: null }),
-    );
+    const { stat, mkdir, rm } = await import("fs/promises");
     const fs = await import("fs");
     const { join, dirname } = await import("path");
-    const { mkdir, unlink, rm } = await import("fs/promises");
 
     const uploadDir = policy.uploadDir || "./uploads";
     const chunkDir = join(uploadDir, ".chunks", file.id);

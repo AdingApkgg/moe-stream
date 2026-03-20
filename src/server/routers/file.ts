@@ -5,10 +5,7 @@ import {
   initUpload,
   completeUpload,
   deleteUserFile,
-  resolvePolicy,
-  generateStorageKey,
   policyToStorageConfig,
-  PART_SIZE,
 } from "@/lib/storage-policy";
 import {
   getPresignedPartUrls as s3PresignedParts,
@@ -57,28 +54,28 @@ export const fileRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "存储空间不足" });
       }
 
-      // Create a new UserFile referencing the same storage object
-      const newFile = await ctx.prisma.userFile.create({
-        data: {
-          userId: ctx.session.user.id,
-          storagePolicyId: existing.storagePolicyId,
-          filename: input.filename,
-          storageKey: existing.storageKey,
-          url: existing.url,
-          mimeType: input.mimeType,
-          size: existing.size,
-          hash: input.hash,
-          contentType: input.contentType || null,
-          contentId: input.contentId || null,
-          status: "UPLOADED",
-          uploadedAt: new Date(),
-        },
-      });
-
-      await ctx.prisma.user.update({
-        where: { id: ctx.session.user.id },
-        data: { storageUsed: { increment: existing.size } },
-      });
+      const [newFile] = await ctx.prisma.$transaction([
+        ctx.prisma.userFile.create({
+          data: {
+            userId: ctx.session.user.id,
+            storagePolicyId: existing.storagePolicyId,
+            filename: input.filename,
+            storageKey: existing.storageKey,
+            url: existing.url,
+            mimeType: input.mimeType,
+            size: existing.size,
+            hash: input.hash,
+            contentType: input.contentType || null,
+            contentId: input.contentId || null,
+            status: "UPLOADED",
+            uploadedAt: new Date(),
+          },
+        }),
+        ctx.prisma.user.update({
+          where: { id: ctx.session.user.id },
+          data: { storageUsed: { increment: existing.size } },
+        }),
+      ]);
 
       return {
         found: true as const,

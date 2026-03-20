@@ -24,7 +24,6 @@ export class DropboxProvider implements CloudProvider {
 
   async downloadStream(
     fileInfo: CloudFileInfo,
-    _accessToken?: string,
   ): Promise<DownloadResult> {
     const url = fileInfo.downloadUrl;
     if (!url) throw new Error("缺少下载链接");

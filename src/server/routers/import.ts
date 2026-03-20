@@ -3,6 +3,7 @@ import { router, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { enqueueImport } from "@/lib/import-queue";
 import { getProvider, type CloudProviderType } from "@/lib/cloud-providers";
+import { isUrlSafe } from "@/lib/cloud-providers/ssrf-guard";
 import { redis } from "@/lib/redis";
 
 const CLOUD_PROVIDERS = ["google", "onedrive", "dropbox", "url"] as const;
@@ -30,6 +31,20 @@ export const importRouter = router({
       }
       if (!siteConfig?.fileUploadEnabled) {
         throw new TRPCError({ code: "FORBIDDEN", message: "文件上传功能未启用" });
+      }
+
+      // SSRF guard: block internal/private URLs
+      try {
+        const parsed = new URL(input.sourceUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "仅支持 HTTP/HTTPS 链接" });
+        }
+        if (!isUrlSafe(parsed)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "不允许访问内部网络地址" });
+        }
+      } catch (e) {
+        if (e instanceof TRPCError) throw e;
+        throw new TRPCError({ code: "BAD_REQUEST", message: "无效的 URL" });
       }
 
       // Check storage quota
@@ -81,7 +96,7 @@ export const importRouter = router({
     .mutation(async ({ input }) => {
       for (const providerType of CLOUD_PROVIDERS) {
         try {
-          const provider = getProvider(providerType as CloudProviderType);
+          const provider = await getProvider(providerType as CloudProviderType);
           const info = await provider.parseShareUrl(input.url);
           if (info) {
             return {
