@@ -160,11 +160,16 @@ const configFormSchema = z.object({
   hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
   // SMTP 邮件
+  mailSendMode: z.enum(["smtp", "http_api"]).catch("smtp"),
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
   smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpPassword: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+  mailApiUrl: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  mailApiKey: z.string().max(1000).optional().nullable().or(z.literal("")),
+  mailApiFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+  mailApiHeaders: z.string().max(10000).optional().nullable().or(z.literal("")),
 
   // 上传目录
   uploadDir: z.string().max(500).optional(),
@@ -243,6 +248,59 @@ const configFormSchema = z.object({
 });
 
 type ConfigFormValues = z.infer<typeof configFormSchema>;
+
+function TestEmailButton() {
+  const [email, setEmail] = useState("");
+  const [open, setOpen] = useState(false);
+  const sendTest = trpc.admin.sendTestEmail.useMutation({
+    onSuccess: () => {
+      toast.success("测试邮件已发送，请检查收件箱");
+      setOpen(false);
+      setEmail("");
+    },
+    onError: (err: { message: string }) => {
+      toast.error(err.message);
+    },
+  });
+
+  return (
+    <>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <Send className="h-4 w-4 mr-2" />
+        发送测试邮件
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>发送测试邮件</AlertDialogTitle>
+            <AlertDialogDescription>
+              请先保存配置，然后输入收件人邮箱发送一封测试邮件来验证配置是否正确。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            type="email"
+            placeholder="收件人邮箱"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!email.includes("@") || sendTest.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                sendTest.mutate({ to: email });
+              }}
+            >
+              {sendTest.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              发送
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
 
 function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animations }: {
   hue: number;
@@ -562,11 +620,16 @@ export default function AdminSettingsPage() {
       recaptchaSecretKey: "",
       hcaptchaSiteKey: "",
       hcaptchaSecretKey: "",
+      mailSendMode: "smtp",
       smtpHost: "",
       smtpPort: 465,
       smtpUser: "",
       smtpPassword: "",
       smtpFrom: "",
+      mailApiUrl: "",
+      mailApiKey: "",
+      mailApiFrom: "",
+      mailApiHeaders: "",
       uploadDir: "./uploads",
       indexNowKey: "",
       googleServiceAccountEmail: "",
@@ -670,11 +733,16 @@ export default function AdminSettingsPage() {
         recaptchaSecretKey: ((config as Record<string, unknown>).recaptchaSecretKey as string) || "",
         hcaptchaSiteKey: ((config as Record<string, unknown>).hcaptchaSiteKey as string) || "",
         hcaptchaSecretKey: ((config as Record<string, unknown>).hcaptchaSecretKey as string) || "",
+        mailSendMode: validEnum((config as Record<string, unknown>).mailSendMode, ["smtp", "http_api"] as const, "smtp"),
         smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
         smtpPort: ((config as Record<string, unknown>).smtpPort as number) ?? 465,
         smtpUser: ((config as Record<string, unknown>).smtpUser as string) || "",
         smtpPassword: ((config as Record<string, unknown>).smtpPassword as string) || "",
         smtpFrom: ((config as Record<string, unknown>).smtpFrom as string) || "",
+        mailApiUrl: ((config as Record<string, unknown>).mailApiUrl as string) || "",
+        mailApiKey: ((config as Record<string, unknown>).mailApiKey as string) || "",
+        mailApiFrom: ((config as Record<string, unknown>).mailApiFrom as string) || "",
+        mailApiHeaders: ((config as Record<string, unknown>).mailApiHeaders as string) || "",
         uploadDir: ((config as Record<string, unknown>).uploadDir as string) || "./uploads",
         indexNowKey: ((config as Record<string, unknown>).indexNowKey as string) || "",
         googleServiceAccountEmail: ((config as Record<string, unknown>).googleServiceAccountEmail as string) || "",
@@ -2368,91 +2436,186 @@ export default function AdminSettingsPage() {
                     邮件配置
                   </CardTitle>
                   <CardDescription>
-                    配置 SMTP 邮件服务，用于发送验证码、通知等邮件。所有字段填写完整后邮件功能自动启用。
+                    支持 SMTP 与 HTTP API 两种发送方式，用于验证码、通知等邮件发送。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="smtpHost"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP 主机</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="smtp.example.com" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="smtpPort"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP 端口</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={65535}
-                              value={field.value ?? 465}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
-                            />
-                          </FormControl>
-                          <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="smtpUser"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP 用户名</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="user@example.com" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="smtpPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP 密码</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
                   <FormField
                     control={form.control}
-                    name="smtpFrom"
+                    name="mailSendMode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>发件人地址</FormLabel>
+                        <FormLabel>发送方式</FormLabel>
                         <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择邮件发送方式" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="smtp">SMTP</SelectItem>
+                              <SelectItem value="http_api">HTTP API</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </FormControl>
-                        <FormDescription>发件人邮箱地址</FormDescription>
+                        <FormDescription>
+                          选择 SMTP 直连邮箱服务，或通过 HTTP API 网关发送邮件。
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {form.watch("mailSendMode") === "smtp" ? (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="smtpHost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP 主机</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="smtp.example.com" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="smtpPort"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP 端口</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={65535}
+                                  value={field.value ?? 465}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
+                                />
+                              </FormControl>
+                              <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="smtpUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP 用户名</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="user@example.com" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="smtpPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SMTP 密码</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="smtpFrom"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>发件人地址</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                            </FormControl>
+                            <FormDescription>发件人邮箱地址</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="mailApiUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>HTTP API 地址</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="https://api.example.com/send-email" />
+                            </FormControl>
+                            <FormDescription>将以 POST JSON 方式调用该接口发送邮件</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="mailApiFrom"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>发件人地址</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                              </FormControl>
+                              <FormDescription>用于构造 From 字段</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="mailApiKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>API Key（可选）</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="sk-xxxxxx" />
+                              </FormControl>
+                              <FormDescription>未配置 Authorization 时将自动使用 Bearer</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="mailApiHeaders"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>自定义请求头（JSON，可选）</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                value={field.value || ""}
+                                rows={4}
+                                placeholder={'{"X-API-KEY":"your-key","Authorization":"Bearer xxx"}'}
+                              />
+                            </FormControl>
+                            <FormDescription>仅支持 JSON 对象，值需为字符串</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
 
                   <div className="pt-4 border-t">
                     <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -2475,14 +2638,17 @@ export default function AdminSettingsPage() {
                     />
                   </div>
 
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                    <TestEmailButton />
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

@@ -4,6 +4,7 @@ import Handlebars from "handlebars";
 import { prisma } from "./prisma";
 import { nanoid } from "nanoid";
 import { getServerConfig } from "./server-config";
+import { safeFetch } from "./cloud-providers/ssrf-guard";
 
 async function createTransporter(): Promise<{ transporter: Transporter; from: string } | null> {
   const config = await getServerConfig();
@@ -18,6 +19,56 @@ async function createTransporter(): Promise<{ transporter: Transporter; from: st
     }),
     from,
   };
+}
+
+export async function sendMail(
+  to: string,
+  subject: string,
+  html: string,
+  siteName: string
+): Promise<void> {
+  const config = await getServerConfig();
+
+  if (config.mailSendMode === "http_api" && config.httpEmailApi) {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...config.httpEmailApi.headers,
+    };
+
+    const hasAuthorization = Object.keys(headers).some((k) => k.toLowerCase() === "authorization");
+    if (config.httpEmailApi.key && !hasAuthorization) {
+      headers.Authorization = `Bearer ${config.httpEmailApi.key}`;
+    }
+
+    const resp = await safeFetch(config.httpEmailApi.url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        from: `"${siteName}" <${config.httpEmailApi.from}>`,
+        to,
+        subject,
+        html,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = (await resp.text()).slice(0, 300);
+      throw new Error(`HTTP API 邮件发送失败: ${resp.status} ${text}`);
+    }
+    return;
+  }
+
+  const mail = await createTransporter();
+  if (!mail) {
+    throw new Error("邮件服务未配置");
+  }
+
+  await mail.transporter.sendMail({
+    from: `"${siteName}" <${mail.from}>`,
+    to,
+    subject,
+    html,
+  });
 }
 
 // 邮件模板
@@ -148,21 +199,14 @@ export async function sendVerificationCode(
       year: new Date().getFullYear(),
     });
 
-    const mail = await createTransporter();
-    if (!mail) {
-      return { success: false, message: "邮件服务未配置，请在后台设置 SMTP" };
-    }
-
-    await mail.transporter.sendMail({
-      from: `"${siteName}" <${mail.from}>`,
-      to: email,
-      subject: `【${siteName}】${config.title} - 验证码: ${code}`,
-      html,
-    });
+    await sendMail(email, `【${siteName}】${config.title} - 验证码: ${code}`, html, siteName);
 
     return { success: true, message: "验证码已发送" };
   } catch (error) {
     console.error("Send verification code error:", error);
+    if (error instanceof Error && error.message.includes("邮件服务未配置")) {
+      return { success: false, message: "邮件服务未配置，请在后台设置 SMTP 或 HTTP API" };
+    }
     return { success: false, message: "发送验证码失败，请稍后重试" };
   }
 }
@@ -230,15 +274,5 @@ export async function send2faOtpEmail(email: string, otp: string): Promise<void>
     year: new Date().getFullYear(),
   });
 
-  const mail = await createTransporter();
-  if (!mail) {
-    throw new Error("邮件服务未配置");
-  }
-
-  await mail.transporter.sendMail({
-    from: `"${siteName}" <${mail.from}>`,
-    to: email,
-    subject: `【${siteName}】两步验证 - 验证码: ${otp}`,
-    html,
-  });
+  await sendMail(email, `【${siteName}】两步验证 - 验证码: ${otp}`, html, siteName);
 }

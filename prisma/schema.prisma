@@ -1108,6 +1108,11 @@ model SiteConfig {
   smtpUser        String?
   smtpPassword    String?
   smtpFrom        String?
+  mailSendMode    String   @default("smtp") // smtp | http_api
+  mailApiUrl      String?
+  mailApiKey      String?
+  mailApiFrom     String?
+  mailApiHeaders  String?  @db.Text // JSON headers
 
   // 上传目录
   uploadDir       String   @default("./uploads")

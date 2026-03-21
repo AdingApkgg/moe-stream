@@ -10,11 +10,20 @@ export interface SmtpConfig {
   from: string;
 }
 
+export interface HttpEmailApiConfig {
+  url: string;
+  key: string | null;
+  from: string;
+  headers: Record<string, string>;
+}
+
 export interface ServerConfig {
   siteUrl: string;
   siteName: string;
   uploadDir: string;
+  mailSendMode: "smtp" | "http_api";
   smtp: SmtpConfig | null;
+  httpEmailApi: HttpEmailApiConfig | null;
   indexNowKey: string | null;
   googleServiceAccountEmail: string | null;
   googlePrivateKey: string | null;
@@ -32,6 +41,11 @@ const selectFields = {
   smtpUser: true,
   smtpPassword: true,
   smtpFrom: true,
+  mailSendMode: true,
+  mailApiUrl: true,
+  mailApiKey: true,
+  mailApiFrom: true,
+  mailApiHeaders: true,
   indexNowKey: true,
   googleServiceAccountEmail: true,
   googlePrivateKey: true,
@@ -44,7 +58,9 @@ const defaultConfig: ServerConfig = {
   siteUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   siteName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
   uploadDir: process.env.UPLOAD_DIR || "./uploads",
+  mailSendMode: "smtp",
   smtp: null,
+  httpEmailApi: null,
   indexNowKey: null,
   googleServiceAccountEmail: null,
   googlePrivateKey: null,
@@ -52,6 +68,22 @@ const defaultConfig: ServerConfig = {
   recaptchaSecretKey: null,
   hcaptchaSecretKey: null,
 };
+
+function parseHttpHeaders(raw: unknown): Record<string, string> {
+  if (typeof raw !== "string" || raw.trim() === "") return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter(([k, v]) => typeof k === "string" && typeof v === "string")
+        .map(([k, v]) => [k.trim(), v.trim()])
+        .filter(([k, v]) => k.length > 0 && v.length > 0)
+    );
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Server-side config from SiteConfig DB (Redis cached 5min + React cache per-request).
@@ -81,6 +113,11 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
         const smtpPassword = row.smtpPassword as string | null;
         const smtpFrom = row.smtpFrom as string | null;
         const hasSmtp = !!(smtpHost && smtpUser && smtpPassword && smtpFrom);
+        const mailApiUrl = row.mailApiUrl as string | null;
+        const mailApiFrom = row.mailApiFrom as string | null;
+        const mailApiKey = row.mailApiKey as string | null;
+        const hasHttpApi = !!(mailApiUrl && mailApiFrom);
+        const mailSendMode = (row.mailSendMode as string) === "http_api" ? "http_api" : "smtp";
 
         return {
           siteUrl:
@@ -95,6 +132,7 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
             (row.uploadDir as string) ||
             process.env.UPLOAD_DIR ||
             "./uploads",
+          mailSendMode,
           smtp: hasSmtp
             ? {
                 host: smtpHost!,
@@ -102,6 +140,14 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
                 user: smtpUser!,
                 password: smtpPassword!,
                 from: smtpFrom!,
+              }
+            : null,
+          httpEmailApi: hasHttpApi
+            ? {
+                url: mailApiUrl!,
+                key: mailApiKey || null,
+                from: mailApiFrom!,
+                headers: parseHttpHeaders(row.mailApiHeaders),
               }
             : null,
           indexNowKey: (row.indexNowKey as string) || null,

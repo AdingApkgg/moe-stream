@@ -148,11 +148,16 @@ export const adminConfigRouter = router({
       storagePathPrefix: z.string().max(200).optional().nullable().or(z.literal("")),
 
       // SMTP 邮件
+      mailSendMode: z.enum(["smtp", "http_api"]).optional(),
       smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
       smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
       smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
       smtpPassword: z.string().max(500).optional().nullable().or(z.literal("")),
       smtpFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+      mailApiUrl: z.string().url().optional().nullable().or(z.literal("")),
+      mailApiKey: z.string().max(1000).optional().nullable().or(z.literal("")),
+      mailApiFrom: z.string().max(500).optional().nullable().or(z.literal("")),
+      mailApiHeaders: z.string().max(10000).optional().nullable().or(z.literal("")),
 
       // 上传目录
       uploadDir: z.string().max(500).optional(),
@@ -262,7 +267,8 @@ export const adminConfigRouter = router({
         "hcaptchaSiteKey", "hcaptchaSecretKey",
         "fileUploadEnabled", "fileStorageRouteRules", "fileDefaultPolicyId",
         "cloudImportEnabled", "dropboxAppKey",
-        "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "mailSendMode", "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "mailApiUrl", "mailApiKey", "mailApiFrom", "mailApiHeaders",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
@@ -356,6 +362,54 @@ export const adminConfigRouter = router({
       return config;
     }),
 
+  // ==================== 测试邮件 ====================
+
+  sendTestEmail: adminProcedure
+    .use(requireScope("settings:manage"))
+    .input(z.object({ to: z.string().email() }))
+    .mutation(async ({ input }) => {
+      const { getServerConfig } = await import("@/lib/server-config");
+      const config = await getServerConfig();
+
+      const mode = config.mailSendMode;
+      if (mode === "smtp" && !config.smtp) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "SMTP 未配置完整" });
+      }
+      if (mode === "http_api" && !config.httpEmailApi) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "HTTP API 未配置完整" });
+      }
+
+      const { sendMail } = await import("@/lib/email");
+      const siteName = config.siteName;
+      const html = `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f5;">
+<table role="presentation" style="width:100%;border-collapse:collapse;">
+<tr><td align="center" style="padding:40px 0;">
+<table role="presentation" style="width:100%;max-width:600px;border-collapse:collapse;background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);">
+<tr><td style="padding:40px 40px 20px;text-align:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:12px 12px 0 0;">
+<h1 style="margin:0;color:#fff;font-size:28px;font-weight:600;">${siteName}</h1>
+</td></tr>
+<tr><td style="padding:40px;">
+<h2 style="margin:0 0 20px;color:#18181b;font-size:24px;">邮件配置测试</h2>
+<p style="color:#52525b;font-size:16px;line-height:1.6;">
+如果您收到了这封邮件，说明邮件发送功能（${mode === "http_api" ? "HTTP API" : "SMTP"}）配置正确，一切正常运作。
+</p>
+</td></tr>
+<tr><td style="padding:20px 40px 40px;text-align:center;border-top:1px solid #e4e4e7;">
+<p style="margin:0;color:#a1a1aa;font-size:12px;">此邮件由系统自动发送，请勿直接回复。</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+      await sendMail(input.to, `【${siteName}】邮件配置测试`, html, siteName);
+      return { success: true };
+    }),
+
   // ==================== 配置备份与还原 ====================
 
   exportSiteConfig: adminProcedure.use(requireScope("settings:manage")).query(async ({ ctx }) => {
@@ -407,7 +461,8 @@ export const adminConfigRouter = router({
         "hcaptchaSiteKey", "hcaptchaSecretKey",
         "fileUploadEnabled", "fileStorageRouteRules", "fileDefaultPolicyId",
         "cloudImportEnabled", "dropboxAppKey",
-        "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "mailSendMode", "smtpHost", "smtpPort", "smtpUser", "smtpPassword", "smtpFrom",
+        "mailApiUrl", "mailApiKey", "mailApiFrom", "mailApiHeaders",
         "uploadDir", "indexNowKey", "googleServiceAccountEmail", "googlePrivateKey",
         "storageProvider", "storageEndpoint", "storageBucket", "storageRegion",
         "storageAccessKey", "storageSecretKey", "storageCustomDomain", "storagePathPrefix",
