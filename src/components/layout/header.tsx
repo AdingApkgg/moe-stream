@@ -196,7 +196,22 @@ function SoundToggleButton() {
 }
 
 function MessageButton() {
-  const unread = useSocketStore((s) => s.unreadMessages);
+  const { session } = useStableSession();
+  const storeUnread = useSocketStore((s) => s.unreadMessages);
+
+  const { data: convData } = trpc.message.conversations.useQuery(
+    { limit: 50 },
+    {
+      enabled: !!session?.user,
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  );
+
+  const serverUnread = convData?.conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const unread = serverUnread ?? storeUnread;
+
   return (
     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative" asChild>
       <Link href="/messages" aria-label="私信">

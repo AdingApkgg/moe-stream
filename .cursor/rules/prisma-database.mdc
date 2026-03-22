@@ -1,0 +1,41 @@
+---
+description: Prisma 数据库与 schema 约定
+globs: prisma/**
+alwaysApply: false
+---
+
+# Prisma / 数据库约定
+
+## 基础信息
+
+- Prisma 7 + PostgreSQL，适配器为 `@prisma/adapter-pg`
+- 客户端生成到 `src/generated/prisma`（非默认路径）
+- Schema 改动后执行 `pnpm db:generate`（生成客户端）+ `pnpm db:push`（推送到数据库）
+
+## Schema 风格
+
+- 模型名：**PascalCase**（`User`、`Video`、`ImagePost`）
+- 字段名：**camelCase**（`createdAt`、`coverUrl`、`adminScopes`）
+- 关系：显式定义 `@relation`，关联删除用 `onDelete: Cascade` 或 `SetNull`
+- 索引：`@@index` 标注常用查询字段
+- 注释：用中文 `///` 注释说明字段用途
+
+## 核心模型
+
+- **User** — 用户（role: USER/ADMIN/OWNER）
+- **Video / Game / ImagePost** — 三种内容类型
+- **Tag** — 标签，与内容多对多关联
+- **SiteConfig** — 站点单例配置
+- **UserFile / StoragePolicy** — 文件存储
+
+## Prisma 客户端用法
+
+```ts
+import { prisma } from "@/lib/prisma";
+
+// 查询时用 select 限制返回字段，避免 select *
+const user = await prisma.user.findUnique({
+  where: { id },
+  select: { id: true, name: true, role: true },
+});
+```

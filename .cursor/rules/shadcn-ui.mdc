@@ -1,0 +1,34 @@
+---
+description: shadcn/ui 组件添加与使用约定
+globs: src/components/ui/**
+alwaysApply: false
+---
+
+# shadcn/ui 约定
+
+## 配置
+
+- 风格：**new-york**，基色：**neutral**，图标库：**lucide**
+- 配置文件：`components.json`（项目根目录）
+- CSS 变量在 `src/app/globals.css` 中定义
+
+## 添加新组件
+
+使用 shadcn MCP 工具或 CLI 添加，不要手写 UI 原语：
+
+```bash
+pnpm dlx shadcn@latest add button
+```
+
+也可通过 shadcn MCP 的 `get_add_command_for_items` 工具获取安装命令。
+
+## 已有组件（~50 个）
+
+常用：`button`、`input`、`textarea`、`select`、`checkbox`、`switch`、`dialog`、`alert-dialog`、`popover`、`tooltip`、`dropdown-menu`、`tabs`、`card`、`badge`、`table`、`form`、`label`、`scroll-area`、`separator`、`skeleton`、`progress`、`calendar`、`command`、`sheet`、`hover-card`、`toggle`、`toggle-group`、`slider`、`collapsible`、`breadcrumb`、`pagination`
+
+## 注意事项
+
+- 组件放在 `src/components/ui/` 目录，修改时保持 shadcn 约定结构
+- 导入路径：`@/components/ui/button`（不用 barrel 导出）
+- `buttonVariants` 等 CVA 变体可从对应组件文件导出使用
+- 样式覆盖用 `className` prop + `cn()` 合并

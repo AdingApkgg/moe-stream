@@ -3,6 +3,51 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure, adminProcedure } from "../trpc";
 import { generateUniqueAmount, generateOrderNo, releaseAmount } from "@/lib/usdt-payment";
 
+type TxClient = Parameters<Parameters<typeof import("@/lib/prisma").prisma.$transaction>[0]>[0];
+
+async function updateReferralPaymentStats(
+  tx: TxClient,
+  referralLinkId: string,
+  userId: string,
+  amount: number,
+) {
+  const link = await tx.referralLink.findUnique({
+    where: { id: referralLinkId },
+    select: { userId: true },
+  });
+  if (!link) return;
+
+  await tx.referralLink.update({
+    where: { id: referralLinkId },
+    data: {
+      paymentCount: { increment: 1 },
+      paymentAmount: { increment: amount },
+    },
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  await tx.referralDailyStat.upsert({
+    where: { referralLinkId_date: { referralLinkId, date: today } },
+    create: {
+      referralLinkId,
+      userId: link.userId,
+      date: today,
+      paymentCount: 1,
+      paymentAmount: amount,
+    },
+    update: {
+      paymentCount: { increment: 1 },
+      paymentAmount: { increment: amount },
+    },
+  });
+
+  await tx.referralRecord.updateMany({
+    where: { referredUserId: userId, referralLinkId, hasPaid: false },
+    data: { hasPaid: true, firstPaidAt: new Date() },
+  });
+}
+
 export const paymentRouter = router({
   // ========== 用户端 ==========
 
@@ -95,6 +140,11 @@ export const paymentRouter = router({
       const orderNo = generateOrderNo();
       const expiresAt = new Date(Date.now() + timeoutSec * 1000);
 
+      const referralRecord = await ctx.prisma.referralRecord.findUnique({
+        where: { referredUserId: ctx.session.user.id },
+        select: { referralLinkId: true },
+      });
+
       const order = await ctx.prisma.paymentOrder.create({
         data: {
           userId: ctx.session.user.id,
@@ -103,6 +153,7 @@ export const paymentRouter = router({
           baseAmount,
           walletAddress: config.usdtWalletAddress,
           packageId,
+          referralLinkId: referralRecord?.referralLinkId ?? null,
           pointsAmount,
           grantUpload,
           description,
@@ -300,6 +351,10 @@ export const paymentRouter = router({
 
         if (order.grantUpload) {
           await tx.user.update({ where: { id: order.userId }, data: { canUpload: true } });
+        }
+
+        if (order.referralLinkId) {
+          await updateReferralPaymentStats(tx, order.referralLinkId, order.userId, order.amount);
         }
       });
 

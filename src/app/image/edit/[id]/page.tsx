@@ -22,6 +22,7 @@ import {
   Loader2, ArrowLeft, Plus, X, Image as ImageIcon,
   Tag, Search, AlertCircle, Trash2, Save,
 } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -256,22 +257,23 @@ export default function EditImagePage({ params }: EditImagePageProps) {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {imageUrls.map((url, i) => (
-                    <div key={i} className="flex gap-2">
-                      <div className="relative flex-1">
-                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="https://example.com/image.jpg"
+                    <div key={i} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <UrlOrUploadInput
                           value={url}
-                          onChange={(e) => {
+                          onChange={(v) => {
                             const updated = [...imageUrls];
-                            updated[i] = e.target.value;
+                            updated[i] = v;
                             setImageUrls(updated);
                           }}
-                          className="pl-9"
+                          accept="image/*"
+                          placeholder="https://example.com/image.jpg"
+                          contentType="imagePost"
+                          contentId={id}
                         />
                       </div>
                       {imageUrls.length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" onClick={() => setImageUrls(imageUrls.filter((_, j) => j !== i))}>
+                        <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => setImageUrls(imageUrls.filter((_, j) => j !== i))}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}

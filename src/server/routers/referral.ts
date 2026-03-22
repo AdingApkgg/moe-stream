@@ -45,7 +45,7 @@ export const referralRouter = router({
       ? { referrerId: userId, referralLinkId: { in: linkIds } }
       : { referrerId: userId };
 
-    const [user, linkAgg, todayDailyStat, yesterdayDailyStat, referralPoints] = await Promise.all([
+    const [user, linkAgg, todayDailyStat, yesterdayDailyStat, referralPoints, paymentUsers] = await Promise.all([
       ctx.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -56,20 +56,23 @@ export const referralRouter = router({
       }),
       ctx.prisma.referralLink.aggregate({
         where: linkWhere,
-        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
         _count: true,
       }),
       ctx.prisma.referralDailyStat.aggregate({
         where: { ...dailyStatWhere, date: today },
-        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
       }),
       ctx.prisma.referralDailyStat.aggregate({
         where: { ...dailyStatWhere, date: yesterdayStart },
-        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
       }),
       ctx.prisma.referralRecord.aggregate({
         where: referralRecordWhere,
         _sum: { pointsAwarded: true },
+      }),
+      ctx.prisma.referralRecord.count({
+        where: { ...referralRecordWhere, hasPaid: true },
       }),
     ]);
 
@@ -78,11 +81,16 @@ export const referralRouter = router({
     const totalClicks = linkAgg._sum.clicks || 0;
     const totalUniqueClicks = linkAgg._sum.uniqueClicks || 0;
     const totalRegisters = linkAgg._sum.registers || 0;
+    const totalPaymentCount = linkAgg._sum.paymentCount || 0;
+    const totalPaymentAmount = linkAgg._sum.paymentAmount || 0;
     const todayClicks = todayDailyStat._sum.clicks || 0;
     const todayUniqueClicks = todayDailyStat._sum.uniqueClicks || 0;
     const todayRegisters = todayDailyStat._sum.registers || 0;
+    const todayPaymentCount = todayDailyStat._sum.paymentCount || 0;
+    const todayPaymentAmount = todayDailyStat._sum.paymentAmount || 0;
     const yesterdayUniqueClicks = yesterdayDailyStat._sum.uniqueClicks || 0;
     const yesterdayRegisters = yesterdayDailyStat._sum.registers || 0;
+    const yesterdayPaymentCount = yesterdayDailyStat._sum.paymentCount || 0;
 
     return {
       points: user.points,
@@ -94,39 +102,51 @@ export const referralRouter = router({
       todayClicks,
       todayUniqueClicks,
       todayRegisters,
+      todayPaymentCount,
+      todayPaymentAmount,
       yesterdayUniqueClicks,
       yesterdayRegisters,
+      yesterdayPaymentCount,
       totalClicks,
       totalUniqueClicks,
       totalRegisters,
+      totalPaymentCount,
+      totalPaymentAmount,
+      paymentUsers,
       conversionRate: totalUniqueClicks > 0 ? Math.round((totalRegisters / totalUniqueClicks) * 10000) / 100 : 0,
+      paymentConversionRate: totalUniqueClicks > 0 ? Math.round((paymentUsers / totalUniqueClicks) * 10000) / 100 : 0,
       earnedPoints: referralPoints._sum.pointsAwarded || 0,
     };
   }),
 
   getMyTrendStats: protectedProcedure
-    .input(z.object({ days: z.number().min(7).max(90).default(30), linkIds: z.array(z.string()).optional() }))
+    .input(z.object({
+      from: z.string().datetime(),
+      to: z.string().datetime(),
+      linkIds: z.array(z.string()).optional(),
+    }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { days, linkIds } = input;
+      const { linkIds } = input;
 
-      const startDate = getDateOnly();
-      startDate.setDate(startDate.getDate() - days + 1);
+      const startDate = new Date(input.from);
+      const endDate = new Date(input.to);
 
-      const where: Record<string, unknown> = { userId, date: { gte: startDate } };
+      const where: Record<string, unknown> = { userId, date: { gte: startDate, lte: endDate } };
       if (linkIds?.length) where.referralLinkId = { in: linkIds };
 
       const stats = await ctx.prisma.referralDailyStat.findMany({
         where,
-        select: { date: true, clicks: true, uniqueClicks: true, registers: true },
+        select: { date: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
         orderBy: { date: "asc" },
       });
 
-      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number }>();
-      for (let i = 0; i < days; i++) {
+      const dayCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; paymentCount: number; paymentAmount: number }>();
+      for (let i = 0; i < dayCount; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
-        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0 });
+        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0, paymentCount: 0, paymentAmount: 0 });
       }
 
       for (const s of stats) {
@@ -136,6 +156,8 @@ export const referralRouter = router({
           entry.clicks += s.clicks;
           entry.uniqueClicks += s.uniqueClicks;
           entry.registers += s.registers;
+          entry.paymentCount += s.paymentCount;
+          entry.paymentAmount += s.paymentAmount;
         }
       }
 
@@ -153,18 +175,30 @@ export const referralRouter = router({
 
     const linkWhere = linkIds ? { userId, id: { in: linkIds } } : { userId };
 
-    const links = await ctx.prisma.referralLink.findMany({
-      where: linkWhere,
-      select: { channel: true, clicks: true, uniqueClicks: true, registers: true },
-    });
+    const [links, paymentUsersByLink] = await Promise.all([
+      ctx.prisma.referralLink.findMany({
+        where: linkWhere,
+        select: { id: true, channel: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
+      }),
+      ctx.prisma.referralRecord.groupBy({
+        by: ["referralLinkId"],
+        where: { referralLink: linkWhere, hasPaid: true },
+        _count: true,
+      }),
+    ]);
 
-    const channelMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; linkCount: number }>();
+    const paymentUsersMap = new Map(paymentUsersByLink.map((r) => [r.referralLinkId, r._count]));
+
+    const channelMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; paymentCount: number; paymentAmount: number; paymentUsers: number; linkCount: number }>();
     for (const link of links) {
       const ch = link.channel || "direct";
-      const entry = channelMap.get(ch) || { clicks: 0, uniqueClicks: 0, registers: 0, linkCount: 0 };
+      const entry = channelMap.get(ch) || { clicks: 0, uniqueClicks: 0, registers: 0, paymentCount: 0, paymentAmount: 0, paymentUsers: 0, linkCount: 0 };
       entry.clicks += link.clicks;
       entry.uniqueClicks += link.uniqueClicks;
       entry.registers += link.registers;
+      entry.paymentCount += link.paymentCount;
+      entry.paymentAmount += link.paymentAmount;
+      entry.paymentUsers += paymentUsersMap.get(link.id) || 0;
       entry.linkCount++;
       channelMap.set(ch, entry);
     }
@@ -176,30 +210,48 @@ export const referralRouter = router({
         conversionRate: data.uniqueClicks > 0
           ? Math.round((data.registers / data.uniqueClicks) * 10000) / 100
           : 0,
+        paymentConversionRate: data.uniqueClicks > 0
+          ? Math.round((data.paymentUsers / data.uniqueClicks) * 10000) / 100
+          : 0,
       }))
-      .sort((a, b) => b.registers - a.registers);
+      .sort((a, b) => b.paymentUsers - a.paymentUsers || b.registers - a.registers);
   }),
 
   getTopLinks: protectedProcedure
-    .input(z.object({ limit: z.number().min(1).max(20).default(5), sortBy: z.enum(["uniqueClicks", "registers", "conversionRate"]).default("registers"), linkIds: z.array(z.string()).optional() }))
+    .input(z.object({ limit: z.number().min(1).max(20).default(5), sortBy: z.enum(["uniqueClicks", "registers", "paymentCount", "paymentConversionRate", "conversionRate"]).default("registers"), linkIds: z.array(z.string()).optional() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { limit, sortBy, linkIds } = input;
 
       const linkWhere = linkIds?.length ? { userId, id: { in: linkIds } } : { userId };
 
-      const links = await ctx.prisma.referralLink.findMany({
-        where: linkWhere,
-        select: { id: true, code: true, label: true, channel: true, clicks: true, uniqueClicks: true, registers: true, createdAt: true },
-      });
+      const [links, paymentUsersByLink] = await Promise.all([
+        ctx.prisma.referralLink.findMany({
+          where: linkWhere,
+          select: { id: true, code: true, label: true, channel: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true, createdAt: true },
+        }),
+        ctx.prisma.referralRecord.groupBy({
+          by: ["referralLinkId"],
+          where: { referralLink: linkWhere, hasPaid: true },
+          _count: true,
+        }),
+      ]);
 
-      const ranked = links.map((l) => ({
-        ...l,
-        conversionRate: l.uniqueClicks > 0 ? Math.round((l.registers / l.uniqueClicks) * 10000) / 100 : 0,
-      }));
+      const paymentUsersMap = new Map(paymentUsersByLink.map((r) => [r.referralLinkId, r._count]));
+
+      const ranked = links.map((l) => {
+        const paymentUsers = paymentUsersMap.get(l.id) || 0;
+        return {
+          ...l,
+          paymentUsers,
+          conversionRate: l.uniqueClicks > 0 ? Math.round((l.registers / l.uniqueClicks) * 10000) / 100 : 0,
+          paymentConversionRate: l.uniqueClicks > 0 ? Math.round((paymentUsers / l.uniqueClicks) * 10000) / 100 : 0,
+        };
+      });
 
       ranked.sort((a, b) => {
         if (sortBy === "conversionRate") return b.conversionRate - a.conversionRate;
+        if (sortBy === "paymentConversionRate") return b.paymentConversionRate - a.paymentConversionRate;
         return (b[sortBy] as number) - (a[sortBy] as number);
       });
 
@@ -501,35 +553,45 @@ export const referralRouter = router({
 
     const [
       totalReferrals, totalLinks, totalPointsAwarded,
-      todayAgg, yesterdayAgg, totalClicksAgg,
+      todayAgg, yesterdayAgg, totalClicksAgg, totalPaymentUsers,
     ] = await Promise.all([
       ctx.prisma.referralRecord.count(),
       ctx.prisma.referralLink.count(),
       ctx.prisma.referralRecord.aggregate({ _sum: { pointsAwarded: true } }),
       ctx.prisma.referralDailyStat.aggregate({
         where: { date: today },
-        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
       }),
       ctx.prisma.referralDailyStat.aggregate({
         where: { date: yesterdayStart },
-        _sum: { clicks: true, uniqueClicks: true, registers: true },
+        _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
       }),
       ctx.prisma.referralLink.aggregate({
-        _sum: { clicks: true, uniqueClicks: true },
+        _sum: { clicks: true, uniqueClicks: true, paymentCount: true, paymentAmount: true },
       }),
+      ctx.prisma.referralRecord.count({ where: { hasPaid: true } }),
     ]);
+
+    const totalUniqueClicks = totalClicksAgg._sum.uniqueClicks || 0;
 
     return {
       totalReferrals,
       totalLinks,
       totalPointsAwarded: totalPointsAwarded._sum.pointsAwarded || 0,
       totalClicks: totalClicksAgg._sum.clicks || 0,
-      totalUniqueClicks: totalClicksAgg._sum.uniqueClicks || 0,
+      totalUniqueClicks,
+      totalPaymentCount: totalClicksAgg._sum.paymentCount || 0,
+      totalPaymentAmount: totalClicksAgg._sum.paymentAmount || 0,
+      totalPaymentUsers,
+      paymentConversionRate: totalUniqueClicks > 0 ? Math.round((totalPaymentUsers / totalUniqueClicks) * 10000) / 100 : 0,
       todayClicks: todayAgg._sum.clicks || 0,
       todayUniqueClicks: todayAgg._sum.uniqueClicks || 0,
       todayRegisters: todayAgg._sum.registers || 0,
+      todayPaymentCount: todayAgg._sum.paymentCount || 0,
+      todayPaymentAmount: todayAgg._sum.paymentAmount || 0,
       yesterdayUniqueClicks: yesterdayAgg._sum.uniqueClicks || 0,
       yesterdayRegisters: yesterdayAgg._sum.registers || 0,
+      yesterdayPaymentCount: yesterdayAgg._sum.paymentCount || 0,
     };
   }),
 
@@ -542,14 +604,14 @@ export const referralRouter = router({
 
       const stats = await ctx.prisma.referralDailyStat.findMany({
         where: { date: { gte: startDate } },
-        select: { date: true, clicks: true, uniqueClicks: true, registers: true },
+        select: { date: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
       });
 
-      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number }>();
+      const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; paymentCount: number; paymentAmount: number }>();
       for (let i = 0; i < days; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
-        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0 });
+        dateMap.set(dateKey(d), { clicks: 0, uniqueClicks: 0, registers: 0, paymentCount: 0, paymentAmount: 0 });
       }
 
       for (const s of stats) {
@@ -559,6 +621,8 @@ export const referralRouter = router({
           entry.clicks += s.clicks;
           entry.uniqueClicks += s.uniqueClicks;
           entry.registers += s.registers;
+          entry.paymentCount += s.paymentCount;
+          entry.paymentAmount += s.paymentAmount;
         }
       }
 

@@ -21,9 +21,15 @@ interface MessageThreadProps {
 export function MessageThread({ conversationId }: MessageThreadProps) {
   const { session } = useStableSession();
   const connected = useSocketStore((s) => s.connected);
+  const setActiveConversation = useSocketStore((s) => s.setActiveConversation);
   const bottomRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
   const userId = session?.user?.id;
+
+  useEffect(() => {
+    setActiveConversation(conversationId);
+    return () => setActiveConversation(null);
+  }, [conversationId, setActiveConversation]);
 
   const {
     data,
@@ -37,12 +43,14 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
   );
 
   const markRead = trpc.message.markRead.useMutation();
+  const markReadRef = useRef(markRead.mutate);
+  markReadRef.current = markRead.mutate;
 
   useEffect(() => {
     if (conversationId) {
-      markRead.mutate({ conversationId });
+      markReadRef.current({ conversationId });
     }
-  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   useEffect(() => {
     if (!connected || !conversationId) return;
@@ -53,7 +61,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
     const handleNewMessage = () => {
       utils.message.messages.invalidate({ conversationId });
       utils.message.conversations.invalidate();
-      markRead.mutate({ conversationId });
+      markReadRef.current({ conversationId });
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     };
 
@@ -75,7 +83,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
       socket.off("message:deleted", handleDeletedMessage);
       socket.off("message:read", handleReadReceipt);
     };
-  }, [connected, conversationId, utils, markRead]);
+  }, [connected, conversationId, utils]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

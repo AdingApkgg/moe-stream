@@ -1,0 +1,56 @@
+---
+description: React 组件开发约定
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# React 组件约定
+
+## 组件结构
+
+- 使用函数组件 + `export function ComponentName()`（命名导出）
+- Props 接口定义在组件上方，命名为 `ComponentNameProps`
+- `"use client"` 写在文件首行（仅交互组件需要）
+
+## UI 组件
+
+- 基础 UI 用 `@/components/ui/` 下的 shadcn/ui 组件
+- 样式用 Tailwind CSS v4 类名，条件类名用 `cn()`（来自 `@/lib/utils`）
+- 动画优先用 Framer Motion（`framer-motion`），简单过渡用 Tailwind `transition-*`
+- 图标用 `lucide-react`
+
+## 表单
+
+- 用 `react-hook-form` + `zod` schema 验证
+- 表单 UI 用 `@/components/ui/form` 的 `FormField`、`FormItem`、`FormLabel`、`FormControl`、`FormMessage`
+- 表单提交用 tRPC mutation
+
+## 认证
+
+- 客户端认证用 `useSession()`（来自 `@/lib/auth-client`，非 next-auth）
+- 返回 `{ data, status, update }`，`status` 为 `"loading" | "authenticated" | "unauthenticated"`
+- `data.user` 含 `id`、`name`、`email`、`role`、`canUpload`、`adsEnabled`、`twoFactorEnabled`
+- 认证操作（登录/登出/注册）用 `authClient`（来自 `@/lib/auth-client`）
+
+## 数据获取
+
+- 客户端数据获取用 tRPC hooks：`trpc.xxx.useQuery()`、`trpc.xxx.useMutation()`
+- tRPC 客户端从 `@/lib/trpc` 导入
+- 站点配置用 `useSiteConfig()` hook（来自 `@/contexts/site-config`）
+- 日期格式化用 `dayjs`（`@/lib/format.ts` 已封装 `formatRelativeTime`、`formatDate`），不要用 `date-fns`
+
+## 常用模式
+
+```tsx
+// 条件渲染 + 样式
+<div className={cn("base-class", condition && "conditional-class")} />
+
+// tRPC mutation + toast
+const mutation = trpc.xxx.update.useMutation({
+  onSuccess: () => {
+    toast.success("操作成功");
+    utils.xxx.invalidate();
+  },
+  onError: (err) => toast.error(err.message),
+});
+```

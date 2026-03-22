@@ -15,6 +15,7 @@ import { imageUploadSchema, type ImageUploadForm } from "../_lib/schemas";
 import { TagPicker } from "./tag-picker";
 import type { TagItem } from "../_lib/types";
 import { Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 
 export function ImageSingleUpload() {
   const router = useRouter();
@@ -134,18 +135,18 @@ export function ImageSingleUpload() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {imageUrls.map((url, i) => (
-                  <div key={i} className="flex gap-2">
-                    <div className="relative flex-1">
-                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="https://example.com/image.jpg"
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <UrlOrUploadInput
                         value={url}
-                        onChange={(e) => updateImageUrl(i, e.target.value)}
-                        className="pl-9"
+                        onChange={(v) => updateImageUrl(i, v)}
+                        accept="image/*"
+                        placeholder="https://example.com/image.jpg"
+                        contentType="imagePost"
                       />
                     </div>
                     {imageUrls.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeImageUrl(i)}>
+                      <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => removeImageUrl(i)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}

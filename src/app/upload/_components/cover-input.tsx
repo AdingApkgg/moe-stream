@@ -1,10 +1,10 @@
 "use client";
 
-import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Image as ImageIcon, X } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import type { UseFormReturn } from "react-hook-form";
 
 interface CoverInputProps {
@@ -12,9 +12,11 @@ interface CoverInputProps {
   form: UseFormReturn<any>;
   fieldName?: string;
   watchValue?: string;
+  contentType?: "video" | "game" | "imagePost";
+  contentId?: string;
 }
 
-export function CoverInput({ form, fieldName = "coverUrl", watchValue }: CoverInputProps) {
+export function CoverInput({ form, fieldName = "coverUrl", watchValue, contentType, contentId }: CoverInputProps) {
   const coverUrl = watchValue ?? form.watch(fieldName);
 
   return (
@@ -24,9 +26,14 @@ export function CoverInput({ form, fieldName = "coverUrl", watchValue }: CoverIn
         name={fieldName}
         render={({ field }) => (
           <FormItem>
-            <FormControl>
-              <Input placeholder="封面图片链接（可选）" {...field} />
-            </FormControl>
+            <UrlOrUploadInput
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              accept="image/*"
+              placeholder="封面图片链接（可选）"
+              contentType={contentType}
+              contentId={contentId}
+            />
             <FormMessage />
           </FormItem>
         )}
@@ -60,7 +67,7 @@ export function CoverInput({ form, fieldName = "coverUrl", watchValue }: CoverIn
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
             <ImageIcon className="h-10 w-10 mb-1.5 opacity-50" />
-            <span className="text-xs">输入链接预览封面</span>
+            <span className="text-xs">输入链接或上传预览封面</span>
           </div>
         )}
       </div>

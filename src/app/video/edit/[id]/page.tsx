@@ -32,7 +32,6 @@ import {
   Tag,
   Info,
   ChevronDown,
-  Link2,
   Search,
   Download,
   User,
@@ -42,6 +41,7 @@ import {
   Save,
   Layers,
 } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import {
   Select,
   SelectContent,
@@ -391,27 +391,29 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                     name="videoUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>视频链接 *</FormLabel>
-                        <div className="flex gap-2">
-                          <FormControl>
-                            <div className="relative flex-1">
-                              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input 
-                                placeholder="https://example.com/video.mp4" 
-                                {...field}
-                                className="pl-9"
-                              />
-                            </div>
-                          </FormControl>
-                          <Button
-                            type="button"
-                            variant={showPreview ? "default" : "outline"}
-                            size="icon"
-                            onClick={() => setShowPreview(!showPreview)}
-                            disabled={!field.value}
-                          >
-                            {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
+                        <FormLabel>视频 *</FormLabel>
+                        <div className="flex gap-2 items-start">
+                          <div className="flex-1">
+                            <UrlOrUploadInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              accept="video/*,.m3u8"
+                              placeholder="https://example.com/video.mp4"
+                              contentType="video"
+                              contentId={id}
+                            />
+                          </div>
+                          {field.value && (
+                            <Button
+                              type="button"
+                              variant={showPreview ? "default" : "outline"}
+                              size="icon"
+                              className="mt-0.5 shrink-0"
+                              onClick={() => setShowPreview(!showPreview)}
+                            >
+                              {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          )}
                         </div>
                         <FormDescription>支持 MP4, WebM, HLS (m3u8) 格式</FormDescription>
                         <FormMessage />
@@ -843,9 +845,14 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                     name="coverUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormControl>
-                          <Input placeholder="封面图片链接（可选）" {...field} />
-                        </FormControl>
+                        <UrlOrUploadInput
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          accept="image/*"
+                          placeholder="封面图片链接（可选）"
+                          contentType="video"
+                          contentId={id}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -882,7 +889,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
                         <ImageIcon className="h-12 w-12 mb-2 opacity-50" />
-                        <span className="text-sm">输入链接预览</span>
+                        <span className="text-sm">输入链接或上传预览</span>
                       </div>
                     )}
                   </div>

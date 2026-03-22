@@ -23,7 +23,10 @@ export function useNotifications(userId: string | undefined) {
       utils.notification.list.invalidate();
     };
 
-    const handleUnreadMessage = () => {
+    const handleUnreadMessage = (data: { conversationId: string }) => {
+      const activeConvId = useSocketStore.getState().activeConversationId;
+      if (activeConvId === data.conversationId) return;
+
       incrementUnreadMsg();
       utils.message.conversations.invalidate();
     };

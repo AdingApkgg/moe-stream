@@ -91,6 +91,46 @@ export const messageRouter = router({
       return { conversations: result, nextCursor };
     }),
 
+  conversationInfo: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const participant = await ctx.prisma.conversationParticipant.findUnique({
+        where: {
+          conversationId_userId: { conversationId: input.conversationId, userId },
+        },
+      });
+      if (!participant) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "你不是该会话的参与者" });
+      }
+
+      const conversation = await ctx.prisma.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: { id: true, nickname: true, username: true, avatar: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!conversation) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "会话不存在" });
+      }
+
+      const otherParticipant = conversation.participants.find(
+        (p) => p.userId !== userId,
+      );
+
+      return {
+        id: conversation.id,
+        otherUser: otherParticipant?.user || null,
+      };
+    }),
+
   getOrCreate: protectedProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {

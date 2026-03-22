@@ -1,0 +1,54 @@
+---
+description: tRPC 路由开发约定
+globs: src/server/**/*.ts
+alwaysApply: false
+---
+
+# tRPC 路由约定
+
+## Procedure 类型
+
+从 `@/server/trpc` 导入：
+
+- `publicProcedure` — 无需认证
+- `protectedProcedure` — 需要登录（ctx 含 `session.user`）
+- `adminProcedure` — 需要 ADMIN 或 OWNER 角色（ctx 含 `adminRole`、`adminScopes`）
+- `ownerProcedure` — 仅 OWNER
+- `requireScope(scope)` — 管理员权限范围检查，链式使用：`.use(requireScope("manage_videos"))`
+
+## 路由结构
+
+```ts
+import { router, protectedProcedure, publicProcedure } from "@/server/trpc";
+import { z } from "zod";
+
+export const featureRouter = router({
+  list: publicProcedure
+    .input(z.object({ limit: z.number().default(20), cursor: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      // ctx.prisma, ctx.redis, ctx.session 可用
+    }),
+  create: protectedProcedure
+    .input(schema)
+    .mutation(async ({ ctx, input }) => {
+      // ctx.session.user 已保证存在
+    }),
+});
+```
+
+## Context 可用字段
+
+- `ctx.prisma` — Prisma 客户端
+- `ctx.redis` — Redis 客户端（ioredis）
+- `ctx.session` — Better Auth 会话（含 `user`）
+- `ctx.ipv4Address` / `ctx.ipv6Address` — 客户端 IP
+- `ctx.userAgent` — User-Agent
+
+## 验证
+
+- 输入验证用 Zod 4（`import { z } from "zod"`）
+- 错误抛出用 `TRPCError`（`import { TRPCError } from "@trpc/server"`）
+
+## 新路由注册
+
+在 `src/server/routers/_app.ts` 的 `appRouter` 中添加。管理后台路由放 `src/server/routers/admin/` 并在 `admin/index.ts` 中合并。

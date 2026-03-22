@@ -499,10 +499,14 @@ export const adminStatsRouter = router({
     }),
 
   getGrowthStats: publicProcedure
-    .input(z.object({ days: z.number().min(1).max(90).default(30) }))
+    .input(z.object({
+      from: z.string().datetime(),
+      to: z.string().datetime(),
+    }))
     .query(async ({ ctx, input }) => {
-      const since = new Date();
-      since.setDate(since.getDate() - input.days);
+      const since = new Date(input.from);
+      const until = new Date(input.to);
+      const dateRange = { gte: since, lte: until };
 
       const [
         newUsers,
@@ -525,29 +529,28 @@ export const adminStatsRouter = router({
         newGameFavorites,
         newImageFavorites,
       ] = await Promise.all([
-        ctx.prisma.user.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.video.count({ where: { createdAt: { gte: since }, status: "PUBLISHED" } }),
-        ctx.prisma.game.count({ where: { createdAt: { gte: since }, status: "PUBLISHED" } }),
-        ctx.prisma.imagePost.count({ where: { createdAt: { gte: since }, status: "PUBLISHED" } }),
-        ctx.prisma.tag.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.series.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.searchRecord.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.comment.count({ where: { createdAt: { gte: since }, isDeleted: false } }),
-        ctx.prisma.gameComment.count({ where: { createdAt: { gte: since }, isDeleted: false } }),
-        ctx.prisma.imagePostComment.count({ where: { createdAt: { gte: since }, isDeleted: false } }),
-        ctx.prisma.watchHistory.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.gameViewHistory.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.imagePostViewHistory.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.like.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.gameLike.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.imagePostLike.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.favorite.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.gameFavorite.count({ where: { createdAt: { gte: since } } }),
-        ctx.prisma.imagePostFavorite.count({ where: { createdAt: { gte: since } } }),
+        ctx.prisma.user.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.video.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+        ctx.prisma.game.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+        ctx.prisma.imagePost.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+        ctx.prisma.tag.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.series.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.searchRecord.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.comment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+        ctx.prisma.gameComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+        ctx.prisma.imagePostComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+        ctx.prisma.watchHistory.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.gameViewHistory.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.imagePostViewHistory.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.like.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.gameLike.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.imagePostLike.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.favorite.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.gameFavorite.count({ where: { createdAt: dateRange } }),
+        ctx.prisma.imagePostFavorite.count({ where: { createdAt: dateRange } }),
       ]);
 
       return {
-        days: input.days,
         newUsers,
         newVideos,
         newGames,
@@ -564,39 +567,42 @@ export const adminStatsRouter = router({
 
   // 增长趋势数据（每日统计）
   getGrowthTrend: publicProcedure
-    .input(z.object({ days: z.number().min(7).max(90).default(30) }))
+    .input(z.object({
+      from: z.string().datetime(),
+      to: z.string().datetime(),
+    }))
     .query(async ({ ctx, input }) => {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const since = new Date(today);
-      since.setDate(since.getDate() - input.days + 1);
+      const since = new Date(input.from);
+      const until = new Date(input.to);
+      const dateRange = { gte: since, lte: until };
 
       const [users, videos, images, games, videoViews, gameViews, imageViews, videoLikes, gameLikes, imageLikes, videoFavs, gameFavs, imageFavs, videoComments, gameComments, imageComments] = await Promise.all([
-        ctx.prisma.user.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.video.findMany({ where: { createdAt: { gte: since }, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.imagePost.findMany({ where: { createdAt: { gte: since }, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.game.findMany({ where: { createdAt: { gte: since }, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.watchHistory.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.gameViewHistory.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.like.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.gameLike.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.imagePostLike.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.favorite.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.gameFavorite.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-        ctx.prisma.comment.findMany({ where: { createdAt: { gte: since }, isDeleted: false }, select: { createdAt: true } }),
-        ctx.prisma.gameComment.findMany({ where: { createdAt: { gte: since }, isDeleted: false }, select: { createdAt: true } }),
-        ctx.prisma.imagePostComment.findMany({ where: { createdAt: { gte: since }, isDeleted: false }, select: { createdAt: true } }),
+        ctx.prisma.user.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.video.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
+        ctx.prisma.imagePost.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
+        ctx.prisma.game.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
+        ctx.prisma.watchHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.like.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.favorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.comment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
+        ctx.prisma.gameComment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
+        ctx.prisma.imagePostComment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
       ]);
 
       type DayData = { users: number; videos: number; images: number; games: number; views: number; likes: number; favorites: number; comments: number };
       const trend: Record<string, DayData> = {};
 
+      const dayCount = Math.ceil((until.getTime() - since.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const empty = (): DayData => ({ users: 0, videos: 0, images: 0, games: 0, views: 0, likes: 0, favorites: 0, comments: 0 });
 
-      for (let i = 0; i < input.days; i++) {
+      for (let i = 0; i < dayCount; i++) {
         const date = new Date(since);
         date.setDate(date.getDate() + i);
         trend[toKey(date)] = empty();

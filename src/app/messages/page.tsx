@@ -204,9 +204,11 @@ function ActiveChat({
   conversationId: string;
   onBack: () => void;
 }) {
-  const { data: convData } = trpc.message.conversations.useQuery({ limit: 50 });
-  const conv = convData?.conversations.find((c) => c.id === conversationId);
-  const otherUser = conv?.otherUser;
+  const { data: convInfo } = trpc.message.conversationInfo.useQuery(
+    { conversationId },
+    { staleTime: 60_000 },
+  );
+  const otherUser = convInfo?.otherUser;
 
   return (
     <>

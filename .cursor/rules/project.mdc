@@ -1,0 +1,59 @@
+---
+description: 项目总览 - 技术栈、结构、通用约定
+alwaysApply: true
+---
+
+# MoeStream (ACGN 流媒体平台)
+
+## 技术栈
+
+- **Next.js 16** (App Router, Turbopack, `output: "standalone"`)、**React 19**、**TypeScript 5.9** (`strict`)
+- **tRPC 11** + **Zod 4** (API)、**TanStack Query 5** (数据获取)、**superjson** (序列化)
+- **Prisma 7** + **PostgreSQL** (ORM，客户端输出到 `src/generated/prisma`)
+- **Better Auth** (认证，JWT + 邮箱验证码 + 2FA/Passkey)
+- **Tailwind CSS v4** + **shadcn/ui** (Radix 原语) + **Framer Motion**
+- **Zustand** (全局状态，`src/stores/`)、**React Context** (`src/contexts/`)
+- **Socket.io** (实时通信，独立进程)、**Redis** (`ioredis`)
+- **pnpm 10** (包管理)
+
+## 路径别名
+
+`@/*` → `src/*`（如 `@/components/ui/button`、`@/lib/utils`）
+
+## 命名约定
+
+- 文件和文件夹：**kebab-case**（`cover-input.tsx`、`site-config.ts`）
+- React 组件导出：**PascalCase**（`export function CoverInput()`）
+- tRPC 路由变量：**camelCase** + `Router` 后缀（`videoRouter`）
+- 数据库模型：**PascalCase**（`User`、`Video`、`ImagePost`）
+- 界面文案与注释：**中文**
+
+## 项目结构要点
+
+- `src/app/` — App Router 路由，私有目录用 `_components/`、`_lib/`
+- `src/components/ui/` — shadcn/ui 基础组件
+- `src/components/{feature}/` — 功能组件按领域划分（`video/`、`comment/`、`files/`）
+- `src/components/shared/` — 跨功能共享组件
+- `src/lib/` — 工具库（`prisma.ts`、`auth.ts`、`redis.ts`、`utils.ts` 等）
+- `src/server/routers/` — tRPC 路由模块，根路由在 `_app.ts`
+- `src/server/routers/admin/` — 管理后台路由（通过 `mergeRouters` 合并）
+- `src/stores/` — Zustand store
+- `src/hooks/` — 自定义 React Hooks
+
+## 关键模式
+
+- 页面拆分：服务端 `page.tsx` 负责数据获取 + 元数据，客户端交互逻辑放 `client.tsx`
+- 默认是 Server Component，需要交互时加 `"use client"`
+- 导入路径用 `@/` 别名，不用相对路径（同目录内的 `./` 除外）
+- 表单用 `react-hook-form` + `@hookform/resolvers` + `zod`
+- Toast 提示用 `sonner`（`import { toast } from "sonner"`）
+- 格式化工具在 `@/lib/format.ts`、通用工具在 `@/lib/utils.ts`（含 `cn()`）
+- 日期处理用 `dayjs`（`date-fns` 仅作为 `react-day-picker` 的依赖，业务代码不直接使用）
+- 认证客户端：`@/lib/auth-client`（Better Auth，非 next-auth）
+
+## 常用命令
+
+- `pnpm dev` — 启动开发（Next + Socket）
+- `pnpm db:generate` — 生成 Prisma 客户端（schema 变更后必须执行）
+- `pnpm db:push` — 推送 schema 到数据库
+- `pnpm lint` — ESLint + TypeScript 检查

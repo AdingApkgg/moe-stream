@@ -64,6 +64,12 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DateRangePicker,
+  createDateRange,
+  dateRangeToApi,
+  type DateRangeValue,
+} from "@/components/ui/date-range-picker";
 import { useSiteConfig } from "@/contexts/site-config";
 import {
   ChartContainer,
@@ -1101,11 +1107,11 @@ function PointsHistory() {
   );
 }
 
-const TREND_RANGE_OPTIONS = [
-  { value: 7, label: "7天" },
-  { value: 14, label: "14天" },
-  { value: 30, label: "30天" },
-] as const;
+const TREND_PRESETS = [
+  { label: "7天", days: 7 },
+  { label: "14天", days: 14 },
+  { label: "30天", days: 30 },
+];
 
 const trendChartConfig = {
   uniqueClicks: { label: "独立访客", color: "hsl(var(--chart-1))" },
@@ -1180,9 +1186,9 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
 }
 
 function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
-  const [trendDays, setTrendDays] = useState<number>(14);
+  const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(14));
   const [linkSortBy, setLinkSortBy] = useState<"uniqueClicks" | "registers" | "conversionRate">("registers");
-  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ days: trendDays, linkIds });
+  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ ...dateRangeToApi(trendRange), linkIds });
   const { data: channelData, isLoading: channelLoading } = trpc.referral.getChannelStats.useQuery(
     linkIds?.length ? { linkIds } : undefined
   );
@@ -1200,19 +1206,11 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
             </CardTitle>
             <CardDescription>每日点击与注册变化</CardDescription>
           </div>
-          <div className="flex gap-1">
-            {TREND_RANGE_OPTIONS.map((opt) => (
-              <Button
-                key={opt.value}
-                variant={trendDays === opt.value ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-xs px-2"
-                onClick={() => setTrendDays(opt.value)}
-              >
-                {opt.label}
-              </Button>
-            ))}
-          </div>
+          <DateRangePicker
+            value={trendRange}
+            onChange={setTrendRange}
+            presets={TREND_PRESETS}
+          />
         </CardHeader>
         <CardContent className="space-y-3">
           {trendLoading ? (

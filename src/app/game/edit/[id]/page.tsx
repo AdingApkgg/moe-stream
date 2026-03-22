@@ -45,6 +45,7 @@ import {
   GripVertical,
   LayoutGrid,
 } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import { TAB_ICON_OPTIONS } from "@/lib/game-tab-icons";
 import {
   Select,
@@ -443,15 +444,33 @@ export default function EditGamePage({ params }: Props) {
                     </TabsContent>
 
                     <TabsContent value="screenshots" className="space-y-4 mt-4">
-                      <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />截图链接</FormLabel>
-                      <Textarea
-                        value={screenshots.filter(Boolean).join("\n")}
-                        onChange={(e) => setScreenshots(e.target.value.split("\n"))}
-                        placeholder={"每行一个截图链接，例如：\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"}
-                        className="min-h-[100px] font-mono text-xs"
-                      />
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" />截图</FormLabel>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setScreenshots([...screenshots.filter(Boolean), ""])}>
+                          <Plus className="h-4 w-4 mr-1" />添加截图
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {screenshots.map((url, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <UrlOrUploadInput
+                                value={url}
+                                onChange={(v) => { const s = [...screenshots]; s[i] = v; setScreenshots(s); }}
+                                accept="image/*"
+                                placeholder="https://example.com/screenshot.jpg"
+                                contentType="game"
+                                contentId={id}
+                              />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        每行一个 URL，已识别 {screenshots.filter(s => s.trim()).length} 张截图
+                        已添加 {screenshots.filter(s => s.trim()).length} 张截图
                       </p>
                       {screenshots.some(s => s.trim()) && (
                         <div className="flex gap-2 flex-wrap">
@@ -466,15 +485,33 @@ export default function EditGamePage({ params }: Props) {
                     </TabsContent>
 
                     <TabsContent value="videos" className="space-y-4 mt-4">
-                      <FormLabel className="flex items-center gap-2"><FileVideo className="h-4 w-4" />视频链接</FormLabel>
-                      <Textarea
-                        value={videos.filter(Boolean).join("\n")}
-                        onChange={(e) => setVideos(e.target.value.split("\n"))}
-                        placeholder={"每行一个视频链接，支持 mp4、webm、m3u8\nhttps://example.com/preview.mp4"}
-                        className="min-h-[80px] font-mono text-xs"
-                      />
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="flex items-center gap-2"><FileVideo className="h-4 w-4" />预览视频</FormLabel>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setVideos([...videos.filter(Boolean), ""])}>
+                          <Plus className="h-4 w-4 mr-1" />添加视频
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {videos.map((url, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <UrlOrUploadInput
+                                value={url}
+                                onChange={(v) => { const vs = [...videos]; vs[i] = v; setVideos(vs); }}
+                                accept="video/*,.m3u8"
+                                placeholder="https://example.com/preview.mp4"
+                                contentType="game"
+                                contentId={id}
+                              />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => setVideos(videos.filter((_, j) => j !== i))}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        每行一个 URL，已识别 {videos.filter(s => s.trim()).length} 个视频
+                        已添加 {videos.filter(s => s.trim()).length} 个视频
                       </p>
                     </TabsContent>
 
@@ -599,9 +636,14 @@ export default function EditGamePage({ params }: Props) {
                     name="coverUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormControl>
-                          <Input {...field} placeholder="封面图片链接" />
-                        </FormControl>
+                        <UrlOrUploadInput
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          accept="image/*"
+                          placeholder="封面图片链接"
+                          contentType="game"
+                          contentId={id}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}

@@ -22,8 +22,9 @@ import type { TagItem } from "../_lib/types";
 import type { VideoExtraInfo } from "@/lib/shortcode-parser";
 import {
   Download, Eye, EyeOff,
-  Layers, Link2, ListVideo, Loader2, Plus, Trash2, Upload, User,
+  Layers, ListVideo, Loader2, Plus, Trash2, Upload, User,
 } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 
 export function VideoSingleUpload() {
   const router = useRouter();
@@ -124,17 +125,22 @@ export function VideoSingleUpload() {
 
                 <FormField control={form.control} name="videoUrl" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>视频链接 *</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <div className="relative flex-1">
-                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="https://example.com/video.mp4" {...field} className="pl-9" />
-                        </div>
-                      </FormControl>
-                      <Button type="button" variant={showPreview ? "default" : "outline"} size="icon" onClick={() => setShowPreview(!showPreview)} disabled={!field.value}>
-                        {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
+                    <FormLabel>视频 *</FormLabel>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <UrlOrUploadInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          accept="video/*,.m3u8"
+                          placeholder="https://example.com/video.mp4"
+                          contentType="video"
+                        />
+                      </div>
+                      {field.value && (
+                        <Button type="button" variant={showPreview ? "default" : "outline"} size="icon" className="mt-0.5 shrink-0" onClick={() => setShowPreview(!showPreview)}>
+                          {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      )}
                     </div>
                     <FormDescription>支持 MP4, WebM, HLS (m3u8) 格式</FormDescription>
                     <FormMessage />
@@ -266,7 +272,7 @@ export function VideoSingleUpload() {
                 <CardTitle className="text-sm font-medium">封面</CardTitle>
               </CardHeader>
               <CardContent>
-                <CoverInput form={form} watchValue={coverUrl} />
+                <CoverInput form={form} watchValue={coverUrl} contentType="video" />
               </CardContent>
             </Card>
 

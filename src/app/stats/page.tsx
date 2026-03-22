@@ -7,6 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSound } from "@/hooks/use-sound";
 import {
+  DateRangePicker,
+  createDateRange,
+  dateRangeToApi,
+  type DateRangeValue,
+} from "@/components/ui/date-range-picker";
+import {
   Users,
   Video,
   Tag,
@@ -44,17 +50,17 @@ import {
   YAxis,
 } from "recharts";
 
-const RANGE_OPTIONS = [
-  { value: 1, label: "24h" },
-  { value: 7, label: "7天" },
-  { value: 30, label: "30天" },
-] as const;
+const GROWTH_PRESETS = [
+  { label: "24h", days: 1 },
+  { label: "7天", days: 7 },
+  { label: "30天", days: 30 },
+];
 
-const TREND_RANGE_OPTIONS = [
-  { value: 7, label: "7天" },
-  { value: 14, label: "14天" },
-  { value: 30, label: "30天" },
-] as const;
+const TREND_PRESETS = [
+  { label: "7天", days: 7 },
+  { label: "14天", days: 14 },
+  { label: "30天", days: 30 },
+];
 
 function formatCompact(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -296,15 +302,15 @@ const trendConfig = {
 } satisfies ChartConfig;
 
 function GrowthTrendChart({
-  days,
-  onDaysChange,
+  range,
+  onRangeChange,
 }: {
-  days: number;
-  onDaysChange: (days: number) => void;
+  range: DateRangeValue;
+  onRangeChange: (range: DateRangeValue) => void;
 }) {
   const { play } = useSound();
   const [metricGroup, setMetricGroup] = useState<"content" | "engagement">("content");
-  const { data: trend, isLoading } = trpc.admin.getGrowthTrend.useQuery({ days });
+  const { data: trend, isLoading } = trpc.admin.getGrowthTrend.useQuery(dateRangeToApi(range));
 
   const activeFields = TREND_METRICS.find((m) => m.key === metricGroup)!.fields;
 
@@ -348,21 +354,11 @@ function GrowthTrendChart({
               ))}
             </TabsList>
           </Tabs>
-          <Tabs
-            value={days.toString()}
-            onValueChange={(v) => {
-              onDaysChange(Number(v));
-              play("navigate");
-            }}
-          >
-            <TabsList className="h-8">
-              {TREND_RANGE_OPTIONS.map((opt) => (
-                <TabsTrigger key={opt.value} value={opt.value.toString()} className="text-xs px-3 h-6">
-                  {opt.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <DateRangePicker
+            value={range}
+            onChange={onRangeChange}
+            presets={TREND_PRESETS}
+          />
         </div>
       </div>
       <ChartContainer config={trendConfig} className="h-[280px] w-full">
@@ -445,12 +441,11 @@ function GrowthItem({
 // ==================== 主页面 ====================
 
 export default function StatsPage() {
-  const [rangeDays, setRangeDays] = useState<1 | 7 | 30>(30);
-  const [trendDays, setTrendDays] = useState(30);
-  const { play } = useSound();
+  const [growthRange, setGrowthRange] = useState<DateRangeValue>(() => createDateRange(30));
+  const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(30));
 
   const { data: stats, isLoading: statsLoading } = trpc.admin.getPublicStats.useQuery();
-  const { data: growth, isLoading: growthLoading } = trpc.admin.getGrowthStats.useQuery({ days: rangeDays });
+  const { data: growth, isLoading: growthLoading } = trpc.admin.getGrowthStats.useQuery(dateRangeToApi(growthRange));
 
   return (
     <div className="container max-w-5xl py-6 space-y-8">
@@ -517,7 +512,7 @@ export default function StatsPage() {
 
       {/* 每日增长趋势图 */}
       <FadeIn delay={0.2}>
-        <GrowthTrendChart days={trendDays} onDaysChange={setTrendDays} />
+        <GrowthTrendChart range={trendRange} onRangeChange={setTrendRange} />
       </FadeIn>
 
       {/* 其他累计数据 */}
@@ -558,21 +553,11 @@ export default function StatsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               增长趋势
             </h2>
-            <Tabs
-              value={rangeDays.toString()}
-              onValueChange={(v) => {
-                setRangeDays(Number(v) as 1 | 7 | 30);
-                play("navigate");
-              }}
-            >
-              <TabsList className="h-8">
-                {RANGE_OPTIONS.map((opt) => (
-                  <TabsTrigger key={opt.value} value={opt.value.toString()} className="text-xs px-3 h-6">
-                    {opt.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <DateRangePicker
+              value={growthRange}
+              onChange={setGrowthRange}
+              presets={GROWTH_PRESETS}
+            />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <GrowthItem icon={Users} label="新增用户" value={growth?.newUsers ?? 0} color="text-blue-500" isLoading={growthLoading} />

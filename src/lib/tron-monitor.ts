@@ -143,6 +143,44 @@ async function processTransactions(walletAddress: string): Promise<void> {
           data: { canUpload: true },
         });
       }
+
+      if (order.referralLinkId) {
+        const link = await tx_db.referralLink.findUnique({
+          where: { id: order.referralLinkId },
+          select: { userId: true },
+        });
+        if (link) {
+          await tx_db.referralLink.update({
+            where: { id: order.referralLinkId },
+            data: {
+              paymentCount: { increment: 1 },
+              paymentAmount: { increment: order.amount },
+            },
+          });
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          await tx_db.referralDailyStat.upsert({
+            where: { referralLinkId_date: { referralLinkId: order.referralLinkId, date: today } },
+            create: {
+              referralLinkId: order.referralLinkId,
+              userId: link.userId,
+              date: today,
+              paymentCount: 1,
+              paymentAmount: order.amount,
+            },
+            update: {
+              paymentCount: { increment: 1 },
+              paymentAmount: { increment: order.amount },
+            },
+          });
+
+          await tx_db.referralRecord.updateMany({
+            where: { referredUserId: order.userId, referralLinkId: order.referralLinkId, hasPaid: false },
+            data: { hasPaid: true, firstPaidAt: new Date() },
+          });
+        }
+      }
     });
 
     await releaseAmount(order.amount);
