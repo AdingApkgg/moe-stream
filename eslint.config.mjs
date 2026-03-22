@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     ".history/**",
     // Claude Code worktrees
     ".claude/**",
+    // Tauri build artifacts
+    "src-tauri/target/**",
   ]),
 ]);
 

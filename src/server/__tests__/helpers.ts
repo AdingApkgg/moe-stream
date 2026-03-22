@@ -23,7 +23,7 @@ function createMockPrisma() {
       );
     },
   };
-  return new Proxy({}, handler) as Context["prisma"];
+  return new Proxy({}, handler) as unknown as Context["prisma"];
 }
 
 function createMockRedis() {
@@ -58,7 +58,7 @@ export function createMockSession(
       id: "test-session-id",
       token: "test-token",
       expiresAt: new Date(Date.now() + 86400000),
-      ...overrides?.session,
+      ...(overrides?.session as Record<string, unknown>),
     },
   };
 }
