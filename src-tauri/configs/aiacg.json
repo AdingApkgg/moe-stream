@@ -1,0 +1,28 @@
+{
+  "productName": "AiACG",
+  "identifier": "com.aiacg.app",
+  "build": {
+    "frontendDist": "https://aiacg.com"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "AiACG",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "url": "https://aiacg.com"
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "icons/aiacg/32x32.png",
+      "icons/aiacg/128x128.png",
+      "icons/aiacg/128x128@2x.png",
+      "icons/aiacg/icon.icns",
+      "icons/aiacg/icon.ico"
+    ]
+  }
+}

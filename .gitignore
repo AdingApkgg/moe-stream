@@ -67,6 +67,9 @@ public/*-logo.*
 !public/default-logo.svg
 public/*logo*.webp
 
+# Tauri
+src-tauri/target
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts

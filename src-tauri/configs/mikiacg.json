@@ -1,0 +1,28 @@
+{
+  "productName": "MikiACG",
+  "identifier": "com.mikiacg.app",
+  "build": {
+    "frontendDist": "https://mikiacg.com"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MikiACG",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "url": "https://mikiacg.com"
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "icons/mikiacg/32x32.png",
+      "icons/mikiacg/128x128.png",
+      "icons/mikiacg/128x128@2x.png",
+      "icons/mikiacg/icon.icns",
+      "icons/mikiacg/icon.ico"
+    ]
+  }
+}
