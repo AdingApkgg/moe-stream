@@ -4,6 +4,29 @@ import { z } from "zod";
 import { ADMIN_SCOPES } from "@/lib/constants";
 import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
 
+const MAX_RANGE_DAYS = 90;
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+const dateRangeInput = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+}).refine(
+  (d) => new Date(d.to) >= new Date(d.from),
+  { message: "结束日期不能早于开始日期" },
+).refine(
+  (d) => {
+    const days = computeDayCount(new Date(d.from), new Date(d.to));
+    return days >= 1 && days <= MAX_RANGE_DAYS;
+  },
+  { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+);
+
+function computeDayCount(from: Date, to: Date): number {
+  const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((toDay.getTime() - fromDay.getTime()) / DAY_MS) + 1;
+}
+
 export const adminStatsRouter = router({
   // 获取当前用户的管理权限信息
   getMyPermissions: protectedProcedure.query(async ({ ctx }) => {
@@ -499,10 +522,7 @@ export const adminStatsRouter = router({
     }),
 
   getGrowthStats: publicProcedure
-    .input(z.object({
-      from: z.string().datetime(),
-      to: z.string().datetime(),
-    }))
+    .input(dateRangeInput)
     .query(async ({ ctx, input }) => {
       const since = new Date(input.from);
       const until = new Date(input.to);
@@ -567,10 +587,7 @@ export const adminStatsRouter = router({
 
   // 增长趋势数据（每日统计）
   getGrowthTrend: publicProcedure
-    .input(z.object({
-      from: z.string().datetime(),
-      to: z.string().datetime(),
-    }))
+    .input(dateRangeInput)
     .query(async ({ ctx, input }) => {
       const since = new Date(input.from);
       const until = new Date(input.to);
@@ -598,7 +615,7 @@ export const adminStatsRouter = router({
       type DayData = { users: number; videos: number; images: number; games: number; views: number; likes: number; favorites: number; comments: number };
       const trend: Record<string, DayData> = {};
 
-      const dayCount = Math.ceil((until.getTime() - since.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const dayCount = computeDayCount(since, until);
       const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const empty = (): DayData => ({ users: 0, videos: 0, images: 0, games: 0, views: 0, likes: 0, favorites: 0, comments: 0 });
 

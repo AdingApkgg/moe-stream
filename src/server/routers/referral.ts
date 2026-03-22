@@ -25,6 +25,15 @@ function dateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+const MAX_RANGE_DAYS = 90;
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+function computeDayCount(from: Date, to: Date): number {
+  const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((toDay.getTime() - fromDay.getTime()) / DAY_MS) + 1;
+}
+
 export const referralRouter = router({
   // ========== 用户端 ==========
 
@@ -124,7 +133,16 @@ export const referralRouter = router({
       from: z.string().datetime(),
       to: z.string().datetime(),
       linkIds: z.array(z.string()).optional(),
-    }))
+    }).refine(
+      (d) => new Date(d.to) >= new Date(d.from),
+      { message: "结束日期不能早于开始日期" },
+    ).refine(
+      (d) => {
+        const days = computeDayCount(new Date(d.from), new Date(d.to));
+        return days >= 1 && days <= MAX_RANGE_DAYS;
+      },
+      { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+    ))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { linkIds } = input;
@@ -141,7 +159,7 @@ export const referralRouter = router({
         orderBy: { date: "asc" },
       });
 
-      const dayCount = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const dayCount = computeDayCount(startDate, endDate);
       const dateMap = new Map<string, { clicks: number; uniqueClicks: number; registers: number; paymentCount: number; paymentAmount: number }>();
       for (let i = 0; i < dayCount; i++) {
         const d = new Date(startDate);
