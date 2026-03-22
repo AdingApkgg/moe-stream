@@ -616,7 +616,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <SoundToggleButton />
 
             {/* Messages */}
-            {session?.user && <MessageButton />}
+            {!isLoading && session?.user && <MessageButton />}
 
             {/* Notification Bell */}
             <NotificationBell />
