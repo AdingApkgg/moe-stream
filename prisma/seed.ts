@@ -437,9 +437,15 @@ async function main() {
     const userRecords: Array<{ id: string; username: string; role: string }> = [];
 
     for (const u of USERS_DATA) {
-      const existing = await prisma.user.findUnique({ where: { email: u.email } });
-      if (existing) {
-        userRecords.push({ id: existing.id, username: u.username, role: u.role });
+      const existingByEmail = await prisma.user.findUnique({ where: { email: u.email } });
+      if (existingByEmail) {
+        userRecords.push({ id: existingByEmail.id, username: u.username, role: u.role });
+        continue;
+      }
+
+      const existingByUsername = await prisma.user.findUnique({ where: { username: u.username } });
+      if (existingByUsername) {
+        userRecords.push({ id: existingByUsername.id, username: u.username, role: u.role });
         continue;
       }
 
