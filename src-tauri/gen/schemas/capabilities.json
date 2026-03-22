@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"允许远程 URL 的基本窗口操作","remote":{"urls":["https://*.mikiacg.com/*","https://*.aiacg.com/*"]},"local":true,"windows":["*"],"permissions":["core:default"]}}

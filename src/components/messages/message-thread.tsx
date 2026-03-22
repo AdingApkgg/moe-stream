@@ -44,7 +44,10 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
 
   const markRead = trpc.message.markRead.useMutation();
   const markReadRef = useRef(markRead.mutate);
-  markReadRef.current = markRead.mutate;
+
+  useEffect(() => {
+    markReadRef.current = markRead.mutate;
+  });
 
   useEffect(() => {
     if (conversationId) {
