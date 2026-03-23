@@ -107,7 +107,7 @@ export const adminConfigRouter = router({
         imageUrl: z.string().max(2000).optional().default(""),
         weight: z.number().int().min(1).max(100).optional().default(1),
         enabled: z.boolean().optional().default(true),
-        position: z.enum(["all", "sidebar", "header", "in-feed", "video-page", "ad-gate"]).optional().default("all"),
+        position: z.enum(["all", "sidebar", "header", "in-feed", "ad-gate"]).optional().default("all"),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
         createdAt: z.string().optional(),

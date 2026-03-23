@@ -979,11 +979,6 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
               )}
             </div>
 
-            {/* 评论区前广告位 */}
-            <div className="my-4 md:my-6">
-              <AdSlot slotId="video-before-comments" minHeight={80} className="w-full" />
-            </div>
-
             <Separator className="my-4 md:my-6" />
 
             {/* 评论区 */}

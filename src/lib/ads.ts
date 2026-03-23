@@ -3,14 +3,13 @@
  */
 
 /** 广告位标识 */
-export type AdPosition = "all" | "sidebar" | "header" | "in-feed" | "video-page" | "ad-gate";
+export type AdPosition = "all" | "sidebar" | "header" | "in-feed" | "ad-gate";
 
 export const AD_POSITIONS: { value: AdPosition; label: string }[] = [
   { value: "all", label: "全部位置" },
   { value: "sidebar", label: "侧栏" },
   { value: "header", label: "顶栏" },
   { value: "in-feed", label: "信息流" },
-  { value: "video-page", label: "视频页" },
   { value: "ad-gate", label: "仅广告门" },
 ];
 
@@ -18,9 +17,7 @@ const SLOT_ID_TO_POSITION: Record<string, AdPosition> = {
   sidebar: "sidebar",
   header: "header",
   "in-feed": "in-feed",
-  "video-page": "video-page",
   "video-sidebar": "sidebar",
-  "video-before-comments": "video-page",
   "ad-gate": "ad-gate",
 };
 
