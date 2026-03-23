@@ -67,9 +67,11 @@ export function isAdInSchedule(ad: Ad, now = new Date()): boolean {
   return true;
 }
 
-/** 检查广告是否匹配指定广告位 */
+const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
+
+/** 检查广告是否匹配指定广告位（未知的遗留位置值视为 "all"） */
 export function isAdForPosition(ad: Ad, slotPosition?: string): boolean {
-  if (!ad.position || ad.position === "all") return true;
+  if (!ad.position || ad.position === "all" || !VALID_POSITIONS.has(ad.position)) return true;
   if (!slotPosition) return false;
   return ad.position === slotPosition;
 }
