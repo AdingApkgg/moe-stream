@@ -711,12 +711,9 @@ async function main() {
 
     // ============================== 互动数据 ==============================
     console.log("❤️  创建互动数据...");
-    let interactionCount = 0;
-
     for (const userId of allUserIds) {
       for (const v of pickN(videoRecords, randomInt(5, 15))) {
         await prisma.like.create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});
-        interactionCount++;
       }
       for (const v of pickN(videoRecords, randomInt(2, 8))) {
         await prisma.favorite.create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});

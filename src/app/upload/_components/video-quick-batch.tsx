@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,14 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { TagPicker } from "./tag-picker";
 import { BatchProgressBar, VideoBatchResults } from "./batch-results";
-import type { TagItem, VideoBatchResult, BatchProgress } from "../_lib/types";
+import {
+  nextEntryId, extractTitleFromUrl,
+  useBatchTags, useBatchImport, useSubmitShortcut,
+} from "../_lib/use-batch";
+import type { VideoBatchResult } from "../_lib/types";
 import {
   GripVertical, Layers, Loader2, Plus, Trash2, Upload,
-  FileVideo, Link2, ClipboardPaste, ArrowDown,
+  FileVideo, Link2, ClipboardPaste, ArrowDown, RotateCcw,
 } from "lucide-react";
 
 interface VideoEntry {
@@ -26,35 +30,20 @@ interface VideoEntry {
   coverUrl: string;
 }
 
-let entryCounter = 0;
 function createEntry(videoUrl = "", title = ""): VideoEntry {
-  return { id: `e-${++entryCounter}`, title, videoUrl, coverUrl: "" };
-}
-
-function extractTitleFromUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    const path = u.pathname;
-    const filename = path.split("/").pop() || "";
-    const name = filename.replace(/\.[^.]+$/, "");
-    return decodeURIComponent(name).replace(/[_-]+/g, " ").trim();
-  } catch {
-    return "";
-  }
+  return { id: nextEntryId("v"), title, videoUrl, coverUrl: "" };
 }
 
 export function VideoQuickBatch() {
-  const [entries, setEntries] = useState<VideoEntry[]>([createEntry()]);
-  const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
-  const [newTags, setNewTags] = useState<string[]>([]);
+  const [entries, setEntries] = useState<VideoEntry[]>(() => [createEntry()]);
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
   const [showCreateSeries, setShowCreateSeries] = useState(false);
   const [newSeriesTitle, setNewSeriesTitle] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState<BatchProgress>({ current: 0, total: 0 });
-  const [results, setResults] = useState<VideoBatchResult[]>([]);
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteText, setPasteText] = useState("");
+
+  const { selectedTags, newTags, tagNames, toggleTag, addNewTag, removeNewTag } = useBatchTags();
+  const { importing, setImporting, progress, setProgress, results, setResults } = useBatchImport<VideoBatchResult>();
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery({ limit: 50 });
@@ -70,28 +59,30 @@ export function VideoQuickBatch() {
     onError: (e) => toast.error("创建合集失败", { description: e.message }),
   });
 
-  const toggleTag = (tag: TagItem) => {
-    const exists = selectedTags.find(t => t.id === tag.id);
-    if (exists) setSelectedTags(selectedTags.filter(t => t.id !== tag.id));
-    else if (selectedTags.length + newTags.length < 10) setSelectedTags([...selectedTags, tag]);
-  };
+  const validEntries = useMemo(() => entries.filter(e => e.videoUrl.trim()), [entries]);
+  const detectedLinkCount = useMemo(
+    () => pasteText.split("\n").filter(l => l.trim().startsWith("http")).length,
+    [pasteText],
+  );
 
-  const validEntries = entries.filter(e => e.videoUrl.trim());
-
-  const updateEntry = (id: string, field: keyof VideoEntry, value: string) => {
+  const updateEntry = useCallback((id: string, field: keyof VideoEntry, value: string) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
-  };
+  }, []);
 
-  const removeEntry = (id: string) => {
+  const removeEntry = useCallback((id: string) => {
     setEntries(prev => {
       const next = prev.filter(e => e.id !== id);
       return next.length === 0 ? [createEntry()] : next;
     });
-  };
+  }, []);
 
-  const addEntry = () => {
+  const addEntry = useCallback(() => {
     setEntries(prev => [...prev, createEntry()]);
-  };
+  }, []);
+
+  const clearEntries = useCallback(() => {
+    setEntries([createEntry()]);
+  }, []);
 
   const handlePasteUrls = () => {
     const lines = pasteText
@@ -105,30 +96,31 @@ export function VideoQuickBatch() {
     }
 
     const newEntries = lines.map(url => createEntry(url, extractTitleFromUrl(url)));
-    const existing = entries.filter(e => e.videoUrl.trim());
-    setEntries([...existing, ...newEntries]);
+    setEntries(prev => {
+      const existing = prev.filter(e => e.videoUrl.trim());
+      return [...existing, ...newEntries];
+    });
     setPasteMode(false);
     setPasteText("");
     toast.success(`已添加 ${lines.length} 个视频链接`);
   };
 
-  const handleAutoTitle = () => {
+  const handleAutoTitle = useCallback(() => {
     setEntries(prev => prev.map(e => {
       if (e.videoUrl.trim() && !e.title.trim()) {
         return { ...e, title: extractTitleFromUrl(e.videoUrl) || e.title };
       }
       return e;
     }));
-  };
+  }, []);
 
   const handleSubmit = async () => {
-    const valid = entries.filter(e => e.videoUrl.trim());
-    if (valid.length === 0) {
+    if (validEntries.length === 0) {
       toast.error("至少需要一个视频链接");
       return;
     }
 
-    const untitled = valid.filter(e => !e.title.trim());
+    const untitled = validEntries.filter(e => !e.title.trim());
     if (untitled.length > 0) {
       toast.error(`还有 ${untitled.length} 个视频未填写标题`);
       return;
@@ -145,11 +137,11 @@ export function VideoQuickBatch() {
 
       const res = await batchCreate.mutateAsync({
         seriesTitle: seriesTitle || undefined,
-        videos: valid.map(e => ({
+        videos: validEntries.map(e => ({
           title: e.title.trim(),
           videoUrl: e.videoUrl.trim(),
           coverUrl: e.coverUrl.trim() || "",
-          tagNames: [...selectedTags.map(t => t.name), ...newTags],
+          tagNames,
         })),
       });
 
@@ -168,9 +160,7 @@ export function VideoQuickBatch() {
       setResults(allResults);
       refetchSeries();
 
-      if (fail === 0) {
-        setEntries([createEntry()]);
-      }
+      if (fail === 0) setEntries([createEntry()]);
     } catch (err) {
       toast.error("批量发布失败", {
         description: err instanceof Error ? err.message : "未知错误",
@@ -179,6 +169,8 @@ export function VideoQuickBatch() {
       setImporting(false);
     }
   };
+
+  useSubmitShortcut(handleSubmit, !importing && validEntries.length > 0);
 
   return (
     <div className="space-y-6">
@@ -198,6 +190,12 @@ export function VideoQuickBatch() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {entries.length > 1 && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearEntries}>
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  清空
+                </Button>
+              )}
               <Button
                 type="button"
                 variant={pasteMode ? "default" : "outline"}
@@ -231,7 +229,7 @@ export function VideoQuickBatch() {
                   取消
                 </Button>
                 <span className="text-xs text-muted-foreground ml-auto">
-                  检测到 {pasteText.split("\n").filter(l => l.trim().startsWith("http")).length} 个链接
+                  检测到 {detectedLinkCount} 个链接
                 </span>
               </div>
             </div>
@@ -250,7 +248,6 @@ export function VideoQuickBatch() {
                       : "bg-muted/20 border-dashed",
                   )}
                 >
-                  {/* 序号 */}
                   <div className="flex items-center gap-1 pt-2">
                     <GripVertical className="h-4 w-4 text-muted-foreground/40" />
                     <span className="text-sm font-medium text-muted-foreground tabular-nums w-5 text-right">
@@ -258,16 +255,13 @@ export function VideoQuickBatch() {
                     </span>
                   </div>
 
-                  {/* 表单内容 */}
                   <div className="flex-1 space-y-2 min-w-0">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="视频标题"
-                        value={entry.title}
-                        onChange={(e) => updateEntry(entry.id, "title", e.target.value)}
-                        className={cn("flex-1", !entry.title.trim() && entry.videoUrl.trim() && "border-yellow-400")}
-                      />
-                    </div>
+                    <Input
+                      placeholder="视频标题"
+                      value={entry.title}
+                      onChange={(e) => updateEntry(entry.id, "title", e.target.value)}
+                      className={cn("flex-1", !entry.title.trim() && entry.videoUrl.trim() && "border-yellow-400")}
+                    />
                     <div className="relative">
                       <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -280,11 +274,13 @@ export function VideoQuickBatch() {
                           const lines = text.split("\n").filter(l => l.trim().startsWith("http"));
                           if (lines.length > 1) {
                             e.preventDefault();
-                            const newEntries = lines.map(url => createEntry(url.trim(), extractTitleFromUrl(url.trim())));
-                            const before = entries.slice(0, index);
-                            const after = entries.slice(index + 1);
-                            const current = entry.videoUrl.trim() ? [entry] : [];
-                            setEntries([...before, ...current, ...newEntries, ...after]);
+                            const pasted = lines.map(url => createEntry(url.trim(), extractTitleFromUrl(url.trim())));
+                            setEntries(prev => {
+                              const before = prev.slice(0, index);
+                              const after = prev.slice(index + 1);
+                              const current = prev[index].videoUrl.trim() ? [prev[index]] : [];
+                              return [...before, ...current, ...pasted, ...after];
+                            });
                             toast.success(`已粘贴 ${lines.length} 个链接`);
                           }
                         }}
@@ -292,7 +288,6 @@ export function VideoQuickBatch() {
                     </div>
                   </div>
 
-                  {/* 删除按钮 */}
                   <Button
                     type="button"
                     variant="ghost"
@@ -307,7 +302,6 @@ export function VideoQuickBatch() {
             </div>
           </ScrollArea>
 
-          {/* 添加更多 + 自动标题 */}
           <div className="flex items-center gap-2 pt-1">
             <Button type="button" variant="outline" size="sm" onClick={addEntry}>
               <Plus className="h-4 w-4 mr-1" />
@@ -325,7 +319,6 @@ export function VideoQuickBatch() {
 
       {/* 共享设置：合集 + 标签 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 合集选择 */}
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -402,14 +395,13 @@ export function VideoQuickBatch() {
           </CardContent>
         </Card>
 
-        {/* 共享标签 */}
         <TagPicker
           allTags={allTags}
           selectedTags={selectedTags}
           newTags={newTags}
           onToggleTag={toggleTag}
-          onAddNewTag={(name) => setNewTags([...newTags, name])}
-          onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
+          onAddNewTag={addNewTag}
+          onRemoveNewTag={removeNewTag}
         />
       </div>
 
@@ -430,33 +422,37 @@ export function VideoQuickBatch() {
                       </Badge>
                     </>
                   )}
-                  {(selectedTags.length + newTags.length) > 0 && (
-                    <span className="ml-1">· {selectedTags.length + newTags.length} 个标签</span>
+                  {tagNames.length > 0 && (
+                    <span className="ml-1">· {tagNames.length} 个标签</span>
                   )}
                 </span>
               ) : (
                 "请先添加视频"
               )}
             </div>
-            <Button
-              type="button"
-              size="lg"
-              className="min-w-[160px]"
-              onClick={handleSubmit}
-              disabled={validEntries.length === 0 || importing}
-            >
-              {importing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
-              ) : (
-                <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                ⌘ Enter
+              </kbd>
+              <Button
+                type="button"
+                size="lg"
+                className="min-w-[160px]"
+                onClick={handleSubmit}
+                disabled={validEntries.length === 0 || importing}
+              >
+                {importing ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
+                ) : (
+                  <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
+                )}
+              </Button>
+            </div>
           </div>
           <BatchProgressBar progress={progress} label="批" isActive={importing} />
         </CardContent>
       </Card>
 
-      {/* 结果 */}
       <VideoBatchResults results={results} importing={importing} />
     </div>
   );

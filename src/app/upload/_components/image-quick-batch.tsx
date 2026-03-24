@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,14 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { TagPicker } from "./tag-picker";
 import { BatchProgressBar, ImageBatchResults } from "./batch-results";
-import type { TagItem, ImageBatchResult, BatchProgress } from "../_lib/types";
+import {
+  nextEntryId, useBatchTags, useBatchImport,
+  useSubmitShortcut, submitInChunks,
+} from "../_lib/use-batch";
+import type { ImageBatchResult } from "../_lib/types";
 import {
   ChevronDown, ChevronUp, GripVertical,
-  Image as ImageIcon, Loader2, Plus, Trash2, Upload,
+  Image as ImageIcon, Loader2, Plus, RotateCcw, Trash2, Upload,
 } from "lucide-react";
 
 interface ImageEntry {
@@ -26,10 +30,9 @@ interface ImageEntry {
   expanded: boolean;
 }
 
-let entryCounter = 0;
 function createImageEntry(): ImageEntry {
   return {
-    id: `img-${++entryCounter}`,
+    id: nextEntryId("img"),
     title: "", description: "",
     images: [""],
     expanded: true,
@@ -37,65 +40,63 @@ function createImageEntry(): ImageEntry {
 }
 
 export function ImageQuickBatch() {
-  const [entries, setEntries] = useState<ImageEntry[]>([createImageEntry()]);
-  const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
-  const [newTags, setNewTags] = useState<string[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState<BatchProgress>({ current: 0, total: 0 });
-  const [results, setResults] = useState<ImageBatchResult[]>([]);
+  const [entries, setEntries] = useState<ImageEntry[]>(() => [createImageEntry()]);
+
+  const { selectedTags, newTags, tagNames, toggleTag, addNewTag, removeNewTag } = useBatchTags();
+  const { importing, setImporting, progress, setProgress, results, setResults } = useBatchImport<ImageBatchResult>();
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const batchCreate = trpc.image.batchCreate.useMutation();
 
-  const toggleTag = (tag: TagItem) => {
-    const exists = selectedTags.find(t => t.id === tag.id);
-    if (exists) setSelectedTags(selectedTags.filter(t => t.id !== tag.id));
-    else if (selectedTags.length + newTags.length < 10) setSelectedTags([...selectedTags, tag]);
-  };
+  const validEntries = useMemo(() => entries.filter(e => e.title.trim() && e.images.some(u => u.trim())), [entries]);
 
-  const validEntries = entries.filter(e => e.title.trim() && e.images.some(u => u.trim()));
-
-  const updateEntry = (id: string, updates: Partial<ImageEntry>) => {
+  const updateEntry = useCallback((id: string, updates: Partial<ImageEntry>) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
-  };
+  }, []);
 
-  const removeEntry = (id: string) => {
+  const removeEntry = useCallback((id: string) => {
     setEntries(prev => {
       const next = prev.filter(e => e.id !== id);
       return next.length === 0 ? [createImageEntry()] : next;
     });
-  };
+  }, []);
 
-  const addEntry = () => {
+  const addEntry = useCallback(() => {
     setEntries(prev => {
       const collapsed = prev.map(e => ({ ...e, expanded: false }));
       return [...collapsed, createImageEntry()];
     });
-  };
+  }, []);
 
-  const toggleExpand = (id: string) => {
-    updateEntry(id, { expanded: !entries.find(e => e.id === id)?.expanded });
-  };
+  const clearEntries = useCallback(() => {
+    setEntries([createImageEntry()]);
+  }, []);
 
-  const updateImage = (entryId: string, idx: number, value: string) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
-    const imgs = [...entry.images];
-    imgs[idx] = value;
-    updateEntry(entryId, { images: imgs });
-  };
+  const toggleExpand = useCallback((id: string) => {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, expanded: !e.expanded } : e));
+  }, []);
 
-  const addImage = (entryId: string) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
-    updateEntry(entryId, { images: [...entry.images, ""] });
-  };
+  const updateImage = useCallback((entryId: string, idx: number, value: string) => {
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      const imgs = [...e.images];
+      imgs[idx] = value;
+      return { ...e, images: imgs };
+    }));
+  }, []);
 
-  const removeImage = (entryId: string, idx: number) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry || entry.images.length <= 1) return;
-    updateEntry(entryId, { images: entry.images.filter((_, i) => i !== idx) });
-  };
+  const addImage = useCallback((entryId: string) => {
+    setEntries(prev => prev.map(e =>
+      e.id === entryId ? { ...e, images: [...e.images, ""] } : e,
+    ));
+  }, []);
+
+  const removeImage = useCallback((entryId: string, idx: number) => {
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId || e.images.length <= 1) return e;
+      return { ...e, images: e.images.filter((_, i) => i !== idx) };
+    }));
+  }, []);
 
   const handleSubmit = async () => {
     if (validEntries.length === 0) {
@@ -105,33 +106,25 @@ export function ImageQuickBatch() {
 
     setImporting(true);
     setResults([]);
-    const CHUNK = 100;
-    const totalChunks = Math.ceil(validEntries.length / CHUNK);
-    setProgress({ current: 0, total: totalChunks });
-    const allResults: ImageBatchResult[] = [];
 
     try {
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = validEntries.slice(i * CHUNK, (i + 1) * CHUNK);
-        try {
+      const allResults = await submitInChunks<ImageEntry, ImageBatchResult>({
+        entries: validEntries,
+        submitChunk: async (chunk) => {
           const res = await batchCreate.mutateAsync({
             posts: chunk.map(e => ({
               title: e.title.trim(),
               description: e.description.trim() || undefined,
               images: e.images.filter(u => u.trim()),
-              tagNames: [...selectedTags.map(t => t.name), ...newTags],
+              tagNames,
             })),
           });
-          allResults.push(...res.results);
-        } catch (err) {
-          allResults.push(...chunk.map(p => ({
-            title: p.title,
-            error: err instanceof Error ? err.message : "未知错误",
-          })));
-        }
-        setProgress({ current: i + 1, total: totalChunks });
-        setResults([...allResults]);
-      }
+          return res.results;
+        },
+        onProgress: (current, total) => setProgress({ current, total }),
+        onPartialResults: setResults,
+        makeErrorResult: (entry, error) => ({ title: entry.title, error }),
+      });
 
       const newC = allResults.filter(r => r.id && !r.updated).length;
       const updC = allResults.filter(r => r.updated).length;
@@ -143,6 +136,8 @@ export function ImageQuickBatch() {
       setImporting(false);
     }
   };
+
+  useSubmitShortcut(handleSubmit, !importing && validEntries.length > 0);
 
   return (
     <div className="space-y-6">
@@ -160,6 +155,12 @@ export function ImageQuickBatch() {
                   : "逐条添加图片帖信息"}
               </CardDescription>
             </div>
+            {entries.length > 1 && (
+              <Button type="button" variant="ghost" size="sm" onClick={clearEntries}>
+                <RotateCcw className="h-4 w-4 mr-1" />
+                清空
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -173,7 +174,6 @@ export function ImageQuickBatch() {
                     entry.title.trim() ? "bg-card" : "bg-muted/20 border-dashed",
                   )}
                 >
-                  {/* Header */}
                   <div
                     className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg"
                     onClick={() => toggleExpand(entry.id)}
@@ -207,7 +207,6 @@ export function ImageQuickBatch() {
                     </Button>
                   </div>
 
-                  {/* Expanded */}
                   {entry.expanded && (
                     <div className="px-3 pb-3 space-y-3 border-t">
                       <div className="pt-3 space-y-3">
@@ -226,7 +225,6 @@ export function ImageQuickBatch() {
                           className="min-h-[60px] resize-none text-sm"
                         />
 
-                        {/* Image URLs */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium flex items-center gap-1.5">
@@ -255,7 +253,6 @@ export function ImageQuickBatch() {
                               )}
                             </div>
                           ))}
-                          {/* Inline preview */}
                           {entry.images.filter(u => u.trim()).length > 0 && (
                             <div className="flex gap-1.5 flex-wrap mt-1">
                               {entry.images.filter(u => u.trim()).map((url, i) => (
@@ -287,8 +284,8 @@ export function ImageQuickBatch() {
         selectedTags={selectedTags}
         newTags={newTags}
         onToggleTag={toggleTag}
-        onAddNewTag={(name) => setNewTags([...newTags, name])}
-        onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
+        onAddNewTag={addNewTag}
+        onRemoveNewTag={removeNewTag}
       />
 
       <Card className="border-primary/20">
@@ -298,25 +295,30 @@ export function ImageQuickBatch() {
               {validEntries.length > 0 ? (
                 <span>
                   共 <strong className="text-foreground">{validEntries.length}</strong> 个图片帖
-                  {(selectedTags.length + newTags.length) > 0 && (
-                    <span className="ml-1">· {selectedTags.length + newTags.length} 个标签</span>
+                  {tagNames.length > 0 && (
+                    <span className="ml-1">· {tagNames.length} 个标签</span>
                   )}
                 </span>
               ) : "请先添加图片帖"}
             </div>
-            <Button
-              type="button"
-              size="lg"
-              className="min-w-[160px]"
-              onClick={handleSubmit}
-              disabled={validEntries.length === 0 || importing}
-            >
-              {importing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
-              ) : (
-                <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                ⌘ Enter
+              </kbd>
+              <Button
+                type="button"
+                size="lg"
+                className="min-w-[160px]"
+                onClick={handleSubmit}
+                disabled={validEntries.length === 0 || importing}
+              >
+                {importing ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
+                ) : (
+                  <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
+                )}
+              </Button>
+            </div>
           </div>
           <BatchProgressBar progress={progress} label="批" isActive={importing} />
         </CardContent>

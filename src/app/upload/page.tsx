@@ -85,7 +85,7 @@ export default function UploadPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Upload className="h-6 w-6" />
-          上传
+          发布内容
         </h1>
         <p className="text-muted-foreground mt-1">选择内容类型，填写信息后发布</p>
       </div>

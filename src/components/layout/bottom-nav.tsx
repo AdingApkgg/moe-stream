@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/search", icon: Compass, label: "发现" },
   { href: "/channels", icon: MessageSquare, label: "消息", auth: true, loginHref: "/login" },
-  { href: "/upload", icon: Upload, label: "上传", auth: true, loginHref: "/login", requireUpload: true },
+  { href: "/upload", icon: Upload, label: "发布内容", auth: true, loginHref: "/login", requireUpload: true },
   { href: "/settings", icon: User, label: "我的", auth: true, loginHref: "/login" },
 ];
 

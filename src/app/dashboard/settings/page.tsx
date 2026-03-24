@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTabParam } from "@/hooks/use-tab-param";
 import { useForm } from "react-hook-form";
@@ -249,6 +249,9 @@ const configFormSchema = z.object({
 
 type ConfigFormValues = z.infer<typeof configFormSchema>;
 
+const validEnum = <T extends string>(value: unknown, valid: readonly T[], fallback: T): T =>
+  valid.includes(value as T) ? (value as T) : fallback;
+
 function TestEmailButton() {
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
@@ -475,11 +478,16 @@ export default function AdminSettingsPage() {
   } = trpc.admin.getSiteConfig.useQuery(undefined, {
     enabled: !!permissions?.scopes.includes("settings:manage"),
     retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+
+  const configInitRef = useRef(false);
+
   const updateConfig = trpc.admin.updateSiteConfig.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("配置已保存");
-      refetch();
+      resetFormFromConfig(data);
     },
     onError: (error) => {
       toast.error(error.message || "保存失败");
@@ -491,9 +499,10 @@ export default function AdminSettingsPage() {
   });
 
   const importConfig = trpc.admin.importSiteConfig.useMutation({
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       toast.success(`已还原 ${result.imported} 项配置`);
-      refetch();
+      const { data } = await refetch();
+      if (data) resetFormFromConfig(data);
     },
     onError: (error) => {
       toast.error(error.message || "还原失败");
@@ -566,9 +575,6 @@ export default function AdminSettingsPage() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [pendingImport, setPendingImport] = useState<Record<string, unknown> | null>(null);
   const [activeTab, setActiveTab] = useTabParam("basic");
-
-  const validEnum = <T extends string>(value: unknown, valid: readonly T[], fallback: T): T =>
-    valid.includes(value as T) ? (value as T) : fallback;
 
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configFormSchema),
@@ -675,119 +681,126 @@ export default function AdminSettingsPage() {
     },
   });
 
-  // 当配置加载完成后，更新表单
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resetFormFromConfig = useCallback((cfg: Record<string, any>) => {
+    if (!cfg) return;
+    form.reset({
+      siteName: cfg.siteName,
+      siteUrl: (cfg.siteUrl as string) || "",
+      siteDescription: cfg.siteDescription || "",
+      siteLogo: cfg.siteLogo || "",
+      siteFavicon: cfg.siteFavicon || "",
+      siteKeywords: cfg.siteKeywords || "",
+      googleVerification: (cfg.googleVerification as string) || "",
+      githubUrl: (cfg.githubUrl as string) || "",
+      securityEmail: (cfg.securityEmail as string) || "",
+      announcement: cfg.announcement || "",
+      announcementEnabled: cfg.announcementEnabled,
+      allowRegistration: cfg.allowRegistration,
+      allowUpload: cfg.allowUpload,
+      allowComment: cfg.allowComment,
+      requireLoginToComment: cfg.requireLoginToComment ?? false,
+      requireEmailVerify: cfg.requireEmailVerify,
+      sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
+      sectionImageEnabled: cfg.sectionImageEnabled ?? true,
+      sectionGameEnabled: cfg.sectionGameEnabled ?? true,
+      videosPerPage: cfg.videosPerPage,
+      commentsPerPage: cfg.commentsPerPage,
+      maxUploadSize: cfg.maxUploadSize,
+      allowedVideoFormats: cfg.allowedVideoFormats,
+      adminBatchLimit: (cfg.adminBatchLimit as number) ?? 10000,
+      contactEmail: cfg.contactEmail || "",
+      privacyPolicy: (cfg.privacyPolicy as string) || "",
+      termsOfService: (cfg.termsOfService as string) || "",
+      aboutPage: (cfg.aboutPage as string) || "",
+      footerText: cfg.footerText || "",
+      icpBeian: cfg.icpBeian || "",
+      publicSecurityBeian: cfg.publicSecurityBeian || "",
+      adsEnabled: cfg.adsEnabled ?? false,
+      adGateEnabled: cfg.adGateEnabled ?? false,
+      adGateViewsRequired: cfg.adGateViewsRequired ?? 3,
+      adGateHours: cfg.adGateHours ?? 12,
+      sponsorAds: ((cfg.sponsorAds as ConfigFormValues["sponsorAds"]) ?? []).map((item) => ({
+        title: item.title ?? "",
+        platform: item.platform ?? "",
+        url: item.url ?? "",
+        description: item.description ?? "",
+        imageUrl: item.imageUrl ?? "",
+        weight: item.weight ?? 1,
+        enabled: item.enabled !== false,
+      })),
+      captchaLogin: validEnum(cfg.captchaLogin, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "math"),
+      captchaRegister: validEnum(cfg.captchaRegister, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
+      captchaComment: validEnum(cfg.captchaComment, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
+      captchaForgotPassword: validEnum(cfg.captchaForgotPassword, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
+      turnstileSiteKey: (cfg.turnstileSiteKey as string) || "",
+      turnstileSecretKey: (cfg.turnstileSecretKey as string) || "",
+      recaptchaSiteKey: (cfg.recaptchaSiteKey as string) || "",
+      recaptchaSecretKey: (cfg.recaptchaSecretKey as string) || "",
+      hcaptchaSiteKey: (cfg.hcaptchaSiteKey as string) || "",
+      hcaptchaSecretKey: (cfg.hcaptchaSecretKey as string) || "",
+      mailSendMode: validEnum(cfg.mailSendMode, ["smtp", "http_api"] as const, "smtp"),
+      smtpHost: (cfg.smtpHost as string) || "",
+      smtpPort: (cfg.smtpPort as number) ?? 465,
+      smtpUser: (cfg.smtpUser as string) || "",
+      smtpPassword: (cfg.smtpPassword as string) || "",
+      smtpFrom: (cfg.smtpFrom as string) || "",
+      mailApiUrl: (cfg.mailApiUrl as string) || "",
+      mailApiKey: (cfg.mailApiKey as string) || "",
+      mailApiFrom: (cfg.mailApiFrom as string) || "",
+      mailApiHeaders: (cfg.mailApiHeaders as string) || "",
+      uploadDir: (cfg.uploadDir as string) || "./uploads",
+      indexNowKey: (cfg.indexNowKey as string) || "",
+      googleServiceAccountEmail: (cfg.googleServiceAccountEmail as string) || "",
+      googlePrivateKey: (cfg.googlePrivateKey as string) || "",
+      storageProvider: validEnum(cfg.storageProvider, ["local", "s3", "r2", "minio", "oss", "cos"] as const, "local"),
+      storageEndpoint: (cfg.storageEndpoint as string) || "",
+      storageBucket: (cfg.storageBucket as string) || "",
+      storageRegion: (cfg.storageRegion as string) || "",
+      storageAccessKey: (cfg.storageAccessKey as string) || "",
+      storageSecretKey: (cfg.storageSecretKey as string) || "",
+      storageCustomDomain: (cfg.storageCustomDomain as string) || "",
+      storagePathPrefix: (cfg.storagePathPrefix as string) || "",
+      themeHue: (cfg.themeHue as number) ?? 285,
+      themeColorTemp: (cfg.themeColorTemp as number) ?? 0,
+      themeBorderRadius: (cfg.themeBorderRadius as number) ?? 0.625,
+      themeGlassOpacity: (cfg.themeGlassOpacity as number) ?? 0.7,
+      themeAnimations: (cfg.themeAnimations as boolean) ?? true,
+      effectEnabled: (cfg.effectEnabled as boolean) ?? true,
+      effectType: validEnum(cfg.effectType, ["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"] as const, "sakura"),
+      effectDensity: (cfg.effectDensity as number) ?? 50,
+      effectSpeed: (cfg.effectSpeed as number) ?? 1.0,
+      effectOpacity: (cfg.effectOpacity as number) ?? 0.8,
+      effectColor: (cfg.effectColor as string) || "",
+      soundDefaultEnabled: (cfg.soundDefaultEnabled as boolean) ?? true,
+      analyticsGoogleId: (cfg.analyticsGoogleId as string) || "",
+      analyticsGtmId: (cfg.analyticsGtmId as string) || "",
+      analyticsCfToken: (cfg.analyticsCfToken as string) || "",
+      analyticsClarityId: (cfg.analyticsClarityId as string) || "",
+      analyticsBingVerification: (cfg.analyticsBingVerification as string) || "",
+      usdtPaymentEnabled: (cfg.usdtPaymentEnabled as boolean) ?? false,
+      usdtWalletAddress: (cfg.usdtWalletAddress as string) || "",
+      usdtPointsPerUnit: (cfg.usdtPointsPerUnit as number) ?? 10000,
+      usdtOrderTimeoutMin: (cfg.usdtOrderTimeoutMin as number) ?? 30,
+      usdtMinAmount: (cfg.usdtMinAmount as number) ?? null,
+      usdtMaxAmount: (cfg.usdtMaxAmount as number) ?? null,
+      ...Object.fromEntries(
+        ["Google", "Github", "Discord", "Apple", "Twitter", "Facebook", "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit"]
+          .flatMap((k) => [
+            [`oauth${k}ClientId`, (cfg[`oauth${k}ClientId`] as string) || ""],
+            [`oauth${k}ClientSecret`, (cfg[`oauth${k}ClientSecret`] as string) || ""],
+          ])
+      ),
+    });
+  }, [form]);
+
+  // 仅在首次加载配置时初始化表单，避免 query refetch 导致未保存的修改被清除
   useEffect(() => {
-    if (config) {
-      form.reset({
-        siteName: config.siteName,
-        siteUrl: (config as Record<string, unknown>).siteUrl as string || "",
-        siteDescription: config.siteDescription || "",
-        siteLogo: config.siteLogo || "",
-        siteFavicon: config.siteFavicon || "",
-        siteKeywords: config.siteKeywords || "",
-        googleVerification: (config as Record<string, unknown>).googleVerification as string || "",
-        githubUrl: (config as Record<string, unknown>).githubUrl as string || "",
-        securityEmail: (config as Record<string, unknown>).securityEmail as string || "",
-        announcement: config.announcement || "",
-        announcementEnabled: config.announcementEnabled,
-        allowRegistration: config.allowRegistration,
-        allowUpload: config.allowUpload,
-        allowComment: config.allowComment,
-        requireLoginToComment: (config as { requireLoginToComment?: boolean }).requireLoginToComment ?? false,
-        requireEmailVerify: config.requireEmailVerify,
-        sectionVideoEnabled: (config as { sectionVideoEnabled?: boolean }).sectionVideoEnabled ?? true,
-        sectionImageEnabled: (config as { sectionImageEnabled?: boolean }).sectionImageEnabled ?? true,
-        sectionGameEnabled: (config as { sectionGameEnabled?: boolean }).sectionGameEnabled ?? true,
-        videosPerPage: config.videosPerPage,
-        commentsPerPage: config.commentsPerPage,
-        maxUploadSize: config.maxUploadSize,
-        allowedVideoFormats: config.allowedVideoFormats,
-        adminBatchLimit: (config as Record<string, unknown>).adminBatchLimit as number ?? 10000,
-        contactEmail: config.contactEmail || "",
-        privacyPolicy: ((config as Record<string, unknown>).privacyPolicy as string) || "",
-        termsOfService: ((config as Record<string, unknown>).termsOfService as string) || "",
-        aboutPage: ((config as Record<string, unknown>).aboutPage as string) || "",
-        footerText: config.footerText || "",
-        icpBeian: config.icpBeian || "",
-        publicSecurityBeian: config.publicSecurityBeian || "",
-        adsEnabled: (config as { adsEnabled?: boolean }).adsEnabled ?? false,
-        adGateEnabled: (config as { adGateEnabled?: boolean }).adGateEnabled ?? false,
-        adGateViewsRequired: (config as { adGateViewsRequired?: number }).adGateViewsRequired ?? 3,
-        adGateHours: (config as { adGateHours?: number }).adGateHours ?? 12,
-        sponsorAds: ((config as unknown as { sponsorAds?: ConfigFormValues["sponsorAds"] }).sponsorAds ?? []).map((item) => ({
-          title: item.title ?? "",
-          platform: item.platform ?? "",
-          url: item.url ?? "",
-          description: item.description ?? "",
-          imageUrl: item.imageUrl ?? "",
-          weight: item.weight ?? 1,
-          enabled: item.enabled !== false,
-        })),
-        captchaLogin: validEnum((config as Record<string, unknown>).captchaLogin, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "math"),
-        captchaRegister: validEnum((config as Record<string, unknown>).captchaRegister, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-        captchaComment: validEnum((config as Record<string, unknown>).captchaComment, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-        captchaForgotPassword: validEnum((config as Record<string, unknown>).captchaForgotPassword, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-        turnstileSiteKey: ((config as Record<string, unknown>).turnstileSiteKey as string) || "",
-        turnstileSecretKey: ((config as Record<string, unknown>).turnstileSecretKey as string) || "",
-        recaptchaSiteKey: ((config as Record<string, unknown>).recaptchaSiteKey as string) || "",
-        recaptchaSecretKey: ((config as Record<string, unknown>).recaptchaSecretKey as string) || "",
-        hcaptchaSiteKey: ((config as Record<string, unknown>).hcaptchaSiteKey as string) || "",
-        hcaptchaSecretKey: ((config as Record<string, unknown>).hcaptchaSecretKey as string) || "",
-        mailSendMode: validEnum((config as Record<string, unknown>).mailSendMode, ["smtp", "http_api"] as const, "smtp"),
-        smtpHost: ((config as Record<string, unknown>).smtpHost as string) || "",
-        smtpPort: ((config as Record<string, unknown>).smtpPort as number) ?? 465,
-        smtpUser: ((config as Record<string, unknown>).smtpUser as string) || "",
-        smtpPassword: ((config as Record<string, unknown>).smtpPassword as string) || "",
-        smtpFrom: ((config as Record<string, unknown>).smtpFrom as string) || "",
-        mailApiUrl: ((config as Record<string, unknown>).mailApiUrl as string) || "",
-        mailApiKey: ((config as Record<string, unknown>).mailApiKey as string) || "",
-        mailApiFrom: ((config as Record<string, unknown>).mailApiFrom as string) || "",
-        mailApiHeaders: ((config as Record<string, unknown>).mailApiHeaders as string) || "",
-        uploadDir: ((config as Record<string, unknown>).uploadDir as string) || "./uploads",
-        indexNowKey: ((config as Record<string, unknown>).indexNowKey as string) || "",
-        googleServiceAccountEmail: ((config as Record<string, unknown>).googleServiceAccountEmail as string) || "",
-        googlePrivateKey: ((config as Record<string, unknown>).googlePrivateKey as string) || "",
-        storageProvider: validEnum((config as Record<string, unknown>).storageProvider, ["local", "s3", "r2", "minio", "oss", "cos"] as const, "local"),
-        storageEndpoint: ((config as Record<string, unknown>).storageEndpoint as string) || "",
-        storageBucket: ((config as Record<string, unknown>).storageBucket as string) || "",
-        storageRegion: ((config as Record<string, unknown>).storageRegion as string) || "",
-        storageAccessKey: ((config as Record<string, unknown>).storageAccessKey as string) || "",
-        storageSecretKey: ((config as Record<string, unknown>).storageSecretKey as string) || "",
-        storageCustomDomain: ((config as Record<string, unknown>).storageCustomDomain as string) || "",
-        storagePathPrefix: ((config as Record<string, unknown>).storagePathPrefix as string) || "",
-        themeHue: (config as Record<string, unknown>).themeHue as number ?? 285,
-        themeColorTemp: (config as Record<string, unknown>).themeColorTemp as number ?? 0,
-        themeBorderRadius: (config as Record<string, unknown>).themeBorderRadius as number ?? 0.625,
-        themeGlassOpacity: (config as Record<string, unknown>).themeGlassOpacity as number ?? 0.7,
-        themeAnimations: (config as Record<string, unknown>).themeAnimations as boolean ?? true,
-        effectEnabled: (config as Record<string, unknown>).effectEnabled as boolean ?? true,
-        effectType: validEnum((config as Record<string, unknown>).effectType, ["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"] as const, "sakura"),
-        effectDensity: (config as Record<string, unknown>).effectDensity as number ?? 50,
-        effectSpeed: (config as Record<string, unknown>).effectSpeed as number ?? 1.0,
-        effectOpacity: (config as Record<string, unknown>).effectOpacity as number ?? 0.8,
-        effectColor: ((config as Record<string, unknown>).effectColor as string) || "",
-        soundDefaultEnabled: (config as Record<string, unknown>).soundDefaultEnabled as boolean ?? true,
-        analyticsGoogleId: ((config as Record<string, unknown>).analyticsGoogleId as string) || "",
-        analyticsGtmId: ((config as Record<string, unknown>).analyticsGtmId as string) || "",
-        analyticsCfToken: ((config as Record<string, unknown>).analyticsCfToken as string) || "",
-        analyticsClarityId: ((config as Record<string, unknown>).analyticsClarityId as string) || "",
-        analyticsBingVerification: ((config as Record<string, unknown>).analyticsBingVerification as string) || "",
-        usdtPaymentEnabled: (config as Record<string, unknown>).usdtPaymentEnabled as boolean ?? false,
-        usdtWalletAddress: ((config as Record<string, unknown>).usdtWalletAddress as string) || "",
-        usdtPointsPerUnit: (config as Record<string, unknown>).usdtPointsPerUnit as number ?? 10000,
-        usdtOrderTimeoutMin: (config as Record<string, unknown>).usdtOrderTimeoutMin as number ?? 30,
-        usdtMinAmount: (config as Record<string, unknown>).usdtMinAmount as number ?? null,
-        usdtMaxAmount: (config as Record<string, unknown>).usdtMaxAmount as number ?? null,
-        ...Object.fromEntries(
-          ["Google", "Github", "Discord", "Apple", "Twitter", "Facebook", "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit"]
-            .flatMap((k) => [
-              [`oauth${k}ClientId`, ((config as Record<string, unknown>)[`oauth${k}ClientId`] as string) || ""],
-              [`oauth${k}ClientSecret`, ((config as Record<string, unknown>)[`oauth${k}ClientSecret`] as string) || ""],
-            ])
-        ),
-      });
+    if (config && !configInitRef.current) {
+      configInitRef.current = true;
+      resetFormFromConfig(config);
     }
-  }, [config, form]);
+  }, [config, resetFormFromConfig]);
 
 
   const handleSubmitIndex = async (type: "recent" | "all" | "site" | "sitemap") => {

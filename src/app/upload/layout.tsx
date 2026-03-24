@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "上传视频",
-  description: "上传并分享您的 ACGN 相关视频内容",
+  title: "发布内容",
+  description: "发布并分享您的 ACGN 相关内容",
   robots: {
     index: false, // 功能页面不索引
     follow: false,

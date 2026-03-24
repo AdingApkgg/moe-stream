@@ -173,7 +173,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             {session.user?.canUpload && (
               <CommandItem onSelect={() => runCommand(() => router.push("/upload"))}>
                 <Upload className="mr-2 h-4 w-4" />
-                上传
+                发布内容
                 <CommandShortcut>⌘U</CommandShortcut>
               </CommandItem>
             )}

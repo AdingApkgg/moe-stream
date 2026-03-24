@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +15,14 @@ import { cn } from "@/lib/utils";
 import { GAME_TYPES } from "@/lib/constants";
 import { TagPicker } from "./tag-picker";
 import { BatchProgressBar, GameBatchResults } from "./batch-results";
-import type { TagItem, GameBatchResult, BatchProgress } from "../_lib/types";
+import {
+  nextEntryId, useBatchTags, useBatchImport,
+  useSubmitShortcut, submitInChunks,
+} from "../_lib/use-batch";
+import type { GameBatchResult } from "../_lib/types";
 import {
   ChevronDown, ChevronUp, Download, Gamepad2,
-  GripVertical, Loader2, Plus, Trash2, Upload,
+  GripVertical, Loader2, Plus, RotateCcw, Trash2, Upload,
 } from "lucide-react";
 
 interface GameEntry {
@@ -33,10 +37,9 @@ interface GameEntry {
   expanded: boolean;
 }
 
-let entryCounter = 0;
 function createGameEntry(): GameEntry {
   return {
-    id: `g-${++entryCounter}`,
+    id: nextEntryId("g"),
     title: "", description: "", coverUrl: "", gameType: "",
     isFree: true, version: "",
     downloads: [],
@@ -45,65 +48,66 @@ function createGameEntry(): GameEntry {
 }
 
 export function GameQuickBatch() {
-  const [entries, setEntries] = useState<GameEntry[]>([createGameEntry()]);
-  const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
-  const [newTags, setNewTags] = useState<string[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [progress, setProgress] = useState<BatchProgress>({ current: 0, total: 0 });
-  const [results, setResults] = useState<GameBatchResult[]>([]);
+  const [entries, setEntries] = useState<GameEntry[]>(() => [createGameEntry()]);
+
+  const { selectedTags, newTags, tagNames, toggleTag, addNewTag, removeNewTag } = useBatchTags();
+  const { importing, setImporting, progress, setProgress, results, setResults } = useBatchImport<GameBatchResult>();
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const batchCreate = trpc.game.batchCreate.useMutation();
 
-  const toggleTag = (tag: TagItem) => {
-    const exists = selectedTags.find(t => t.id === tag.id);
-    if (exists) setSelectedTags(selectedTags.filter(t => t.id !== tag.id));
-    else if (selectedTags.length + newTags.length < 10) setSelectedTags([...selectedTags, tag]);
-  };
+  const validEntries = useMemo(() => entries.filter(e => e.title.trim()), [entries]);
 
-  const validEntries = entries.filter(e => e.title.trim());
-
-  const updateEntry = (id: string, updates: Partial<GameEntry>) => {
+  const updateEntry = useCallback((id: string, updates: Partial<GameEntry>) => {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
-  };
+  }, []);
 
-  const removeEntry = (id: string) => {
+  const removeEntry = useCallback((id: string) => {
     setEntries(prev => {
       const next = prev.filter(e => e.id !== id);
       return next.length === 0 ? [createGameEntry()] : next;
     });
-  };
+  }, []);
 
-  const addEntry = () => {
+  const addEntry = useCallback(() => {
     setEntries(prev => {
       const collapsed = prev.map(e => ({ ...e, expanded: false }));
       return [...collapsed, createGameEntry()];
     });
-  };
+  }, []);
 
-  const toggleExpand = (id: string) => {
-    updateEntry(id, { expanded: !entries.find(e => e.id === id)?.expanded });
-  };
+  const clearEntries = useCallback(() => {
+    setEntries([createGameEntry()]);
+  }, []);
 
-  const addDownload = (entryId: string) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
-    updateEntry(entryId, { downloads: [...entry.downloads, { name: "", url: "", password: "" }] });
-  };
+  const toggleExpand = useCallback((id: string) => {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, expanded: !e.expanded } : e));
+  }, []);
 
-  const updateDownload = (entryId: string, idx: number, field: string, value: string) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
-    const dls = [...entry.downloads];
-    dls[idx] = { ...dls[idx], [field]: value };
-    updateEntry(entryId, { downloads: dls });
-  };
+  const addDownload = useCallback((entryId: string) => {
+    setEntries(prev => prev.map(e =>
+      e.id === entryId
+        ? { ...e, downloads: [...e.downloads, { name: "", url: "", password: "" }] }
+        : e,
+    ));
+  }, []);
 
-  const removeDownload = (entryId: string, idx: number) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
-    updateEntry(entryId, { downloads: entry.downloads.filter((_, i) => i !== idx) });
-  };
+  const updateDownload = useCallback((entryId: string, idx: number, field: string, value: string) => {
+    setEntries(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      const dls = [...e.downloads];
+      dls[idx] = { ...dls[idx], [field]: value };
+      return { ...e, downloads: dls };
+    }));
+  }, []);
+
+  const removeDownload = useCallback((entryId: string, idx: number) => {
+    setEntries(prev => prev.map(e =>
+      e.id === entryId
+        ? { ...e, downloads: e.downloads.filter((_, i) => i !== idx) }
+        : e,
+    ));
+  }, []);
 
   const handleSubmit = async () => {
     if (validEntries.length === 0) {
@@ -113,15 +117,11 @@ export function GameQuickBatch() {
 
     setImporting(true);
     setResults([]);
-    const CHUNK = 100;
-    const totalChunks = Math.ceil(validEntries.length / CHUNK);
-    setProgress({ current: 0, total: totalChunks });
-    const allResults: GameBatchResult[] = [];
 
     try {
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = validEntries.slice(i * CHUNK, (i + 1) * CHUNK);
-        try {
+      const allResults = await submitInChunks<GameEntry, GameBatchResult>({
+        entries: validEntries,
+        submitChunk: async (chunk) => {
           const res = await batchCreate.mutateAsync({
             games: chunk.map(e => {
               const extraInfo: Record<string, unknown> = {};
@@ -134,21 +134,17 @@ export function GameQuickBatch() {
                 gameType: e.gameType || undefined,
                 isFree: e.isFree,
                 version: e.version.trim() || undefined,
-                tagNames: [...selectedTags.map(t => t.name), ...newTags],
+                tagNames,
                 extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
               };
             }),
           });
-          allResults.push(...res.results);
-        } catch (err) {
-          allResults.push(...chunk.map(g => ({
-            title: g.title,
-            error: err instanceof Error ? err.message : "未知错误",
-          })));
-        }
-        setProgress({ current: i + 1, total: totalChunks });
-        setResults([...allResults]);
-      }
+          return res.results;
+        },
+        onProgress: (current, total) => setProgress({ current, total }),
+        onPartialResults: setResults,
+        makeErrorResult: (entry, error) => ({ title: entry.title, error }),
+      });
 
       const newC = allResults.filter(r => r.id && !r.updated).length;
       const updC = allResults.filter(r => r.updated).length;
@@ -156,13 +152,13 @@ export function GameQuickBatch() {
       toast.success(`发布完成：新建 ${newC}${updC ? `，更新 ${updC}` : ""}${failC ? `，失败 ${failC}` : ""}`);
       setResults(allResults);
 
-      if (failC === 0) {
-        setEntries([createGameEntry()]);
-      }
+      if (failC === 0) setEntries([createGameEntry()]);
     } finally {
       setImporting(false);
     }
   };
+
+  useSubmitShortcut(handleSubmit, !importing && validEntries.length > 0);
 
   return (
     <div className="space-y-6">
@@ -181,6 +177,12 @@ export function GameQuickBatch() {
                   : "逐条添加游戏信息"}
               </CardDescription>
             </div>
+            {entries.length > 1 && (
+              <Button type="button" variant="ghost" size="sm" onClick={clearEntries}>
+                <RotateCcw className="h-4 w-4 mr-1" />
+                清空
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -235,7 +237,6 @@ export function GameQuickBatch() {
                   {entry.expanded && (
                     <div className="px-3 pb-3 space-y-3 border-t">
                       <div className="pt-3 space-y-3">
-                        {/* 标题 */}
                         <Input
                           placeholder="游戏标题 *"
                           value={entry.title}
@@ -244,7 +245,6 @@ export function GameQuickBatch() {
                           autoFocus={!entry.title.trim()}
                         />
 
-                        {/* 类型 + 版本 + 免费 */}
                         <div className="grid grid-cols-3 gap-2">
                           <Select value={entry.gameType} onValueChange={(v) => updateEntry(entry.id, { gameType: v })}>
                             <SelectTrigger className="h-9 text-sm">
@@ -269,7 +269,6 @@ export function GameQuickBatch() {
                           </div>
                         </div>
 
-                        {/* 简介 */}
                         <Textarea
                           placeholder="游戏介绍（可选）"
                           value={entry.description}
@@ -277,7 +276,6 @@ export function GameQuickBatch() {
                           className="min-h-[60px] resize-none text-sm"
                         />
 
-                        {/* 封面 */}
                         <Input
                           placeholder="封面图片链接（可选）"
                           value={entry.coverUrl}
@@ -328,8 +326,8 @@ export function GameQuickBatch() {
         selectedTags={selectedTags}
         newTags={newTags}
         onToggleTag={toggleTag}
-        onAddNewTag={(name) => setNewTags([...newTags, name])}
-        onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
+        onAddNewTag={addNewTag}
+        onRemoveNewTag={removeNewTag}
       />
 
       {/* 发布按钮 */}
@@ -340,33 +338,37 @@ export function GameQuickBatch() {
               {validEntries.length > 0 ? (
                 <span>
                   共 <strong className="text-foreground">{validEntries.length}</strong> 个游戏
-                  {(selectedTags.length + newTags.length) > 0 && (
-                    <span className="ml-1">· {selectedTags.length + newTags.length} 个标签</span>
+                  {tagNames.length > 0 && (
+                    <span className="ml-1">· {tagNames.length} 个标签</span>
                   )}
                 </span>
               ) : (
                 "请先添加游戏"
               )}
             </div>
-            <Button
-              type="button"
-              size="lg"
-              className="min-w-[160px]"
-              onClick={handleSubmit}
-              disabled={validEntries.length === 0 || importing}
-            >
-              {importing ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
-              ) : (
-                <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                ⌘ Enter
+              </kbd>
+              <Button
+                type="button"
+                size="lg"
+                className="min-w-[160px]"
+                onClick={handleSubmit}
+                disabled={validEntries.length === 0 || importing}
+              >
+                {importing ? (
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" />发布中...</>
+                ) : (
+                  <><Upload className="mr-2 h-5 w-5" />批量发布 ({validEntries.length})</>
+                )}
+              </Button>
+            </div>
           </div>
           <BatchProgressBar progress={progress} label="批" isActive={importing} />
         </CardContent>
       </Card>
 
-      {/* 结果 */}
       <GameBatchResults results={results} importing={importing} />
     </div>
   );
