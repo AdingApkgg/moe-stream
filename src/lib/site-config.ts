@@ -151,9 +151,14 @@ const selectFields = {
   oauthRedditClientSecret: true,
 } as const;
 
+/** 去除 URL 尾部斜杠，避免拼接时产生 "//" */
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
 const defaultConfig: PublicSiteConfig = {
   siteName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
-  siteUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  siteUrl: stripTrailingSlash(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   siteDescription: null,
   siteLogo: null,
   siteFavicon: null,
@@ -269,7 +274,7 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
           ...Object.fromEntries(
             Object.entries(config).filter(([key]) => key in defaultConfig)
           ),
-          siteUrl: (config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          siteUrl: stripTrailingSlash((config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
           socialLinks: config.socialLinks as Record<string, string> | null,
           footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
           sponsorAds: config.sponsorAds as Ad[] | null,
