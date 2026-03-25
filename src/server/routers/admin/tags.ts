@@ -243,58 +243,73 @@ export const adminTagsRouter = router({
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
 
+      // 迁移视频关联：批量 upsert + 批量清理
       const sourceVideos = await ctx.prisma.video.findMany({
         where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
         select: { id: true },
       });
-
-      for (const video of sourceVideos) {
-        await ctx.prisma.tagOnVideo.upsert({
-          where: { videoId_tagId: { videoId: video.id, tagId: input.targetTagId } },
-          create: { videoId: video.id, tagId: input.targetTagId },
-          update: {},
+      if (sourceVideos.length > 0) {
+        await ctx.prisma.tagOnVideo.createMany({
+          data: sourceVideos.map((v) => ({ videoId: v.id, tagId: input.targetTagId })),
+          skipDuplicates: true,
         });
         await ctx.prisma.tagOnVideo.deleteMany({
-          where: { videoId: video.id, tagId: { in: input.sourceTagIds } },
+          where: { tagId: { in: input.sourceTagIds } },
         });
       }
 
+      // 迁移游戏关联
       const sourceGames = await ctx.prisma.game.findMany({
         where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
         select: { id: true },
       });
-
-      for (const game of sourceGames) {
-        await ctx.prisma.tagOnGame.upsert({
-          where: { gameId_tagId: { gameId: game.id, tagId: input.targetTagId } },
-          create: { gameId: game.id, tagId: input.targetTagId },
-          update: {},
+      if (sourceGames.length > 0) {
+        await ctx.prisma.tagOnGame.createMany({
+          data: sourceGames.map((g) => ({ gameId: g.id, tagId: input.targetTagId })),
+          skipDuplicates: true,
         });
         await ctx.prisma.tagOnGame.deleteMany({
-          where: { gameId: game.id, tagId: { in: input.sourceTagIds } },
+          where: { tagId: { in: input.sourceTagIds } },
         });
       }
 
+      // 迁移图片关联
       const sourceImagePosts = await ctx.prisma.imagePost.findMany({
         where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
         select: { id: true },
       });
-
-      for (const post of sourceImagePosts) {
-        await ctx.prisma.tagOnImagePost.upsert({
-          where: { imagePostId_tagId: { imagePostId: post.id, tagId: input.targetTagId } },
-          create: { imagePostId: post.id, tagId: input.targetTagId },
-          update: {},
+      if (sourceImagePosts.length > 0) {
+        await ctx.prisma.tagOnImagePost.createMany({
+          data: sourceImagePosts.map((p) => ({ imagePostId: p.id, tagId: input.targetTagId })),
+          skipDuplicates: true,
         });
         await ctx.prisma.tagOnImagePost.deleteMany({
-          where: { imagePostId: post.id, tagId: { in: input.sourceTagIds } },
+          where: { tagId: { in: input.sourceTagIds } },
         });
       }
 
-      // 将被合并标签的别名迁移到目标标签
+      // 迁移别名到目标标签
       await ctx.prisma.tagAlias.updateMany({
         where: { tagId: { in: input.sourceTagIds } },
         data: { tagId: input.targetTagId },
+      });
+
+      // 迁移蕴含关系到目标标签（排除会产生自引用的情况）
+      await ctx.prisma.tagImplication.updateMany({
+        where: { sourceTagId: { in: input.sourceTagIds }, targetTagId: { not: input.targetTagId } },
+        data: { sourceTagId: input.targetTagId },
+      });
+      await ctx.prisma.tagImplication.updateMany({
+        where: { targetTagId: { in: input.sourceTagIds }, sourceTagId: { not: input.targetTagId } },
+        data: { targetTagId: input.targetTagId },
+      });
+      // 清理可能残留的自引用或重复
+      await ctx.prisma.tagImplication.deleteMany({
+        where: { OR: [
+          { sourceTagId: input.targetTagId, targetTagId: input.targetTagId },
+          { sourceTagId: { in: input.sourceTagIds } },
+          { targetTagId: { in: input.sourceTagIds } },
+        ] },
       });
 
       await ctx.prisma.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
@@ -363,11 +378,24 @@ export const adminTagsRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "不能蕴含自身" });
       }
 
-      const reverse = await ctx.prisma.tagImplication.findUnique({
-        where: { sourceTagId_targetTagId: { sourceTagId: input.targetTagId, targetTagId: input.sourceTagId } },
-      });
-      if (reverse) {
-        throw new TRPCError({ code: "CONFLICT", message: "存在反向蕴含关系，会形成循环" });
+      // 传递性环检测：从 targetTag 出发沿 implies 方向 BFS，如果能到达 sourceTag 则形成环
+      const visited = new Set<string>([input.targetTagId]);
+      const queue = [input.targetTagId];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const outgoing = await ctx.prisma.tagImplication.findMany({
+          where: { sourceTagId: current },
+          select: { targetTagId: true },
+        });
+        for (const edge of outgoing) {
+          if (edge.targetTagId === input.sourceTagId) {
+            throw new TRPCError({ code: "CONFLICT", message: "添加此蕴含关系会形成循环" });
+          }
+          if (!visited.has(edge.targetTagId)) {
+            visited.add(edge.targetTagId);
+            queue.push(edge.targetTagId);
+          }
+        }
       }
 
       const impl = await ctx.prisma.tagImplication.create({ data: input });

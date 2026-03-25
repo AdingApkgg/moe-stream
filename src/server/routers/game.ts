@@ -351,7 +351,9 @@ export const gameRouter = router({
 
       if (tagConnections.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch(() => {});
+        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch((err) => {
+          console.error("[tag-counts] 游戏创建后刷新失败", err);
+        });
       }
 
       if (status === "PUBLISHED") {
@@ -503,7 +505,9 @@ export const gameRouter = router({
       const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
       if (allAffectedTagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allAffectedTagIds).catch(() => {});
+        refreshTagCounts(allAffectedTagIds).catch((err) => {
+          console.error("[tag-counts] 游戏批量导入后刷新失败", err);
+        });
       }
 
       const successIds = results

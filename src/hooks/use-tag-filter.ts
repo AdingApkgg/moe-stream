@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface UseTagFilterOptions {
@@ -32,15 +32,10 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
     return raw ? raw.split(",").filter(Boolean) : [];
   }, [searchParams, excludeParamName]);
 
-  // 当 URL 有标签参数时通过 URL 驱动；否则用本地 state 做 fallback
-  // 使用 selectedTagId 保持向后兼容单标签模式
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-
   const updateUrl = useCallback(
     (slugs: string[], excluded: string[]) => {
       const params = new URLSearchParams(searchParams.toString());
 
-      // 重置页码
       params.delete("page");
 
       if (slugs.length > 0) {
@@ -61,14 +56,12 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
     [searchParams, router, pathname, paramName, excludeParamName],
   );
 
-  /** 切换标签的 AND 筛选状态 */
   const toggleTag = useCallback(
     (slug: string) => {
       const next = selectedSlugs.includes(slug)
         ? selectedSlugs.filter((s) => s !== slug)
         : [...selectedSlugs, slug];
 
-      // 如果正在排除，从排除列表移除
       const nextExcluded = excludedSlugs.filter((s) => s !== slug);
 
       updateUrl(next, nextExcluded);
@@ -76,14 +69,12 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
     [selectedSlugs, excludedSlugs, updateUrl],
   );
 
-  /** 切换标签的排除状态 */
   const toggleExclude = useCallback(
     (slug: string) => {
       const nextExcluded = excludedSlugs.includes(slug)
         ? excludedSlugs.filter((s) => s !== slug)
         : [...excludedSlugs, slug];
 
-      // 如果正在选择，从选择列表移除
       const nextSelected = selectedSlugs.filter((s) => s !== slug);
 
       updateUrl(nextSelected, nextExcluded);
@@ -91,19 +82,15 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
     [selectedSlugs, excludedSlugs, updateUrl],
   );
 
-  /** 清除所有筛选 */
   const clearAll = useCallback(() => {
     updateUrl([], []);
-    setSelectedTagId(null);
   }, [updateUrl]);
 
-  /** 标签是否被选中 */
   const isSelected = useCallback(
     (slug: string) => selectedSlugs.includes(slug),
     [selectedSlugs],
   );
 
-  /** 标签是否被排除 */
   const isExcluded = useCallback(
     (slug: string) => excludedSlugs.includes(slug),
     [excludedSlugs],
@@ -114,8 +101,6 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
   return {
     selectedSlugs,
     excludedSlugs,
-    selectedTagId,
-    setSelectedTagId,
     toggleTag,
     toggleExclude,
     clearAll,

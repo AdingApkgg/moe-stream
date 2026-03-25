@@ -1094,7 +1094,9 @@ export const videoRouter = router({
 
       if (tagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagIds).catch(() => {});
+        refreshTagCounts(tagIds).catch((err) => {
+          console.error("[tag-counts] 视频删除后刷新失败", err);
+        });
       }
 
       await deleteCache(`video:${input.id}`);
@@ -1136,7 +1138,9 @@ export const videoRouter = router({
       // 刷新受影响标签的反规范化计数
       if (tagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagIds).catch(() => {});
+        refreshTagCounts(tagIds).catch((err) => {
+          console.error("[tag-counts] 批量删除后刷新失败", err);
+        });
       }
 
       // 清理空合集

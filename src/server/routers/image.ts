@@ -226,7 +226,9 @@ export const imageRouter = router({
 
       if (tagConnections.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch(() => {});
+        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch((err) => {
+          console.error("[tag-counts] 图片创建后刷新失败", err);
+        });
       }
 
       return { id: post.id, status: post.status };
@@ -347,7 +349,9 @@ export const imageRouter = router({
       const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
       if (allAffectedTagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allAffectedTagIds).catch(() => {});
+        refreshTagCounts(allAffectedTagIds).catch((err) => {
+          console.error("[tag-counts] 图片批量导入后刷新失败", err);
+        });
       }
 
       return { results };
@@ -458,7 +462,9 @@ export const imageRouter = router({
         }
 
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts([...new Set([...oldTagIds, ...allTagIds])]).catch(() => {});
+        refreshTagCounts([...new Set([...oldTagIds, ...allTagIds])]).catch((err) => {
+          console.error("[tag-counts] 图片编辑后刷新失败", err);
+        });
       }
 
       return { success: true };

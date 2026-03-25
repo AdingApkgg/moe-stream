@@ -21,14 +21,11 @@ COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod=false
 
-# ---------- 构建（生成 Prisma Client）----------
+# ---------- 生成 Prisma Client（无需完整 Next.js 构建）----------
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
-ENV REDIS_URL="redis://localhost:6379"
-RUN --mount=type=cache,id=nextjs-cache,target=/app/.next/cache \
-    pnpm build
+RUN pnpm db:generate
 
 # ---------- 生产依赖 ----------
 FROM base AS prod-deps
