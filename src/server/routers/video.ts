@@ -881,11 +881,21 @@ export const videoRouter = router({
         }
       }
 
-      // 批量导入后刷新标签计数
-      const allImportedTagIds = [...tagNameToId.values()];
-      if (allImportedTagIds.length > 0) {
+      // 批量导入后刷新标签计数（包含被覆盖视频的旧标签）
+      const previousTagIds = new Set<string>();
+      for (const [, vid] of existingByUrl) {
+        const oldTags = await ctx.prisma.tagOnVideo.findMany({
+          where: { videoId: vid },
+          select: { tagId: true },
+        });
+        for (const t of oldTags) previousTagIds.add(t.tagId);
+      }
+      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
+      if (allAffectedTagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allImportedTagIds).catch(() => {});
+        refreshTagCounts(allAffectedTagIds).catch((err) => {
+          console.error("[tag-counts] 批量导入后刷新失败", err);
+        });
       }
 
       return {
@@ -1029,7 +1039,9 @@ export const videoRouter = router({
         // 刷新受影响标签的计数
         const { refreshTagCounts } = await import("@/lib/tag-counts");
         const affectedTagIds = [...new Set([...oldTagIds, ...allTagIds])];
-        refreshTagCounts(affectedTagIds).catch(() => {});
+        refreshTagCounts(affectedTagIds).catch((err) => {
+          console.error("[tag-counts] 视频编辑后刷新失败", err);
+        });
       }
 
       await deleteCache(`video:${id}`);
@@ -1121,14 +1133,10 @@ export const videoRouter = router({
         where: { id: { in: videoIds } },
       });
 
-      // 清理空标签
+      // 刷新受影响标签的反规范化计数
       if (tagIds.length > 0) {
-        await ctx.prisma.tag.deleteMany({
-          where: {
-            id: { in: tagIds },
-            videos: { none: {} },
-          },
-        });
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(tagIds).catch(() => {});
       }
 
       // 清理空合集

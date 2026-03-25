@@ -430,6 +430,7 @@ export const gameRouter = router({
 
       // 逐条创建或更新（按标题去重）
       const results: { title: string; id?: string; error?: string; updated?: boolean }[] = [];
+      const previousTagIds = new Set<string>();
 
       for (const gameInput of input.games) {
         try {
@@ -440,10 +441,12 @@ export const gameRouter = router({
           // 查找是否存在同名游戏
           const existing = await ctx.prisma.game.findFirst({
             where: { title: gameInput.title },
-            select: { id: true },
+            select: { id: true, tags: { select: { tagId: true } } },
           });
 
           if (existing) {
+            for (const t of existing.tags) previousTagIds.add(t.tagId);
+
             // 更新已有游戏
             await ctx.prisma.tagOnGame.deleteMany({
               where: { gameId: existing.id },
@@ -497,10 +500,10 @@ export const gameRouter = router({
         }
       }
 
-      const allImportedTagIds = [...tagNameToId.values()];
-      if (allImportedTagIds.length > 0) {
+      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
+      if (allAffectedTagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allImportedTagIds).catch(() => {});
+        refreshTagCounts(allAffectedTagIds).catch(() => {});
       }
 
       const successIds = results

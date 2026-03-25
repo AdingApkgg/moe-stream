@@ -293,6 +293,7 @@ export const imageRouter = router({
       }
 
       const results: { title: string; id?: string; error?: string; updated?: boolean }[] = [];
+      const previousTagIds = new Set<string>();
 
       for (const postInput of input.posts) {
         try {
@@ -302,10 +303,12 @@ export const imageRouter = router({
 
           const existing = await ctx.prisma.imagePost.findFirst({
             where: { title: postInput.title },
-            select: { id: true },
+            select: { id: true, tags: { select: { tagId: true } } },
           });
 
           if (existing) {
+            for (const t of existing.tags) previousTagIds.add(t.tagId);
+
             await ctx.prisma.tagOnImagePost.deleteMany({
               where: { imagePostId: existing.id },
             });
@@ -341,10 +344,10 @@ export const imageRouter = router({
         }
       }
 
-      const allImportedTagIds = [...tagNameToId.values()];
-      if (allImportedTagIds.length > 0) {
+      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
+      if (allAffectedTagIds.length > 0) {
         const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allImportedTagIds).catch(() => {});
+        refreshTagCounts(allAffectedTagIds).catch(() => {});
       }
 
       return { results };
