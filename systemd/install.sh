@@ -186,8 +186,8 @@ sed -i "s|User=moestream|User=${SERVICE_USER}|g" /etc/systemd/system/moestream-a
 sed -i "s|Group=moestream|Group=${SERVICE_USER}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
 sed -i "s|WorkingDirectory=/opt/moestream|WorkingDirectory=${INSTALL_DIR}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
 sed -i "s|EnvironmentFile=/opt/moestream/|EnvironmentFile=${INSTALL_DIR}/|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
-sed -i "s|ReadWritePaths=/opt/moestream/|ReadWritePaths=${INSTALL_DIR}/|g" /etc/systemd/system/moestream-app.service
-sed -i "s|ReadWritePaths=/opt/moestream/|ReadWritePaths=${INSTALL_DIR}/|g" /etc/systemd/system/moestream-socket.service
+sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-app.service
+sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-socket.service
 sed -i "s|ExecStart=/usr/bin/node|ExecStart=${DETECTED_NODE}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
 sed -i "s|Environment=PORT=80|Environment=PORT=${APP_PORT}|g" /etc/systemd/system/moestream-app.service
 sed -i "s|Environment=SOCKET_PORT=3001|Environment=SOCKET_PORT=${SOCKET_PORT}|g" /etc/systemd/system/moestream-socket.service

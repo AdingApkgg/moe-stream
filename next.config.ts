@@ -7,8 +7,10 @@ export default function config(phase: string) {
     process.env.NEXT_BUILD = "1";
   }
 
+  const isServerless = !!process.env.VERCEL || !!process.env.NETLIFY;
+
   const nextConfig: NextConfig = {
-    output: "standalone",
+    output: isServerless ? undefined : "standalone",
     pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
     turbopack: {},
     images: {

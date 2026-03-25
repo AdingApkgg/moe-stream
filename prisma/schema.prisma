@@ -1005,6 +1005,7 @@ model SiteConfig {
   sectionGameEnabled   Boolean @default(true)   // 游戏分区
   
   // 内容设置
+  videoSelectorMode   String  @default("series") /// 选集器模式: series | author | uploader | disabled
   videosPerPage       Int     @default(20)     // 每页视频数
   commentsPerPage     Int     @default(20)     // 每页评论数
   maxUploadSize       Int     @default(500)    // 最大上传大小 (MB)

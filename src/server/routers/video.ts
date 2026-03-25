@@ -1796,6 +1796,76 @@ export const videoRouter = router({
       return { success: true, count: input.videoIds.length };
     }),
 
+  getByAuthor: publicProcedure
+    .input(
+      z.object({
+        author: z.string().min(1),
+        excludeVideoId: z.string().optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where = {
+        status: "PUBLISHED" as const,
+        extraInfo: { path: ["author" as string], equals: input.author },
+        ...(input.excludeVideoId ? { id: { not: input.excludeVideoId } } : {}),
+      };
+
+      const [videos, totalCount] = await Promise.all([
+        ctx.prisma.video.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            duration: true,
+            views: true,
+            createdAt: true,
+          },
+        }),
+        ctx.prisma.video.count({ where }),
+      ]);
+
+      return { videos, totalCount };
+    }),
+
+  getByUploader: publicProcedure
+    .input(
+      z.object({
+        uploaderId: z.string(),
+        excludeVideoId: z.string().optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const where = {
+        uploaderId: input.uploaderId,
+        status: "PUBLISHED" as const,
+        ...(input.excludeVideoId ? { id: { not: input.excludeVideoId } } : {}),
+      };
+
+      const [videos, totalCount] = await Promise.all([
+        ctx.prisma.video.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            duration: true,
+            views: true,
+            createdAt: true,
+          },
+        }),
+        ctx.prisma.video.count({ where }),
+      ]);
+
+      return { videos, totalCount };
+    }),
+
   getRecommendations: publicProcedure
     .input(
       z.object({

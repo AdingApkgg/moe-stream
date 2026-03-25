@@ -107,6 +107,7 @@ const configFormSchema = z.object({
   sectionGameEnabled: z.boolean(),
   
   // 内容设置
+  videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]),
   videosPerPage: z.number().int().min(5).max(100),
   commentsPerPage: z.number().int().min(5).max(100),
   maxUploadSize: z.number().int().min(10).max(10000),
@@ -601,6 +602,7 @@ export default function AdminSettingsPage() {
       sectionVideoEnabled: true,
       sectionImageEnabled: true,
       sectionGameEnabled: true,
+      videoSelectorMode: "series" as const,
       videosPerPage: 20,
       commentsPerPage: 20,
       maxUploadSize: 500,
@@ -706,6 +708,7 @@ export default function AdminSettingsPage() {
       sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
       sectionImageEnabled: cfg.sectionImageEnabled ?? true,
       sectionGameEnabled: cfg.sectionGameEnabled ?? true,
+      videoSelectorMode: (cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled") ?? "series",
       videosPerPage: cfg.videosPerPage,
       commentsPerPage: cfg.commentsPerPage,
       maxUploadSize: cfg.maxUploadSize,
@@ -2330,6 +2333,31 @@ export default function AdminSettingsPage() {
                   <CardDescription>配置内容相关的参数</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="videoSelectorMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>播放页选集器模式</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="w-full md:w-64">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="series">合集</SelectItem>
+                            <SelectItem value="author">原作者</SelectItem>
+                            <SelectItem value="uploader">上传者</SelectItem>
+                            <SelectItem value="disabled">关闭</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>控制播放页右侧选集器按什么维度聚合视频：合集（Series 剧集）、原作者（extraInfo 中的 author 字段）、上传者（UP 主）、或关闭</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}

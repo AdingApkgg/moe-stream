@@ -157,39 +157,63 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     return `${baseUrl}${separator}p=${currentPage}`;
   }, [displayVideo?.videoUrl, hasPages, currentPage]);
 
-  // 获取视频所属的合集（使用 initialId，因为同系列视频返回相同数据）
+  // 选集器模式（后台可配置）
+  const selectorMode = siteConfig.videoSelectorMode ?? "series";
+
+  // --- 合集模式 ---
   const { data: seriesData } = trpc.series.getByVideoId.useQuery(
     { videoId: initialId },
-    { staleTime: 60000 }
+    { enabled: selectorMode === "series", staleTime: 60000 }
   );
-
   const seriesEpisodes = useMemo(() => {
     if (!seriesData?.series?.episodes) return [];
     return [...seriesData.series.episodes].sort((a, b) => b.episodeNum - a.episodeNum);
   }, [seriesData]);
-
   const currentEpisodeIndex = useMemo(() => {
     if (!seriesEpisodes.length) return -1;
     return seriesEpisodes.findIndex((ep) => ep.video.id === currentVideoId);
   }, [seriesEpisodes, currentVideoId]);
 
-  // 首次加载时滚动剧集面板到当前剧集（不影响页面滚动）
+  // --- 原作者模式 ---
+  const authorName = (displayVideo?.extraInfo as Record<string, unknown> | null)?.author as string | undefined;
+  const { data: authorData } = trpc.video.getByAuthor.useQuery(
+    { author: authorName!, excludeVideoId: currentVideoId },
+    { enabled: selectorMode === "author" && !!authorName, staleTime: 60000 }
+  );
+
+  // --- 上传者模式 ---
+  const { data: uploaderData } = trpc.video.getByUploader.useQuery(
+    { uploaderId: displayVideo?.uploader?.id!, excludeVideoId: currentVideoId },
+    { enabled: selectorMode === "uploader" && !!displayVideo?.uploader?.id, staleTime: 60000 }
+  );
+
+  // 通用选集列表（author / uploader 共用）
+  const selectorVideos = selectorMode === "author" ? authorData?.videos : selectorMode === "uploader" ? uploaderData?.videos : undefined;
+  const selectorTotalCount = selectorMode === "author" ? authorData?.totalCount : selectorMode === "uploader" ? uploaderData?.totalCount : undefined;
+  const hasSelectorVideos = !!selectorVideos && selectorVideos.length > 0;
+  const selectorCurrentIndex = useMemo(() => {
+    if (!selectorVideos) return -1;
+    return selectorVideos.findIndex((v) => v.id === currentVideoId);
+  }, [selectorVideos, currentVideoId]);
+
+  // 选集器标题
+  const selectorTitle = selectorMode === "author" ? authorName : selectorMode === "uploader" ? (displayVideo?.uploader?.nickname || displayVideo?.uploader?.username) : undefined;
+
+  // 是否显示选集器
+  const showSelector = (selectorMode === "series" && !!seriesData?.series) ||
+    ((selectorMode === "author" || selectorMode === "uploader") && hasSelectorVideos);
+
+  // 首次加载时滚动列表到当前条目（不影响页面滚动）
   const initialScrollDoneRef = useRef(false);
+  const scrollTargetIndex = selectorMode === "series" ? currentEpisodeIndex : selectorCurrentIndex;
   useEffect(() => {
-    // 只在首次加载且有剧集数据时滚动
     if (initialScrollDoneRef.current) return;
-    if (!currentEpisodeRef.current || !episodeListRef.current || currentEpisodeIndex < 0) return;
-    
+    if (!currentEpisodeRef.current || !episodeListRef.current || scrollTargetIndex < 0) return;
     initialScrollDoneRef.current = true;
-    // 直接设置容器 scrollTop，不使用 scrollIntoView（会影响页面滚动）
     const container = episodeListRef.current;
     const element = currentEpisodeRef.current;
-    const containerHeight = container.clientHeight;
-    const elementTop = element.offsetTop;
-    const elementHeight = element.clientHeight;
-    // 将当前剧集滚动到容器中间
-    container.scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
-  }, [currentEpisodeIndex]);
+    container.scrollTop = element.offsetTop - (container.clientHeight / 2) + (element.clientHeight / 2);
+  }, [scrollTargetIndex]);
 
   const { data: status } = trpc.video.getInteractionStatus.useQuery(
     { videoId: currentVideoId },
@@ -677,31 +701,28 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
               </div>
             </div>
 
-            {/* 移动端合集选集 - 可折叠卡片 */}
-            {seriesData?.series && (
+            {/* 移动端选集器 - 可折叠卡片 */}
+            {showSelector && (
               <div className="md:hidden mx-3 my-2 border rounded-xl overflow-hidden bg-card">
                 <button
                   onClick={() => setMobileSeriesExpanded(!mobileSeriesExpanded)}
                   className="w-full flex items-center gap-3 px-3 py-2.5"
                 >
-                  <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
-                    {seriesEpisodes[currentEpisodeIndex]?.video ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-                        src={getCoverUrl(seriesEpisodes[currentEpisodeIndex].video.id, seriesEpisodes[currentEpisodeIndex].video.coverUrl, { w: 160 })} 
-                        alt="" 
-                        className="w-full h-full object-cover" 
-                      />
+                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                    {selectorMode === "series" ? (
+                      <Layers className="h-4 w-4 text-primary" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Layers className="h-4 w-4 text-muted-foreground" />
-                      </div>
+                      <User className="h-4 w-4 text-primary" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium truncate">{seriesData.series.title}</p>
+                    <p className="text-sm font-medium truncate">
+                      {selectorMode === "series" ? seriesData?.series?.title : selectorTitle}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      第 {currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 {seriesData.series.episodes.length} 集
+                      {selectorMode === "series"
+                        ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
+                        : `共 ${(selectorTotalCount ?? 0) + 1} 个作品`}
                     </p>
                   </div>
                   <div className={`shrink-0 transition-transform ${mobileSeriesExpanded ? 'rotate-180' : ''}`}>
@@ -712,34 +733,53 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                 </button>
                 {mobileSeriesExpanded && (
                   <div className="border-t max-h-64 overflow-y-auto">
-                    {seriesEpisodes.map((ep) => {
-                      const isCurrentVideo = ep.video.id === currentVideoId;
-                      return (
-                        <button
-                          key={ep.video.id}
-                          onClick={() => {
-                            switchToEpisode(ep.video.id);
-                            setMobileSeriesExpanded(false);
-                          }}
-                          disabled={isVideoLoading}
-                          className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
-                            isCurrentVideo ? 'bg-primary/10' : ''
-                          } ${isVideoLoading && !isCurrentVideo ? 'opacity-70' : ''}`}
-                        >
-                          <span className={`text-xs font-medium shrink-0 w-8 ${
-                            isCurrentVideo ? 'text-primary' : 'text-muted-foreground'
-                          }`}>
-                            {ep.episodeNum}
-                          </span>
-                          <span className={`text-sm truncate flex-1 ${isCurrentVideo ? 'text-primary font-medium' : ''}`}>
-                            {ep.episodeTitle || ep.video.title}
-                          </span>
-                          {isCurrentVideo && (
-                            <Play className="h-3 w-3 text-primary fill-primary shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
+                    {selectorMode === "series" ? (
+                      seriesEpisodes.map((ep) => {
+                        const isCurrentVideo = ep.video.id === currentVideoId;
+                        return (
+                          <button
+                            key={ep.video.id}
+                            onClick={() => { switchToEpisode(ep.video.id); setMobileSeriesExpanded(false); }}
+                            disabled={isVideoLoading}
+                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                              isCurrentVideo ? 'bg-primary/10' : ''
+                            } ${isVideoLoading && !isCurrentVideo ? 'opacity-70' : ''}`}
+                          >
+                            <span className={`text-xs font-medium shrink-0 w-8 ${isCurrentVideo ? 'text-primary' : 'text-muted-foreground'}`}>
+                              {ep.episodeNum}
+                            </span>
+                            <span className={`text-sm truncate flex-1 ${isCurrentVideo ? 'text-primary font-medium' : ''}`}>
+                              {ep.episodeTitle || ep.video.title}
+                            </span>
+                            {isCurrentVideo && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      selectorVideos?.map((v) => {
+                        const isCurrent = v.id === currentVideoId;
+                        return (
+                          <button
+                            key={v.id}
+                            onClick={() => { switchToEpisode(v.id); setMobileSeriesExpanded(false); }}
+                            disabled={isVideoLoading}
+                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                              isCurrent ? 'bg-primary/10' : ''
+                            } ${isVideoLoading && !isCurrent ? 'opacity-70' : ''}`}
+                          >
+                            <span className={`text-sm truncate flex-1 ${isCurrent ? 'text-primary font-medium' : ''}`}>
+                              {v.title}
+                            </span>
+                            {v.duration && (
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                              </span>
+                            )}
+                            {isCurrent && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
@@ -995,108 +1035,131 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
           {/* 桌面端侧边栏 */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="space-y-4">
-              {/* 合集选集 */}
-              {seriesData?.series && (
+              {/* 选集器（合集 / 原作者 / 上传者） */}
+              {showSelector && (
                 <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
-                    <Layers className="h-4 w-4 text-primary" />
+                    {selectorMode === "series" ? (
+                      <Layers className="h-4 w-4 text-primary" />
+                    ) : (
+                      <User className="h-4 w-4 text-primary" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm truncate">
-                        <Link href={`/series/${seriesData.series.id}`} className="hover:text-primary transition-colors">
-                          {seriesData.series.title}
-                        </Link>
+                        {selectorMode === "series" && seriesData?.series ? (
+                          <Link href={`/series/${seriesData.series.id}`} className="hover:text-primary transition-colors">
+                            {seriesData.series.title}
+                          </Link>
+                        ) : selectorMode === "uploader" && displayVideo?.uploader ? (
+                          <Link href={`/user/${displayVideo.uploader.id}`} className="hover:text-primary transition-colors">
+                            {selectorTitle}
+                          </Link>
+                        ) : (
+                          selectorTitle
+                        )}
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        第 {currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 {seriesData.series.episodes.length} 集
+                        {selectorMode === "series"
+                          ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
+                          : `共 ${(selectorTotalCount ?? 0) + 1} 个作品`}
                       </p>
                     </div>
                   </div>
                   <div ref={episodeListRef} className="max-h-[400px] overflow-y-auto">
-                    {seriesEpisodes.map((ep) => {
-                      const isCurrentVideo = ep.video.id === currentVideoId;
-                      return (
-                        <button
-                          key={ep.video.id}
-                          onClick={() => switchToEpisode(ep.video.id)}
-                          disabled={isVideoLoading}
-                          ref={isCurrentVideo ? currentEpisodeRef : null}
-                          aria-current={isCurrentVideo ? "true" : undefined}
-                          className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
-                            isCurrentVideo ? "bg-primary/10" : "hover:bg-muted/50"
-                          } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
-                        >
-                          <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 200 })} alt="" className="w-full h-full object-cover" />
-                            {isCurrentVideo && (
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                <Play className="h-4 w-4 text-white fill-white" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs font-medium ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}>
-                                第{ep.episodeNum}集
-                              </span>
+                    {selectorMode === "series" ? (
+                      seriesEpisodes.map((ep) => {
+                        const isCurrentVideo = ep.video.id === currentVideoId;
+                        return (
+                          <button
+                            key={ep.video.id}
+                            onClick={() => switchToEpisode(ep.video.id)}
+                            disabled={isVideoLoading}
+                            ref={isCurrentVideo ? currentEpisodeRef : null}
+                            aria-current={isCurrentVideo ? "true" : undefined}
+                            className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
+                              isCurrentVideo ? "bg-primary/10" : "hover:bg-muted/50"
+                            } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
+                          >
+                            <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 200 })} alt="" className="w-full h-full object-cover" />
                               {isCurrentVideo && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                  <Play className="h-4 w-4 text-white fill-white" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-medium ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}>
+                                  第{ep.episodeNum}集
+                                </span>
+                                {isCurrentVideo && (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    正在播放
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className={`text-sm truncate ${isCurrentVideo ? "font-medium" : ""}`}>
+                                {ep.episodeTitle || ep.video.title}
+                              </p>
+                              {ep.video.duration && (
+                                <p className="text-xs text-muted-foreground">
+                                  {Math.floor(ep.video.duration / 60)}:{String(ep.video.duration % 60).padStart(2, "0")}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      selectorVideos?.map((v) => {
+                        const isCurrent = v.id === currentVideoId;
+                        return (
+                          <button
+                            key={v.id}
+                            onClick={() => switchToEpisode(v.id)}
+                            disabled={isVideoLoading}
+                            ref={isCurrent ? currentEpisodeRef : null}
+                            aria-current={isCurrent ? "true" : undefined}
+                            className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
+                              isCurrent ? "bg-primary/10" : "hover:bg-muted/50"
+                            } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
+                          >
+                            <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={getCoverUrl(v.id, v.coverUrl, { w: 200 })} alt="" className="w-full h-full object-cover" />
+                              {isCurrent && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                  <Play className="h-4 w-4 text-white fill-white" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {isCurrent && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mb-0.5">
                                   正在播放
                                 </Badge>
                               )}
-                            </div>
-                            <p className={`text-sm truncate ${isCurrentVideo ? "font-medium" : ""}`}>
-                              {ep.episodeTitle || ep.video.title}
-                            </p>
-                            {ep.video.duration && (
-                              <p className="text-xs text-muted-foreground">
-                                {Math.floor(ep.video.duration / 60)}:{String(ep.video.duration % 60).padStart(2, "0")}
+                              <p className={`text-sm truncate ${isCurrent ? "font-medium" : ""}`}>
+                                {v.title}
                               </p>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
+                              {v.duration && (
+                                <p className="text-xs text-muted-foreground">
+                                  {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               )}
 
               {/* 分P列表 */}
-              {hasPages && displayVideo.pages && !seriesData?.series && (
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
-                    <List className="h-4 w-4 text-primary" />
-                    <h3 className="font-medium text-sm">视频选集</h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {(displayVideo.pages as { page: number; title: string }[]).length}P
-                    </Badge>
-                  </div>
-                  <div className="max-h-[400px] overflow-y-auto p-2 space-y-1">
-                    {(displayVideo.pages as { page: number; title: string }[]).map((page) => (
-                      <button
-                        key={page.page}
-                        onClick={() => handlePageChange(page.page)}
-                        className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
-                          currentPage === page.page
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted"
-                        }`}
-                      >
-                        {currentPage === page.page && (
-                          <Play className="h-3 w-3 shrink-0 fill-current" />
-                        )}
-                        <span className={`shrink-0 ${currentPage === page.page ? "" : "text-muted-foreground"}`}>
-                          P{page.page}
-                        </span>
-                        <span className="truncate">{page.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 如果同时有合集和分P，分P显示在合集下方 */}
-              {hasPages && displayVideo.pages && seriesData?.series && (
+              {hasPages && displayVideo.pages && (
                 <div className="border rounded-lg overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b">
                     <List className="h-4 w-4 text-primary" />

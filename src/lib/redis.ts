@@ -2,6 +2,8 @@ import Redis from "ioredis";
 import { env } from "@/env";
 
 const IS_BUILD = process.env.NEXT_BUILD === "1";
+const REDIS_URL = env.REDIS_URL || process.env.REDIS_URL;
+const REDIS_AVAILABLE = !!REDIS_URL && !IS_BUILD;
 
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined;
@@ -22,11 +24,14 @@ function parseRedisUrl(url: string) {
 }
 
 function createRedis(): Redis {
-  if (IS_BUILD) {
+  if (!REDIS_AVAILABLE) {
+    if (!IS_BUILD) {
+      console.warn("[Redis] REDIS_URL 未配置，缓存功能将降级为直接查询数据库。");
+    }
     return new Redis({ lazyConnect: true, enableOfflineQueue: false });
   }
   return new Redis({
-    ...parseRedisUrl(env.REDIS_URL),
+    ...parseRedisUrl(REDIS_URL),
     maxRetriesPerRequest: 3,
     lazyConnect: true,
     enableReadyCheck: true,
@@ -44,7 +49,7 @@ export const redis = globalForRedis.redis ?? createRedis();
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
-if (!IS_BUILD) {
+if (REDIS_AVAILABLE) {
   redis.on("error", () => {
     if (!globalForRedis.redisErrorLogged) {
       globalForRedis.redisErrorLogged = true;
@@ -117,18 +122,22 @@ export async function getOrSet<T>(
   const inflight = inflightRequests.get(key) as Promise<T> | undefined;
   if (inflight) return inflight;
 
-  let genBefore: string | null = null;
-  try { genBefore = await redis.get(`${key}:gen`); } catch {}
+  const promise = (async () => {
+    let genBefore: string | null = null;
+    try { genBefore = await redis.get(`${key}:gen`); } catch {}
 
-  const promise = fetcher().then(async (result) => {
+    const result = await fetcher();
+
     let genAfter: string | null = null;
     try { genAfter = await redis.get(`${key}:gen`); } catch {}
     if (genBefore === genAfter) {
       await setCache(key, result, ttlSeconds);
     }
     return result;
-  }).finally(() => {
-    inflightRequests.delete(key);
+  })().finally(() => {
+    if (inflightRequests.get(key) === promise) {
+      inflightRequests.delete(key);
+    }
   });
 
   inflightRequests.set(key, promise);

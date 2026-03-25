@@ -63,6 +63,7 @@ export const adminConfigRouter = router({
       sectionGameEnabled: z.boolean().optional(),
       
       // 内容设置
+      videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]).optional(),
       videosPerPage: z.number().int().min(5).max(100).optional(),
       commentsPerPage: z.number().int().min(5).max(100).optional(),
       maxUploadSize: z.number().int().min(10).max(10000).optional(),

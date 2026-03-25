@@ -55,6 +55,7 @@ export interface PublicSiteConfig {
   recaptchaSiteKey: string | null;
   hcaptchaSiteKey: string | null;
   referralEnabled: boolean;
+  videoSelectorMode: string;
   sectionVideoEnabled: boolean;
   sectionImageEnabled: boolean;
   sectionGameEnabled: boolean;
@@ -116,6 +117,7 @@ const selectFields = {
   recaptchaSiteKey: true,
   hcaptchaSiteKey: true,
   referralEnabled: true,
+  videoSelectorMode: true,
   sectionVideoEnabled: true,
   sectionImageEnabled: true,
   sectionGameEnabled: true,
@@ -207,6 +209,7 @@ const defaultConfig: PublicSiteConfig = {
   recaptchaSiteKey: null,
   hcaptchaSiteKey: null,
   referralEnabled: false,
+  videoSelectorMode: "series",
   sectionVideoEnabled: true,
   sectionImageEnabled: true,
   sectionGameEnabled: true,
