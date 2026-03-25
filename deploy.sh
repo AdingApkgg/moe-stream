@@ -4,8 +4,10 @@
 # 只传输源代码（约 3MB），在服务器上构建
 #
 # 用法:
-#   ./deploy.sh           # 常规部署
-#   ./deploy.sh --full    # 完整部署（含 data/ 目录）
+#   ./deploy.sh                # 常规部署（PM2）
+#   ./deploy.sh --full         # 完整部署（含 data/ 目录）
+#   ./deploy.sh --systemd      # 使用 systemd 管理服务
+#   ./deploy.sh --full --systemd
 
 set -e
 
@@ -35,16 +37,19 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 # 参数解析
 # ============================================================
 FULL_DEPLOY=false
+USE_SYSTEMD=false
 
 for arg in "$@"; do
     case $arg in
         --full) FULL_DEPLOY=true ;;
+        --systemd) USE_SYSTEMD=true ;;
         -h|--help)
             echo "用法: $0 [选项]"
             echo ""
             echo "选项:"
-            echo "  --full     完整部署（包含 data/ 目录，首次需要）"
-            echo "  -h, --help 显示帮助"
+            echo "  --full      完整部署（包含 data/ 目录，首次需要）"
+            echo "  --systemd   使用 systemd 管理服务（默认 PM2）"
+            echo "  -h, --help  显示帮助"
             exit 0
             ;;
     esac
@@ -107,6 +112,13 @@ log_success "传输完成"
 # 3. 服务器解压并构建
 log_step "服务器构建..."
 
+RESTART_CMD=""
+if [ "$USE_SYSTEMD" = true ]; then
+    RESTART_CMD='sudo systemctl restart moestream.target && echo "  systemd 服务已重启"'
+else
+    RESTART_CMD='pm2 delete app 2>/dev/null || true; pm2 restart ecosystem.config.cjs 2>/dev/null || pm2 start ecosystem.config.cjs; pm2 save'
+fi
+
 ssh "${DEPLOY_TARGET}" "bash -l" << DEPLOY_SCRIPT
 set -e
 
@@ -149,10 +161,7 @@ fi
 rm -rf /tmp/next-old-static
 
 echo "🚀 重启服务..."
-# 清理可能存在的错误命名进程（如 app vs mikiacg 冲突）
-pm2 delete app 2>/dev/null || true
-pm2 restart ecosystem.config.cjs 2>/dev/null || pm2 start ecosystem.config.cjs
-pm2 save
+${RESTART_CMD}
 DEPLOY_SCRIPT
 
 # 4. 清理

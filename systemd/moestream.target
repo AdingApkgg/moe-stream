@@ -1,0 +1,13 @@
+# MoeStream 服务组目标
+# 用于统一管理所有 MoeStream 服务
+#
+# 启动所有服务: sudo systemctl start moestream.target
+# 停止所有服务: sudo systemctl stop moestream.target
+# 查看状态:     sudo systemctl status moestream.target
+
+[Unit]
+Description=MoeStream All Services
+Wants=moestream-app.service moestream-socket.service
+
+[Install]
+WantedBy=multi-user.target

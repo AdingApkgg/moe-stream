@@ -4,7 +4,7 @@ import { username, customSession, twoFactor } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
-import { getOrSet, deleteCache } from "@/lib/redis";
+import { getOrSet, invalidateCache } from "@/lib/redis";
 import { send2faOtpEmail } from "@/lib/email";
 import { isPrivileged } from "@/lib/permissions";
 
@@ -296,7 +296,7 @@ export async function getAuthWithOAuth(): Promise<AuthInstance> {
 export async function invalidateOAuthConfig() {
   _cached = null;
   _pending = null;
-  await deleteCache("oauth:config");
+  await invalidateCache("oauth:config");
 }
 
 // ---------------------------------------------------------------------------

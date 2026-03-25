@@ -7,6 +7,16 @@
 export async function register() {
   // 仅在 Node.js 运行时 + 非开发环境启动（排除 Edge Runtime 和 dev server）
   if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NODE_ENV !== "development") {
+    // 清除站点配置缓存，确保重启/部署后从数据库重新加载最新配置
+    const { deleteCache } = await import("@/lib/redis");
+    await Promise.all([
+      deleteCache("site:config"),
+      deleteCache("server:config"),
+    ]);
+    console.log(
+      `[${new Date().toISOString()}][Instrumentation] 已清除站点配置缓存`
+    );
+
     const { startCoverWorker, startBackfillScheduler } = await import(
       "@/lib/cover-auto"
     );

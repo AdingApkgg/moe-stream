@@ -2,7 +2,7 @@ import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
-import { deleteCache } from "@/lib/redis";
+import { invalidateCache } from "@/lib/redis";
 
 export const adminConfigRouter = router({
   // ========== 网站配置 ==========
@@ -330,9 +330,9 @@ export const adminConfigRouter = router({
         update: cleaned as Prisma.SiteConfigUpdateInput,
       });
 
-      // 清除站点配置缓存，使更改立即生效
-      await deleteCache("site:config");
-      await deleteCache("server:config");
+      // 安全失效缓存（世代计数器防竞态）
+      await invalidateCache("site:config");
+      await invalidateCache("server:config");
 
       // OAuth 配置变更时清除 OAuth 缓存，触发 auth 实例重建
       const oauthChanged = Object.keys(input).some((k) => k.startsWith("oauth"));
@@ -513,7 +513,8 @@ export const adminConfigRouter = router({
           create: { id: "default", ...cleaned } as Prisma.SiteConfigCreateInput,
           update: cleaned as Prisma.SiteConfigUpdateInput,
         });
-        await deleteCache("site:config");
+        await invalidateCache("site:config");
+        await invalidateCache("server:config");
       }
 
       // 还原友情链接

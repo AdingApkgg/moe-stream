@@ -102,6 +102,7 @@ export async function setCache<T>(
 /**
  * 缓存穿透保护：先读缓存，未命中时调用 fetcher 回源并写入缓存。
  * 内置 singleflight 防止缓存击穿（同一 key 并发请求只会触发一次 fetcher）。
+ * 通过世代计数器（{key}:gen）防止失效竞态——fetcher 完成时若世代已变则不写入缓存。
  */
 const inflightRequests = new Map<string, Promise<unknown>>();
 
@@ -110,17 +111,21 @@ export async function getOrSet<T>(
   fetcher: () => Promise<T>,
   ttlSeconds: number = 3600
 ): Promise<T> {
-  // 1. 先尝试读缓存
   const cached = await getCache<T>(key);
   if (cached !== null) return cached;
 
-  // 2. singleflight：复用已有的 inflight 请求
   const inflight = inflightRequests.get(key) as Promise<T> | undefined;
   if (inflight) return inflight;
 
-  // 3. 发起回源
+  let genBefore: string | null = null;
+  try { genBefore = await redis.get(`${key}:gen`); } catch {}
+
   const promise = fetcher().then(async (result) => {
-    await setCache(key, result, ttlSeconds);
+    let genAfter: string | null = null;
+    try { genAfter = await redis.get(`${key}:gen`); } catch {}
+    if (genBefore === genAfter) {
+      await setCache(key, result, ttlSeconds);
+    }
     return result;
   }).finally(() => {
     inflightRequests.delete(key);
@@ -132,6 +137,7 @@ export async function getOrSet<T>(
 
 /**
  * 删除单个缓存键（精确删除，O(1) 复杂度）
+ * 仅用于启动时清理等不涉及竞态的场景；业务失效请用 invalidateCache。
  */
 export async function deleteCache(key: string): Promise<void> {
   try {
@@ -139,6 +145,22 @@ export async function deleteCache(key: string): Promise<void> {
   } catch (err) {
     redisWarn(`deleteCache("${key}")`, err);
   }
+}
+
+/**
+ * 安全失效缓存：删 key + 递增世代计数器 + 清除 inflight promise。
+ * 与 getOrSet 的世代检查配合，防止 inflight fetcher 把旧数据写回缓存。
+ */
+export async function invalidateCache(key: string): Promise<void> {
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.del(key);
+    pipeline.incr(`${key}:gen`);
+    await pipeline.exec();
+  } catch (err) {
+    redisWarn(`invalidateCache("${key}")`, err);
+  }
+  inflightRequests.delete(key);
 }
 
 /**

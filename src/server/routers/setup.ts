@@ -3,7 +3,7 @@ import { router, publicProcedure } from "../trpc";
 import { hash } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";
 import { isSetupComplete, invalidateSetupCache } from "@/lib/setup";
-import { deleteCache } from "@/lib/redis";
+import { invalidateCache } from "@/lib/redis";
 
 export const setupRouter = router({
   checkStatus: publicProcedure.query(async () => {
@@ -78,8 +78,8 @@ export const setupRouter = router({
           create: { id: "default", ...siteUpdate },
           update: siteUpdate,
         });
-        await deleteCache("site:config");
-        await deleteCache("server:config");
+        await invalidateCache("site:config");
+        await invalidateCache("server:config");
       }
 
       await invalidateSetupCache();

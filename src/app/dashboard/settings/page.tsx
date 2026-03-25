@@ -469,6 +469,7 @@ interface SearchEngineStatus {
 }
 
 export default function AdminSettingsPage() {
+  const utils = trpc.useUtils();
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
   const {
     data: config,
@@ -488,6 +489,7 @@ export default function AdminSettingsPage() {
     onSuccess: (data) => {
       toast.success("配置已保存");
       resetFormFromConfig(data);
+      utils.admin.getSiteConfig.invalidate();
     },
     onError: (error) => {
       toast.error(error.message || "保存失败");

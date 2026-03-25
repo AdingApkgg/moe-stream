@@ -1,0 +1,53 @@
+# MoeStream Socket.io 实时通信服务
+# 安装: sudo cp systemd/moestream-socket.service /etc/systemd/system/
+# 启用: sudo systemctl enable --now moestream-socket
+
+[Unit]
+Description=MoeStream Socket.io Server
+Documentation=https://github.com/your-org/moestream
+After=network.target postgresql.service redis.service
+PartOf=moestream.target
+
+[Service]
+Type=simple
+User=moestream
+Group=moestream
+
+WorkingDirectory=/opt/moestream
+EnvironmentFile=/opt/moestream/.env.production
+Environment=NODE_ENV=production
+Environment=SOCKET_PORT=3001
+
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs src/socket/server.ts
+
+# 优雅停止
+KillSignal=SIGTERM
+TimeoutStopSec=15
+KillMode=mixed
+
+# 自动重启
+Restart=always
+RestartSec=5
+
+# 资源限制（对应 PM2 max_memory_restart: 512M）
+MemoryMax=512M
+MemoryHigh=450M
+
+# 重启速率限制
+StartLimitIntervalSec=300
+StartLimitBurst=15
+
+# 安全加固
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/moestream/logs
+PrivateTmp=yes
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=moestream-socket
+
+[Install]
+WantedBy=multi-user.target moestream.target

@@ -1,0 +1,54 @@
+# MoeStream Next.js 应用服务
+# 安装: sudo cp systemd/moestream-app.service /etc/systemd/system/
+# 启用: sudo systemctl enable --now moestream-app
+
+[Unit]
+Description=MoeStream Next.js App
+Documentation=https://github.com/your-org/moestream
+After=network.target postgresql.service redis.service
+Wants=moestream-socket.service
+PartOf=moestream.target
+
+[Service]
+Type=simple
+User=moestream
+Group=moestream
+
+WorkingDirectory=/opt/moestream
+EnvironmentFile=/opt/moestream/.env.production
+Environment=NODE_ENV=production
+Environment=PORT=80
+
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start
+
+# 优雅停止
+KillSignal=SIGTERM
+TimeoutStopSec=30
+KillMode=mixed
+
+# 自动重启
+Restart=always
+RestartSec=5
+
+# 资源限制（对应 PM2 max_memory_restart: 2G）
+MemoryMax=2G
+MemoryHigh=1800M
+
+# 重启速率限制
+StartLimitIntervalSec=300
+StartLimitBurst=15
+
+# 安全加固
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/moestream/uploads /opt/moestream/logs /opt/moestream/data /opt/moestream/.next/cache /opt/moestream/.backup-tmp
+PrivateTmp=yes
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=moestream-app
+
+[Install]
+WantedBy=multi-user.target moestream.target

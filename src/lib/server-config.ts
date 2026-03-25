@@ -106,7 +106,13 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
           })) as Record<string, unknown> | null;
         }
 
-        if (!row) throw new Error("SiteConfig not available");
+        if (!row) {
+          console.warn(
+            "[ServerConfig] 数据库中未找到 SiteConfig 记录（id=default），返回默认配置。" +
+            "如果你的后台设置丢失，请检查数据库是否被重置。"
+          );
+          throw new Error("SiteConfig not available");
+        }
 
         const smtpHost = row.smtpHost as string | null;
         const smtpUser = row.smtpUser as string | null;

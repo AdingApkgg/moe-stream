@@ -38,7 +38,14 @@
     "compose:up": "podman compose up -d",
     "compose:down": "podman compose down",
     "compose:logs": "podman compose logs -f",
-    "compose:build": "podman compose build --no-cache"
+    "compose:build": "podman compose build --no-cache",
+    "systemd:install": "sudo ./systemd/install.sh",
+    "systemd:start": "sudo systemctl start moestream.target",
+    "systemd:stop": "sudo systemctl stop moestream.target",
+    "systemd:restart": "sudo systemctl restart moestream.target",
+    "systemd:status": "systemctl status moestream-app moestream-socket",
+    "systemd:logs": "journalctl -u moestream-app -u moestream-socket -f",
+    "deploy:systemd": "./deploy.sh --systemd"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1014.0",

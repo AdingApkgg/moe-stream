@@ -242,6 +242,10 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
         }
 
         if (!config) {
+          console.warn(
+            "[SiteConfig] 数据库中未找到 SiteConfig 记录（id=default），将自动创建。" +
+            "如果你的后台设置丢失，请检查数据库是否被重置。"
+          );
           try {
             config = await prisma.siteConfig.create({
               data: { id: "default" },
