@@ -16,9 +16,9 @@ const getTag = cache(async (slug: string) => {
       id: true,
       name: true,
       slug: true,
-      _count: {
-        select: { videos: true, games: true, imagePosts: true },
-      },
+      videoCount: true,
+      gameCount: true,
+      imagePostCount: true,
     },
   });
 });
@@ -39,7 +39,7 @@ export async function generateMetadata({
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
-  const total = tag._count.videos + tag._count.games + tag._count.imagePosts;
+  const total = tag.videoCount + tag.gameCount + tag.imagePostCount;
   const description = `浏览 ${tag.name} 标签下的 ${total} 个内容`;
 
   return {
@@ -64,7 +64,9 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
     id: tag.id,
     name: tag.name,
     slug: tag.slug,
-    _count: tag._count,
+    videoCount: tag.videoCount,
+    gameCount: tag.gameCount,
+    imagePostCount: tag.imagePostCount,
   };
 }
 
@@ -81,7 +83,7 @@ export default async function TagPage({ params }: TagPageProps) {
   const siteUrl = config.siteUrl;
 
   const total = tag
-    ? tag._count.videos + tag._count.games + tag._count.imagePosts
+    ? tag.videoCount + tag.gameCount + tag.imagePostCount
     : 0;
 
   return (

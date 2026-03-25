@@ -69,8 +69,8 @@ export function ImageTagPageClient({
             </h1>
             <p className="text-sm text-muted-foreground">
               共{" "}
-              {displayTag?._count?.imagePosts ??
-                initialTag?._count?.imagePosts ??
+              {displayTag?.imagePostCount ??
+                initialTag?.imagePostCount ??
                 0}{" "}
               组图片
             </p>

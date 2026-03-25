@@ -29,18 +29,36 @@ export const imageRouter = router({
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
         tagId: z.string().optional(),
+        tagSlugs: z.array(z.string()).max(10).optional(),
+        excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views"]).default("latest"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, search, sortBy } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy } = input;
 
       const where: Prisma.ImagePostWhereInput = { status: "PUBLISHED" };
 
       if (tagId) {
         where.tags = { some: { tagId } };
       }
+
+      if (tagSlugs?.length) {
+        where.AND = [
+          ...(Array.isArray(where.AND) ? where.AND : []),
+          ...tagSlugs.map((slug) => ({
+            tags: { some: { tag: { slug } } },
+          })),
+        ];
+      }
+
+      if (excludeTagSlugs?.length) {
+        where.NOT = excludeTagSlugs.map((slug) => ({
+          tags: { some: { tag: { slug } } },
+        }));
+      }
+
       if (search) {
         where.OR = [
           { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
@@ -206,6 +224,11 @@ export const imageRouter = router({
         },
       });
 
+      if (tagConnections.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch(() => {});
+      }
+
       return { id: post.id, status: post.status };
     }),
 
@@ -318,6 +341,12 @@ export const imageRouter = router({
         }
       }
 
+      const allImportedTagIds = [...tagNameToId.values()];
+      if (allImportedTagIds.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(allImportedTagIds).catch(() => {});
+      }
+
       return { results };
     }),
 
@@ -395,6 +424,12 @@ export const imageRouter = router({
       });
 
       if (tagIds !== undefined || tagNames !== undefined) {
+        const oldTags = await ctx.prisma.tagOnImagePost.findMany({
+          where: { imagePostId: id },
+          select: { tagId: true },
+        });
+        const oldTagIds = oldTags.map((t) => t.tagId);
+
         await ctx.prisma.tagOnImagePost.deleteMany({ where: { imagePostId: id } });
 
         const allTagIds: string[] = [...(tagIds || [])];
@@ -418,6 +453,9 @@ export const imageRouter = router({
             skipDuplicates: true,
           });
         }
+
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts([...new Set([...oldTagIds, ...allTagIds])]).catch(() => {});
       }
 
       return { success: true };

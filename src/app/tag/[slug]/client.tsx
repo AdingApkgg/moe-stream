@@ -28,9 +28,9 @@ export function TagAggregateClient({
   const [page, setPage] = usePageParam();
 
   const defaultTab: ContentType =
-    (initialTag?._count?.videos ?? 0) > 0
+    (initialTag?.videoCount ?? 0) > 0
       ? "video"
-      : (initialTag?._count?.games ?? 0) > 0
+      : (initialTag?.gameCount ?? 0) > 0
         ? "game"
         : "image";
 
@@ -83,9 +83,9 @@ export function TagAggregateClient({
     );
   }
 
-  const videoCount = displayTag?._count?.videos ?? initialTag?._count?.videos ?? 0;
-  const gameCount = displayTag?._count?.games ?? initialTag?._count?.games ?? 0;
-  const imageCount = displayTag?._count?.imagePosts ?? initialTag?._count?.imagePosts ?? 0;
+  const videoCount = displayTag?.videoCount ?? initialTag?.videoCount ?? 0;
+  const gameCount = displayTag?.gameCount ?? initialTag?.gameCount ?? 0;
+  const imageCount = displayTag?.imagePostCount ?? initialTag?.imagePostCount ?? 0;
 
   return (
     <div className="container py-6">

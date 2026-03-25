@@ -1,0 +1,110 @@
+# ============================================================
+# Coolify 部署配置
+# ============================================================
+#
+# Coolify 是自托管的 PaaS（Vercel/Netlify 替代品）。
+#
+# 部署方式（二选一）:
+#
+# A. Docker Compose 方式（推荐）:
+#    1. 在 Coolify 控制台选择 "New Resource" → "Docker Compose"
+#    2. 指向此文件或粘贴内容
+#    3. 在 Coolify 的环境变量面板中配置所有 ${} 变量
+#    4. 部署
+#
+# B. Dockerfile 方式:
+#    1. 在 Coolify 控制台选择 "New Resource" → "Dockerfile"
+#    2. 连接 Git 仓库，Coolify 会自动检测 Dockerfile
+#    3. 分别创建 App 和 Socket 两个服务
+#    4. 使用 Coolify 内置的 Postgres 和 Redis
+#
+# 环境变量在 Coolify 控制台中配置:
+#   NEXT_PUBLIC_APP_URL    — 你的域名
+#   NEXT_PUBLIC_SOCKET_URL — Socket 服务 URL
+#   BETTER_AUTH_SECRET     — 认证密钥
+#
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-moestream}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moestream}?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
+    volumes:
+      - uploads_data:/app/uploads
+      - data_dir:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/robots.txt || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  socket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: socket-runner
+    restart: unless-stopped
+    ports:
+      - "${SOCKET_PORT:-3001}:3001"
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-moestream}?schema=public
+      SOCKET_PORT: "3001"
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  data_dir:

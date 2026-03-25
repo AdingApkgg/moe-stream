@@ -1,0 +1,79 @@
+# ============================================================
+# DigitalOcean App Platform 部署规范
+# ============================================================
+#
+# 使用方式:
+#   1. 在 DigitalOcean 控制台选择 "Create App"
+#   2. 连接 GitHub/GitLab 仓库
+#   3. 选择 "App Spec" 并导入此文件
+#   4. 配置环境变量后部署
+#
+# 文档: https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+# ============================================================
+
+name: moestream
+region: sgp
+
+services:
+  # ---------- Next.js 应用 ----------
+  - name: app
+    dockerfile_path: Dockerfile
+    source_dir: /
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /robots.txt
+      timeout_seconds: 10
+      period_seconds: 30
+    routes:
+      - path: /
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: "${db.DATABASE_URL}"
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: BETTER_AUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: NEXT_PUBLIC_APP_URL
+        scope: RUN_AND_BUILD_TIME
+      - key: NEXT_PUBLIC_SOCKET_URL
+        scope: RUN_AND_BUILD_TIME
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+
+  # ---------- Socket.io 服务 ----------
+  - name: socket
+    dockerfile_path: Dockerfile.socket
+    source_dir: /
+    http_port: 3001
+    instance_count: 1
+    instance_size_slug: basic-xs
+    routes:
+      - path: /socket
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: "${db.DATABASE_URL}"
+      - key: REDIS_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: SOCKET_PORT
+        scope: RUN_TIME
+        value: "3001"
+      - key: NEXT_PUBLIC_APP_URL
+        scope: RUN_TIME
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: production
+
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    production: false
+    cluster_name: moestream-db

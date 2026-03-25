@@ -21,6 +21,7 @@ export const adminTagsRouter = router({
       slug: z.string().min(1).max(30),
       color: z.string().max(20).default("#6366f1"),
       sortOrder: z.number().int().default(0),
+      type: z.string().max(20).default("genre"),
     }))
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.tagCategory.findFirst({
@@ -41,6 +42,7 @@ export const adminTagsRouter = router({
       slug: z.string().min(1).max(30).optional(),
       color: z.string().max(20).optional(),
       sortOrder: z.number().int().optional(),
+      type: z.string().max(20).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
@@ -61,21 +63,37 @@ export const adminTagsRouter = router({
   // ========== 标签管理 ==========
 
   getTagStats: adminProcedure.use(requireScope("tag:manage")).query(async ({ ctx }) => {
-    const [tags, categoryCount] = await Promise.all([
-      ctx.prisma.tag.findMany({
-        select: { categoryId: true, _count: { select: { videos: true, games: true, imagePosts: true } } },
+    const [tagAgg, categoryCount, aliasCount, implicationCount] = await Promise.all([
+      ctx.prisma.tag.aggregate({
+        _count: true,
+        _sum: { videoCount: true, gameCount: true, imagePostCount: true },
       }),
       ctx.prisma.tagCategory.count(),
+      ctx.prisma.tagAlias.count(),
+      ctx.prisma.tagImplication.count(),
     ]);
 
-    const total = tags.length;
-    const withVideos = tags.filter((t) => t._count.videos > 0).length;
-    const withGames = tags.filter((t) => t._count.games > 0).length;
-    const withImages = tags.filter((t) => t._count.imagePosts > 0).length;
-    const empty = tags.filter((t) => t._count.videos === 0 && t._count.games === 0 && t._count.imagePosts === 0).length;
+    const tags = await ctx.prisma.tag.findMany({
+      select: { videoCount: true, gameCount: true, imagePostCount: true, categoryId: true },
+    });
+
+    const withVideos = tags.filter((t) => t.videoCount > 0).length;
+    const withGames = tags.filter((t) => t.gameCount > 0).length;
+    const withImages = tags.filter((t) => t.imagePostCount > 0).length;
+    const empty = tags.filter((t) => t.videoCount === 0 && t.gameCount === 0 && t.imagePostCount === 0).length;
     const uncategorized = tags.filter((t) => !t.categoryId).length;
 
-    return { total, withVideos, withGames, withImages, empty, uncategorized, categoryCount };
+    return {
+      total: tagAgg._count,
+      withVideos,
+      withGames,
+      withImages,
+      empty,
+      uncategorized,
+      categoryCount,
+      aliasCount,
+      implicationCount,
+    };
   }),
 
   createTag: adminProcedure
@@ -84,6 +102,7 @@ export const adminTagsRouter = router({
       name: z.string().min(1).max(50),
       slug: z.string().min(1).max(50).optional(),
       categoryId: z.string().optional(),
+      description: z.string().max(200).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const slug = input.slug || input.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
@@ -94,7 +113,12 @@ export const adminTagsRouter = router({
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "标签名称或 slug 已存在" });
 
       const tag = await ctx.prisma.tag.create({
-        data: { name: input.name, slug, categoryId: input.categoryId || null },
+        data: {
+          name: input.name,
+          slug,
+          categoryId: input.categoryId || null,
+          description: input.description || null,
+        },
       });
       await deleteCachePattern("tag:*");
 
@@ -119,6 +143,7 @@ export const adminTagsRouter = router({
           OR: [
             { name: { contains: input.search, mode: "insensitive" } },
             { slug: { contains: input.search, mode: "insensitive" } },
+            { aliases: { some: { name: { contains: input.search, mode: "insensitive" } } } },
           ],
         });
       }
@@ -138,7 +163,8 @@ export const adminTagsRouter = router({
           orderBy: { createdAt: "desc" },
           include: {
             category: true,
-            _count: { select: { videos: true, games: true, imagePosts: true } },
+            aliases: { select: { id: true, name: true } },
+            _count: { select: { impliedBy: true, implies: true } },
           },
         }),
         ctx.prisma.tag.count({ where }),
@@ -159,6 +185,7 @@ export const adminTagsRouter = router({
       name: z.string().min(1).max(50).optional(),
       slug: z.string().min(1).max(50).optional(),
       categoryId: z.string().nullable().optional(),
+      description: z.string().max(200).nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { tagId, ...data } = input;
@@ -168,7 +195,6 @@ export const adminTagsRouter = router({
       return { success: true, tag };
     }),
 
-  // 批量修改标签分类
   batchUpdateTagCategory: adminProcedure
     .use(requireScope("tag:manage"))
     .input(z.object({
@@ -249,10 +275,140 @@ export const adminTagsRouter = router({
         });
       }
 
+      const sourceImagePosts = await ctx.prisma.imagePost.findMany({
+        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+        select: { id: true },
+      });
+
+      for (const post of sourceImagePosts) {
+        await ctx.prisma.tagOnImagePost.upsert({
+          where: { imagePostId_tagId: { imagePostId: post.id, tagId: input.targetTagId } },
+          create: { imagePostId: post.id, tagId: input.targetTagId },
+          update: {},
+        });
+        await ctx.prisma.tagOnImagePost.deleteMany({
+          where: { imagePostId: post.id, tagId: { in: input.sourceTagIds } },
+        });
+      }
+
+      // 将被合并标签的别名迁移到目标标签
+      await ctx.prisma.tagAlias.updateMany({
+        where: { tagId: { in: input.sourceTagIds } },
+        data: { tagId: input.targetTagId },
+      });
+
       await ctx.prisma.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
+
+      const { refreshTagCounts } = await import("@/lib/tag-counts");
+      await refreshTagCounts([input.targetTagId]);
+
       await deleteCachePattern("tag:*");
 
       return { success: true, mergedCount: input.sourceTagIds.length };
     }),
 
+  // ========== 标签别名管理 ==========
+
+  addAlias: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({
+      tagId: z.string(),
+      name: z.string().min(1).max(50),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.tagAlias.findUnique({ where: { name: input.name } });
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "该别名已存在" });
+
+      const existingTag = await ctx.prisma.tag.findFirst({
+        where: { name: input.name },
+      });
+      if (existingTag) throw new TRPCError({ code: "CONFLICT", message: "该名称已是一个标签的主名称" });
+
+      const alias = await ctx.prisma.tagAlias.create({
+        data: { tagId: input.tagId, name: input.name },
+      });
+      await deleteCachePattern("tag:*");
+      return { success: true, alias };
+    }),
+
+  removeAlias: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({ aliasId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.tagAlias.delete({ where: { id: input.aliasId } });
+      await deleteCachePattern("tag:*");
+      return { success: true };
+    }),
+
+  listAliases: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({ tagId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.prisma.tagAlias.findMany({
+        where: { tagId: input.tagId },
+        orderBy: { name: "asc" },
+      });
+    }),
+
+  // ========== 标签蕴含关系管理 ==========
+
+  addImplication: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({
+      sourceTagId: z.string(),
+      targetTagId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.sourceTagId === input.targetTagId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "不能蕴含自身" });
+      }
+
+      const reverse = await ctx.prisma.tagImplication.findUnique({
+        where: { sourceTagId_targetTagId: { sourceTagId: input.targetTagId, targetTagId: input.sourceTagId } },
+      });
+      if (reverse) {
+        throw new TRPCError({ code: "CONFLICT", message: "存在反向蕴含关系，会形成循环" });
+      }
+
+      const impl = await ctx.prisma.tagImplication.create({ data: input });
+      await deleteCachePattern("tag:*");
+      return { success: true, implication: impl };
+    }),
+
+  removeImplication: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({ implicationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.tagImplication.delete({ where: { id: input.implicationId } });
+      await deleteCachePattern("tag:*");
+      return { success: true };
+    }),
+
+  listImplications: adminProcedure
+    .use(requireScope("tag:manage"))
+    .input(z.object({ tagId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [implies, impliedBy] = await Promise.all([
+        ctx.prisma.tagImplication.findMany({
+          where: { sourceTagId: input.tagId },
+          include: { targetTag: { select: { id: true, name: true, slug: true } } },
+        }),
+        ctx.prisma.tagImplication.findMany({
+          where: { targetTagId: input.tagId },
+          include: { sourceTag: { select: { id: true, name: true, slug: true } } },
+        }),
+      ]);
+      return { implies, impliedBy };
+    }),
+
+  // ========== 全量重算标签计数 ==========
+
+  refreshAllCounts: adminProcedure
+    .use(requireScope("tag:manage"))
+    .mutation(async () => {
+      const { refreshAllTagCounts } = await import("@/lib/tag-counts");
+      const count = await refreshAllTagCounts();
+      await deleteCachePattern("tag:*");
+      return { success: true, tagCount: count };
+    }),
 });

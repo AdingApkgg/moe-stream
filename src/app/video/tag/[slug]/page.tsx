@@ -17,9 +17,7 @@ const getTag = cache(async (slug: string) => {
       id: true,
       name: true,
       slug: true,
-      _count: {
-        select: { videos: true },
-      },
+      videoCount: true,
     },
   });
 });
@@ -29,7 +27,7 @@ export async function generateStaticParams() {
     const popularTags = await prisma.tag.findMany({
       where: { videos: { some: { video: { status: "PUBLISHED" } } } },
       take: 50,
-      orderBy: { videos: { _count: "desc" } },
+      orderBy: { videoCount: "desc" },
       select: { slug: true },
     });
     return popularTags.map((tag) => ({ slug: tag.slug }));
@@ -54,7 +52,7 @@ export async function generateMetadata({
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
-  const description = `浏览 ${tag.name} 标签下的 ${tag._count.videos} 个视频`;
+  const description = `浏览 ${tag.name} 标签下的 ${tag.videoCount} 个视频`;
 
   return {
     title: `#${tag.name} - 视频`,
@@ -78,7 +76,7 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
     id: tag.id,
     name: tag.name,
     slug: tag.slug,
-    _count: tag._count,
+    videoCount: tag.videoCount,
   };
 }
 
@@ -100,9 +98,9 @@ export default async function VideoTagPage({ params }: VideoTagPageProps) {
       {tag && (
         <CollectionPageJsonLd
           name={`#${tag.name} 视频 - ${siteName}`}
-          description={`浏览 ${tag.name} 标签下的 ${tag._count.videos} 个视频`}
+          description={`浏览 ${tag.name} 标签下的 ${tag.videoCount} 个视频`}
           url={`${siteUrl}/video/tag/${tag.slug}`}
-          numberOfItems={tag._count.videos}
+          numberOfItems={tag.videoCount}
         />
       )}
       <VideoTagPageClient slug={slug} initialTag={initialTag} />

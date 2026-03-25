@@ -65,7 +65,10 @@ interface TagItem {
   categoryId: string | null;
   category: { id: string; name: string; color: string } | null;
   createdAt: Date;
-  _count: { videos: number; games: number; imagePosts: number };
+  videoCount: number;
+  gameCount: number;
+  imagePostCount: number;
+  _count: { impliedBy: number; implies: number };
 }
 
 interface CategoryItem {
@@ -602,9 +605,9 @@ function TagManager({ page: initialPage }: { page: number }) {
                           ) : (
                             <Badge variant="outline" className="text-[10px] py-0 px-1.5 opacity-50">未分类</Badge>
                           )}
-                          <span className="flex items-center gap-1"><Video className="h-3 w-3" />{tag._count.videos}</span>
-                          <span className="flex items-center gap-1"><Gamepad2 className="h-3 w-3" />{tag._count.games}</span>
-                          <span className="flex items-center gap-1"><Images className="h-3 w-3" />{tag._count.imagePosts}</span>
+                          <span className="flex items-center gap-1"><Video className="h-3 w-3" />{tag.videoCount}</span>
+                          <span className="flex items-center gap-1"><Gamepad2 className="h-3 w-3" />{tag.gameCount}</span>
+                          <span className="flex items-center gap-1"><Images className="h-3 w-3" />{tag.imagePostCount}</span>
                           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(tag.createdAt).toLocaleDateString("zh-CN")}</span>
                         </div>
                       </div>
@@ -743,7 +746,7 @@ function TagManager({ page: initialPage }: { page: number }) {
               <SelectContent>
                 {tags.filter((t) => selectedIds.has(t.id)).map((tag) => (
                   <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name} ({tag._count.videos} 视频, {tag._count.games} 游戏, {tag._count.imagePosts} 图片)
+                    {tag.name} ({tag.videoCount} 视频, {tag.gameCount} 游戏, {tag.imagePostCount} 图片)
                   </SelectItem>
                 ))}
               </SelectContent>

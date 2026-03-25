@@ -270,17 +270,18 @@ export const videoRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(50).default(20),
-        page: z.number().min(1).default(1), // 页码分页
+        page: z.number().min(1).default(1),
         tagId: z.string().optional(),
+        tagSlugs: z.array(z.string()).max(10).optional(),
+        excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, search, sortBy, timeRange } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy, timeRange } = input;
 
-      // 计算时间范围
       const getTimeFilter = () => {
         const now = new Date();
         switch (timeRange) {
@@ -302,6 +303,21 @@ export const videoRouter = router({
 
       if (tagId) {
         baseWhere.tags = { some: { tagId } };
+      }
+
+      if (tagSlugs?.length) {
+        baseWhere.AND = [
+          ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : []),
+          ...tagSlugs.map((slug) => ({
+            tags: { some: { tag: { slug } } },
+          })),
+        ];
+      }
+
+      if (excludeTagSlugs?.length) {
+        baseWhere.NOT = excludeTagSlugs.map((slug) => ({
+          tags: { some: { tag: { slug } } },
+        }));
       }
 
       if (search) {
@@ -865,6 +881,13 @@ export const videoRouter = router({
         }
       }
 
+      // 批量导入后刷新标签计数
+      const allImportedTagIds = [...tagNameToId.values()];
+      if (allImportedTagIds.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(allImportedTagIds).catch(() => {});
+      }
+
       return {
         success: true,
         seriesId,
@@ -957,7 +980,12 @@ export const videoRouter = router({
 
       // 更新标签关联
       if (tagIds !== undefined || tagNames !== undefined) {
-        // 处理新标签
+        const oldTags = await ctx.prisma.tagOnVideo.findMany({
+          where: { videoId: id },
+          select: { tagId: true },
+        });
+        const oldTagIds = oldTags.map((t) => t.tagId);
+
         const allTagIds: string[] = [...(tagIds || [])];
         if (tagNames && tagNames.length > 0) {
           for (const tagName of tagNames) {
@@ -998,17 +1026,14 @@ export const videoRouter = router({
           });
         }
 
-        // 清理空标签
-        await ctx.prisma.tag.deleteMany({
-          where: {
-            videos: { none: {} },
-          },
-        });
+        // 刷新受影响标签的计数
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        const affectedTagIds = [...new Set([...oldTagIds, ...allTagIds])];
+        refreshTagCounts(affectedTagIds).catch(() => {});
       }
 
       await deleteCache(`video:${id}`);
 
-      // 视频更新后通知搜索引擎重新索引
       submitVideoToIndexNow(id).catch(() => {});
 
       enqueueCoverForVideo(updated.id, updated.coverUrl).catch(() => {});
@@ -1045,16 +1070,6 @@ export const videoRouter = router({
       // 真删除视频（关联记录会通过 CASCADE 自动删除）
       await ctx.prisma.video.delete({ where: { id: input.id } });
 
-      // 清理空标签（没有关联任何视频的标签）
-      if (tagIds.length > 0) {
-        await ctx.prisma.tag.deleteMany({
-          where: {
-            id: { in: tagIds },
-            videos: { none: {} },
-          },
-        });
-      }
-
       // 清理空合集（没有关联任何视频的合集）
       if (seriesIds.length > 0) {
         await ctx.prisma.series.deleteMany({
@@ -1063,6 +1078,11 @@ export const videoRouter = router({
             episodes: { none: {} },
           },
         });
+      }
+
+      if (tagIds.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(tagIds).catch(() => {});
       }
 
       await deleteCache(`video:${input.id}`);

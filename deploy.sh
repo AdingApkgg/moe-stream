@@ -91,6 +91,16 @@ EXCLUDES=(
     --exclude='.vscode'
     --exclude='*.log'
     --exclude='.DS_Store'
+    --exclude='Dockerfile.socket'
+    --exclude='k8s'
+    --exclude='aws'
+    --exclude='coolify'
+    --exclude='sealos'
+    --exclude='.do'
+    --exclude='railway.toml'
+    --exclude='fly.toml'
+    --exclude='zbpack.json'
+    --exclude='render.yaml'
 )
 
 # 默认不包含 data 目录

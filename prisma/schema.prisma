@@ -567,27 +567,67 @@ model TagCategory {
   slug      String   @unique
   color     String   @default("#6366f1")
   sortOrder Int      @default(0)
+  /// 分类语义类型：genre=题材, element=元素, setting=设定, source=来源, audience=受众, meta=元信息
+  type      String   @default("genre")
   createdAt DateTime @default(now())
 
   tags Tag[]
 
   @@index([sortOrder])
+  @@index([type])
 }
 
 model Tag {
-  id         String       @id @default(cuid())
-  name       String       @unique
-  slug       String       @unique
-  categoryId String?
-  createdAt  DateTime     @default(now())
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  /// 标签说明
+  categoryId  String?
+  /// 预计算使用统计
+  videoCount     Int @default(0)
+  gameCount      Int @default(0)
+  imagePostCount Int @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   category   TagCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  aliases    TagAlias[]
+  impliedBy  TagImplication[] @relation("ImplicationTarget")
+  implies    TagImplication[] @relation("ImplicationSource")
   videos     TagOnVideo[]
   games      TagOnGame[]
   imagePosts TagOnImagePost[]
 
   @@index([slug])
   @@index([categoryId])
+  @@index([videoCount(sort: Desc)])
+  @@index([gameCount(sort: Desc)])
+  @@index([imagePostCount(sort: Desc)])
+}
+
+/// 标签别名（繁简体、同义词、多语言翻译等）
+model TagAlias {
+  id    String @id @default(cuid())
+  name  String @unique /// 别名文本
+  tagId String
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([tagId])
+}
+
+/// 标签蕴含关系：添加 sourceTag 时自动关联 targetTag
+model TagImplication {
+  id           String @id @default(cuid())
+  sourceTagId  String
+  targetTagId  String
+
+  sourceTag Tag @relation("ImplicationSource", fields: [sourceTagId], references: [id], onDelete: Cascade)
+  targetTag Tag @relation("ImplicationTarget", fields: [targetTagId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceTagId, targetTagId])
+  @@index([sourceTagId])
+  @@index([targetTagId])
 }
 
 model TagOnVideo {

@@ -4,12 +4,13 @@ import { trpc } from "@/lib/trpc";
 import { GameGrid } from "@/components/game/game-grid";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Gamepad2 } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
 import { useInlineAds } from "@/hooks/use-inline-ads";
@@ -64,7 +65,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
   }, [setContentMode]);
 
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");
   const [page, setPage] = usePageParam();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
@@ -77,7 +78,8 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
       limit: 20,
       page,
       sortBy,
-      tagId: selectedTag || undefined,
+      tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
+      excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
       gameType: selectedType || undefined,
     },
     {
@@ -86,13 +88,13 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
   );
 
   const games = useMemo(
-    () => gameData?.games ?? (page === 1 && sortBy === "latest" && !selectedTag && !selectedType ? initialGames : []),
-    [gameData?.games, page, sortBy, selectedTag, selectedType, initialGames]
+    () => gameData?.games ?? (page === 1 && sortBy === "latest" && !hasFilter && !selectedType ? initialGames : []),
+    [gameData?.games, page, sortBy, hasFilter, selectedType, initialGames]
   );
   const totalPages = gameData?.totalPages ?? 1;
 
-  const isFirstPage = page === 1 && sortBy === "latest" && selectedTag === null && selectedType === "";
-  const adSeed = `game-${page}-${sortBy}-${selectedTag ?? ""}-${selectedType}`;
+  const isFirstPage = page === 1 && sortBy === "latest" && !hasFilter && selectedType === "";
+  const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const { gridItems, pickedAds, hasAds } = useInlineAds({
     items: games,
     seed: adSeed,
@@ -106,20 +108,26 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
     { id: "likes", label: "高赞" },
   ];
 
-  const handleSortClick = (id: SortBy) => {
+  const handleSortClick = useCallback((id: SortBy) => {
     setSortBy(id);
     setPage(1);
-  };
+  }, [setPage]);
 
-  const handleTagClick = (tagId: string) => {
-    setSelectedTag(selectedTag === tagId ? null : tagId);
+  const handleTagClick = useCallback((slug: string) => {
+    toggleTag(slug);
     setPage(1);
-  };
+  }, [toggleTag, setPage]);
 
-  const handleTypeClick = (type: string) => {
+  const handleTagRightClick = useCallback((e: React.MouseEvent, slug: string) => {
+    e.preventDefault();
+    toggleExclude(slug);
+    setPage(1);
+  }, [toggleExclude, setPage]);
+
+  const handleTypeClick = useCallback((type: string) => {
     setSelectedType(type);
     setPage(1);
-  };
+  }, [setPage]);
 
   // 根据 typeStats 过滤有数据的类型
   const availableTypes = useMemo(() => {
@@ -207,13 +215,15 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
                 {initialTags.map((tag) => (
                   <button
                     key={tag.id}
-                    onClick={() => handleTagClick(tag.id)}
+                    onClick={() => handleTagClick(tag.slug)}
+                    onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                      selectedTag === tag.id
-                        ? "bg-foreground text-background"
-                        : "bg-muted hover:bg-muted/80 text-foreground"
+                      isSelected(tag.slug) && "bg-foreground text-background",
+                      isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
+                      !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
                     )}
+                    title="左键选择，右键排除"
                   >
                     {tag.name}
                   </button>
@@ -225,7 +235,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
 
         {/* 游戏网格 */}
         <section>
-          <div key={`${sortBy}-${selectedTag}-${selectedType}-${page}`}>
+          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
             {isLoading && games.length === 0 ? (
               <GameGrid games={[]} isLoading />
             ) : hasAds ? (
@@ -251,14 +261,14 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
                   <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">没有找到游戏</p>
                   <p className="text-sm mt-1">
-                    {selectedTag || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}
+                    {hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}
                   </p>
                 </div>
-                {(selectedTag || selectedType) && (
+                {(hasFilter || selectedType) && (
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setSelectedTag(null);
+                      clearAll();
                       setSelectedType("");
                     }}
                     className="mt-4"

@@ -1,0 +1,56 @@
+{
+  "family": "moestream-socket",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "socket",
+      "_comment": "构建: docker build --target socket-runner -t moestream-socket:latest .",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/moestream-socket:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "SOCKET_PORT", "value": "3001" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/DATABASE_URL"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/REDIS_URL"
+        },
+        {
+          "name": "NEXT_PUBLIC_APP_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/NEXT_PUBLIC_APP_URL"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node -e \"const n=require('net');const c=n.connect(3001,'localhost',()=>{c.end();process.exit(0)});c.on('error',()=>process.exit(1))\""],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/moestream",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "socket"
+        }
+      }
+    }
+  ]
+}

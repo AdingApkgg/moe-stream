@@ -1,0 +1,68 @@
+# ============================================================
+# Fly.io 部署配置
+# ============================================================
+#
+# 部署步骤:
+#   1. fly launch --no-deploy
+#   2. 创建 Postgres: fly postgres create
+#   3. 创建 Redis:   fly redis create
+#   4. 设置 Secrets:
+#        fly secrets set BETTER_AUTH_SECRET="your-secret"
+#        fly secrets set NEXT_PUBLIC_APP_URL="https://your-app.fly.dev"
+#        fly secrets set NEXT_PUBLIC_SOCKET_URL="https://your-app.fly.dev:3001"
+#        fly secrets set DATABASE_URL="postgres://..."
+#        fly secrets set REDIS_URL="redis://..."
+#   5. 部署: fly deploy
+#
+# Socket.io 部署方案（二选一）:
+#   A. 单应用多进程 — 取消下方 [processes] 注释
+#   B. 独立应用 — 另建一个 Fly app 用 socket-runner target
+#
+# ============================================================
+
+app = "moestream"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+  target = "runner"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 3000
+    path = "/robots.txt"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# 持久卷（可选，用于本地上传存储）
+# [[mounts]]
+#   source = "uploads"
+#   destination = "/app/uploads"
+#   initial_size = "1gb"
+
+# 多进程模式（可选，App + Socket 同机运行）
+# [processes]
+#   app = "node server.js"
+#   socket = "node node_modules/tsx/dist/cli.mjs src/socket/server.ts"
+#
+# [[services]]
+#   processes = ["socket"]
+#   internal_port = 3001
+#   protocol = "tcp"
+#   [[services.ports]]
+#     port = 3001
+#     handlers = ["tls", "http"]

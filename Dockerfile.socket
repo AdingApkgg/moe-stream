@@ -1,5 +1,13 @@
 # ============================================================
-# 多阶段构建（优化版）
+# Socket.io 服务专用 Dockerfile
+# ============================================================
+#
+# 用于不支持 Docker build --target 的部署平台
+# （如 DigitalOcean App Platform、Render、Railway 等）。
+#
+# 支持 --target 的平台可直接使用主 Dockerfile:
+#   docker build --target socket-runner -t moestream-socket .
+#
 # ============================================================
 
 # ---------- 基础镜像 ----------
@@ -7,13 +15,13 @@ FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
-# ---------- 依赖安装（与 prisma schema 解耦）----------
+# ---------- 依赖安装 ----------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod=false
 
-# ---------- 构建 ----------
+# ---------- 构建（生成 Prisma Client）----------
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -22,22 +30,14 @@ ENV REDIS_URL="redis://localhost:6379"
 RUN --mount=type=cache,id=nextjs-cache,target=/app/.next/cache \
     pnpm build
 
-# ---------- 生产依赖（仅 Socket 服务需要）----------
+# ---------- 生产依赖 ----------
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --prod
 
-# ---------- Prisma 迁移工具 ----------
-FROM base AS migrator
-ENV PATH="/app/node_modules/.bin:$PATH"
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
-COPY prisma ./prisma/
-COPY prisma.config.ts ./
-
 # ---------- Socket.io 运行 ----------
-FROM node:22-alpine AS socket-runner
+FROM node:22-alpine
 
 ENV NODE_ENV=production
 ENV SOCKET_PORT=3001
@@ -62,28 +62,3 @@ USER nextjs
 EXPOSE 3001
 
 CMD ["node", "node_modules/tsx/dist/cli.mjs", "src/socket/server.ts"]
-
-# ---------- Next.js 运行（standalone 模式，默认构建目标）----------
-FROM node:22-alpine AS runner
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-WORKDIR /app
-
-RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main postgresql18-client && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-RUN mkdir -p uploads logs data .backup-tmp && chown -R nextjs:nodejs uploads logs data .next .backup-tmp
-
-USER nextjs
-EXPOSE 3000
-
-CMD ["node", "server.js"]

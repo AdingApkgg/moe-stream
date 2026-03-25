@@ -68,7 +68,7 @@ export function GameTagPageClient({
               <Gamepad2 className="h-5 w-5 text-muted-foreground" />
             </h1>
             <p className="text-sm text-muted-foreground">
-              共 {displayTag?._count?.games ?? initialTag?._count?.games ?? 0}{" "}
+              共 {displayTag?.gameCount ?? initialTag?.gameCount ?? 0}{" "}
               个游戏
             </p>
           </div>

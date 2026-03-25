@@ -4,12 +4,13 @@ import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { VideoCard } from "@/components/video/video-card";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Play, Layers } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { useTagFilter } from "@/hooks/use-tag-filter";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,12 +70,11 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
 
   const [viewMode, setViewMode] = useState<ViewMode>("videos");
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
   const [videoPage, setVideoPage] = usePageParam("page");
   const [seriesPage, setSeriesPage] = usePageParam("sp");
 
-  // 视频列表查询
   const {
     data: videoData,
     isLoading: videoLoading,
@@ -83,7 +83,8 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
       limit: 20, 
       page: videoPage,
       sortBy, 
-      tagId: selectedTag || undefined,
+      tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
+      excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
     },
     {
       enabled: viewMode === "videos",
@@ -112,8 +113,8 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
   const series = seriesData?.items ?? [];
   const seriesTotalPages = seriesData?.totalPages ?? 1;
 
-  const isFirstPage = videoPage === 1 && sortBy === "latest" && selectedTag === null;
-  const adSeed = `${videoPage}-${sortBy}-${selectedTag ?? ""}`;
+  const isFirstPage = videoPage === 1 && sortBy === "latest" && !hasFilter;
+  const adSeed = `${videoPage}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { gridItems, pickedAds, hasAds } = useInlineAds<any>({
     items: videos,
@@ -135,29 +136,30 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
     { id: "likes", label: "高赞" },
   ];
 
-  const handleViewModeClick = (id: ViewMode) => {
+  const handleViewModeClick = useCallback((id: ViewMode) => {
     setViewMode(id);
-    // 切换到合集模式时清除标签筛选
     if (id === "series") {
-      setSelectedTag(null);
+      clearAll();
     }
-  };
+  }, [clearAll]);
 
-  const handleSortClick = (id: SortBy) => {
+  const handleSortClick = useCallback((id: SortBy) => {
     setSortBy(id);
     setVideoPage(1);
-  };
+  }, [setVideoPage]);
 
-  const handleTagClick = (tagId: string) => {
-    // 合集模式下不支持标签筛选
+  const handleTagClick = useCallback((slug: string) => {
     if (viewMode === "series") return;
-    if (selectedTag === tagId) {
-      setSelectedTag(null);
-    } else {
-      setSelectedTag(tagId);
-    }
+    toggleTag(slug);
     setVideoPage(1);
-  };
+  }, [viewMode, toggleTag, setVideoPage]);
+
+  const handleTagRightClick = useCallback((e: React.MouseEvent, slug: string) => {
+    e.preventDefault();
+    if (viewMode === "series") return;
+    toggleExclude(slug);
+    setVideoPage(1);
+  }, [viewMode, toggleExclude, setVideoPage]);
 
   return (
     <PageWrapper>
@@ -222,13 +224,15 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                 {initialTags.map((tag) => (
                   <button
                     key={tag.id}
-                    onClick={() => handleTagClick(tag.id)}
+                    onClick={() => handleTagClick(tag.slug)}
+                    onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                      selectedTag === tag.id
-                        ? "bg-foreground text-background"
-                        : "bg-muted hover:bg-muted/80 text-foreground"
+                      isSelected(tag.slug) && "bg-foreground text-background",
+                      isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
+                      !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
                     )}
+                    title="左键选择，右键排除"
                   >
                     {tag.name}
                   </button>
@@ -243,7 +247,7 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
           {viewMode === "videos" ? (
             // 视频网格
             <>
-              <div key={`${sortBy}-${selectedTag}-${videoPage}`}>
+              <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${videoPage}`}>
                 {videoLoading && videos.length === 0 ? (
                   <VideoGrid videos={[]} isLoading />
                 ) : hasAds ? (
@@ -269,11 +273,11 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                     <div className="text-muted-foreground mb-4">
                       <p className="text-lg font-medium">没有找到视频</p>
                       <p className="text-sm mt-1">
-                        {selectedTag ? "尝试选择其他标签" : "暂无视频内容"}
+                        {hasFilter ? "尝试调整标签筛选条件" : "暂无视频内容"}
                       </p>
                     </div>
-                    {selectedTag && (
-                      <Button variant="outline" onClick={() => setSelectedTag(null)} className="mt-4">
+                    {hasFilter && (
+                      <Button variant="outline" onClick={clearAll} className="mt-4">
                         清除筛选
                       </Button>
                     )}

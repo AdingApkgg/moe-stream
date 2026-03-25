@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moestream-socket
+  namespace: moestream
+  labels:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: socket
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: moestream
+      app.kubernetes.io/component: socket
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: moestream
+        app.kubernetes.io/component: socket
+    spec:
+      containers:
+        - name: socket
+          # 使用主 Dockerfile 构建: docker build --target socket-runner -t moestream-socket:latest .
+          image: moestream-socket:latest
+          ports:
+            - containerPort: 3001
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: moestream-secrets
+            - configMapRef:
+                name: moestream-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: moestream-socket
+  namespace: moestream
+  labels:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: socket
+spec:
+  selector:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: socket
+  ports:
+    - port: 3001
+      targetPort: 3001
+      protocol: TCP

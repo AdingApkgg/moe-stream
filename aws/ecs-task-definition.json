@@ -1,0 +1,64 @@
+{
+  "family": "moestream",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "_comment": "构建: docker build --target runner -t moestream:latest .",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/moestream:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3000" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/DATABASE_URL"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/REDIS_URL"
+        },
+        {
+          "name": "BETTER_AUTH_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/BETTER_AUTH_SECRET"
+        },
+        {
+          "name": "NEXT_PUBLIC_APP_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/NEXT_PUBLIC_APP_URL"
+        },
+        {
+          "name": "NEXT_PUBLIC_SOCKET_URL",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:moestream/NEXT_PUBLIC_SOCKET_URL"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/robots.txt || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/moestream",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "app"
+        }
+      }
+    }
+  ]
+}

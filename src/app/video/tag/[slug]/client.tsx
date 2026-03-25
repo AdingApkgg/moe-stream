@@ -69,8 +69,8 @@ export function VideoTagPageClient({
             </h1>
             <p className="text-sm text-muted-foreground">
               共{" "}
-              {displayTag?._count?.videos ??
-                initialTag?._count?.videos ??
+              {displayTag?.videoCount ??
+                initialTag?.videoCount ??
                 0}{" "}
               个视频
             </p>

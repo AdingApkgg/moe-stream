@@ -3,12 +3,13 @@
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { Images } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
@@ -52,7 +53,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   }, [setContentMode]);
 
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
   const [page, setPage] = usePageParam();
 
   const {
@@ -63,7 +64,8 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
       limit: 20,
       page,
       sortBy,
-      tagId: selectedTag || undefined,
+      tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
+      excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
     },
     {
       placeholderData: (prev) => prev,
@@ -76,7 +78,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   );
   const totalPages = postData?.totalPages ?? 1;
 
-  const adSeed = `image-${page}-${sortBy}-${selectedTag ?? ""}`;
+  const adSeed = `image-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { gridItems, pickedAds, hasAds } = useInlineAds<any>({
     items: posts,
@@ -114,16 +116,15 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                 {initialTags.map((tag) => (
                   <button
                     key={tag.id}
-                    onClick={() => {
-                      setSelectedTag(selectedTag === tag.id ? null : tag.id);
-                      setPage(1);
-                    }}
+                    onClick={() => { toggleTag(tag.slug); setPage(1); }}
+                    onContextMenu={(e) => { e.preventDefault(); toggleExclude(tag.slug); setPage(1); }}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                      selectedTag === tag.id
-                        ? "bg-foreground text-background"
-                        : "bg-muted hover:bg-muted/80 text-foreground"
+                      isSelected(tag.slug) && "bg-foreground text-background",
+                      isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
+                      !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
                     )}
+                    title="左键选择，右键排除"
                   >
                     {tag.name}
                   </button>
@@ -135,7 +136,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
 
         {/* Content grid */}
         <section>
-          <div key={`${sortBy}-${selectedTag}-${page}`}>
+          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${page}`}>
             {isLoading && posts.length === 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {Array.from({ length: 12 }).map((_, i) => (
@@ -170,11 +171,11 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                   <Images className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">没有找到图片</p>
                   <p className="text-sm mt-1">
-                    {selectedTag ? "尝试选择其他标签" : "暂无图片内容"}
+                    {hasFilter ? "尝试调整标签筛选条件" : "暂无图片内容"}
                   </p>
                 </div>
-                {selectedTag && (
-                  <Button variant="outline" onClick={() => setSelectedTag(null)} className="mt-4">
+                {hasFilter && (
+                  <Button variant="outline" onClick={clearAll} className="mt-4">
                     清除筛选
                   </Button>
                 )}

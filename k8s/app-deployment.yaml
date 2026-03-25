@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moestream-app
+  namespace: moestream
+  labels:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: moestream
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: moestream
+        app.kubernetes.io/component: app
+    spec:
+      containers:
+        - name: app
+          # 使用主 Dockerfile 构建: docker build --target runner -t moestream:latest .
+          image: moestream:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: moestream-secrets
+            - configMapRef:
+                name: moestream-config
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /robots.txt
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /robots.txt
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: moestream-uploads
+        - name: data
+          persistentVolumeClaim:
+            claimName: moestream-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: moestream-app
+  namespace: moestream
+  labels:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: app
+spec:
+  selector:
+    app.kubernetes.io/name: moestream
+    app.kubernetes.io/component: app
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP

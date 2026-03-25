@@ -17,9 +17,7 @@ const getTag = cache(async (slug: string) => {
       id: true,
       name: true,
       slug: true,
-      _count: {
-        select: { imagePosts: true },
-      },
+      imagePostCount: true,
     },
   });
 });
@@ -29,7 +27,7 @@ export async function generateStaticParams() {
     const popularTags = await prisma.tag.findMany({
       where: { imagePosts: { some: {} } },
       take: 50,
-      orderBy: { imagePosts: { _count: "desc" } },
+      orderBy: { imagePostCount: "desc" },
       select: { slug: true },
     });
     return popularTags.map((tag) => ({ slug: tag.slug }));
@@ -54,7 +52,7 @@ export async function generateMetadata({
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
-  const description = `浏览 ${tag.name} 标签下的 ${tag._count.imagePosts} 组图片`;
+  const description = `浏览 ${tag.name} 标签下的 ${tag.imagePostCount} 组图片`;
 
   return {
     title: `#${tag.name} - 图片`,
@@ -78,7 +76,7 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
     id: tag.id,
     name: tag.name,
     slug: tag.slug,
-    _count: tag._count,
+    imagePostCount: tag.imagePostCount,
   };
 }
 
@@ -100,9 +98,9 @@ export default async function ImageTagPage({ params }: ImageTagPageProps) {
       {tag && (
         <CollectionPageJsonLd
           name={`#${tag.name} 图片 - ${siteName}`}
-          description={`浏览 ${tag.name} 标签下的 ${tag._count.imagePosts} 组图片`}
+          description={`浏览 ${tag.name} 标签下的 ${tag.imagePostCount} 组图片`}
           url={`${siteUrl}/image/tag/${tag.slug}`}
-          numberOfItems={tag._count.imagePosts}
+          numberOfItems={tag.imagePostCount}
         />
       )}
       <ImageTagPageClient slug={slug} initialTag={initialTag} />

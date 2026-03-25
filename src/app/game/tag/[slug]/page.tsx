@@ -17,9 +17,7 @@ const getTag = cache(async (slug: string) => {
       id: true,
       name: true,
       slug: true,
-      _count: {
-        select: { games: true },
-      },
+      gameCount: true,
     },
   });
 });
@@ -29,7 +27,7 @@ export async function generateStaticParams() {
     const popularTags = await prisma.tag.findMany({
       where: { games: { some: { game: { status: "PUBLISHED" } } } },
       take: 50,
-      orderBy: { games: { _count: "desc" } },
+      orderBy: { gameCount: "desc" },
       select: { slug: true },
     });
     return popularTags.map((tag) => ({ slug: tag.slug }));
@@ -54,7 +52,7 @@ export async function generateMetadata({
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
-  const description = `浏览 ${tag.name} 标签下的 ${tag._count.games} 个游戏`;
+  const description = `浏览 ${tag.name} 标签下的 ${tag.gameCount} 个游戏`;
 
   return {
     title: `#${tag.name} - 游戏`,
@@ -78,7 +76,7 @@ function serializeTag(tag: NonNullable<Awaited<ReturnType<typeof getTag>>>) {
     id: tag.id,
     name: tag.name,
     slug: tag.slug,
-    _count: tag._count,
+    gameCount: tag.gameCount,
   };
 }
 
@@ -100,9 +98,9 @@ export default async function GameTagPage({ params }: GameTagPageProps) {
       {tag && (
         <CollectionPageJsonLd
           name={`#${tag.name} 游戏 - ${siteName}`}
-          description={`浏览 ${tag.name} 标签下的 ${tag._count.games} 个游戏`}
+          description={`浏览 ${tag.name} 标签下的 ${tag.gameCount} 个游戏`}
           url={`${siteUrl}/game/tag/${tag.slug}`}
-          numberOfItems={tag._count.games}
+          numberOfItems={tag.gameCount}
         />
       )}
       <GameTagPageClient slug={slug} initialTag={initialTag} />

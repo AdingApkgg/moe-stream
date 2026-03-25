@@ -1,0 +1,41 @@
+# ============================================================
+# Sealos 部署配置
+# ============================================================
+#
+# Sealos 是基于 Kubernetes 的云操作系统。
+#
+# 部署方式:
+#
+# A. 通过 Sealos App Launchpad（推荐）:
+#    1. 登录 Sealos Cloud (https://cloud.sealos.run)
+#    2. 打开 "App Launchpad"
+#    3. 选择 "自定义安装" → 从 Docker Image 部署
+#    4. 镜像填入构建好的 Docker 镜像地址
+#    5. 配置环境变量、端口映射、持久存储
+#    6. 分别创建 App（端口 3000）和 Socket（端口 3001）两个应用
+#
+# B. 通过 kubectl（使用本仓库 k8s/ 清单）:
+#    1. 连接到 Sealos 集群:
+#         sealos login
+#    2. 应用清单:
+#         kubectl apply -k ../k8s/
+#    3. 修改 k8s/configmap.yaml 中的域名配置
+#    4. 修改 k8s/secrets.yaml 中的数据库连接信息
+#
+# C. 使用 Sealos 内置数据库:
+#    1. 通过 "Database" 应用创建 PostgreSQL 和 Redis
+#    2. 获取连接字符串填入环境变量
+#    3. 无需部署 k8s/postgres.yaml 和 k8s/redis.yaml
+#
+# 环境变量:
+#   DATABASE_URL           — PostgreSQL 连接字符串
+#   REDIS_URL              — Redis 连接字符串（可选）
+#   BETTER_AUTH_SECRET     — 认证密钥
+#   NEXT_PUBLIC_APP_URL    — 应用域名
+#   NEXT_PUBLIC_SOCKET_URL — Socket 服务域名
+# ============================================================
+
+# 使用主 Dockerfile 构建: docker build --target runner -t moestream:latest .
+FROM moestream:latest
+
+EXPOSE 3000

@@ -46,6 +46,8 @@ export const gameRouter = router({
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
         tagId: z.string().optional(),
+        tagSlugs: z.array(z.string()).max(10).optional(),
+        excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         gameType: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
@@ -53,7 +55,7 @@ export const gameRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, search, gameType, sortBy, timeRange } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, gameType, sortBy, timeRange } = input;
 
       const getTimeFilter = () => {
         const now = new Date();
@@ -76,6 +78,21 @@ export const gameRouter = router({
 
       if (tagId) {
         baseWhere.tags = { some: { tagId } };
+      }
+
+      if (tagSlugs?.length) {
+        baseWhere.AND = [
+          ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : []),
+          ...tagSlugs.map((slug) => ({
+            tags: { some: { tag: { slug } } },
+          })),
+        ];
+      }
+
+      if (excludeTagSlugs?.length) {
+        baseWhere.NOT = excludeTagSlugs.map((slug) => ({
+          tags: { some: { tag: { slug } } },
+        }));
       }
 
       if (search) {
@@ -332,7 +349,11 @@ export const gameRouter = router({
         },
       });
 
-      // 发布状态时异步提交到 IndexNow
+      if (tagConnections.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch(() => {});
+      }
+
       if (status === "PUBLISHED") {
         submitGameToIndexNow(game.id).catch(() => {});
       }
@@ -476,7 +497,12 @@ export const gameRouter = router({
         }
       }
 
-      // 批量创建完成后，异步提交成功创建/更新的游戏到 IndexNow
+      const allImportedTagIds = [...tagNameToId.values()];
+      if (allImportedTagIds.length > 0) {
+        const { refreshTagCounts } = await import("@/lib/tag-counts");
+        refreshTagCounts(allImportedTagIds).catch(() => {});
+      }
+
       const successIds = results
         .filter((r) => r.id && !r.error)
         .map((r) => r.id!);

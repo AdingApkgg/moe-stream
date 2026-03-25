@@ -158,7 +158,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   }, [displayVideo?.videoUrl, hasPages, currentPage]);
 
   // 选集器模式（后台可配置）
-  const selectorMode = siteConfig.videoSelectorMode ?? "series";
+  const selectorMode = siteConfig?.videoSelectorMode ?? "series";
 
   // --- 合集模式 ---
   const { data: seriesData } = trpc.series.getByVideoId.useQuery(
@@ -177,13 +177,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   // --- 原作者模式 ---
   const authorName = (displayVideo?.extraInfo as Record<string, unknown> | null)?.author as string | undefined;
   const { data: authorData } = trpc.video.getByAuthor.useQuery(
-    { author: authorName!, excludeVideoId: currentVideoId },
+    { author: authorName! },
     { enabled: selectorMode === "author" && !!authorName, staleTime: 60000 }
   );
 
   // --- 上传者模式 ---
   const { data: uploaderData } = trpc.video.getByUploader.useQuery(
-    { uploaderId: displayVideo?.uploader?.id!, excludeVideoId: currentVideoId },
+    { uploaderId: displayVideo?.uploader?.id! },
     { enabled: selectorMode === "uploader" && !!displayVideo?.uploader?.id, staleTime: 60000 }
   );
 

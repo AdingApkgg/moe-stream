@@ -24,3 +24,15 @@ logs/*
 legacy_*.json
 legacy_*.txt
 deploy
+
+# 部署平台配置（不需要进入 Docker 镜像）
+Dockerfile.socket
+k8s
+aws
+coolify
+sealos
+.do
+railway.toml
+fly.toml
+zbpack.json
+render.yaml

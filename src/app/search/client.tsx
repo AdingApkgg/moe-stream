@@ -416,9 +416,7 @@ export function SearchContent({ query }: SearchContentProps) {
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => {
                 const count =
-                  (tag._count && "videos" in tag._count ? (tag._count as { videos?: number }).videos ?? 0 : 0) +
-                  (tag._count && "games" in tag._count ? (tag._count as { games?: number }).games ?? 0 : 0) +
-                  (tag._count && "imagePosts" in tag._count ? (tag._count as { imagePosts?: number }).imagePosts ?? 0 : 0);
+                  (tag.videoCount ?? 0) + (tag.gameCount ?? 0) + (tag.imagePostCount ?? 0);
                 return (
                   <Link
                     key={tag.id}
