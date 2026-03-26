@@ -35,6 +35,7 @@ export default function config(phase: string) {
         bodySizeLimit: "10mb",
       },
       optimizeCss: true,
+      mdxRs: true,
     },
     async rewrites() {
       return [
