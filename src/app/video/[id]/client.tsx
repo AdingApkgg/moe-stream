@@ -9,7 +9,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Markdown } from "@/components/ui/markdown";
-import { Heart, ThumbsDown, HelpCircle, Star, Share2, Eye, Calendar, Edit, MoreVertical, Trash2, List, Play, Layers, User, Download, ExternalLink, Info, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  Heart,
+  ThumbsDown,
+  HelpCircle,
+  Star,
+  Share2,
+  Eye,
+  Calendar,
+  Edit,
+  MoreVertical,
+  Trash2,
+  List,
+  Play,
+  Layers,
+  User,
+  Download,
+  ExternalLink,
+  Info,
+  AlertCircle,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +79,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   // 当前播放的视频 ID（用于剧集切换，不触发路由导航）
   const [currentVideoId, setCurrentVideoId] = useState(initialId);
-  
+
   // 检测是否是从外部导航进入（URL 的 id 变化）
   useEffect(() => {
     if (initialId !== currentVideoId) {
@@ -72,33 +93,36 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     {
       staleTime: 30000,
       refetchOnMount: false,
-    }
+    },
   );
 
   // 缓存上一次成功加载的视频，避免切换时闪烁"视频不存在"
   const lastVideoRef = useRef<typeof video | SerializedVideo>(initialVideo);
-  
+
   // 优先使用客户端数据（包含最新的点赞等），然后是服务端数据，最后用缓存
   const displayVideo = video || (currentVideoId === initialId ? initialVideo : null) || lastVideoRef.current;
-  
+
   // 更新缓存
   useEffect(() => {
     if (video) {
       lastVideoRef.current = video;
     }
   }, [video]);
-  
+
   // 剧集切换 - 只更新状态和 URL，不触发路由导航
-  const switchToEpisode = useCallback((videoId: string) => {
-    if (videoId === currentVideoId) return;
-    
-    // 更新状态
-    setCurrentVideoId(videoId);
-    
-    // 更新 URL（不触发导航）
-    window.history.pushState({}, '', `/video/${videoId}`);
-  }, [currentVideoId]);
-  
+  const switchToEpisode = useCallback(
+    (videoId: string) => {
+      if (videoId === currentVideoId) return;
+
+      // 更新状态
+      setCurrentVideoId(videoId);
+
+      // 更新 URL（不触发导航）
+      window.history.pushState({}, "", `/video/${videoId}`);
+    },
+    [currentVideoId],
+  );
+
   // 监听浏览器前进/后退
   useEffect(() => {
     const handlePopState = () => {
@@ -107,25 +131,25 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
         setCurrentVideoId(match[1]);
       }
     };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [currentVideoId]);
-  
+
   // 分P状态管理
   const searchParams = useSearchParams();
   const hasPages = displayVideo?.pages && Array.isArray(displayVideo.pages) && displayVideo.pages.length > 1;
-  
+
   // 从 URL 参数读取当前分P
   const urlPage = searchParams.get("p");
   const initialPage = urlPage ? parseInt(urlPage, 10) : 1;
-  
+
   const [currentPage, setCurrentPage] = useState(initialPage);
   // 移动端 UI 状态
   const [descExpanded, setDescExpanded] = useState(false);
   const [mobileSeriesExpanded, setMobileSeriesExpanded] = useState(false);
   const [mobilePagesExpanded, setMobilePagesExpanded] = useState(false);
-  
+
   // URL 参数变化时同步状态
   useEffect(() => {
     const p = searchParams.get("p");
@@ -134,7 +158,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       setCurrentPage(pageNum);
     }
   }, [searchParams, currentPage]);
-  
+
   // 切换分P时更新 URL
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -147,13 +171,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     window.history.replaceState({}, "", url.toString());
   }, []);
-  
+
   // 计算当前视频URL
   const currentVideoUrl = useMemo(() => {
     if (!displayVideo?.videoUrl || !hasPages) return displayVideo?.videoUrl;
     // 替换或添加p参数
-    const baseUrl = displayVideo.videoUrl.replace(/[?&]p=\d+/, '');
-    const separator = baseUrl.includes('?') ? '&' : '?';
+    const baseUrl = displayVideo.videoUrl.replace(/[?&]p=\d+/, "");
+    const separator = baseUrl.includes("?") ? "&" : "?";
     return `${baseUrl}${separator}p=${currentPage}`;
   }, [displayVideo?.videoUrl, hasPages, currentPage]);
 
@@ -163,7 +187,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   // --- 合集模式 ---
   const { data: seriesData } = trpc.series.getByVideoId.useQuery(
     { videoId: initialId },
-    { enabled: selectorMode === "series", staleTime: 60000 }
+    { enabled: selectorMode === "series", staleTime: 60000 },
   );
   const seriesEpisodes = useMemo(() => {
     if (!seriesData?.series?.episodes) return [];
@@ -178,18 +202,24 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const authorName = (displayVideo?.extraInfo as Record<string, unknown> | null)?.author as string | undefined;
   const { data: authorData } = trpc.video.getByAuthor.useQuery(
     { author: authorName! },
-    { enabled: selectorMode === "author" && !!authorName, staleTime: 60000 }
+    { enabled: selectorMode === "author" && !!authorName, staleTime: 60000 },
   );
 
   // --- 上传者模式 ---
   const { data: uploaderData } = trpc.video.getByUploader.useQuery(
     { uploaderId: displayVideo?.uploader?.id ?? "" },
-    { enabled: selectorMode === "uploader" && !!displayVideo?.uploader?.id, staleTime: 60000 }
+    { enabled: selectorMode === "uploader" && !!displayVideo?.uploader?.id, staleTime: 60000 },
   );
 
   // 通用选集列表（author / uploader 共用）
-  const selectorVideos = selectorMode === "author" ? authorData?.videos : selectorMode === "uploader" ? uploaderData?.videos : undefined;
-  const selectorTotalCount = selectorMode === "author" ? authorData?.totalCount : selectorMode === "uploader" ? uploaderData?.totalCount : undefined;
+  const selectorVideos =
+    selectorMode === "author" ? authorData?.videos : selectorMode === "uploader" ? uploaderData?.videos : undefined;
+  const selectorTotalCount =
+    selectorMode === "author"
+      ? authorData?.totalCount
+      : selectorMode === "uploader"
+        ? uploaderData?.totalCount
+        : undefined;
   const hasSelectorVideos = !!selectorVideos && selectorVideos.length > 0;
   const selectorCurrentIndex = useMemo(() => {
     if (!selectorVideos) return -1;
@@ -197,10 +227,16 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   }, [selectorVideos, currentVideoId]);
 
   // 选集器标题
-  const selectorTitle = selectorMode === "author" ? authorName : selectorMode === "uploader" ? (displayVideo?.uploader?.nickname || displayVideo?.uploader?.username) : undefined;
+  const selectorTitle =
+    selectorMode === "author"
+      ? authorName
+      : selectorMode === "uploader"
+        ? displayVideo?.uploader?.nickname || displayVideo?.uploader?.username
+        : undefined;
 
   // 是否显示选集器
-  const showSelector = (selectorMode === "series" && !!seriesData?.series) ||
+  const showSelector =
+    (selectorMode === "series" && !!seriesData?.series) ||
     ((selectorMode === "author" || selectorMode === "uploader") && hasSelectorVideos);
 
   // 首次加载时滚动列表到当前条目（不影响页面滚动）
@@ -212,12 +248,12 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     initialScrollDoneRef.current = true;
     const container = episodeListRef.current;
     const element = currentEpisodeRef.current;
-    container.scrollTop = element.offsetTop - (container.clientHeight / 2) + (element.clientHeight / 2);
+    container.scrollTop = element.offsetTop - container.clientHeight / 2 + element.clientHeight / 2;
   }, [scrollTargetIndex]);
 
   const { data: status } = trpc.video.getInteractionStatus.useQuery(
     { videoId: currentVideoId },
-    { enabled: !!session }
+    { enabled: !!session },
   );
 
   const incrementViews = trpc.video.incrementViews.useMutation();
@@ -330,7 +366,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       const prevVideo = utils.video.getById.getData({ id: vid });
       if (prevVideo?._count) {
         const delta = prev?.favorited ? -1 : 1;
-        utils.video.getById.setData({ id: vid }, (old) => old ? { ...old, _count: { ...old._count, favorites: Math.max(0, (old._count?.favorites ?? 0) + delta) } } : old);
+        utils.video.getById.setData({ id: vid }, (old) =>
+          old
+            ? { ...old, _count: { ...old._count, favorites: Math.max(0, (old._count?.favorites ?? 0) + delta) } }
+            : old,
+        );
       }
       return { prev };
     },
@@ -395,7 +435,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
         });
       }
     },
-    [currentVideoId, session, recordHistoryMutation]
+    [currentVideoId, session, recordHistoryMutation],
   );
 
   const handleLike = async () => {
@@ -513,14 +553,14 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             {/* 移动端标题和元信息区 - 类似 YouTube/B站 可展开区域 */}
             <div className="md:hidden px-3 pt-3">
               <div className="flex items-start justify-between gap-2">
-                <div 
+                <div
                   onClick={() => setDescExpanded(!descExpanded)}
                   className="flex-1 min-w-0 cursor-pointer"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && setDescExpanded(!descExpanded)}
+                  onKeyDown={(e) => e.key === "Enter" && setDescExpanded(!descExpanded)}
                 >
-                  <h1 className={`text-base font-bold leading-snug ${!descExpanded ? 'line-clamp-2' : ''}`}>
+                  <h1 className={`text-base font-bold leading-snug ${!descExpanded ? "line-clamp-2" : ""}`}>
                     {displayVideo.title}
                   </h1>
                   <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
@@ -549,10 +589,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       <DropdownMenuSeparator />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={(e) => e.preventDefault()}
-                          >
+                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             删除视频
                           </DropdownMenuItem>
@@ -587,8 +624,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   {displayVideo.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {displayVideo.tags.map(({ tag }) => (
-                        <Link 
-                          key={tag.id} 
+                        <Link
+                          key={tag.id}
                           href={`/video/tag/${tag.slug}`}
                           className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full"
                         >
@@ -602,13 +639,14 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       <Markdown content={displayVideo.description} />
                     </div>
                   )}
-                  {displayVideo.extraInfo && typeof displayVideo.extraInfo === 'object' && !Array.isArray(displayVideo.extraInfo) && (
-                    <VideoExtraInfoSection extraInfo={displayVideo.extraInfo as import("@/lib/shortcode-parser").VideoExtraInfo} />
-                  )}
-                  <button 
-                    onClick={() => setDescExpanded(false)}
-                    className="text-xs text-primary"
-                  >
+                  {displayVideo.extraInfo &&
+                    typeof displayVideo.extraInfo === "object" &&
+                    !Array.isArray(displayVideo.extraInfo) && (
+                      <VideoExtraInfoSection
+                        extraInfo={displayVideo.extraInfo as import("@/lib/shortcode-parser").VideoExtraInfo}
+                      />
+                    )}
+                  <button onClick={() => setDescExpanded(false)} className="text-xs text-primary">
                     收起
                   </button>
                 </div>
@@ -617,16 +655,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
             {/* 移动端 UP 主信息 */}
             <div className="md:hidden px-3 py-2">
-              <Link
-                href={`/user/${displayVideo.uploader.id}`}
-                className="flex items-center gap-2.5"
-              >
+              <Link href={`/user/${displayVideo.uploader.id}`} className="flex items-center gap-2.5">
                 <Avatar className="h-9 w-9">
                   <AvatarImage src={displayVideo.uploader.avatar || undefined} />
                   <AvatarFallback className="text-sm">
-                    {(displayVideo.uploader.nickname || displayVideo.uploader.username)
-                      .charAt(0)
-                      .toUpperCase()}
+                    {(displayVideo.uploader.nickname || displayVideo.uploader.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium">
@@ -640,59 +673,71 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
               <div className="flex items-center gap-2 px-3 py-2 min-w-max">
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleLike();
+                  }}
                   disabled={likeMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    status?.liked 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-muted hover:bg-muted/80'
+                    status?.liked ? "bg-green-600 text-white" : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  <Heart className={`h-4 w-4 ${status?.liked ? 'fill-current' : ''}`} />
-                  <span>{displayVideo._count.likes || '喜欢'}</span>
+                  <Heart className={`h-4 w-4 ${status?.liked ? "fill-current" : ""}`} />
+                  <span>{displayVideo._count.likes || "喜欢"}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfused(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleConfused();
+                  }}
                   disabled={confusedMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    status?.confused 
-                      ? 'bg-yellow-600 text-white' 
-                      : 'bg-muted hover:bg-muted/80'
+                    status?.confused ? "bg-yellow-600 text-white" : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  <HelpCircle className={`h-4 w-4 ${status?.confused ? 'fill-current' : ''}`} />
-                  <span>{displayVideo._count.confused || '疑惑'}</span>
+                  <HelpCircle className={`h-4 w-4 ${status?.confused ? "fill-current" : ""}`} />
+                  <span>{displayVideo._count.confused || "疑惑"}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislike(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDislike();
+                  }}
                   disabled={dislikeMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    status?.disliked 
-                      ? 'bg-red-600 text-white' 
-                      : 'bg-muted hover:bg-muted/80'
+                    status?.disliked ? "bg-red-600 text-white" : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  <ThumbsDown className={`h-4 w-4 ${status?.disliked ? 'fill-current' : ''}`} />
-                  <span>{displayVideo._count.dislikes || '不喜欢'}</span>
+                  <ThumbsDown className={`h-4 w-4 ${status?.disliked ? "fill-current" : ""}`} />
+                  <span>{displayVideo._count.dislikes || "不喜欢"}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFavorite(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleFavorite();
+                  }}
                   disabled={favoriteMutation.isPending}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    status?.favorited 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted hover:bg-muted/80'
+                    status?.favorited ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"
                   }`}
                 >
-                  <Star className={`h-4 w-4 ${status?.favorited ? 'fill-current' : ''}`} />
+                  <Star className={`h-4 w-4 ${status?.favorited ? "fill-current" : ""}`} />
                   <span>收藏</span>
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleShare();
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium bg-muted hover:bg-muted/80 transition-colors"
                 >
                   <Share2 className="h-4 w-4" />
@@ -721,65 +766,80 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {selectorMode === "series"
-                        ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
-                        : `共 ${(selectorTotalCount ?? 0) + 1} 个作品`}
+                        ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : "?"} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
+                        : `共 ${selectorTotalCount ?? 0} 个作品`}
                     </p>
                   </div>
-                  <div className={`shrink-0 transition-transform ${mobileSeriesExpanded ? 'rotate-180' : ''}`}>
-                    <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className={`shrink-0 transition-transform ${mobileSeriesExpanded ? "rotate-180" : ""}`}>
+                    <svg
+                      className="h-5 w-5 text-muted-foreground"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </button>
                 {mobileSeriesExpanded && (
                   <div className="border-t max-h-64 overflow-y-auto">
-                    {selectorMode === "series" ? (
-                      seriesEpisodes.map((ep) => {
-                        const isCurrentVideo = ep.video.id === currentVideoId;
-                        return (
-                          <button
-                            key={ep.video.id}
-                            onClick={() => { switchToEpisode(ep.video.id); setMobileSeriesExpanded(false); }}
-                            disabled={isVideoLoading}
-                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
-                              isCurrentVideo ? 'bg-primary/10' : ''
-                            } ${isVideoLoading && !isCurrentVideo ? 'opacity-70' : ''}`}
-                          >
-                            <span className={`text-xs font-medium shrink-0 w-8 ${isCurrentVideo ? 'text-primary' : 'text-muted-foreground'}`}>
-                              {ep.episodeNum}
-                            </span>
-                            <span className={`text-sm truncate flex-1 ${isCurrentVideo ? 'text-primary font-medium' : ''}`}>
-                              {ep.episodeTitle || ep.video.title}
-                            </span>
-                            {isCurrentVideo && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      selectorVideos?.map((v) => {
-                        const isCurrent = v.id === currentVideoId;
-                        return (
-                          <button
-                            key={v.id}
-                            onClick={() => { switchToEpisode(v.id); setMobileSeriesExpanded(false); }}
-                            disabled={isVideoLoading}
-                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
-                              isCurrent ? 'bg-primary/10' : ''
-                            } ${isVideoLoading && !isCurrent ? 'opacity-70' : ''}`}
-                          >
-                            <span className={`text-sm truncate flex-1 ${isCurrent ? 'text-primary font-medium' : ''}`}>
-                              {v.title}
-                            </span>
-                            {v.duration && (
-                              <span className="text-xs text-muted-foreground shrink-0">
-                                {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                    {selectorMode === "series"
+                      ? seriesEpisodes.map((ep) => {
+                          const isCurrentVideo = ep.video.id === currentVideoId;
+                          return (
+                            <button
+                              key={ep.video.id}
+                              onClick={() => {
+                                switchToEpisode(ep.video.id);
+                                setMobileSeriesExpanded(false);
+                              }}
+                              disabled={isVideoLoading}
+                              className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                                isCurrentVideo ? "bg-primary/10" : ""
+                              } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
+                            >
+                              <span
+                                className={`text-xs font-medium shrink-0 w-8 ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}
+                              >
+                                {ep.episodeNum}
                               </span>
-                            )}
-                            {isCurrent && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
-                          </button>
-                        );
-                      })
-                    )}
+                              <span
+                                className={`text-sm truncate flex-1 ${isCurrentVideo ? "text-primary font-medium" : ""}`}
+                              >
+                                {ep.episodeTitle || ep.video.title}
+                              </span>
+                              {isCurrentVideo && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                            </button>
+                          );
+                        })
+                      : selectorVideos?.map((v) => {
+                          const isCurrent = v.id === currentVideoId;
+                          return (
+                            <button
+                              key={v.id}
+                              onClick={() => {
+                                switchToEpisode(v.id);
+                                setMobileSeriesExpanded(false);
+                              }}
+                              disabled={isVideoLoading}
+                              className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                                isCurrent ? "bg-primary/10" : ""
+                              } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
+                            >
+                              <span
+                                className={`text-sm truncate flex-1 ${isCurrent ? "text-primary font-medium" : ""}`}
+                              >
+                                {v.title}
+                              </span>
+                              {v.duration && (
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                                </span>
+                              )}
+                              {isCurrent && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                            </button>
+                          );
+                        })}
                   </div>
                 )}
               </div>
@@ -801,8 +861,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       P{currentPage} / 共 {(displayVideo.pages as { page: number; title: string }[]).length}P
                     </p>
                   </div>
-                  <div className={`shrink-0 transition-transform ${mobilePagesExpanded ? 'rotate-180' : ''}`}>
-                    <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className={`shrink-0 transition-transform ${mobilePagesExpanded ? "rotate-180" : ""}`}>
+                    <svg
+                      className="h-5 w-5 text-muted-foreground"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -819,20 +884,20 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                             setMobilePagesExpanded(false);
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 text-left ${
-                            isCurrent ? 'bg-primary/10' : ''
+                            isCurrent ? "bg-primary/10" : ""
                           }`}
                         >
-                          <span className={`text-xs font-medium shrink-0 w-8 ${
-                            isCurrent ? 'text-primary' : 'text-muted-foreground'
-                          }`}>
+                          <span
+                            className={`text-xs font-medium shrink-0 w-8 ${
+                              isCurrent ? "text-primary" : "text-muted-foreground"
+                            }`}
+                          >
                             P{page.page}
                           </span>
-                          <span className={`text-sm truncate flex-1 ${isCurrent ? 'text-primary font-medium' : ''}`}>
+                          <span className={`text-sm truncate flex-1 ${isCurrent ? "text-primary font-medium" : ""}`}>
                             {page.title}
                           </span>
-                          {isCurrent && (
-                            <Play className="h-3 w-3 text-primary fill-primary shrink-0" />
-                          )}
+                          {isCurrent && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
                         </button>
                       );
                     })}
@@ -845,7 +910,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             <div className="hidden md:block">
               <div className="flex items-start justify-between gap-2">
                 <h1 className="text-lg sm:text-xl font-bold">{displayVideo.title}</h1>
-                
+
                 {isOwner && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -863,10 +928,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       <DropdownMenuSeparator />
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={(e) => e.preventDefault()}
-                          >
+                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             删除视频
                           </DropdownMenuItem>
@@ -909,22 +971,15 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
             {/* 桌面端 UP 主和操作按钮 */}
             <div className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <Link
-                href={`/user/${displayVideo.uploader.id}`}
-                className="flex items-center gap-3 hover:opacity-80"
-              >
+              <Link href={`/user/${displayVideo.uploader.id}`} className="flex items-center gap-3 hover:opacity-80">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={displayVideo.uploader.avatar || undefined} />
                   <AvatarFallback>
-                    {(displayVideo.uploader.nickname || displayVideo.uploader.username)
-                      .charAt(0)
-                      .toUpperCase()}
+                    {(displayVideo.uploader.nickname || displayVideo.uploader.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">
-                    {displayVideo.uploader.nickname || displayVideo.uploader.username}
-                  </p>
+                  <p className="font-medium">{displayVideo.uploader.nickname || displayVideo.uploader.username}</p>
                 </div>
               </Link>
 
@@ -933,13 +988,15 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   type="button"
                   variant={status?.liked ? "default" : "outline"}
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLike(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleLike();
+                  }}
                   disabled={likeMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.liked ? "bg-green-600 hover:bg-green-700" : ""}`}
                 >
-                  <Heart
-                    className={`h-4 w-4 sm:mr-1 ${status?.liked ? "fill-current" : ""}`}
-                  />
+                  <Heart className={`h-4 w-4 sm:mr-1 ${status?.liked ? "fill-current" : ""}`} />
                   <span className="hidden sm:inline">{displayVideo._count.likes}</span>
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.likes}</span>
                 </Button>
@@ -947,13 +1004,15 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   type="button"
                   variant={status?.confused ? "default" : "outline"}
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleConfused(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleConfused();
+                  }}
                   disabled={confusedMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.confused ? "bg-yellow-600 hover:bg-yellow-700" : ""}`}
                 >
-                  <HelpCircle
-                    className={`h-4 w-4 sm:mr-1 ${status?.confused ? "fill-current" : ""}`}
-                  />
+                  <HelpCircle className={`h-4 w-4 sm:mr-1 ${status?.confused ? "fill-current" : ""}`} />
                   <span className="hidden sm:inline">{displayVideo._count.confused}</span>
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.confused}</span>
                 </Button>
@@ -961,13 +1020,15 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   type="button"
                   variant={status?.disliked ? "default" : "outline"}
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDislike(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDislike();
+                  }}
                   disabled={dislikeMutation.isPending}
                   className={`px-2 sm:px-3 ${status?.disliked ? "bg-red-600 hover:bg-red-700" : ""}`}
                 >
-                  <ThumbsDown
-                    className={`h-4 w-4 sm:mr-1 ${status?.disliked ? "fill-current" : ""}`}
-                  />
+                  <ThumbsDown className={`h-4 w-4 sm:mr-1 ${status?.disliked ? "fill-current" : ""}`} />
                   <span className="hidden sm:inline">{displayVideo._count.dislikes}</span>
                   <span className="sm:hidden text-xs ml-1">{displayVideo._count.dislikes}</span>
                 </Button>
@@ -975,16 +1036,28 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                   type="button"
                   variant={status?.favorited ? "default" : "outline"}
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFavorite(); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleFavorite();
+                  }}
                   disabled={favoriteMutation.isPending}
                   className="px-2 sm:px-3"
                 >
-                  <Star
-                    className={`h-4 w-4 sm:mr-1 ${status?.favorited ? "fill-current" : ""}`}
-                  />
+                  <Star className={`h-4 w-4 sm:mr-1 ${status?.favorited ? "fill-current" : ""}`} />
                   <span className="hidden sm:inline">收藏</span>
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }} className="px-2 sm:px-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleShare();
+                  }}
+                  className="px-2 sm:px-3"
+                >
                   <Share2 className="h-4 w-4 sm:mr-1" />
                   <span className="hidden sm:inline">分享</span>
                 </Button>
@@ -1014,9 +1087,13 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
               )}
 
               {/* 扩展信息 */}
-              {displayVideo.extraInfo && typeof displayVideo.extraInfo === 'object' && !Array.isArray(displayVideo.extraInfo) && (
-                <VideoExtraInfoSection extraInfo={displayVideo.extraInfo as import("@/lib/shortcode-parser").VideoExtraInfo} />
-              )}
+              {displayVideo.extraInfo &&
+                typeof displayVideo.extraInfo === "object" &&
+                !Array.isArray(displayVideo.extraInfo) && (
+                  <VideoExtraInfoSection
+                    extraInfo={displayVideo.extraInfo as import("@/lib/shortcode-parser").VideoExtraInfo}
+                  />
+                )}
             </div>
 
             <Separator className="my-4 md:my-6" />
@@ -1028,7 +1105,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
             {/* 附件资源 */}
             <div className="px-3 md:px-0">
-              <FileAttachmentPanel contentType="video" contentId={currentVideoId} uploaderId={displayVideo.uploader.id} />
+              <FileAttachmentPanel
+                contentType="video"
+                contentId={currentVideoId}
+                uploaderId={displayVideo.uploader.id}
+              />
             </div>
           </div>
 
@@ -1047,11 +1128,17 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm truncate">
                         {selectorMode === "series" && seriesData?.series ? (
-                          <Link href={`/series/${seriesData.series.id}`} className="hover:text-primary transition-colors">
+                          <Link
+                            href={`/series/${seriesData.series.id}`}
+                            className="hover:text-primary transition-colors"
+                          >
                             {seriesData.series.title}
                           </Link>
                         ) : selectorMode === "uploader" && displayVideo?.uploader ? (
-                          <Link href={`/user/${displayVideo.uploader.id}`} className="hover:text-primary transition-colors">
+                          <Link
+                            href={`/user/${displayVideo.uploader.id}`}
+                            className="hover:text-primary transition-colors"
+                          >
                             {selectorTitle}
                           </Link>
                         ) : (
@@ -1060,100 +1147,107 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                       </h3>
                       <p className="text-xs text-muted-foreground">
                         {selectorMode === "series"
-                          ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : '?'} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
-                          : `共 ${(selectorTotalCount ?? 0) + 1} 个作品`}
+                          ? `第 ${currentEpisodeIndex >= 0 ? seriesEpisodes[currentEpisodeIndex]?.episodeNum : "?"} 集 / 共 ${seriesData?.series?.episodes.length ?? 0} 集`
+                          : `共 ${selectorTotalCount ?? 0} 个作品`}
                       </p>
                     </div>
                   </div>
                   <div ref={episodeListRef} className="max-h-[400px] overflow-y-auto">
-                    {selectorMode === "series" ? (
-                      seriesEpisodes.map((ep) => {
-                        const isCurrentVideo = ep.video.id === currentVideoId;
-                        return (
-                          <button
-                            key={ep.video.id}
-                            onClick={() => switchToEpisode(ep.video.id)}
-                            disabled={isVideoLoading}
-                            ref={isCurrentVideo ? currentEpisodeRef : null}
-                            aria-current={isCurrentVideo ? "true" : undefined}
-                            className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
-                              isCurrentVideo ? "bg-primary/10" : "hover:bg-muted/50"
-                            } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
-                          >
-                            <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 200 })} alt="" className="w-full h-full object-cover" />
-                              {isCurrentVideo && (
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                  <Play className="h-4 w-4 text-white fill-white" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs font-medium ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}>
-                                  第{ep.episodeNum}集
-                                </span>
+                    {selectorMode === "series"
+                      ? seriesEpisodes.map((ep) => {
+                          const isCurrentVideo = ep.video.id === currentVideoId;
+                          return (
+                            <button
+                              key={ep.video.id}
+                              onClick={() => switchToEpisode(ep.video.id)}
+                              disabled={isVideoLoading}
+                              ref={isCurrentVideo ? currentEpisodeRef : null}
+                              aria-current={isCurrentVideo ? "true" : undefined}
+                              className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
+                                isCurrentVideo ? "bg-primary/10" : "hover:bg-muted/50"
+                              } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
+                            >
+                              <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 200 })}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
                                 {isCurrentVideo && (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <Play className="h-4 w-4 text-white fill-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`text-xs font-medium ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}
+                                  >
+                                    第{ep.episodeNum}集
+                                  </span>
+                                  {isCurrentVideo && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                      正在播放
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className={`text-sm truncate ${isCurrentVideo ? "font-medium" : ""}`}>
+                                  {ep.episodeTitle || ep.video.title}
+                                </p>
+                                {ep.video.duration && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {Math.floor(ep.video.duration / 60)}:
+                                    {String(ep.video.duration % 60).padStart(2, "0")}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })
+                      : selectorVideos?.map((v) => {
+                          const isCurrent = v.id === currentVideoId;
+                          return (
+                            <button
+                              key={v.id}
+                              onClick={() => switchToEpisode(v.id)}
+                              disabled={isVideoLoading}
+                              ref={isCurrent ? currentEpisodeRef : null}
+                              aria-current={isCurrent ? "true" : undefined}
+                              className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
+                                isCurrent ? "bg-primary/10" : "hover:bg-muted/50"
+                              } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
+                            >
+                              <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getCoverUrl(v.id, v.coverUrl, { w: 200 })}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                                {isCurrent && (
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <Play className="h-4 w-4 text-white fill-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {isCurrent && (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mb-0.5">
                                     正在播放
                                   </Badge>
                                 )}
+                                <p className={`text-sm truncate ${isCurrent ? "font-medium" : ""}`}>{v.title}</p>
+                                {v.duration && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                                  </p>
+                                )}
                               </div>
-                              <p className={`text-sm truncate ${isCurrentVideo ? "font-medium" : ""}`}>
-                                {ep.episodeTitle || ep.video.title}
-                              </p>
-                              {ep.video.duration && (
-                                <p className="text-xs text-muted-foreground">
-                                  {Math.floor(ep.video.duration / 60)}:{String(ep.video.duration % 60).padStart(2, "0")}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      selectorVideos?.map((v) => {
-                        const isCurrent = v.id === currentVideoId;
-                        return (
-                          <button
-                            key={v.id}
-                            onClick={() => switchToEpisode(v.id)}
-                            disabled={isVideoLoading}
-                            ref={isCurrent ? currentEpisodeRef : null}
-                            aria-current={isCurrent ? "true" : undefined}
-                            className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
-                              isCurrent ? "bg-primary/10" : "hover:bg-muted/50"
-                            } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
-                          >
-                            <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={getCoverUrl(v.id, v.coverUrl, { w: 200 })} alt="" className="w-full h-full object-cover" />
-                              {isCurrent && (
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                  <Play className="h-4 w-4 text-white fill-white" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              {isCurrent && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mb-0.5">
-                                  正在播放
-                                </Badge>
-                              )}
-                              <p className={`text-sm truncate ${isCurrent ? "font-medium" : ""}`}>
-                                {v.title}
-                              </p>
-                              {v.duration && (
-                                <p className="text-xs text-muted-foreground">
-                                  {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })
-                    )}
+                            </button>
+                          );
+                        })}
                   </div>
                 </div>
               )}
@@ -1174,14 +1268,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                         key={page.page}
                         onClick={() => handlePageChange(page.page)}
                         className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm transition-colors ${
-                          currentPage === page.page
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted"
+                          currentPage === page.page ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                         }`}
                       >
-                        {currentPage === page.page && (
-                          <Play className="h-3 w-3 shrink-0 fill-current" />
-                        )}
+                        {currentPage === page.page && <Play className="h-3 w-3 shrink-0 fill-current" />}
                         <span className={`shrink-0 ${currentPage === page.page ? "" : "text-muted-foreground"}`}>
                           P{page.page}
                         </span>
@@ -1205,10 +1295,12 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   );
 }
 
-
 // 扩展信息展示组件
 function VideoExtraInfoSection({ extraInfo }: { extraInfo: import("@/lib/shortcode-parser").VideoExtraInfo }) {
-  const hasContent = extraInfo.intro || extraInfo.author || extraInfo.authorIntro ||
+  const hasContent =
+    extraInfo.intro ||
+    extraInfo.author ||
+    extraInfo.authorIntro ||
     (extraInfo.keywords && extraInfo.keywords.length > 0) ||
     (extraInfo.downloads && extraInfo.downloads.length > 0) ||
     (extraInfo.episodes && extraInfo.episodes.length > 0) ||
@@ -1239,10 +1331,7 @@ function VideoExtraInfoSection({ extraInfo }: { extraInfo: import("@/lib/shortco
           {extraInfo.notices.map((notice, index) => {
             const IconComponent = noticeIcons[notice.type];
             return (
-              <div 
-                key={index}
-                className={`flex items-start gap-2 p-3 rounded-lg border ${noticeStyles[notice.type]}`}
-              >
+              <div key={index} className={`flex items-start gap-2 p-3 rounded-lg border ${noticeStyles[notice.type]}`}>
                 <IconComponent className="h-4 w-4 mt-0.5 shrink-0" />
                 <p className="text-sm">{notice.content}</p>
               </div>
@@ -1416,10 +1505,28 @@ function SidebarRecommendations({ videoId }: { videoId: string }) {
   );
 }
 
-function RecommendationItem({ video }: { video: { id: string; title: string; coverUrl?: string | null; coverBlurHash?: string | null; duration?: number | null; views: number; createdAt: Date | string; extraInfo?: unknown; uploader: { nickname?: string | null; username: string }; _count: { likes: number; dislikes: number } } }) {
+function RecommendationItem({
+  video,
+}: {
+  video: {
+    id: string;
+    title: string;
+    coverUrl?: string | null;
+    coverBlurHash?: string | null;
+    duration?: number | null;
+    views: number;
+    createdAt: Date | string;
+    extraInfo?: unknown;
+    uploader: { nickname?: string | null; username: string };
+    _count: { likes: number; dislikes: number };
+  };
+}) {
   const totalVotes = video._count.likes + video._count.dislikes;
   const likeRatio = totalVotes > 0 ? Math.round((video._count.likes / totalVotes) * 100) : 100;
-  const extra = video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? (video.extraInfo as Record<string, unknown>) : null;
+  const extra =
+    video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo)
+      ? (video.extraInfo as Record<string, unknown>)
+      : null;
   const authorName = (extra?.author as string) || video.uploader.nickname || video.uploader.username;
 
   return (
@@ -1446,9 +1553,7 @@ function RecommendationItem({ video }: { video: { id: string; title: string; cov
         <p className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-primary transition-colors">
           {video.title}
         </p>
-        <p className="text-xs text-muted-foreground mt-1 truncate">
-          {authorName}
-        </p>
+        <p className="text-xs text-muted-foreground mt-1 truncate">{authorName}</p>
         <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
           <span>{formatViews(video.views)}次</span>
           <span>·</span>

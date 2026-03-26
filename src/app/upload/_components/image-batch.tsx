@@ -7,7 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
-import { ChevronDown, DownloadCloud, FileText, Image as ImageIcon, Loader2, Tag, Upload } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  ChevronDown,
+  ChevronRight,
+  DownloadCloud,
+  FileText,
+  HelpCircle,
+  Image as ImageIcon,
+  Loader2,
+  Tag,
+  Upload,
+} from "lucide-react";
 import { DropZone } from "./drop-zone";
 import { BatchProgressBar, ImageBatchResults } from "./batch-results";
 import { parseImageBatchJson, downloadTemplate, IMAGE_BATCH_TEMPLATE } from "../_lib/parsers";
@@ -52,7 +63,10 @@ export function ImageBatchUpload() {
     reader.readAsText(file);
   };
 
-  const importPosts = async (posts: ParsedImagePost[], prevResults: ImageBatchResult[] = []): Promise<ImageBatchResult[]> => {
+  const importPosts = async (
+    posts: ParsedImagePost[],
+    prevResults: ImageBatchResult[] = [],
+  ): Promise<ImageBatchResult[]> => {
     const totalChunks = Math.ceil(posts.length / CHUNK_SIZE);
     setProgress({ current: 0, total: totalChunks });
     const allResults: ImageBatchResult[] = [...prevResults];
@@ -64,16 +78,18 @@ export function ImageBatchUpload() {
           posts: chunk.map((p) => ({
             title: p.title,
             description: p.description || undefined,
-            images: p.images.filter(u => u.trim()),
+            images: p.images.filter((u) => u.trim()),
             tagNames: p.tags?.length > 0 ? p.tags : undefined,
           })),
         });
         allResults.push(...res.results);
       } catch (err) {
-        allResults.push(...chunk.map(p => ({
-          title: p.title,
-          error: err instanceof Error ? err.message : "未知错误",
-        })));
+        allResults.push(
+          ...chunk.map((p) => ({
+            title: p.title,
+            error: err instanceof Error ? err.message : "未知错误",
+          })),
+        );
       }
       setProgress({ current: i + 1, total: totalChunks });
       setResults([...allResults]);
@@ -89,9 +105,9 @@ export function ImageBatchUpload() {
 
     try {
       const all = await importPosts(parsed.posts);
-      const newC = all.filter(r => r.id && !r.updated).length;
-      const updC = all.filter(r => r.updated).length;
-      const failC = all.filter(r => r.error).length;
+      const newC = all.filter((r) => r.id && !r.updated).length;
+      const updC = all.filter((r) => r.updated).length;
+      const failC = all.filter((r) => r.error).length;
       toast.success(`导入完成：新建 ${newC}，更新 ${updC}，失败 ${failC}`);
       setResults(all);
     } finally {
@@ -101,17 +117,17 @@ export function ImageBatchUpload() {
 
   const handleRetry = async () => {
     if (!parsed) return;
-    const failedTitles = new Set(results.filter(r => r.error).map(r => r.title));
-    const failedPosts = parsed.posts.filter(p => failedTitles.has(p.title));
+    const failedTitles = new Set(results.filter((r) => r.error).map((r) => r.title));
+    const failedPosts = parsed.posts.filter((p) => failedTitles.has(p.title));
     if (failedPosts.length === 0) return;
 
-    const prevOk = results.filter(r => r.id);
+    const prevOk = results.filter((r) => r.id);
     setImporting(true);
 
     try {
       const all = await importPosts(failedPosts, prevOk);
-      const newOk = all.filter(r => r.id).length - prevOk.length;
-      const newFail = all.filter(r => r.error).length;
+      const newOk = all.filter((r) => r.id).length - prevOk.length;
+      const newFail = all.filter((r) => r.error).length;
       toast.success(`重试完成：${newOk} 成功，${newFail} 仍失败`);
       setResults(all);
     } finally {
@@ -141,12 +157,23 @@ export function ImageBatchUpload() {
             summary={parsed ? `${parsed.posts.length} 个图片帖` : undefined}
             hint="JSON 数组格式，每项包含 title, images, tagNames 等"
             onFile={handleFile}
-            onClear={() => { setParsed(null); setFileName(""); setResults([]); }}
+            onClear={() => {
+              setParsed(null);
+              setFileName("");
+              setResults([]);
+            }}
             hasData={!!parsed}
           />
 
+          <ImageFormatGuide />
+
           <div className="flex items-center gap-2 flex-wrap">
-            <Button type="button" size="sm" onClick={handleImport} disabled={!parsed || parsed.posts.length === 0 || importing}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleImport}
+              disabled={!parsed || parsed.posts.length === 0 || importing}
+            >
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing
                 ? `导入中 ${progress.current}/${progress.total}`
@@ -168,12 +195,49 @@ export function ImageBatchUpload() {
       </Card>
 
       {/* Preview */}
-      {parsed && parsed.posts.length > 0 && (
-        <ImagePreviewCard parsed={parsed} totalChunks={totalChunks} />
-      )}
+      {parsed && parsed.posts.length > 0 && <ImagePreviewCard parsed={parsed} totalChunks={totalChunks} />}
 
       <ImageBatchResults results={results} importing={importing} onRetry={handleRetry} />
     </div>
+  );
+}
+
+function ImageFormatGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-7 px-2">
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          <HelpCircle className="h-3.5 w-3.5" />
+          JSON 格式说明
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-lg border bg-muted/30 p-4 mt-2 space-y-3 text-xs">
+          <p className="font-medium text-sm">支持两种 JSON 格式：</p>
+          <div className="space-y-2">
+            <p className="font-medium">格式一：数组格式</p>
+            <pre className="bg-muted p-3 rounded text-[11px] overflow-x-auto leading-relaxed">{`[{
+  "title": "图片标题（必填）",
+  "description": "描述（可选）",
+  "images": [
+    "https://example.com/img1.jpg",
+    "https://example.com/img2.jpg"
+  ],
+  "tagNames": ["标签1", "标签2"]
+}]`}</pre>
+          </div>
+          <div className="space-y-2">
+            <p className="font-medium">格式二：对象包裹</p>
+            <pre className="bg-muted p-3 rounded text-[11px] overflow-x-auto leading-relaxed">{`{ "posts": [{ "title": "...", "images": [...], ... }] }`}</pre>
+          </div>
+          <p className="text-muted-foreground">
+            title 和 images（至少一张图片 URL）为必填字段，其余为可选。 点击「下载模板」获取完整示例文件。
+          </p>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -198,7 +262,14 @@ function ImagePreviewCard({ parsed, totalChunks }: { parsed: ParsedImageBatchDat
                 {post.images[0] && (
                   <div className="shrink-0 w-10 h-10 rounded overflow-hidden bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={post.images[0]} alt={post.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    <img
+                      src={post.images[0]}
+                      alt={post.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -208,11 +279,13 @@ function ImagePreviewCard({ parsed, totalChunks }: { parsed: ParsedImageBatchDat
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap ml-8">
                     <Badge variant="secondary" className="text-[10px] py-0">
-                      <ImageIcon className="h-2.5 w-2.5 mr-0.5" />{post.images.length} 张
+                      <ImageIcon className="h-2.5 w-2.5 mr-0.5" />
+                      {post.images.length} 张
                     </Badge>
                     {post.tags?.length > 0 && (
                       <span className="text-[10px] text-muted-foreground">
-                        <Tag className="h-2.5 w-2.5 inline mr-0.5" />{post.tags.length} 标签
+                        <Tag className="h-2.5 w-2.5 inline mr-0.5" />
+                        {post.tags.length} 标签
                       </span>
                     )}
                   </div>
@@ -226,7 +299,7 @@ function ImagePreviewCard({ parsed, totalChunks }: { parsed: ParsedImageBatchDat
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setVisibleCount(prev => prev + PREVIEW_LIMIT)}
+                onClick={() => setVisibleCount((prev) => prev + PREVIEW_LIMIT)}
               >
                 <ChevronDown className="h-4 w-4 mr-1" />
                 加载更多（已显示 {visibleCount}/{parsed.posts.length}）

@@ -537,8 +537,8 @@ export function GameSingleUpload() {
                           </Button>
                         </div>
                         {downloads.map((dl, i) => (
-                          <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                            <div className="flex-1 grid gap-2 sm:grid-cols-3">
+                          <div key={i} className="p-3 border rounded-lg bg-muted/30 space-y-2">
+                            <div className="flex gap-2 items-center">
                               <Input
                                 placeholder="网盘名称"
                                 value={dl.name}
@@ -547,15 +547,7 @@ export function GameSingleUpload() {
                                   u[i] = { ...u[i], name: e.target.value };
                                   setDownloads(u);
                                 }}
-                              />
-                              <Input
-                                placeholder="下载链接"
-                                value={dl.url}
-                                onChange={(e) => {
-                                  const u = [...downloads];
-                                  u[i] = { ...u[i], url: e.target.value };
-                                  setDownloads(u);
-                                }}
+                                className="flex-1"
                               />
                               <Input
                                 placeholder="提取码（可选）"
@@ -565,16 +557,28 @@ export function GameSingleUpload() {
                                   u[i] = { ...u[i], password: e.target.value };
                                   setDownloads(u);
                                 }}
+                                className="w-32"
                               />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0"
+                                onClick={() => setDownloads(downloads.filter((_, j) => j !== i))}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDownloads(downloads.filter((_, j) => j !== i))}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <UrlOrUploadInput
+                              value={dl.url}
+                              onChange={(v) => {
+                                const u = [...downloads];
+                                u[i] = { ...u[i], url: v };
+                                setDownloads(u);
+                              }}
+                              placeholder="下载链接"
+                              contentType="game"
+                            />
                           </div>
                         ))}
                         {downloads.length === 0 && (

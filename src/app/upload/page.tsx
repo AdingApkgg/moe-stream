@@ -8,21 +8,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
-import { AlertCircle, FileVideo, FolderOpen, Gamepad2, Image as ImageIcon, Layers, ListVideo, Loader2, Upload } from "lucide-react";
+import {
+  AlertCircle,
+  Code2,
+  FileVideo,
+  FolderOpen,
+  Gamepad2,
+  Image as ImageIcon,
+  ListVideo,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { FadeIn } from "@/components/motion";
 import type { UploadContentType } from "./_lib/types";
 import { VideoSingleUpload } from "./_components/video-single";
-import { VideoQuickBatch } from "./_components/video-quick-batch";
 import { VideoBatchUpload } from "./_components/video-batch";
 import { GameSingleUpload } from "./_components/game-single";
-import { GameQuickBatch } from "./_components/game-quick-batch";
 import { GameBatchUpload } from "./_components/game-batch";
 import { ImageSingleUpload } from "./_components/image-single";
-import { ImageQuickBatch } from "./_components/image-quick-batch";
 import { ImageBatchUpload } from "./_components/image-batch";
+import { ApiPublish } from "./_components/api-publish";
 
-type UploadMode = "single" | "quick-batch" | "json-import";
+type UploadMode = "single" | "json-import" | "api";
 
 const TYPE_CONFIG = {
   video: { label: "视频", icon: FileVideo, description: "上传视频作品", color: "text-blue-500 bg-blue-500/10" },
@@ -37,14 +45,16 @@ export default function UploadPage() {
   const [contentType, setContentType] = useState<UploadContentType>("video");
   const [mode, setMode] = useState<UploadMode>("single");
 
-  const contentTypeOptions = useMemo(() =>
-    (["video", "game", "image"] as const).filter((id) => {
-      if (id === "video") return config?.sectionVideoEnabled !== false;
-      if (id === "game") return config?.sectionGameEnabled !== false;
-      if (id === "image") return config?.sectionImageEnabled !== false;
-      return true;
-    }),
-  [config]);
+  const contentTypeOptions = useMemo(
+    () =>
+      (["video", "game", "image"] as const).filter((id) => {
+        if (id === "video") return config?.sectionVideoEnabled !== false;
+        if (id === "game") return config?.sectionGameEnabled !== false;
+        if (id === "image") return config?.sectionImageEnabled !== false;
+        return true;
+      }),
+    [config],
+  );
 
   if (status === "loading") {
     return (
@@ -76,9 +86,7 @@ export default function UploadPage() {
           <AlertCircle className="h-12 w-12 text-destructive" />
         </div>
         <h1 className="text-2xl font-bold">暂无投稿权限</h1>
-        <p className="text-muted-foreground text-center max-w-md">
-          您的账号暂未开通投稿功能，请联系管理员申请开通
-        </p>
+        <p className="text-muted-foreground text-center max-w-md">您的账号暂未开通投稿功能，请联系管理员申请开通</p>
         <Button asChild variant="outline">
           <Link href="/">返回首页</Link>
         </Button>
@@ -87,10 +95,11 @@ export default function UploadPage() {
   }
 
   const renderContent = () => {
+    if (mode === "api") return <ApiPublish contentType={contentType} />;
     const components = {
-      video: { single: VideoSingleUpload, "quick-batch": VideoQuickBatch, "json-import": VideoBatchUpload },
-      game: { single: GameSingleUpload, "quick-batch": GameQuickBatch, "json-import": GameBatchUpload },
-      image: { single: ImageSingleUpload, "quick-batch": ImageQuickBatch, "json-import": ImageBatchUpload },
+      video: { single: VideoSingleUpload, "json-import": VideoBatchUpload },
+      game: { single: GameSingleUpload, "json-import": GameBatchUpload },
+      image: { single: ImageSingleUpload, "json-import": ImageBatchUpload },
     };
     const Component = components[contentType][mode];
     return <Component />;
@@ -118,7 +127,16 @@ export default function UploadPage() {
       <Separator className="mb-6" />
 
       {/* 内容类型选择 */}
-      <div className={cn("grid gap-3 mb-6", contentTypeOptions.length === 3 ? "grid-cols-3" : contentTypeOptions.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
+      <div
+        className={cn(
+          "grid gap-3 mb-6",
+          contentTypeOptions.length === 3
+            ? "grid-cols-3"
+            : contentTypeOptions.length === 2
+              ? "grid-cols-2"
+              : "grid-cols-1",
+        )}
+      >
         {contentTypeOptions.map((id) => {
           const cfg = TYPE_CONFIG[id];
           const Icon = cfg.icon;
@@ -127,7 +145,10 @@ export default function UploadPage() {
             <button
               key={id}
               type="button"
-              onClick={() => { setContentType(id); play("navigate"); }}
+              onClick={() => {
+                setContentType(id);
+                play("navigate");
+              }}
               className={cn(
                 "relative flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
                 isActive
@@ -150,16 +171,31 @@ export default function UploadPage() {
       {/* 统一模式 Tabs */}
       <Tabs
         value={mode}
-        onValueChange={(v) => { setMode(v as UploadMode); play("navigate"); }}
+        onValueChange={(v) => {
+          setMode(v as UploadMode);
+          play("navigate");
+        }}
         className="mb-6"
       >
         <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="single" className="gap-2">
-            {contentType === "video" ? <FileVideo className="h-4 w-4" /> : contentType === "game" ? <Gamepad2 className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
+            {contentType === "video" ? (
+              <FileVideo className="h-4 w-4" />
+            ) : contentType === "game" ? (
+              <Gamepad2 className="h-4 w-4" />
+            ) : (
+              <ImageIcon className="h-4 w-4" />
+            )}
             单个发布
           </TabsTrigger>
-          <TabsTrigger value="quick-batch" className="gap-2"><Layers className="h-4 w-4" />快速批量</TabsTrigger>
-          <TabsTrigger value="json-import" className="gap-2"><FolderOpen className="h-4 w-4" />JSON 导入</TabsTrigger>
+          <TabsTrigger value="json-import" className="gap-2">
+            <FolderOpen className="h-4 w-4" />
+            JSON 导入
+          </TabsTrigger>
+          <TabsTrigger value="api" className="gap-2">
+            <Code2 className="h-4 w-4" />
+            API 发布
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={mode} forceMount className="mt-6">

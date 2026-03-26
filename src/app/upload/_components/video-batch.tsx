@@ -7,7 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
-import { ChevronDown, Download, DownloadCloud, FileText, FileVideo, Image as ImageIcon, Layers, Loader2, Tag, Upload, User } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  DownloadCloud,
+  FileText,
+  FileVideo,
+  HelpCircle,
+  Image as ImageIcon,
+  Layers,
+  Loader2,
+  Tag,
+  Upload,
+  User,
+} from "lucide-react";
 
 const PREVIEW_LIMIT = 50;
 import { DropZone } from "./drop-zone";
@@ -96,15 +111,23 @@ export function VideoBatchUpload() {
             ...(v.extraInfo ? { extraInfo: v.extraInfo as Record<string, unknown> } : {}),
           })),
         });
-        allResults.push(...res.results.map((r) => ({
-          title: r.title, seriesTitle: series.seriesTitle || undefined,
-          id: r.id, error: r.error, merged: r.merged,
-        })));
+        allResults.push(
+          ...res.results.map((r) => ({
+            title: r.title,
+            seriesTitle: series.seriesTitle || undefined,
+            id: r.id,
+            error: r.error,
+            merged: r.merged,
+          })),
+        );
       } catch (error) {
-        allResults.push(...series.videos.map((v) => ({
-          title: v.title, seriesTitle: series.seriesTitle || undefined,
-          error: error instanceof Error ? error.message : "未知错误",
-        })));
+        allResults.push(
+          ...series.videos.map((v) => ({
+            title: v.title,
+            seriesTitle: series.seriesTitle || undefined,
+            error: error instanceof Error ? error.message : "未知错误",
+          })),
+        );
       }
 
       completed++;
@@ -113,9 +136,7 @@ export function VideoBatchUpload() {
       await processOne();
     };
 
-    await Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, queue.length) }, () => processOne()),
-    );
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, () => processOne()));
     return allResults;
   };
 
@@ -128,9 +149,9 @@ export function VideoBatchUpload() {
 
     try {
       const all = await importSeries(chunks);
-      const success = all.filter(r => r.id).length;
-      const merged = all.filter(r => r.merged).length;
-      const fail = all.filter(r => r.error).length;
+      const success = all.filter((r) => r.id).length;
+      const merged = all.filter((r) => r.merged).length;
+      const fail = all.filter((r) => r.error).length;
       toast.success(
         merged > 0
           ? `导入完成：${success} 条（其中 ${merged} 条已合并），${fail} 失败`
@@ -145,22 +166,22 @@ export function VideoBatchUpload() {
 
   const handleRetry = async () => {
     if (!parsed) return;
-    const failedTitles = new Set(results.filter(r => r.error).map(r => r.title));
+    const failedTitles = new Set(results.filter((r) => r.error).map((r) => r.title));
     const failedSeries: ParsedSeries[] = parsed.series
-      .map(s => ({ ...s, videos: s.videos.filter(v => failedTitles.has(v.title)) }))
-      .filter(s => s.videos.length > 0);
+      .map((s) => ({ ...s, videos: s.videos.filter((v) => failedTitles.has(v.title)) }))
+      .filter((s) => s.videos.length > 0);
     if (failedSeries.length === 0) return;
 
     const chunks = chunkSeries(failedSeries);
-    const prevOk = results.filter(r => r.id);
+    const prevOk = results.filter((r) => r.id);
     setImporting(true);
     setProgress({ current: 0, total: chunks.length });
 
     try {
       const retried = await importSeries(chunks);
       const all = [...prevOk, ...retried];
-      const newOk = retried.filter(r => r.id).length;
-      const newFail = retried.filter(r => r.error).length;
+      const newOk = retried.filter((r) => r.id).length;
+      const newFail = retried.filter((r) => r.error).length;
       toast.success(`重试完成：${newOk} 成功，${newFail} 仍失败`);
       setResults(all);
     } finally {
@@ -186,9 +207,15 @@ export function VideoBatchUpload() {
             summary={parsed ? `${parsed.series.length} 个合集 · ${parsed.totalVideos} 个视频` : undefined}
             hint="支持 series 数组格式 或 扁平视频数组格式"
             onFile={handleFile}
-            onClear={() => { setParsed(null); setFileName(""); setResults([]); }}
+            onClear={() => {
+              setParsed(null);
+              setFileName("");
+              setResults([]);
+            }}
             hasData={!!parsed}
           />
+
+          <VideoFormatGuide />
 
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -218,12 +245,61 @@ export function VideoBatchUpload() {
       </Card>
 
       {/* 解析预览 */}
-      {parsed && parsed.totalVideos > 0 && (
-        <PreviewCard parsed={parsed} />
-      )}
+      {parsed && parsed.totalVideos > 0 && <PreviewCard parsed={parsed} />}
 
       <VideoBatchResults results={results} importing={importing} onRetry={handleRetry} />
     </div>
+  );
+}
+
+function VideoFormatGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-7 px-2">
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          <HelpCircle className="h-3.5 w-3.5" />
+          JSON 格式说明
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-lg border bg-muted/30 p-4 mt-2 space-y-3 text-xs">
+          <p className="font-medium text-sm">支持两种 JSON 格式：</p>
+          <div className="space-y-2">
+            <p className="font-medium">格式一：按合集分组</p>
+            <pre className="bg-muted p-3 rounded text-[11px] overflow-x-auto leading-relaxed">{`{
+  "series": [{
+    "seriesTitle": "合集名称",
+    "description": "合集描述（可选）",
+    "coverUrl": "封面 URL（可选）",
+    "videos": [{
+      "title": "视频标题（必填）",
+      "videoUrl": "视频 URL（必填）",
+      "coverUrl": "封面 URL（可选）",
+      "tagNames": ["标签1", "标签2"]
+    }]
+  }]
+}`}</pre>
+          </div>
+          <div className="space-y-2">
+            <p className="font-medium">格式二：扁平数组（无合集）</p>
+            <pre className="bg-muted p-3 rounded text-[11px] overflow-x-auto leading-relaxed">{`[
+  {
+    "title": "视频标题（必填）",
+    "videoUrl": "视频 URL（必填）",
+    "coverUrl": "封面 URL（可选）",
+    "tagNames": ["标签1"]
+  }
+]`}</pre>
+          </div>
+          <p className="text-muted-foreground">
+            每个视频还可包含 <code className="px-1 py-0.5 bg-muted rounded">extraInfo</code> 字段，支持
+            author、downloads、keywords 等扩展信息。 点击「下载模板」获取完整示例文件。
+          </p>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -236,7 +312,9 @@ function PreviewCard({ parsed }: { parsed: ParsedBatchData }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm font-medium">解析预览</CardTitle>
-        <CardDescription className="text-xs">共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频</CardDescription>
+        <CardDescription className="text-xs">
+          共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ScrollArea className={parsed.series.length > 5 ? "h-[500px]" : ""}>
@@ -247,14 +325,23 @@ function PreviewCard({ parsed }: { parsed: ParsedBatchData }) {
                   {series.coverUrl && (
                     <div className="shrink-0 w-16 h-10 rounded overflow-hidden bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={series.coverUrl} alt={series.seriesTitle || "封面"} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                      <img
+                        src={series.coverUrl}
+                        alt={series.seriesTitle || "封面"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Layers className="h-4 w-4 text-primary shrink-0" />
                       <span className="font-medium truncate">{series.seriesTitle || "无合集"}</span>
-                      <Badge variant="secondary" className="text-xs shrink-0">{series.videos.length} 个视频</Badge>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {series.videos.length} 个视频
+                      </Badge>
                     </div>
                     {series.description && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{series.description}</p>
@@ -264,21 +351,42 @@ function PreviewCard({ parsed }: { parsed: ParsedBatchData }) {
                 <div className="ml-2 space-y-1.5">
                   {series.videos.slice(0, 20).map((video, vi) => (
                     <div key={vi} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-sm">
-                      <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">{vi + 1}</span>
+                      <span className="text-muted-foreground text-xs tabular-nums shrink-0 w-6 text-right">
+                        {vi + 1}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{video.title}</div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <Badge variant={video.coverUrl ? "outline" : "secondary"} className="text-[10px] py-0">
-                            {video.coverUrl ? <><ImageIcon className="h-2.5 w-2.5 mr-0.5" />自定义封面</> : <><FileVideo className="h-2.5 w-2.5 mr-0.5" />自动封面</>}
+                            {video.coverUrl ? (
+                              <>
+                                <ImageIcon className="h-2.5 w-2.5 mr-0.5" />
+                                自定义封面
+                              </>
+                            ) : (
+                              <>
+                                <FileVideo className="h-2.5 w-2.5 mr-0.5" />
+                                自动封面
+                              </>
+                            )}
                           </Badge>
                           {video.extraInfo?.author && (
-                            <span className="text-[10px] text-muted-foreground"><User className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo.author}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              <User className="h-2.5 w-2.5 inline mr-0.5" />
+                              {video.extraInfo.author}
+                            </span>
                           )}
                           {(video.extraInfo?.downloads?.length ?? 0) > 0 && (
-                            <span className="text-[10px] text-muted-foreground"><Download className="h-2.5 w-2.5 inline mr-0.5" />{video.extraInfo!.downloads!.length} 下载</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              <Download className="h-2.5 w-2.5 inline mr-0.5" />
+                              {video.extraInfo!.downloads!.length} 下载
+                            </span>
                           )}
                           {video.tags.length > 0 && (
-                            <span className="text-[10px] text-muted-foreground"><Tag className="h-2.5 w-2.5 inline mr-0.5" />{video.tags.length} 标签</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              <Tag className="h-2.5 w-2.5 inline mr-0.5" />
+                              {video.tags.length} 标签
+                            </span>
                           )}
                         </div>
                       </div>
