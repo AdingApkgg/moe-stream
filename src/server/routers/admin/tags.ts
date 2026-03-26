@@ -243,76 +243,100 @@ export const adminTagsRouter = router({
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
 
-      // 迁移视频关联：批量 upsert + 批量清理
-      const sourceVideos = await ctx.prisma.video.findMany({
-        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
-        select: { id: true },
-      });
-      if (sourceVideos.length > 0) {
-        await ctx.prisma.tagOnVideo.createMany({
-          data: sourceVideos.map((v) => ({ videoId: v.id, tagId: input.targetTagId })),
-          skipDuplicates: true,
+      await ctx.prisma.$transaction(async (tx) => {
+        // 迁移视频关联
+        const sourceVideos = await tx.video.findMany({
+          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          select: { id: true },
         });
-        await ctx.prisma.tagOnVideo.deleteMany({
+        if (sourceVideos.length > 0) {
+          await tx.tagOnVideo.createMany({
+            data: sourceVideos.map((v) => ({ videoId: v.id, tagId: input.targetTagId })),
+            skipDuplicates: true,
+          });
+          await tx.tagOnVideo.deleteMany({
+            where: { tagId: { in: input.sourceTagIds } },
+          });
+        }
+
+        // 迁移游戏关联
+        const sourceGames = await tx.game.findMany({
+          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          select: { id: true },
+        });
+        if (sourceGames.length > 0) {
+          await tx.tagOnGame.createMany({
+            data: sourceGames.map((g) => ({ gameId: g.id, tagId: input.targetTagId })),
+            skipDuplicates: true,
+          });
+          await tx.tagOnGame.deleteMany({
+            where: { tagId: { in: input.sourceTagIds } },
+          });
+        }
+
+        // 迁移图片关联
+        const sourceImagePosts = await tx.imagePost.findMany({
+          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          select: { id: true },
+        });
+        if (sourceImagePosts.length > 0) {
+          await tx.tagOnImagePost.createMany({
+            data: sourceImagePosts.map((p) => ({ imagePostId: p.id, tagId: input.targetTagId })),
+            skipDuplicates: true,
+          });
+          await tx.tagOnImagePost.deleteMany({
+            where: { tagId: { in: input.sourceTagIds } },
+          });
+        }
+
+        // 迁移别名到目标标签
+        await tx.tagAlias.updateMany({
           where: { tagId: { in: input.sourceTagIds } },
+          data: { tagId: input.targetTagId },
         });
-      }
 
-      // 迁移游戏关联
-      const sourceGames = await ctx.prisma.game.findMany({
-        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
-        select: { id: true },
-      });
-      if (sourceGames.length > 0) {
-        await ctx.prisma.tagOnGame.createMany({
-          data: sourceGames.map((g) => ({ gameId: g.id, tagId: input.targetTagId })),
-          skipDuplicates: true,
+        // 迁移蕴含关系：先收集、再删除、再去重重建，避免唯一约束冲突
+        const sourceImplications = await tx.tagImplication.findMany({
+          where: {
+            OR: [
+              { sourceTagId: { in: input.sourceTagIds } },
+              { targetTagId: { in: input.sourceTagIds } },
+            ],
+          },
         });
-        await ctx.prisma.tagOnGame.deleteMany({
-          where: { tagId: { in: input.sourceTagIds } },
+
+        await tx.tagImplication.deleteMany({
+          where: {
+            OR: [
+              { sourceTagId: { in: input.sourceTagIds } },
+              { targetTagId: { in: input.sourceTagIds } },
+            ],
+          },
         });
-      }
 
-      // 迁移图片关联
-      const sourceImagePosts = await ctx.prisma.imagePost.findMany({
-        where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
-        select: { id: true },
-      });
-      if (sourceImagePosts.length > 0) {
-        await ctx.prisma.tagOnImagePost.createMany({
-          data: sourceImagePosts.map((p) => ({ imagePostId: p.id, tagId: input.targetTagId })),
-          skipDuplicates: true,
-        });
-        await ctx.prisma.tagOnImagePost.deleteMany({
-          where: { tagId: { in: input.sourceTagIds } },
-        });
-      }
+        const allSourceIds = new Set(input.sourceTagIds);
+        const newImplications: { sourceTagId: string; targetTagId: string }[] = [];
+        const seen = new Set<string>();
 
-      // 迁移别名到目标标签
-      await ctx.prisma.tagAlias.updateMany({
-        where: { tagId: { in: input.sourceTagIds } },
-        data: { tagId: input.targetTagId },
-      });
+        for (const impl of sourceImplications) {
+          const newSource = allSourceIds.has(impl.sourceTagId) ? input.targetTagId : impl.sourceTagId;
+          const newTarget = allSourceIds.has(impl.targetTagId) ? input.targetTagId : impl.targetTagId;
+          if (newSource === newTarget) continue;
+          const key = `${newSource}:${newTarget}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          newImplications.push({ sourceTagId: newSource, targetTagId: newTarget });
+        }
 
-      // 迁移蕴含关系到目标标签（排除会产生自引用的情况）
-      await ctx.prisma.tagImplication.updateMany({
-        where: { sourceTagId: { in: input.sourceTagIds }, targetTagId: { not: input.targetTagId } },
-        data: { sourceTagId: input.targetTagId },
-      });
-      await ctx.prisma.tagImplication.updateMany({
-        where: { targetTagId: { in: input.sourceTagIds }, sourceTagId: { not: input.targetTagId } },
-        data: { targetTagId: input.targetTagId },
-      });
-      // 清理可能残留的自引用或重复
-      await ctx.prisma.tagImplication.deleteMany({
-        where: { OR: [
-          { sourceTagId: input.targetTagId, targetTagId: input.targetTagId },
-          { sourceTagId: { in: input.sourceTagIds } },
-          { targetTagId: { in: input.sourceTagIds } },
-        ] },
-      });
+        if (newImplications.length > 0) {
+          await tx.tagImplication.createMany({
+            data: newImplications,
+            skipDuplicates: true,
+          });
+        }
 
-      await ctx.prisma.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
+        await tx.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
+      });
 
       const { refreshTagCounts } = await import("@/lib/tag-counts");
       await refreshTagCounts([input.targetTagId]);
