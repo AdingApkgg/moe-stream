@@ -19,9 +19,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
   const siteName = config.siteName;
   const baseUrl = config.siteUrl;
-  const description = config.siteDescription || `${siteName} 流式媒体内容分享平台，提供丰富的动画、漫画、游戏、轻小说相关内容。`;
+  const description =
+    config.siteDescription || `${siteName} 流式媒体内容分享平台，提供丰富的动画、漫画、游戏、轻小说相关内容。`;
   const keywords = config.siteKeywords
-    ? config.siteKeywords.split(",").map((k) => k.trim()).filter(Boolean)
+    ? config.siteKeywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean)
     : ["ACGN", "动漫", "视频", "anime", "动画", "漫画", "游戏", "轻小说", "二次元"];
 
   let metadataBase: URL;
@@ -85,18 +89,30 @@ export async function generateMetadata(): Promise<Metadata> {
         "application/rss+xml": "/feed.xml",
       },
     },
-    ...((config.googleVerification || config.analyticsBingVerification) ? {
-      verification: {
-        ...(config.googleVerification ? { google: config.googleVerification } : {}),
-        ...(config.analyticsBingVerification ? { other: { "msvalidate.01": config.analyticsBingVerification } } : {}),
-      },
-    } : {}),
+    ...(config.googleVerification || config.analyticsBingVerification
+      ? {
+          verification: {
+            ...(config.googleVerification ? { google: config.googleVerification } : {}),
+            ...(config.analyticsBingVerification
+              ? { other: { "msvalidate.01": config.analyticsBingVerification } }
+              : {}),
+          },
+        }
+      : {}),
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
       title: siteName,
     },
     applicationName: siteName,
+    ...(config.siteFavicon
+      ? {
+          icons: {
+            icon: config.siteFavicon,
+            apple: config.siteFavicon,
+          },
+        }
+      : {}),
   };
 }
 
