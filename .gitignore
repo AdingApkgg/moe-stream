@@ -18,7 +18,6 @@ src/generated
 .env.production
 
 # IDE
-.vscode
 .idea
 *.swp
 *.swo

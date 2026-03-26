@@ -26,10 +26,7 @@ services:
           name: moestream-db
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          name: moestream-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: BETTER_AUTH_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_URL
@@ -52,10 +49,7 @@ services:
           name: moestream-db
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          name: moestream-redis
-          type: redis
-          property: connectionString
+        sync: false
       - key: SOCKET_PORT
         value: "3001"
       - key: NODE_ENV
