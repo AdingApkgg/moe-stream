@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
+import { createHash } from "crypto";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -73,8 +74,9 @@ async function resolveApiKey(headers: Headers | undefined): Promise<{
   if (!auth?.startsWith("Bearer sk-")) return { session: null, apiKeyScopes: null };
 
   const key = auth.slice(7);
+  const keyHash = createHash("sha256").update(key).digest("hex");
   const apiKey = await prisma.apiKey.findUnique({
-    where: { key },
+    where: { keyHash },
     select: {
       id: true,
       scopes: true,

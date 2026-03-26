@@ -1,9 +1,16 @@
 import { z } from "zod";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
+import { ALL_SCOPE_IDS } from "@/lib/api-scopes";
 
-const VALID_SCOPES = ["video", "game", "image"] as const;
+function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+const scopeSchema = z
+  .array(z.string().refine((s) => ALL_SCOPE_IDS.includes(s), { message: "无效的权限范围" }))
+  .min(1, "至少选择一个权限范围");
 
 export const apiKeyRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -26,7 +33,7 @@ export const apiKeyRouter = router({
     .input(
       z.object({
         name: z.string().min(1, "名称不能为空").max(50, "名称最长 50 个字符"),
-        scopes: z.array(z.enum(VALID_SCOPES)).min(1, "至少选择一个权限范围"),
+        scopes: scopeSchema,
         expiresAt: z.date().optional(),
       }),
     )
@@ -45,7 +52,7 @@ export const apiKeyRouter = router({
       const apiKey = await ctx.prisma.apiKey.create({
         data: {
           name: input.name,
-          key,
+          keyHash: hashApiKey(key),
           keyPrefix,
           scopes: input.scopes,
           expiresAt: input.expiresAt ?? null,

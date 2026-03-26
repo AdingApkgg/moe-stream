@@ -1794,7 +1794,7 @@ enum ImportStatus {
 model ApiKey {
   id         String    @id @default(cuid())
   name       String    /// 用户自定义名称（如"爬虫脚本"）
-  key        String    @unique /// 完整 key，格式 sk-<random>
+  keyHash    String    @unique /// SHA-256(完整 key)，不存储明文
   keyPrefix  String    /// key 前缀，用于列表展示（sk-abcd****）
   scopes     String[]  /// 权限范围 ["video", "game", "image"]
   lastUsedAt DateTime? /// 最后使用时间
@@ -1804,6 +1804,6 @@ model ApiKey {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([key])
+  @@index([keyHash])
   @@index([userId])
 }

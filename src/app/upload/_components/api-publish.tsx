@@ -176,7 +176,10 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
                   <KeyRound className="h-3 w-3 inline mr-0.5" />
                   设置 → 开发者
                 </Link>{" "}
-                创建和管理 API Key。创建时可选择权限范围（视频/游戏/图片）。
+                创建和管理 API Key。创建时需勾选{" "}
+                <code className="px-1 py-0.5 bg-muted rounded text-[11px]">内容 写入</code> 权限范围，
+                如需上传文件还需勾选 <code className="px-1 py-0.5 bg-muted rounded text-[11px]">文件 写入</code>。
+                也可直接使用「仅发布内容」模板快速创建。
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -187,7 +190,7 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
                 Content-Type: application/json
               </Badge>
               <Badge variant="outline" className="text-[11px]">
-                需 API Key + 投稿权限
+                需 API Key（content:write）
               </Badge>
             </div>
           </div>

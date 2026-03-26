@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -28,23 +29,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Copy, Check, Trash2, KeyRound, AlertTriangle } from "lucide-react";
+import { Plus, Copy, Check, Trash2, KeyRound, AlertTriangle, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
 import dayjs from "dayjs";
-
-const SCOPE_OPTIONS = [
-  { value: "video", label: "视频" },
-  { value: "game", label: "游戏" },
-  { value: "image", label: "图片" },
-] as const;
+import { API_SCOPE_GROUPS, API_SCOPE_TEMPLATES, ALL_SCOPE_IDS, summarizeScopes } from "@/lib/api-scopes";
 
 function ScopesBadges({ scopes }: { scopes: string[] }) {
+  const summary = summarizeScopes(scopes);
+  if (summary.length === 0) return null;
+
+  const isAll = scopes.length === ALL_SCOPE_IDS.length;
+  if (isAll) {
+    return (
+      <Badge variant="secondary" className="text-[11px]">
+        全部权限
+      </Badge>
+    );
+  }
+
   return (
     <div className="flex gap-1 flex-wrap">
-      {scopes.map((s) => (
+      {summary.map((s) => (
         <Badge key={s} variant="secondary" className="text-[11px]">
-          {SCOPE_OPTIONS.find((o) => o.value === s)?.label ?? s}
+          {s}
         </Badge>
       ))}
     </div>
@@ -84,10 +92,75 @@ function CreatedKeyDisplay({ apiKey, onClose }: { apiKey: string; onClose: () =>
   );
 }
 
+function ScopeMatrix({ scopes, onChange }: { scopes: string[]; onChange: (scopes: string[]) => void }) {
+  const toggleScope = (scopeId: string) => {
+    if (scopes.includes(scopeId)) {
+      onChange(scopes.filter((s) => s !== scopeId));
+    } else {
+      onChange([...scopes, scopeId]);
+    }
+  };
+
+  const handleWriteToggle = (groupId: string) => {
+    const writeId = `${groupId}:write`;
+    const readId = `${groupId}:read`;
+    if (scopes.includes(writeId)) {
+      onChange(scopes.filter((s) => s !== writeId));
+    } else {
+      const next = scopes.includes(readId) ? [...scopes, writeId] : [...scopes, readId, writeId];
+      onChange([...new Set(next)]);
+    }
+  };
+
+  const handleReadToggle = (groupId: string) => {
+    const readId = `${groupId}:read`;
+    const writeId = `${groupId}:write`;
+    if (scopes.includes(readId)) {
+      onChange(scopes.filter((s) => s !== readId && s !== writeId));
+    } else {
+      onChange([...new Set([...scopes, readId])]);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      <div className="grid grid-cols-[1fr_64px_64px] items-center gap-0 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+        <span>资源</span>
+        <span className="text-center">读取</span>
+        <span className="text-center">写入</span>
+      </div>
+      {API_SCOPE_GROUPS.map((group, i) => {
+        const readId = `${group.id}:read`;
+        const writeId = `${group.id}:write`;
+        const hasRead = scopes.includes(readId);
+        const hasWrite = scopes.includes(writeId);
+
+        return (
+          <div
+            key={group.id}
+            className={`grid grid-cols-[1fr_64px_64px] items-center gap-0 px-3 py-2.5 ${i < API_SCOPE_GROUPS.length - 1 ? "border-b" : ""}`}
+          >
+            <div>
+              <div className="text-sm font-medium">{group.label}</div>
+              <div className="text-xs text-muted-foreground">{group.description}</div>
+            </div>
+            <div className="flex justify-center">
+              <Checkbox checked={hasRead || hasWrite} onCheckedChange={() => handleReadToggle(group.id)} />
+            </div>
+            <div className="flex justify-center">
+              <Checkbox checked={hasWrite} onCheckedChange={() => handleWriteToggle(group.id)} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function CreateKeyDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<string[]>(["video", "game", "image"]);
+  const [scopes, setScopes] = useState<string[]>([...ALL_SCOPE_IDS]);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
@@ -116,12 +189,13 @@ function CreateKeyDialog() {
   const handleClose = () => {
     setOpen(false);
     setName("");
-    setScopes(["video", "game", "image"]);
+    setScopes([...ALL_SCOPE_IDS]);
     setCreatedKey(null);
   };
 
-  const toggleScope = (scope: string) => {
-    setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
+  const applyTemplate = (templateId: string) => {
+    const tpl = API_SCOPE_TEMPLATES.find((t) => t.id === templateId);
+    if (tpl) setScopes([...tpl.scopes]);
   };
 
   return (
@@ -135,32 +209,43 @@ function CreateKeyDialog() {
       {createdKey ? (
         <CreatedKeyDisplay apiKey={createdKey} onClose={handleClose} />
       ) : (
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>创建 API Key</DialogTitle>
-            <DialogDescription>API Key 用于通过 HTTP 接口以编程方式发布内容。</DialogDescription>
+            <DialogDescription>API Key 用于通过 HTTP 接口以编程方式访问平台 API。</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="key-name">名称</Label>
               <Input
                 id="key-name"
-                placeholder="如：爬虫脚本、自动化工具"
+                placeholder="如：爬虫脚本、自动化工具、数据分析"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={50}
               />
             </div>
+
             <div className="space-y-2">
-              <Label>权限范围</Label>
-              <div className="flex gap-4">
-                {SCOPE_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox checked={scopes.includes(opt.value)} onCheckedChange={() => toggleScope(opt.value)} />
-                    <span className="text-sm">{opt.label}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between">
+                <Label>权限范围</Label>
+                <div className="flex gap-1.5">
+                  {API_SCOPE_TEMPLATES.map((tpl) => (
+                    <Button
+                      key={tpl.id}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[11px] px-2"
+                      onClick={() => applyTemplate(tpl.id)}
+                    >
+                      <Zap className="h-3 w-3 mr-1" />
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
+              <ScopeMatrix scopes={scopes} onChange={setScopes} />
             </div>
           </div>
           <DialogFooter>
@@ -203,7 +288,7 @@ function ApiKeyList() {
       <div className="rounded-lg border border-dashed p-8 text-center">
         <KeyRound className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">还没有 API Key</p>
-        <p className="text-xs text-muted-foreground mt-1">创建一个 API Key 来通过接口发布内容</p>
+        <p className="text-xs text-muted-foreground mt-1">创建一个 API Key 来通过接口访问平台 API</p>
       </div>
     );
   }
@@ -213,11 +298,11 @@ function ApiKeyList() {
       {keys.map((key) => (
         <div key={key.id} className="flex items-center gap-4 rounded-lg border p-4">
           <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-sm">{key.name}</span>
               <ScopesBadges scopes={key.scopes} />
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <code className="font-mono">{key.keyPrefix}</code>
               <span>·</span>
               <span>创建于 {dayjs(key.createdAt).format("YYYY-MM-DD")}</span>
@@ -249,7 +334,7 @@ function ApiKeyList() {
               <AlertDialogHeader>
                 <AlertDialogTitle>删除 API Key</AlertDialogTitle>
                 <AlertDialogDescription>
-                  确定删除「{key.name}」（{key.keyPrefix}）？使用此 Key 的所有脚本将立即失效。
+                  确定删除「{key.name}」（{key.keyPrefix}）？使用此 Key 的所有脚本和集成将立即失效。
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -275,7 +360,7 @@ export default function DeveloperSettingsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold">开发者设置</h2>
-        <p className="text-sm text-muted-foreground mt-1">管理 API Key，通过 HTTP 接口以编程方式发布内容。</p>
+        <p className="text-sm text-muted-foreground mt-1">管理 API Key，通过 HTTP 接口以编程方式访问平台 API。</p>
       </div>
 
       <div className="space-y-4">
@@ -286,17 +371,25 @@ export default function DeveloperSettingsPage() {
         <ApiKeyList />
       </div>
 
-      <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+      <Separator />
+
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
         <h4 className="text-sm font-medium">使用方式</h4>
         <p className="text-xs text-muted-foreground">在 HTTP 请求中通过 Authorization 头携带 API Key：</p>
         <code className="block text-xs font-mono bg-muted rounded p-2.5">Authorization: Bearer sk-your-api-key</code>
-        <p className="text-xs text-muted-foreground">
-          详细接口文档请前往{" "}
-          <a href="/upload" className="text-primary underline underline-offset-2">
-            发布页 → API 发布
-          </a>{" "}
-          查看。
-        </p>
+        <div className="space-y-1.5 text-xs text-muted-foreground">
+          <p>
+            API 基于 tRPC 协议，请求体格式为{" "}
+            <code className="px-1 py-0.5 bg-muted rounded text-[11px]">{`{"json": { ... }}`}</code>。
+          </p>
+          <p>
+            详细接口文档请前往{" "}
+            <a href="/upload" className="text-primary underline underline-offset-2">
+              发布页 → API 发布
+            </a>{" "}
+            查看。
+          </p>
+        </div>
       </div>
     </div>
   );
