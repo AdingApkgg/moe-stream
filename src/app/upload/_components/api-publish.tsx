@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/lib/toast-with-sound";
-import { Code2, Copy, Check, FileVideo, Gamepad2, Image as ImageIcon, Terminal } from "lucide-react";
+import { Code2, Copy, KeyRound, FileVideo, Gamepad2, Image as ImageIcon, Terminal } from "lucide-react";
 import type { UploadContentType } from "../_lib/types";
 
 const API_BASE = "/api/trpc";
@@ -106,54 +107,11 @@ const BATCH_EXAMPLES: Record<UploadContentType, string> = {
   ),
 };
 
-function buildCurlExample(endpoint: string, body: string, origin: string, token?: string | null): string {
-  const tokenValue = token || "YOUR_SESSION_TOKEN";
+function buildCurlExample(endpoint: string, body: string, origin: string): string {
   return `curl -X POST '${origin}${API_BASE}/${endpoint}' \\
   -H 'Content-Type: application/json' \\
-  -H 'Cookie: better-auth.session_token=${tokenValue}' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
   -d '${JSON.stringify({ json: JSON.parse(body) })}'`;
-}
-
-function useSessionToken() {
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/auth/token")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setToken(data?.token ?? null))
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { token, loading };
-}
-
-function SessionTokenCopy({ token, loading }: { token: string | null; loading: boolean }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    if (!token) return;
-    navigator.clipboard.writeText(token);
-    setCopied(true);
-    toast.success("Session Token 已复制");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  if (loading) {
-    return <div className="h-10 rounded-lg border bg-muted/30 animate-pulse" />;
-  }
-
-  if (!token) return null;
-
-  return (
-    <div className="flex items-center gap-2 rounded-lg border p-2.5 bg-muted/30">
-      <code className="flex-1 text-[11px] truncate select-all">{token}</code>
-      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopy}>
-        {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-      </Button>
-    </div>
-  );
 }
 
 function CodeBlock({ code, language = "json" }: { code: string; language?: string }) {
@@ -186,7 +144,6 @@ interface ApiPublishProps {
 
 export function ApiPublish({ contentType }: ApiPublishProps) {
   const [apiTab, setApiTab] = useState<"create" | "batch">("create");
-  const { token, loading: tokenLoading } = useSessionToken();
   const endpoints = ENDPOINTS[contentType];
   const { label, icon: Icon } = TYPE_LABELS[contentType];
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-domain.com";
@@ -208,10 +165,20 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
           <div className="space-y-3">
             <h3 className="text-sm font-medium">认证方式</h3>
             <p className="text-xs text-muted-foreground">
-              API 使用登录会话认证，请求时需在 Cookie 中携带{" "}
-              <code className="px-1 py-0.5 bg-muted rounded text-[11px]">better-auth.session_token</code>。
+              通过 <code className="px-1 py-0.5 bg-muted rounded text-[11px]">Authorization: Bearer</code> 头携带 API
+              Key 进行认证。
             </p>
-            <SessionTokenCopy token={token} loading={tokenLoading} />
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <code className="block text-xs font-mono">Authorization: Bearer sk-your-api-key</code>
+              <p className="text-xs text-muted-foreground">
+                前往{" "}
+                <Link href="/settings/developer" className="text-primary underline underline-offset-2">
+                  <KeyRound className="h-3 w-3 inline mr-0.5" />
+                  设置 → 开发者
+                </Link>{" "}
+                创建和管理 API Key。创建时可选择权限范围（视频/游戏/图片）。
+              </p>
+            </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-[11px]">
                 POST 请求
@@ -220,7 +187,7 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
                 Content-Type: application/json
               </Badge>
               <Badge variant="outline" className="text-[11px]">
-                需登录 + 投稿权限
+                需 API Key + 投稿权限
               </Badge>
             </div>
           </div>
@@ -256,7 +223,7 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-muted-foreground">curl 示例</h4>
                 <CodeBlock
-                  code={buildCurlExample(endpoints.create, CREATE_EXAMPLES[contentType], origin, token)}
+                  code={buildCurlExample(endpoints.create, CREATE_EXAMPLES[contentType], origin)}
                   language="bash"
                 />
               </div>
@@ -280,7 +247,7 @@ export function ApiPublish({ contentType }: ApiPublishProps) {
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-muted-foreground">curl 示例</h4>
                 <CodeBlock
-                  code={buildCurlExample(endpoints.batchCreate, BATCH_EXAMPLES[contentType], origin, token)}
+                  code={buildCurlExample(endpoints.batchCreate, BATCH_EXAMPLES[contentType], origin)}
                   language="bash"
                 />
               </div>

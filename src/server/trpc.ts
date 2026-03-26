@@ -15,6 +15,7 @@ export interface Context {
   ipv4Address: string | null;
   ipv6Address: string | null;
   userAgent: string | null;
+  apiKeyScopes: string[] | null;
 }
 
 /**
@@ -37,50 +38,106 @@ function isIPv4(ip: string): boolean {
 function extractIpAddresses(ips: string[]): { ipv4: string | null; ipv6: string | null } {
   let ipv4: string | null = null;
   let ipv6: string | null = null;
-  
+
   for (const ip of ips) {
     const trimmed = ip.trim();
     if (!trimmed) continue;
-    
+
     // 处理 IPv4 映射的 IPv6 地址 (::ffff:192.168.1.1)
     const v4MappedMatch = trimmed.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
     if (v4MappedMatch) {
       if (!ipv4) ipv4 = v4MappedMatch[1];
       continue;
     }
-    
+
     if (isIPv6(trimmed)) {
       if (!ipv6) ipv6 = trimmed;
     } else if (isIPv4(trimmed)) {
       if (!ipv4) ipv4 = trimmed;
     }
   }
-  
+
   return { ipv4, ipv6 };
+}
+
+/**
+ * 通过 Authorization: Bearer sk-xxx 头认证 API Key，
+ * 构造与 cookie session 兼容的 AppSession
+ */
+async function resolveApiKey(headers: Headers | undefined): Promise<{
+  session: AppSession | null;
+  apiKeyScopes: string[] | null;
+}> {
+  if (!headers) return { session: null, apiKeyScopes: null };
+  const auth = headers.get("authorization");
+  if (!auth?.startsWith("Bearer sk-")) return { session: null, apiKeyScopes: null };
+
+  const key = auth.slice(7);
+  const apiKey = await prisma.apiKey.findUnique({
+    where: { key },
+    select: {
+      id: true,
+      scopes: true,
+      expiresAt: true,
+      user: {
+        select: {
+          id: true,
+          email: true,
+          nickname: true,
+          avatar: true,
+          role: true,
+          canUpload: true,
+          adsEnabled: true,
+          twoFactorEnabled: true,
+          isBanned: true,
+        },
+      },
+    },
+  });
+
+  if (!apiKey) return { session: null, apiKeyScopes: null };
+  if (apiKey.expiresAt && apiKey.expiresAt < new Date()) return { session: null, apiKeyScopes: null };
+  if (apiKey.user.isBanned) return { session: null, apiKeyScopes: null };
+
+  prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
+
+  const session: AppSession = {
+    user: {
+      id: apiKey.user.id,
+      email: apiKey.user.email,
+      name: apiKey.user.nickname,
+      image: apiKey.user.avatar,
+      role: apiKey.user.role as "USER" | "ADMIN" | "OWNER",
+      canUpload: apiKey.user.canUpload,
+      adsEnabled: apiKey.user.adsEnabled,
+      twoFactorEnabled: apiKey.user.twoFactorEnabled,
+    },
+    session: { id: apiKey.id, token: key, expiresAt: apiKey.expiresAt ?? new Date("2099-12-31") },
+  };
+
+  return { session, apiKeyScopes: apiKey.scopes };
 }
 
 // 创建 Context
 export async function createContext(opts?: { req?: Request }): Promise<Context> {
-  const session = await getSession(opts?.req);
   const headers = opts?.req?.headers;
-  
+
   // 从多个头部收集所有可能的 IP
   const forwardedFor = headers?.get("x-forwarded-for") || "";
   const realIp = headers?.get("x-real-ip") || "";
   const cfConnectingIp = headers?.get("cf-connecting-ip") || ""; // Cloudflare
   const cfConnectingIpv6 = headers?.get("cf-connecting-ipv6") || ""; // Cloudflare IPv6
-  
+
   // 合并所有 IP 来源
-  const allIps = [
-    ...forwardedFor.split(","),
-    realIp,
-    cfConnectingIp,
-    cfConnectingIpv6,
-  ].filter(Boolean);
-  
+  const allIps = [...forwardedFor.split(","), realIp, cfConnectingIp, cfConnectingIpv6].filter(Boolean);
+
   const { ipv4, ipv6 } = extractIpAddresses(allIps);
   const userAgent = headers?.get("user-agent") || null;
-  
+
+  // 优先尝试 API Key 认证，回退到 cookie session
+  const apiKeyResult = await resolveApiKey(headers);
+  const session = apiKeyResult.session ?? (await getSession(opts?.req));
+
   return {
     prisma,
     redis,
@@ -88,6 +145,7 @@ export async function createContext(opts?: { req?: Request }): Promise<Context> 
     ipv4Address: ipv4,
     ipv6Address: ipv6,
     userAgent,
+    apiKeyScopes: apiKeyResult.apiKeyScopes,
   };
 }
 
@@ -99,8 +157,7 @@ const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
@@ -142,9 +199,7 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 
-  const scopes = user.role === "OWNER"
-    ? Object.keys(ADMIN_SCOPES)
-    : ((user.adminScopes as string[]) || []);
+  const scopes = user.role === "OWNER" ? Object.keys(ADMIN_SCOPES) : (user.adminScopes as string[]) || [];
 
   return next({
     ctx: {

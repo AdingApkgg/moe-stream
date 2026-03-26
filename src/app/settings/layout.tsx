@@ -3,25 +3,17 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import {
-  User,
-  Shield,
-  Smartphone,
-  AlertTriangle,
-} from "lucide-react";
+import { User, Shield, Smartphone, KeyRound, AlertTriangle } from "lucide-react";
 
 const settingsNav = [
   { title: "个人资料", href: "/settings", icon: User },
   { title: "账号安全", href: "/settings/account", icon: Shield },
   { title: "登录管理", href: "/settings/sessions", icon: Smartphone },
+  { title: "开发者", href: "/settings/developer", icon: KeyRound },
   { title: "危险操作", href: "/settings/danger", icon: AlertTriangle, danger: true },
 ];
 
-export default function SettingsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -31,11 +23,8 @@ export default function SettingsLayout({
         <nav className="w-full md:w-52 flex-shrink-0">
           <div className="flex md:flex-col gap-0.5 overflow-x-auto md:overflow-x-visible pb-3 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 border-b md:border-b-0">
             {settingsNav.map((item) => {
-              const isActive = 
-                item.href === "/settings" 
-                  ? pathname === "/settings"
-                  : pathname.startsWith(item.href);
-              
+              const isActive = item.href === "/settings" ? pathname === "/settings" : pathname.startsWith(item.href);
+
               return (
                 <Link
                   key={item.href}
@@ -45,7 +34,7 @@ export default function SettingsLayout({
                     isActive
                       ? "bg-accent font-medium"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
-                    item.danger && "text-destructive hover:text-destructive"
+                    item.danger && "text-destructive hover:text-destructive",
                   )}
                 >
                   <item.icon className="h-4 w-4" />
@@ -57,9 +46,7 @@ export default function SettingsLayout({
         </nav>
 
         {/* 内容区域 */}
-        <main className="flex-1 min-w-0">
-          {children}
-        </main>
+        <main className="flex-1 min-w-0">{children}</main>
       </div>
     </div>
   );

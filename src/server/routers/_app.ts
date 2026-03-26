@@ -22,6 +22,7 @@ import { channelRouter } from "./channel";
 import { guestbookRouter } from "./guestbook";
 import { fileRouter } from "./file";
 import { importRouter } from "./import";
+import { apiKeyRouter } from "./api-key";
 
 export const appRouter = router({
   user: userRouter,
@@ -47,6 +48,7 @@ export const appRouter = router({
   guestbook: guestbookRouter,
   file: fileRouter,
   import: importRouter,
+  apiKey: apiKeyRouter,
 });
 
 export type AppRouter = typeof appRouter;
