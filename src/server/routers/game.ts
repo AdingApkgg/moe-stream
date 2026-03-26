@@ -1,39 +1,21 @@
 import { z } from "zod";
-import { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { getOrSet } from "@/lib/redis";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 import { awardPoints } from "@/lib/points";
-import { isPrivileged, canUploadContent } from "@/lib/permissions";
+import {
+  generateContentId,
+  resolveAllTagIds,
+  resolveTagNames,
+  resolvePublishStatus,
+  assertCanUpload,
+  assertBatchLimit,
+  scheduleTagCountRefresh,
+} from "@/server/publish-utils";
 
 const GAME_CACHE_TTL = 60; // 1 minute
-
-/**
- * 生成随机 6 位数字游戏 ID (000000 - 999999)
- */
-async function generateGameId(prisma: PrismaClient): Promise<string> {
-  const maxAttempts = 100;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    const randomNum = Math.floor(Math.random() * 1000000);
-    const id = randomNum.toString().padStart(6, "0");
-
-    const existing = await prisma.game.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!existing) {
-      return id;
-    }
-  }
-
-  throw new TRPCError({
-    code: "INTERNAL_SERVER_ERROR",
-    message: "无法生成唯一游戏 ID，请稍后重试",
-  });
-}
 
 import { GAME_TYPES } from "@/lib/constants";
 export { GAME_TYPES };
@@ -286,44 +268,11 @@ export const gameRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { tagIds, tagNames, versions, customTabs, ...data } = input;
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
-      // 检查投稿权限
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-
-      if (!canUploadContent(user)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
-      }
-
-      const gameId = await generateGameId(ctx.prisma);
-
-      // 处理标签
-      const tagConnections: { tagId: string }[] = [];
-      if (tagIds?.length) {
-        for (const id of tagIds) {
-          tagConnections.push({ tagId: id });
-        }
-      }
-      if (tagNames?.length) {
-        for (const tagName of tagNames) {
-          const slug = tagName.toLowerCase().replace(/\s+/g, "-");
-          const tag = await ctx.prisma.tag.upsert({
-            where: { slug },
-            update: {},
-            create: { name: tagName, slug },
-          });
-          tagConnections.push({ tagId: tag.id });
-        }
-      }
-
-      // 管理员/站长直接发布，普通用户待审核
-      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
+      const gameId = await generateContentId(ctx.prisma, "game");
+      const allTagIds = await resolveAllTagIds(ctx.prisma, tagIds, tagNames);
+      const status = resolvePublishStatus(user.role);
 
       const game = await ctx.prisma.game.create({
         data: {
@@ -338,7 +287,7 @@ export const gameRouter = router({
           status,
           uploaderId: ctx.session.user.id,
           tags: {
-            create: tagConnections,
+            create: allTagIds.map((tagId) => ({ tagId })),
           },
           versions: versions && versions.length > 0
             ? { create: versions.map((v, i) => ({ label: v.label, description: v.description || null, sortOrder: i })) }
@@ -349,12 +298,7 @@ export const gameRouter = router({
         },
       });
 
-      if (tagConnections.length > 0) {
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch((err) => {
-          console.error("[tag-counts] 游戏创建后刷新失败", err);
-        });
-      }
+      scheduleTagCountRefresh(allTagIds, "游戏创建");
 
       if (status === "PUBLISHED") {
         submitGameToIndexNow(game.id).catch(() => {});
@@ -380,57 +324,20 @@ export const gameRouter = router({
               extraInfo: z.any().optional(),
             })
           )
-          .min(1)
-          .max(1000),
+          .min(1),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // 检查投稿权限
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      if (!canUploadContent(user)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
-      }
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
+      await assertBatchLimit(ctx.prisma, input.games.length);
+      const status = resolvePublishStatus(user.role);
 
-      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
-
-      // 批量预处理标签
       const allTagNames = new Set<string>();
       for (const g of input.games) {
         for (const t of g.tagNames ?? []) allTagNames.add(t);
       }
-      const tagNameToId = new Map<string, string>();
-      if (allTagNames.size > 0) {
-        await Promise.all(
-          [...allTagNames].map(async (tagName) => {
-            const slug =
-              tagName
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
-            try {
-              const tag = await ctx.prisma.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName, slug },
-              });
-              tagNameToId.set(tagName, tag.id);
-            } catch {
-              const existing = await ctx.prisma.tag.findFirst({
-                where: { OR: [{ name: tagName }, { slug }] },
-              });
-              if (existing) tagNameToId.set(tagName, existing.id);
-            }
-          })
-        );
-      }
+      const tagNameToId = await resolveTagNames(ctx.prisma, [...allTagNames]);
 
-      // 逐条创建或更新（按标题去重）
       const results: { title: string; id?: string; error?: string; updated?: boolean }[] = [];
       const previousTagIds = new Set<string>();
 
@@ -440,16 +347,14 @@ export const gameRouter = router({
             .map((n) => tagNameToId.get(n))
             .filter((id): id is string => !!id);
 
-          // 查找是否存在同名游戏
           const existing = await ctx.prisma.game.findFirst({
-            where: { title: gameInput.title },
+            where: { title: gameInput.title, uploaderId: ctx.session.user.id },
             select: { id: true, tags: { select: { tagId: true } } },
           });
 
           if (existing) {
             for (const t of existing.tags) previousTagIds.add(t.tagId);
 
-            // 更新已有游戏
             await ctx.prisma.tagOnGame.deleteMany({
               where: { gameId: existing.id },
             });
@@ -471,8 +376,7 @@ export const gameRouter = router({
 
             results.push({ title: gameInput.title, id: existing.id, updated: true });
           } else {
-            // 创建新游戏
-            const gameId = await generateGameId(ctx.prisma);
+            const gameId = await generateContentId(ctx.prisma, "game");
 
             await ctx.prisma.game.create({
               data: {
@@ -502,13 +406,10 @@ export const gameRouter = router({
         }
       }
 
-      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
-      if (allAffectedTagIds.length > 0) {
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allAffectedTagIds).catch((err) => {
-          console.error("[tag-counts] 游戏批量导入后刷新失败", err);
-        });
-      }
+      scheduleTagCountRefresh(
+        [...new Set([...previousTagIds, ...tagNameToId.values()])],
+        "游戏批量导入",
+      );
 
       const successIds = results
         .filter((r) => r.id && !r.error)

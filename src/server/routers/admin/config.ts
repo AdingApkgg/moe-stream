@@ -69,6 +69,7 @@ export const adminConfigRouter = router({
       maxUploadSize: z.number().int().min(10).max(10000).optional(),
       allowedVideoFormats: z.string().max(200).optional(),
       adminBatchLimit: z.number().int().min(100).max(100000).optional(),
+      uploadBatchLimit: z.number().int().min(1).max(100000).optional(),
       
       // 联系方式
       contactEmail: z.string().email().optional().nullable().or(z.literal("")),
@@ -259,7 +260,7 @@ export const adminConfigRouter = router({
         "allowComment", "requireLoginToComment", "requireEmailVerify",
         "sectionVideoEnabled", "sectionImageEnabled", "sectionGameEnabled",
         "videoSelectorMode", "videosPerPage", "commentsPerPage",
-        "maxUploadSize", "allowedVideoFormats", "adminBatchLimit", "contactEmail", "socialLinks",
+        "maxUploadSize", "allowedVideoFormats", "adminBatchLimit", "uploadBatchLimit", "contactEmail", "socialLinks",
         "privacyPolicy", "termsOfService", "aboutPage",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
@@ -454,7 +455,7 @@ export const adminConfigRouter = router({
         "allowComment", "requireLoginToComment", "requireEmailVerify",
         "sectionVideoEnabled", "sectionImageEnabled", "sectionGameEnabled",
         "videoSelectorMode", "videosPerPage", "commentsPerPage",
-        "maxUploadSize", "allowedVideoFormats", "contactEmail", "socialLinks",
+        "maxUploadSize", "allowedVideoFormats", "uploadBatchLimit", "contactEmail", "socialLinks",
         "footerText", "footerLinks", "icpBeian", "publicSecurityBeian",
         "adsEnabled", "adGateEnabled", "adGateViewsRequired", "adGateHours", "sponsorAds",
         "captchaLogin", "captchaRegister", "captchaComment", "captchaForgotPassword",

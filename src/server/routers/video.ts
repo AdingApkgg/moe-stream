@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { getCache, setCache, getOrSet, deleteCache, deleteCacheKeys } from "@/lib/redis";
@@ -7,38 +7,19 @@ import { submitVideoToIndexNow, submitVideosToIndexNow } from "@/lib/indexnow";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { awardPoints } from "@/lib/points";
 import { createNotification } from "@/lib/notification";
-import { isPrivileged, canUploadContent } from "@/lib/permissions";
+import { isPrivileged } from "@/lib/permissions";
+import {
+  generateContentId,
+  generateContentIds,
+  resolveAllTagIds,
+  resolveTagNames,
+  resolvePublishStatus,
+  assertCanUpload,
+  assertBatchLimit,
+  scheduleTagCountRefresh,
+} from "@/server/publish-utils";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
-
-/**
- * 生成随机 6 位数字视频 ID (000000 - 999999)
- * 随机生成并检查是否已存在
- */
-async function generateVideoId(prisma: PrismaClient): Promise<string> {
-  const maxAttempts = 100;
-  
-  for (let i = 0; i < maxAttempts; i++) {
-    // 生成随机 6 位数字
-    const randomNum = Math.floor(Math.random() * 1000000);
-    const id = randomNum.toString().padStart(6, "0");
-    
-    // 检查是否已存在
-    const existing = await prisma.video.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-    
-    if (!existing) {
-      return id;
-    }
-  }
-  
-  throw new TRPCError({
-    code: "INTERNAL_SERVER_ERROR",
-    message: "无法生成唯一视频 ID，请稍后重试",
-  });
-}
 const STATS_CACHE_TTL = 15; // 15 seconds - 短缓存，仅防止并发请求
 const SEARCH_SUGGESTIONS_CACHE_TTL = 300; // 5 minutes
 
@@ -564,26 +545,8 @@ export const videoRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { customId, tagIds, tagNames, coverUrl, pages, skipIndexNow, extraInfo, ...data } = input;
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
-      // 检查投稿权限：ADMIN/OWNER 或有 canUpload 权限的用户
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      
-      const canUpload = canUploadContent(user);
-      if (!canUpload) {
-        throw new TRPCError({ 
-          code: "FORBIDDEN", 
-          message: "您暂无投稿权限，请联系管理员开通" 
-        });
-      }
-
-      // 如果提供了自定义ID，检查是否已存在
       if (customId) {
         const existing = await ctx.prisma.video.findUnique({
           where: { id: customId.toLowerCase() },
@@ -596,42 +559,9 @@ export const videoRouter = router({
         }
       }
 
-      // 处理新标签（使用 upsert 避免并发冲突）
-      const allTagIds: string[] = [...(tagIds || [])];
-      if (tagNames && tagNames.length > 0) {
-        for (const tagName of tagNames) {
-          const slug = tagName
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
-          
-          try {
-            // 使用 upsert 避免并发创建冲突
-            const tag = await ctx.prisma.tag.upsert({
-              where: { name: tagName },
-              update: {}, // 已存在则不更新
-              create: { name: tagName, slug },
-            });
-            if (!allTagIds.includes(tag.id)) {
-              allTagIds.push(tag.id);
-            }
-          } catch {
-            // 如果 upsert 失败（slug 冲突），尝试查找已存在的标签
-            const existingTag = await ctx.prisma.tag.findFirst({
-              where: { OR: [{ name: tagName }, { slug }] },
-            });
-            if (existingTag && !allTagIds.includes(existingTag.id)) {
-              allTagIds.push(existingTag.id);
-            }
-          }
-        }
-      }
-
-      // 去重标签ID
-      const uniqueTagIds = [...new Set(allTagIds)];
-
-      // 生成 6 位数字 ID
-      const videoId = customId ? customId.toLowerCase() : await generateVideoId(ctx.prisma);
+      const uniqueTagIds = await resolveAllTagIds(ctx.prisma, tagIds, tagNames);
+      const videoId = customId ? customId.toLowerCase() : await generateContentId(ctx.prisma, "video");
+      const status = resolvePublishStatus(user.role);
 
       const video = await ctx.prisma.video.create({
         data: {
@@ -640,10 +570,10 @@ export const videoRouter = router({
           description: data.description,
           videoUrl: data.videoUrl,
           duration: data.duration,
-          status: "PUBLISHED", // 直接发布，无需审核
+          status,
           ...(coverUrl ? { coverUrl } : {}),
-          ...(pages && pages.length > 1 ? { pages } : {}), // 只有多P时才保存
-          ...(extraInfo ? { extraInfo } : {}), // 扩展信息
+          ...(pages && pages.length > 1 ? { pages } : {}),
+          ...(extraInfo ? { extraInfo } : {}),
           uploader: { connect: { id: ctx.session.user.id } },
           ...(uniqueTagIds.length > 0 
             ? { tags: { create: uniqueTagIds.map((tagId) => ({ tag: { connect: { id: tagId } } })) } }
@@ -651,8 +581,9 @@ export const videoRouter = router({
         },
       });
 
-      // 异步提交到 IndexNow（不阻塞响应，批量导入时跳过）
-      if (!skipIndexNow) {
+      scheduleTagCountRefresh(uniqueTagIds, "视频创建");
+
+      if (!skipIndexNow && status === "PUBLISHED") {
         submitVideoToIndexNow(video.id).catch(() => {});
       }
 
@@ -672,7 +603,7 @@ export const videoRouter = router({
           title: z.string().min(1).max(100),
           description: z.string().max(5000).optional(),
           coverUrl: z.string().optional(),
-          videoUrl: z.string().min(1),
+          videoUrl: z.string().url(),
           tagNames: z.array(z.string()).optional(),
           extraInfo: z.object({
             intro: z.string().optional(),
@@ -694,62 +625,32 @@ export const videoRouter = router({
               content: z.string(),
             })).optional(),
           }).optional(),
-        })).min(1).max(1000),
+        })).min(1),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // 检查投稿权限
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      const canUpload = canUploadContent(user);
-      if (!canUpload) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "您暂无投稿权限" });
-      }
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
+      await assertBatchLimit(ctx.prisma, input.videos.length);
+      const status = resolvePublishStatus(user.role);
 
-      // 1) 按 videoUrl 查重：已存在的视频复用，不重复创建
+      // 1) 按 videoUrl 查重：仅复用当前用户上传的视频，防止挂载他人视频
       const videoUrls = input.videos.map((v) => v.videoUrl);
       const existingVideos = await ctx.prisma.video.findMany({
-        where: { videoUrl: { in: videoUrls } },
+        where: { videoUrl: { in: videoUrls }, uploaderId: ctx.session.user.id },
         select: { id: true, videoUrl: true },
       });
       const existingByUrl = new Map<string, string>(
         existingVideos.map((r) => [r.videoUrl, r.id]),
       );
 
-      // 2) 批量预处理标签 — 收集所有唯一标签名，一次性 upsert
+      // 2) 批量预处理标签
       const allTagNames = new Set<string>();
       for (const v of input.videos) {
         for (const t of v.tagNames ?? []) allTagNames.add(t);
       }
-      const tagNameToId = new Map<string, string>();
-      if (allTagNames.size > 0) {
-        await Promise.all(
-          [...allTagNames].map(async (tagName) => {
-            const slug = tagName
-              .toLowerCase()
-              .replace(/\s+/g, "-")
-              .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
-            try {
-              const tag = await ctx.prisma.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName, slug },
-              });
-              tagNameToId.set(tagName, tag.id);
-            } catch {
-              const existing = await ctx.prisma.tag.findFirst({
-                where: { OR: [{ name: tagName }, { slug }] },
-              });
-              if (existing) tagNameToId.set(tagName, existing.id);
-            }
-          })
-        );
-      }
+      const tagNameToId = await resolveTagNames(ctx.prisma, [...allTagNames]);
 
-      // 3) 为需要新建的视频生成 ID（仅对 videoUrl 不存在的项）
+      // 3) 为需要新建的视频批量生成 ID
       const videoIds: string[] = [];
       const needNewIdIndexes: number[] = [];
       for (let i = 0; i < input.videos.length; i++) {
@@ -761,35 +662,13 @@ export const videoRouter = router({
         }
       }
 
-      const needed = needNewIdIndexes.length;
-      const candidates: string[] = [];
-      const candidateSet = new Set<string>();
-      while (candidates.length < needed * 2) {
-        const num = Math.floor(Math.random() * 1000000);
-        const id = num.toString().padStart(6, "0");
-        if (!candidateSet.has(id)) {
-          candidateSet.add(id);
-          candidates.push(id);
-        }
-      }
-      const existingIds = new Set(
-        (await ctx.prisma.video.findMany({
-          where: { id: { in: candidates } },
-          select: { id: true },
-        })).map((r) => r.id),
-      );
-      let cursor = 0;
-      for (const i of needNewIdIndexes) {
-        while (cursor < candidates.length && existingIds.has(candidates[cursor])) cursor++;
-        if (cursor >= candidates.length) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "无法生成足够唯一 ID" });
-        }
-        videoIds[i] = candidates[cursor++];
+      const newIds = await generateContentIds(ctx.prisma, "video", needNewIdIndexes.length);
+      for (let j = 0; j < needNewIdIndexes.length; j++) {
+        videoIds[needNewIdIndexes[j]] = newIds[j];
       }
 
-      // 4) 事务：创建合集 + 仅新建视频 + 剧集关联（已存在视频也加入合集，用 upsert 防重复）
+      // 4) 事务：创建合集 + 仅新建视频 + 剧集关联
       const results: { title: string; id?: string; error?: string; merged?: boolean }[] = [];
-
       const txOps: Prisma.PrismaPromise<unknown>[] = [];
 
       let seriesId: string | undefined;
@@ -826,7 +705,7 @@ export const videoRouter = router({
                 title: v.title,
                 description: v.description,
                 videoUrl: v.videoUrl,
-                status: "PUBLISHED",
+                status,
                 ...(v.coverUrl ? { coverUrl: v.coverUrl } : {}),
                 ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
                 uploader: { connect: { id: ctx.session.user.id } },
@@ -881,7 +760,7 @@ export const videoRouter = router({
         }
       }
 
-      // 批量导入后刷新标签计数（包含被覆盖视频的旧标签）
+      // 批量导入后刷新标签计数
       const previousTagIds = new Set<string>();
       for (const [, vid] of existingByUrl) {
         const oldTags = await ctx.prisma.tagOnVideo.findMany({
@@ -890,12 +769,19 @@ export const videoRouter = router({
         });
         for (const t of oldTags) previousTagIds.add(t.tagId);
       }
-      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
-      if (allAffectedTagIds.length > 0) {
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allAffectedTagIds).catch((err) => {
-          console.error("[tag-counts] 批量导入后刷新失败", err);
-        });
+      scheduleTagCountRefresh(
+        [...new Set([...previousTagIds, ...tagNameToId.values()])],
+        "视频批量导入",
+      );
+
+      // 仅 PUBLISHED 状态时推送 IndexNow
+      if (status === "PUBLISHED") {
+        const newVideoIds = results
+          .filter((r) => r.id && !r.merged)
+          .map((r) => r.id!);
+        if (newVideoIds.length > 0) {
+          submitVideosToIndexNow(newVideoIds).catch(() => {});
+        }
       }
 
       return {
@@ -944,24 +830,7 @@ export const videoRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, tagNames, extraInfo, ...data } = input;
-
-      // 检查编辑权限：ADMIN/OWNER 或有 canUpload 权限的用户
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      
-      const canUpload = canUploadContent(user);
-      if (!canUpload) {
-        throw new TRPCError({ 
-          code: "FORBIDDEN", 
-          message: "您暂无编辑权限，请联系管理员开通" 
-        });
-      }
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
       const video = await ctx.prisma.video.findUnique({
         where: { id },
@@ -976,7 +845,6 @@ export const videoRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "只能编辑自己的视频" });
       }
 
-      // 更新视频基本信息
       const updateData: Prisma.VideoUpdateInput = {
         ...data,
         ...(extraInfo !== undefined ? { 
@@ -988,7 +856,6 @@ export const videoRouter = router({
         data: updateData,
       });
 
-      // 更新标签关联
       if (tagIds !== undefined || tagNames !== undefined) {
         const oldTags = await ctx.prisma.tagOnVideo.findMany({
           where: { videoId: id },
@@ -996,37 +863,12 @@ export const videoRouter = router({
         });
         const oldTagIds = oldTags.map((t) => t.tagId);
 
-        const allTagIds: string[] = [...(tagIds || [])];
-        if (tagNames && tagNames.length > 0) {
-          for (const tagName of tagNames) {
-            const slug = tagName
-              .toLowerCase()
-              .replace(/\s+/g, "-")
-              .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "");
-            
-            const existingTag = await ctx.prisma.tag.findFirst({
-              where: { OR: [{ name: tagName }, { slug }] },
-            });
-            
-            if (existingTag) {
-              if (!allTagIds.includes(existingTag.id)) {
-                allTagIds.push(existingTag.id);
-              }
-            } else {
-              const newTag = await ctx.prisma.tag.create({
-                data: { name: tagName, slug: slug || `tag-${Date.now()}` },
-              });
-              allTagIds.push(newTag.id);
-            }
-          }
-        }
+        const allTagIds = await resolveAllTagIds(ctx.prisma, tagIds, tagNames);
 
-        // 删除所有现有标签关联
         await ctx.prisma.tagOnVideo.deleteMany({
           where: { videoId: id },
         });
 
-        // 创建新的标签关联
         if (allTagIds.length > 0) {
           await ctx.prisma.tagOnVideo.createMany({
             data: allTagIds.map((tagId) => ({
@@ -1036,12 +878,7 @@ export const videoRouter = router({
           });
         }
 
-        // 刷新受影响标签的计数
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        const affectedTagIds = [...new Set([...oldTagIds, ...allTagIds])];
-        refreshTagCounts(affectedTagIds).catch((err) => {
-          console.error("[tag-counts] 视频编辑后刷新失败", err);
-        });
+        scheduleTagCountRefresh([...new Set([...oldTagIds, ...allTagIds])], "视频编辑");
       }
 
       await deleteCache(`video:${id}`);

@@ -1,26 +1,18 @@
 import { z } from "zod";
-import { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { awardPoints } from "@/lib/points";
-import { isPrivileged, canUploadContent } from "@/lib/permissions";
-
-async function generateImagePostId(prisma: PrismaClient): Promise<string> {
-  const maxAttempts = 100;
-  for (let i = 0; i < maxAttempts; i++) {
-    const randomNum = Math.floor(Math.random() * 1000000);
-    const id = randomNum.toString().padStart(6, "0");
-    const existing = await prisma.imagePost.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-    if (!existing) return id;
-  }
-  throw new TRPCError({
-    code: "INTERNAL_SERVER_ERROR",
-    message: "无法生成唯一图片帖 ID，请稍后重试",
-  });
-}
+import {
+  generateContentId,
+  resolveAllTagIds,
+  resolveTagNames,
+  resolvePublishStatus,
+  assertCanUpload,
+  assertOwnership,
+  assertBatchLimit,
+  scheduleTagCountRefresh,
+} from "@/server/publish-utils";
 
 export const imageRouter = router({
   list: publicProcedure
@@ -180,37 +172,11 @@ export const imageRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { tagIds, tagNames, ...data } = input;
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      if (!canUploadContent(user)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
-      }
-
-      const postId = await generateImagePostId(ctx.prisma);
-
-      const tagConnections: { tagId: string }[] = [];
-      if (tagIds?.length) {
-        for (const id of tagIds) tagConnections.push({ tagId: id });
-      }
-      if (tagNames?.length) {
-        for (const tagName of tagNames) {
-          const slug = tagName.toLowerCase().replace(/\s+/g, "-");
-          const tag = await ctx.prisma.tag.upsert({
-            where: { slug },
-            update: {},
-            create: { name: tagName, slug },
-          });
-          tagConnections.push({ tagId: tag.id });
-        }
-      }
-
-      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
+      const postId = await generateContentId(ctx.prisma, "imagePost");
+      const allTagIds = await resolveAllTagIds(ctx.prisma, tagIds, tagNames);
+      const status = resolvePublishStatus(user.role);
 
       const post = await ctx.prisma.imagePost.create({
         data: {
@@ -220,17 +186,11 @@ export const imageRouter = router({
           images: data.images,
           status,
           uploaderId: ctx.session.user.id,
-          tags: { create: tagConnections },
+          tags: { create: allTagIds.map((tagId) => ({ tagId })) },
         },
       });
 
-      if (tagConnections.length > 0) {
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(tagConnections.map((t) => t.tagId)).catch((err) => {
-          console.error("[tag-counts] 图片创建后刷新失败", err);
-        });
-      }
-
+      scheduleTagCountRefresh(allTagIds, "图片创建");
       return { id: post.id, status: post.status };
     }),
 
@@ -246,53 +206,19 @@ export const imageRouter = router({
               tagNames: z.array(z.string()).optional(),
             })
           )
-          .min(1)
-          .max(500),
+          .min(1),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      if (!canUploadContent(user)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "暂无投稿权限" });
-      }
-
-      const status = isPrivileged(user.role) ? "PUBLISHED" : "PENDING";
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
+      await assertBatchLimit(ctx.prisma, input.posts.length);
+      const status = resolvePublishStatus(user.role);
 
       const allTagNames = new Set<string>();
       for (const p of input.posts) {
         for (const t of p.tagNames ?? []) allTagNames.add(t);
       }
-      const tagNameToId = new Map<string, string>();
-      if (allTagNames.size > 0) {
-        await Promise.all(
-          [...allTagNames].map(async (tagName) => {
-            const slug =
-              tagName
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
-            try {
-              const tag = await ctx.prisma.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName, slug },
-              });
-              tagNameToId.set(tagName, tag.id);
-            } catch {
-              const existing = await ctx.prisma.tag.findFirst({
-                where: { OR: [{ name: tagName }, { slug }] },
-              });
-              if (existing) tagNameToId.set(tagName, existing.id);
-            }
-          })
-        );
-      }
+      const tagNameToId = await resolveTagNames(ctx.prisma, [...allTagNames]);
 
       const results: { title: string; id?: string; error?: string; updated?: boolean }[] = [];
       const previousTagIds = new Set<string>();
@@ -304,7 +230,7 @@ export const imageRouter = router({
             .filter((id): id is string => !!id);
 
           const existing = await ctx.prisma.imagePost.findFirst({
-            where: { title: postInput.title },
+            where: { title: postInput.title, uploaderId: ctx.session.user.id },
             select: { id: true, tags: { select: { tagId: true } } },
           });
 
@@ -324,7 +250,7 @@ export const imageRouter = router({
             });
             results.push({ title: postInput.title, id: existing.id, updated: true });
           } else {
-            const postId = await generateImagePostId(ctx.prisma);
+            const postId = await generateContentId(ctx.prisma, "imagePost");
             await ctx.prisma.imagePost.create({
               data: {
                 id: postId,
@@ -346,13 +272,10 @@ export const imageRouter = router({
         }
       }
 
-      const allAffectedTagIds = [...new Set([...previousTagIds, ...tagNameToId.values()])];
-      if (allAffectedTagIds.length > 0) {
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts(allAffectedTagIds).catch((err) => {
-          console.error("[tag-counts] 图片批量导入后刷新失败", err);
-        });
-      }
+      scheduleTagCountRefresh(
+        [...new Set([...previousTagIds, ...tagNameToId.values()])],
+        "图片批量导入",
+      );
 
       return { results };
     }),
@@ -377,9 +300,7 @@ export const imageRouter = router({
         where: { id: ctx.session.user.id },
         select: { role: true },
       });
-      if (post.uploaderId !== ctx.session.user.id && !(user && isPrivileged(user.role))) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权编辑此图片帖" });
-      }
+      assertOwnership(post.uploaderId, ctx.session.user.id, user?.role ?? "USER", "无权编辑此图片帖");
 
       return post;
     }),
@@ -397,17 +318,7 @@ export const imageRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, tagNames, ...data } = input;
-
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true, canUpload: true },
-      });
-      if (!user) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
-      }
-      if (!canUploadContent(user)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "暂无编辑权限" });
-      }
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
       const post = await ctx.prisma.imagePost.findUnique({
         where: { id },
@@ -416,9 +327,7 @@ export const imageRouter = router({
       if (!post) {
         throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
       }
-      if (post.uploaderId !== ctx.session.user.id && !isPrivileged) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "只能编辑自己的图片帖" });
-      }
+      assertOwnership(post.uploaderId, ctx.session.user.id, user.role, "只能编辑自己的图片帖");
 
       const updateData: Prisma.ImagePostUpdateInput = {};
       if (data.title !== undefined) updateData.title = data.title;
@@ -439,20 +348,7 @@ export const imageRouter = router({
 
         await ctx.prisma.tagOnImagePost.deleteMany({ where: { imagePostId: id } });
 
-        const allTagIds: string[] = [...(tagIds || [])];
-        if (tagNames?.length) {
-          for (const tagName of tagNames) {
-            const slug = tagName.toLowerCase().replace(/\s+/g, "-");
-            const tag = await ctx.prisma.tag.upsert({
-              where: { slug },
-              update: {},
-              create: { name: tagName, slug },
-            });
-            if (!allTagIds.includes(tag.id)) {
-              allTagIds.push(tag.id);
-            }
-          }
-        }
+        const allTagIds = await resolveAllTagIds(ctx.prisma, tagIds, tagNames);
 
         if (allTagIds.length > 0) {
           await ctx.prisma.tagOnImagePost.createMany({
@@ -461,10 +357,7 @@ export const imageRouter = router({
           });
         }
 
-        const { refreshTagCounts } = await import("@/lib/tag-counts");
-        refreshTagCounts([...new Set([...oldTagIds, ...allTagIds])]).catch((err) => {
-          console.error("[tag-counts] 图片编辑后刷新失败", err);
-        });
+        scheduleTagCountRefresh([...new Set([...oldTagIds, ...allTagIds])], "图片编辑");
       }
 
       return { success: true };

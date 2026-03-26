@@ -588,7 +588,7 @@ model Tag {
   gameCount      Int @default(0)
   imagePostCount Int @default(0)
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  updatedAt  DateTime @default(now()) @updatedAt
 
   category   TagCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   aliases    TagAlias[]
@@ -1051,6 +1051,7 @@ model SiteConfig {
   maxUploadSize       Int     @default(500)    // 最大上传大小 (MB)
   allowedVideoFormats String  @default("mp4,webm,m3u8") // 允许的视频格式
   adminBatchLimit     Int     @default(10000)  // 后台批量操作上限（转移、删除等）
+  uploadBatchLimit    Int     @default(1000)   // 用户投稿批量上限
   
   // 联系方式
   contactEmail    String?
