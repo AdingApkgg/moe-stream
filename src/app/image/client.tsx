@@ -3,7 +3,7 @@
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { Images } from "lucide-react";
 import { PageWrapper, FadeIn } from "@/components/motion";

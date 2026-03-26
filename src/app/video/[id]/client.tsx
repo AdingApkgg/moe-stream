@@ -183,7 +183,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   // --- 上传者模式 ---
   const { data: uploaderData } = trpc.video.getByUploader.useQuery(
-    { uploaderId: displayVideo?.uploader?.id! },
+    { uploaderId: displayVideo?.uploader?.id ?? "" },
     { enabled: selectorMode === "uploader" && !!displayVideo?.uploader?.id, staleTime: 60000 }
   );
 
