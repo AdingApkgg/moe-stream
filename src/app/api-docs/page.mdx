@@ -1,0 +1,95 @@
+import Link from "next/link"
+import { Endpoint, CopyBlock } from "@/components/mdx/api-doc-components"
+
+# API 文档
+
+通过 HTTP API 调用 tRPC 接口以编程方式访问平台功能，适合脚本、爬虫或自动化工作流。
+
+## 快速开始
+
+**1. 创建 API Key**
+
+前往 [设置 → 开发者](/settings/developer) 创建 API Key，根据需要勾选权限范围。
+
+**2. 发起请求**
+
+所有接口均为 POST 请求，通过 `Authorization: Bearer` 头携带 API Key：
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/video.list' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"limit":10,"page":1}}'`}</CopyBlock>
+
+**3. 处理响应**
+
+成功响应的数据位于 `result.data.json` 中：
+
+```json
+{
+  "result": {
+    "data": {
+      "json": { "id": "xxx", "title": "..." }
+    }
+  }
+}
+```
+
+详细的认证方式和请求格式请参阅 <Link href="/api-docs/authentication">认证与请求格式</Link>。
+
+---
+
+## 接口分类
+
+### 内容管理
+
+| 接口 | 说明 | 认证 |
+|------|------|------|
+| <Link href="/api-docs/video">`video.*`</Link> | 视频的增删改查、互动、历史记录、推荐 | 部分公开 |
+| <Link href="/api-docs/game">`game.*`</Link> | 游戏发布、类型筛选、互动 | 部分公开 |
+| <Link href="/api-docs/image">`image.*`</Link> | 图片帖发布、互动 | 部分公开 |
+
+### 互动
+
+| 接口 | 说明 | 认证 |
+|------|------|------|
+| <Link href="/api-docs/comment">`comment.*` / `gameComment.*` / `imagePostComment.*`</Link> | 评论发表、回复、互动、置顶 | 部分公开 |
+| <Link href="/api-docs/tag">`tag.*`</Link> | 标签搜索、热门、分类 | 公开 |
+| <Link href="/api-docs/series">`series.*`</Link> | 合集管理、剧集排序 | 部分公开 |
+
+### 系统
+
+| 接口 | 说明 | 认证 |
+|------|------|------|
+| <Link href="/api-docs/file">`file.*`</Link> | 分片上传、秒传、文件管理 | 需登录 |
+| <Link href="/api-docs/user">`user.*`</Link> | 用户资料查看与修改 | 部分公开 |
+| <Link href="/api-docs/social">`follow.*` / `message.*` / `channel.*`</Link> | 关注、私信、频道 | 部分公开 |
+| <Link href="/api-docs/notification">`notification.*`</Link> | 通知查询、标记已读 | 需登录 |
+
+### 开发者
+
+| 接口 | 说明 | 认证 |
+|------|------|------|
+| <Link href="/api-docs/api-key">`apiKey.*`</Link> | API Key 的创建、列表、删除 | 需登录 |
+
+---
+
+## 权限范围（Scopes）
+
+创建 API Key 时需选择权限范围，不同接口要求不同的 scope：
+
+| Scope | 说明 |
+|-------|------|
+| `content:read` | 查询视频、游戏、图片列表和详情 |
+| `content:write` | 创建、编辑、删除内容 |
+| `comment:read` | 查询评论 |
+| `comment:write` | 发表、编辑、删除评论 |
+| `social:read` | 查看关注、私信、频道 |
+| `social:write` | 关注用户、发送消息 |
+| `file:read` | 查询文件列表和存储用量 |
+| `file:write` | 上传、删除文件 |
+| `user:read` | 查看个人资料 |
+| `user:write` | 修改昵称、头像等 |
+| `notification:read` | 查询通知和未读数 |
+| `notification:write` | 标记已读、删除通知 |
+
+> 标注为「公开」的接口无需 API Key 即可调用。

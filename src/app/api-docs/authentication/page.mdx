@@ -1,0 +1,95 @@
+import { CopyBlock } from "@/components/mdx/api-doc-components"
+
+# 认证与请求格式
+
+## 认证方式
+
+所有需要登录的接口通过 `Authorization: Bearer` 头携带 API Key 认证。
+
+```
+Authorization: Bearer sk-your-api-key
+```
+
+前往 [设置 → 开发者](/settings/developer) 创建和管理 API Key。创建时根据需要勾选权限范围（scope）。
+
+> 公开接口（标注为「公开」）无需 API Key 即可调用。
+
+---
+
+## 请求格式
+
+所有接口均为 **POST** 请求（tRPC 协议），请求体需包裹在 `json` 字段内：
+
+```json
+{
+  "json": {
+    "title": "内容标题",
+    "...": "其他字段"
+  }
+}
+```
+
+### 响应格式
+
+成功响应：
+
+```json
+{
+  "result": {
+    "data": {
+      "json": { "id": "xxx", "title": "内容标题", "..." }
+    }
+  }
+}
+```
+
+错误响应：
+
+```json
+{
+  "error": {
+    "message": "错误信息",
+    "code": -32600,
+    "data": {
+      "code": "UNAUTHORIZED",
+      "httpStatus": 401
+    }
+  }
+}
+```
+
+---
+
+## curl 示例
+
+公开接口调用：
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/video.list' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"json":{"limit":10,"page":1}}'`}</CopyBlock>
+
+携带 API Key 的认证请求：
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/video.create' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"title":"视频标题","videoUrl":"https://example.com/video.mp4"}}'`}</CopyBlock>
+
+---
+
+## 权限范围
+
+| Scope | 说明 |
+|-------|------|
+| `content:read` | 查询视频、游戏、图片列表和详情 |
+| `content:write` | 创建、编辑、删除内容 |
+| `comment:read` | 查询评论 |
+| `comment:write` | 发表、编辑、删除评论 |
+| `social:read` | 查看关注、私信、频道 |
+| `social:write` | 关注用户、发送消息 |
+| `file:read` | 查询文件列表和存储用量 |
+| `file:write` | 上传、删除文件 |
+| `user:read` | 查看个人资料 |
+| `user:write` | 修改昵称、头像等 |
+| `notification:read` | 查询通知和未读数 |
+| `notification:write` | 标记已读、删除通知 |

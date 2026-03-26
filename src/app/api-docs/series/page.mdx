@@ -1,0 +1,99 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 合集
+
+合集（系列）的创建、管理和剧集排序接口。
+
+---
+
+## 合集列表
+
+<Endpoint method="POST" path="series.list" auth="public" />
+
+<ParamTable>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="page" type="number" required>页码</P>
+  <P name="sortBy" type="string">排序方式</P>
+</ParamTable>
+
+---
+
+## 合集详情
+
+<Endpoint method="POST" path="series.getById" auth="public" />
+
+返回合集信息及所含剧集列表。
+
+<ParamTable>
+  <P name="id" type="string" required>合集 ID</P>
+</ParamTable>
+
+---
+
+## 创建合集
+
+<Endpoint method="POST" path="series.create" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="title" type="string" required>合集标题</P>
+  <P name="description" type="string">描述</P>
+  <P name="coverUrl" type="string">封面 URL</P>
+  <P name="downloadUrl" type="string">下载链接</P>
+  <P name="downloadNote" type="string">下载说明</P>
+</ParamTable>
+
+---
+
+## 更新合集
+
+<Endpoint method="POST" path="series.update" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>合集 ID</P>
+  <P name="title" type="string">新标题</P>
+  <P name="description" type="string">新描述</P>
+  <P name="coverUrl" type="string">新封面</P>
+</ParamTable>
+
+---
+
+## 删除合集
+
+<Endpoint method="POST" path="series.delete" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>合集 ID</P>
+</ParamTable>
+
+---
+
+## 管理剧集
+
+### 添加视频到合集
+
+<Endpoint method="POST" path="series.addVideo" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="seriesId" type="string" required>合集 ID</P>
+  <P name="videoId" type="string" required>视频 ID</P>
+  <P name="episodeNum" type="number">集数编号</P>
+  <P name="episodeTitle" type="string">集数标题</P>
+</ParamTable>
+
+### 从合集移除视频
+
+<Endpoint method="POST" path="series.removeVideo" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="seriesId" type="string" required>合集 ID</P>
+  <P name="videoId" type="string" required>视频 ID</P>
+</ParamTable>
+
+### 重新排序剧集
+
+<Endpoint method="POST" path="series.reorderEpisodes" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="seriesId" type="string" required>合集 ID</P>
+  <P name="episodes" type="object[]" required>剧集排序 `[{videoId, episodeNum}]`</P>
+</ParamTable>

@@ -1,0 +1,199 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 视频
+
+视频内容的增删改查、互动操作、浏览记录、推荐等接口。
+
+---
+
+## 获取视频列表
+
+<Endpoint method="POST" path="video.list" auth="public" />
+
+分页查询已发布的视频，支持标签筛选和搜索。
+
+<ParamTable>
+  <P name="limit" type="number" required>每页数量（1-50，默认 20）</P>
+  <P name="page" type="number" required>页码（从 1 开始）</P>
+  <P name="search" type="string">搜索关键词</P>
+  <P name="tagSlugs" type="string[]">标签 slug 筛选</P>
+  <P name="excludeTagSlugs" type="string[]">排除的标签 slug</P>
+  <P name="sortBy" type="string">排序：`latest`（默认）/ `views` / `likes`</P>
+  <P name="timeRange" type="string">时间范围筛选</P>
+</ParamTable>
+
+---
+
+## 获取视频详情
+
+<Endpoint method="POST" path="video.getById" auth="public" />
+
+<ParamTable>
+  <P name="id" type="string" required>视频 ID</P>
+</ParamTable>
+
+---
+
+## 创建视频
+
+<Endpoint method="POST" path="video.create" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="title" type="string" required>视频标题（1-100 字符）</P>
+  <P name="videoUrl" type="string" required>视频文件 URL</P>
+  <P name="description" type="string">描述（最长 5000 字符）</P>
+  <P name="coverUrl" type="string">封面图 URL</P>
+  <P name="tagNames" type="string[]">标签名称数组（自动匹配或创建）</P>
+  <P name="tagIds" type="string[]">标签 ID 数组</P>
+  <P name="duration" type="number">视频时长（秒）</P>
+  <P name="extraInfo.author" type="string">作者名称</P>
+  <P name="extraInfo.downloads" type="object[]">下载链接 `[{name, url, password?}]`</P>
+  <P name="extraInfo.keywords" type="string[]">关键词数组</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/video.create' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"title":"视频标题","videoUrl":"https://example.com/video.mp4","description":"描述","coverUrl":"https://example.com/cover.jpg","tagNames":["标签1","标签2"],"extraInfo":{"author":"作者","downloads":[{"name":"网盘","url":"https://pan.example.com/xxx","password":"1234"}]}}}'`}</CopyBlock>
+
+---
+
+## 批量创建视频
+
+<Endpoint method="POST" path="video.batchCreate" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="videos" type="object[]" required>视频数组，每项同单个创建的字段</P>
+  <P name="seriesTitle" type="string">合集名称（自动创建合集）</P>
+  <P name="seriesDescription" type="string">合集描述</P>
+  <P name="seriesCoverUrl" type="string">合集封面 URL</P>
+</ParamTable>
+
+---
+
+## 更新视频
+
+<Endpoint method="POST" path="video.update" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>视频 ID</P>
+  <P name="title" type="string">新标题</P>
+  <P name="description" type="string">新描述</P>
+  <P name="coverUrl" type="string">新封面 URL</P>
+  <P name="videoUrl" type="string">新视频 URL</P>
+  <P name="tagNames" type="string[]">新标签名称</P>
+  <P name="extraInfo" type="object">新附加信息</P>
+</ParamTable>
+
+---
+
+## 删除视频
+
+<Endpoint method="POST" path="video.delete" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>视频 ID</P>
+</ParamTable>
+
+## 批量删除视频
+
+<Endpoint method="POST" path="video.batchDelete" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="ids" type="string[]" required>视频 ID 数组</P>
+</ParamTable>
+
+---
+
+## 我的视频列表
+
+<Endpoint method="POST" path="video.getMyVideos" auth="protected" scope="content:read" />
+
+<ParamTable>
+  <P name="page" type="number" required>页码</P>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="status" type="string">状态筛选：`ALL` / `PUBLISHED` / `PENDING` / `REJECTED`</P>
+  <P name="search" type="string">搜索关键词</P>
+  <P name="sortBy" type="string">排序方式</P>
+</ParamTable>
+
+---
+
+## 互动操作
+
+<Endpoint method="POST" path="video.like" auth="protected" scope="content:write" />
+<ParamTable><P name="videoId" type="string" required>视频 ID</P></ParamTable>
+
+<Endpoint method="POST" path="video.dislike" auth="protected" scope="content:write" />
+<ParamTable><P name="videoId" type="string" required>视频 ID</P></ParamTable>
+
+<Endpoint method="POST" path="video.favorite" auth="protected" scope="content:write" />
+<ParamTable><P name="videoId" type="string" required>视频 ID</P></ParamTable>
+
+<Endpoint method="POST" path="video.unfavorite" auth="protected" scope="content:write" />
+<ParamTable><P name="videoId" type="string" required>视频 ID</P></ParamTable>
+
+### 获取互动状态
+
+<Endpoint method="POST" path="video.getInteractionStatus" auth="protected" scope="content:read" />
+
+<ParamTable>
+  <P name="videoId" type="string" required>视频 ID</P>
+</ParamTable>
+
+返回当前用户对该视频的点赞、点踩、收藏状态。
+
+---
+
+## 搜索与推荐
+
+### 搜索建议
+
+<Endpoint method="POST" path="video.searchSuggestions" auth="public" />
+
+<ParamTable>
+  <P name="query" type="string" required>搜索关键词</P>
+  <P name="limit" type="number">返回条数（默认 5）</P>
+</ParamTable>
+
+### 热门搜索
+
+<Endpoint method="POST" path="video.getHotSearches" auth="public" />
+
+<ParamTable>
+  <P name="limit" type="number">返回条数（1-20，默认 10）</P>
+</ParamTable>
+
+### 推荐视频
+
+<Endpoint method="POST" path="video.getRecommendations" auth="public" />
+<ParamTable>
+  <P name="videoId" type="string" required>视频 ID（基于该视频推荐相关内容）</P>
+  <P name="limit" type="number">返回条数</P>
+</ParamTable>
+
+---
+
+## 浏览记录
+
+<Endpoint method="POST" path="video.recordHistory" auth="protected" scope="content:write" />
+<ParamTable>
+  <P name="videoId" type="string" required>视频 ID</P>
+  <P name="progress" type="number" required>播放进度（秒）</P>
+</ParamTable>
+
+<Endpoint method="POST" path="video.getHistory" auth="protected" scope="content:read" />
+<ParamTable>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="page" type="number" required>页码</P>
+</ParamTable>
+
+---
+
+## 收藏列表
+
+<Endpoint method="POST" path="video.getFavorites" auth="protected" scope="content:read" />
+<ParamTable>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="page" type="number" required>页码</P>
+</ParamTable>

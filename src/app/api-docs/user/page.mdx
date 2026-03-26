@@ -1,0 +1,59 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 用户
+
+用户资料的查看、修改和搜索接口。
+
+---
+
+## 获取用户资料
+
+<Endpoint method="POST" path="user.getProfile" auth="public" />
+
+<ParamTable>
+  <P name="id" type="string" required>用户 ID</P>
+</ParamTable>
+
+---
+
+## 获取当前用户信息
+
+<Endpoint method="POST" path="user.me" auth="protected" scope="user:read" />
+
+返回当前登录用户的完整资料。
+
+---
+
+## 更新资料
+
+<Endpoint method="POST" path="user.updateProfile" auth="protected" scope="user:write" />
+
+<ParamTable>
+  <P name="nickname" type="string">昵称</P>
+  <P name="bio" type="string">个人简介</P>
+  <P name="pronouns" type="string">代词</P>
+  <P name="website" type="string">个人网站</P>
+  <P name="location" type="string">所在地</P>
+  <P name="socialLinks" type="object">社交链接</P>
+</ParamTable>
+
+---
+
+## 更新头像
+
+<Endpoint method="POST" path="user.updateAvatar" auth="protected" scope="user:write" />
+
+<ParamTable>
+  <P name="avatar" type="string" required>头像 URL 或路径</P>
+</ParamTable>
+
+---
+
+## 搜索用户
+
+<Endpoint method="POST" path="user.search" auth="protected" scope="user:read" />
+
+<ParamTable>
+  <P name="query" type="string" required>搜索关键词</P>
+  <P name="limit" type="number" required>返回条数</P>
+</ParamTable>

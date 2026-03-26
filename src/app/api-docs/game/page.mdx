@@ -1,0 +1,99 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 游戏
+
+游戏内容的发布、查询、类型筛选和互动操作接口。
+
+---
+
+## 获取游戏列表
+
+<Endpoint method="POST" path="game.list" auth="public" />
+
+<ParamTable>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="page" type="number" required>页码</P>
+  <P name="search" type="string">搜索关键词</P>
+  <P name="gameType" type="string">游戏类型：`ADV` / `SLG` / `RPG` / `ACT` 等</P>
+  <P name="tagSlugs" type="string[]">标签 slug 筛选</P>
+  <P name="sortBy" type="string">排序方式</P>
+  <P name="timeRange" type="string">时间范围</P>
+</ParamTable>
+
+---
+
+## 获取游戏详情
+
+<Endpoint method="POST" path="game.getById" auth="public" />
+
+<ParamTable>
+  <P name="id" type="string" required>游戏 ID</P>
+</ParamTable>
+
+---
+
+## 创建游戏
+
+<Endpoint method="POST" path="game.create" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="title" type="string" required>游戏标题（1-200 字符）</P>
+  <P name="description" type="string">描述（最长 5000 字符）</P>
+  <P name="coverUrl" type="string">封面图 URL</P>
+  <P name="gameType" type="string">游戏类型（ADV、SLG、RPG、ACT 等）</P>
+  <P name="isFree" type="boolean">是否免费（默认 true）</P>
+  <P name="version" type="string">版本号（如 Ver1.0）</P>
+  <P name="tagNames" type="string[]">标签名称数组</P>
+  <P name="extraInfo.originalName" type="string">原作名</P>
+  <P name="extraInfo.originalAuthor" type="string">作者</P>
+  <P name="extraInfo.fileSize" type="string">文件大小（如 2.5GB）</P>
+  <P name="extraInfo.platforms" type="string[]">支持平台（Windows、Android 等）</P>
+  <P name="extraInfo.screenshots" type="string[]">截图 URL 数组</P>
+  <P name="extraInfo.downloads" type="object[]">下载链接 `[{name, url, password?}]`</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/game.create' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"title":"游戏标题","gameType":"ADV","isFree":true,"version":"Ver1.0","tagNames":["标签1"],"extraInfo":{"originalAuthor":"作者","fileSize":"2.5GB","platforms":["Windows","Android"],"downloads":[{"name":"夸克网盘","url":"https://...","password":"1234"}]}}}'`}</CopyBlock>
+
+---
+
+## 批量创建游戏
+
+<Endpoint method="POST" path="game.batchCreate" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="games" type="object[]" required>游戏数组，每项同单个创建的字段</P>
+</ParamTable>
+
+---
+
+## 游戏互动
+
+<Endpoint method="POST" path="game.toggleFavorite" auth="protected" scope="content:write" />
+<ParamTable><P name="gameId" type="string" required>游戏 ID</P></ParamTable>
+
+<Endpoint method="POST" path="game.toggleReaction" auth="protected" scope="content:write" />
+<ParamTable>
+  <P name="gameId" type="string" required>游戏 ID</P>
+  <P name="type" type="string" required>`like` 或 `dislike`</P>
+</ParamTable>
+
+---
+
+## 游戏类型统计
+
+<Endpoint method="POST" path="game.getTypeStats" auth="public" />
+
+返回各游戏类型的数量统计。
+
+---
+
+## 相关游戏
+
+<Endpoint method="POST" path="game.getRelated" auth="public" />
+<ParamTable>
+  <P name="gameId" type="string" required>游戏 ID</P>
+  <P name="limit" type="number">返回条数</P>
+</ParamTable>

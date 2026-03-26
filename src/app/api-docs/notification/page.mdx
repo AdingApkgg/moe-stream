@@ -1,0 +1,50 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 通知
+
+通知的查询、标记已读和删除接口。所有通知接口均需登录。
+
+---
+
+## 通知列表
+
+<Endpoint method="POST" path="notification.list" auth="protected" scope="notification:read" />
+
+<ParamTable>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+  <P name="type" type="string">通知类型筛选</P>
+  <P name="unreadOnly" type="boolean">仅显示未读（默认 false）</P>
+</ParamTable>
+
+---
+
+## 未读数
+
+<Endpoint method="POST" path="notification.unreadCount" auth="protected" scope="notification:read" />
+
+---
+
+## 标记已读
+
+<Endpoint method="POST" path="notification.markAsRead" auth="protected" scope="notification:write" />
+
+<ParamTable>
+  <P name="id" type="string">通知 ID（留空则标记全部）</P>
+  <P name="all" type="boolean">标记全部已读</P>
+</ParamTable>
+
+---
+
+## 删除通知
+
+<Endpoint method="POST" path="notification.delete" auth="protected" scope="notification:write" />
+<ParamTable><P name="id" type="string" required>通知 ID</P></ParamTable>
+
+---
+
+## 删除全部通知
+
+<Endpoint method="POST" path="notification.deleteAll" auth="protected" scope="notification:write" />
+
+删除当前用户的所有通知。

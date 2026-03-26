@@ -1,0 +1,121 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 评论
+
+三种内容类型（视频、游戏、图片）各有独立的评论接口，结构相同，仅路由名和关联 ID 字段不同。
+
+| 内容类型 | 路由前缀 | 关联字段 |
+|---------|---------|---------|
+| 视频 | `comment` | `videoId` |
+| 游戏 | `gameComment` | `gameId` |
+| 图片 | `imagePostComment` | `imagePostId` |
+
+> 以下以视频评论 `comment.*` 为例，游戏和图片接口结构一致。
+
+---
+
+## 获取评论列表
+
+<Endpoint method="POST" path="comment.list" auth="public" />
+
+<ParamTable>
+  <P name="videoId" type="string" required>视频 ID（游戏用 `gameId`，图片用 `imagePostId`）</P>
+  <P name="sort" type="string">排序：`newest` / `oldest` / `popular`</P>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+---
+
+## 获取回复
+
+<Endpoint method="POST" path="comment.getReplies" auth="public" />
+
+<ParamTable>
+  <P name="commentId" type="string" required>父评论 ID</P>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+---
+
+## 获取评论数
+
+<Endpoint method="POST" path="comment.getCount" auth="public" />
+
+<ParamTable>
+  <P name="videoId" type="string" required>内容 ID</P>
+</ParamTable>
+
+---
+
+## 发表评论
+
+<Endpoint method="POST" path="comment.create" auth="public" scope="comment:write" />
+
+> 部分站点配置需要登录才能评论，未登录时可能返回 `UNAUTHORIZED`。
+
+<ParamTable>
+  <P name="videoId" type="string" required>内容 ID</P>
+  <P name="content" type="string" required>评论内容</P>
+  <P name="parentId" type="string">父评论 ID（用于回复）</P>
+  <P name="replyToUserId" type="string">回复的用户 ID</P>
+</ParamTable>
+
+---
+
+## 编辑评论
+
+<Endpoint method="POST" path="comment.update" auth="protected" scope="comment:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>评论 ID</P>
+  <P name="content" type="string" required>新内容</P>
+</ParamTable>
+
+---
+
+## 删除评论
+
+<Endpoint method="POST" path="comment.delete" auth="protected" scope="comment:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>评论 ID</P>
+</ParamTable>
+
+---
+
+## 评论互动
+
+<Endpoint method="POST" path="comment.react" auth="protected" scope="comment:write" />
+
+<ParamTable>
+  <P name="commentId" type="string" required>评论 ID</P>
+  <P name="isLike" type="boolean | null" required>`true` 点赞 / `false` 点踩 / `null` 取消</P>
+</ParamTable>
+
+---
+
+## 置顶评论
+
+<Endpoint method="POST" path="comment.pin" auth="protected" scope="comment:write" />
+
+仅内容上传者或管理员可操作。
+
+<ParamTable>
+  <P name="commentId" type="string" required>评论 ID</P>
+  <P name="isPinned" type="boolean" required>是否置顶</P>
+</ParamTable>
+
+---
+
+## 最近评论
+
+<Endpoint method="POST" path="comment.listRecent" auth="public" />
+
+全站最近评论，按时间倒序。
+
+<ParamTable>
+  <P name="page" type="number" required>页码</P>
+  <P name="limit" type="number" required>每页数量</P>
+</ParamTable>

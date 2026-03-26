@@ -1,0 +1,58 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 标签
+
+标签的搜索、热门查询和分类管理接口。所有标签接口均为公开接口，无需认证。
+
+---
+
+## 搜索 / 列表
+
+<Endpoint method="POST" path="tag.list" auth="public" />
+
+<ParamTable>
+  <P name="search" type="string">搜索关键词</P>
+  <P name="limit" type="number">返回条数</P>
+  <P name="type" type="string">内容类型：`video` / `game` / `image`</P>
+  <P name="categoryId" type="string">分类 ID</P>
+</ParamTable>
+
+---
+
+## 按 slug 获取
+
+<Endpoint method="POST" path="tag.getBySlug" auth="public" />
+
+<ParamTable>
+  <P name="slug" type="string" required>标签 slug</P>
+  <P name="type" type="string">内容类型（默认 `video`）</P>
+</ParamTable>
+
+---
+
+## 热门标签
+
+<Endpoint method="POST" path="tag.popular" auth="public" />
+
+<ParamTable>
+  <P name="limit" type="number" required>返回条数</P>
+  <P name="type" type="string" required>内容类型</P>
+</ParamTable>
+
+---
+
+## 标签分类
+
+<Endpoint method="POST" path="tag.categories" auth="public" />
+
+返回所有标签分类。
+
+---
+
+## 按分类分组
+
+<Endpoint method="POST" path="tag.groupedByCategory" auth="public" />
+
+<ParamTable>
+  <P name="type" type="string">内容类型</P>
+</ParamTable>

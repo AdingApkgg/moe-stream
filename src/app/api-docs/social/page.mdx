@@ -1,0 +1,127 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 社交
+
+关注、私信和频道相关接口。
+
+---
+
+## 关注
+
+<Endpoint method="POST" path="follow.follow" auth="protected" scope="social:write" />
+<ParamTable><P name="userId" type="string" required>目标用户 ID</P></ParamTable>
+
+<Endpoint method="POST" path="follow.unfollow" auth="protected" scope="social:write" />
+<ParamTable><P name="userId" type="string" required>目标用户 ID</P></ParamTable>
+
+<Endpoint method="POST" path="follow.isFollowing" auth="protected" scope="social:read" />
+<ParamTable><P name="userId" type="string" required>目标用户 ID</P></ParamTable>
+
+---
+
+## 粉丝 / 关注列表
+
+<Endpoint method="POST" path="follow.followers" auth="public" />
+<ParamTable>
+  <P name="userId" type="string" required>用户 ID</P>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+<Endpoint method="POST" path="follow.following" auth="public" />
+<ParamTable>
+  <P name="userId" type="string" required>用户 ID</P>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+<Endpoint method="POST" path="follow.counts" auth="public" />
+<ParamTable><P name="userId" type="string" required>用户 ID</P></ParamTable>
+
+---
+
+## 私信
+
+### 会话列表
+
+<Endpoint method="POST" path="message.conversations" auth="protected" scope="social:read" />
+
+<ParamTable>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+### 获取或创建会话
+
+<Endpoint method="POST" path="message.getOrCreate" auth="protected" scope="social:write" />
+
+<ParamTable>
+  <P name="userId" type="string" required>目标用户 ID</P>
+</ParamTable>
+
+### 获取消息列表
+
+<Endpoint method="POST" path="message.messages" auth="protected" scope="social:read" />
+
+<ParamTable>
+  <P name="conversationId" type="string" required>会话 ID</P>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+### 发送消息
+
+<Endpoint method="POST" path="message.send" auth="protected" scope="social:write" />
+
+<ParamTable>
+  <P name="conversationId" type="string" required>会话 ID</P>
+  <P name="content" type="string">消息内容</P>
+  <P name="type" type="string">消息类型：`TEXT` / `IMAGE` / `FILE` / `STICKER`</P>
+  <P name="metadata" type="object">附加数据</P>
+</ParamTable>
+
+---
+
+## 频道
+
+### 频道列表
+
+<Endpoint method="POST" path="channel.list" auth="public" />
+
+<ParamTable>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+</ParamTable>
+
+### 按 slug 获取频道
+
+<Endpoint method="POST" path="channel.getBySlug" auth="public" />
+<ParamTable><P name="slug" type="string" required>频道 slug</P></ParamTable>
+
+### 创建频道
+
+<Endpoint method="POST" path="channel.create" auth="protected" scope="social:write" />
+<ParamTable>
+  <P name="name" type="string" required>频道名称</P>
+  <P name="slug" type="string" required>频道 slug（URL 标识）</P>
+  <P name="description" type="string">描述</P>
+  <P name="type" type="string">类型：`PUBLIC` / `PRIVATE`</P>
+</ParamTable>
+
+### 加入 / 离开频道
+
+<Endpoint method="POST" path="channel.join" auth="protected" scope="social:write" />
+<ParamTable><P name="channelId" type="string" required>频道 ID</P></ParamTable>
+
+<Endpoint method="POST" path="channel.leave" auth="protected" scope="social:write" />
+<ParamTable><P name="channelId" type="string" required>频道 ID</P></ParamTable>
+
+### 发送频道消息
+
+<Endpoint method="POST" path="channel.send" auth="protected" scope="social:write" />
+<ParamTable>
+  <P name="channelId" type="string" required>频道 ID</P>
+  <P name="content" type="string">消息内容</P>
+  <P name="type" type="string">消息类型</P>
+  <P name="replyToId" type="string">回复的消息 ID</P>
+</ParamTable>

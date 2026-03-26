@@ -1,0 +1,57 @@
+# 错误处理
+
+API 返回标准 tRPC 错误格式。
+
+## 错误码
+
+| HTTP 状态码 | tRPC Code | 说明 |
+|------------|-----------|------|
+| 400 | `BAD_REQUEST` | 请求参数无效 |
+| 401 | `UNAUTHORIZED` | 未认证或 API Key 无效/过期 |
+| 403 | `FORBIDDEN` | 权限不足（scope 不匹配或无操作权限） |
+| 404 | `NOT_FOUND` | 资源不存在 |
+| 429 | `TOO_MANY_REQUESTS` | 请求频率超限 |
+| 500 | `INTERNAL_SERVER_ERROR` | 服务器内部错误 |
+
+## 错误响应格式
+
+```json
+{
+  "error": {
+    "message": "错误信息",
+    "code": -32600,
+    "data": {
+      "code": "UNAUTHORIZED",
+      "httpStatus": 401
+    }
+  }
+}
+```
+
+---
+
+## 常见问题
+
+### API Key 无效
+
+确认 Key 未被删除或过期，检查 `Authorization` 头格式是否正确：
+
+```
+Authorization: Bearer sk-your-api-key
+```
+
+### 权限不足
+
+确认 Key 拥有所需的 scope。例如创建内容需要 `content:write`，上传文件需要 `file:write`。
+
+### 请求体格式错误
+
+确保参数包裹在 `{"json": {...}}` 内，这是 tRPC 协议的要求。
+
+### 批量操作限制
+
+批量接口每次最多约 200 条，超出需分批请求。
+
+### 内容审核
+
+发布内容可能需要管理员审核后才会公开，取决于站点配置。

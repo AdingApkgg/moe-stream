@@ -1,0 +1,133 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 文件上传
+
+文件上传采用分片上传流程，适合大文件传输。
+
+## 上传流程
+
+1. 调用 `file.checkHash` 检查文件是否已存在（秒传）
+2. 调用 `file.initUpload` 初始化上传，获取 `fileId`
+3. 上传文件分片（根据返回的上传方式）
+4. 调用 `file.completeUpload` 完成上传
+5. 调用 `file.attach` 关联文件到内容
+
+---
+
+## 检查文件哈希（秒传）
+
+<Endpoint method="POST" path="file.checkHash" auth="protected" scope="file:write" />
+
+如果文件已存在，直接返回文件信息，无需重复上传。
+
+<ParamTable>
+  <P name="hash" type="string" required>文件 SHA-256 哈希（64 位十六进制）</P>
+  <P name="size" type="number" required>文件大小（字节）</P>
+  <P name="mimeType" type="string" required>MIME 类型</P>
+  <P name="filename" type="string" required>文件名</P>
+  <P name="contentType" type="string">关联的内容类型</P>
+  <P name="contentId" type="string">关联的内容 ID</P>
+</ParamTable>
+
+---
+
+## 初始化上传
+
+<Endpoint method="POST" path="file.initUpload" auth="protected" scope="file:write" />
+
+<ParamTable>
+  <P name="filename" type="string" required>文件名</P>
+  <P name="size" type="number" required>文件大小（字节）</P>
+  <P name="mimeType" type="string" required>MIME 类型</P>
+  <P name="hash" type="string">文件哈希</P>
+  <P name="contentType" type="string">关联的内容类型</P>
+  <P name="contentId" type="string">关联的内容 ID</P>
+</ParamTable>
+
+---
+
+## 获取上传进度
+
+<Endpoint method="POST" path="file.getUploadProgress" auth="protected" scope="file:read" />
+
+<ParamTable>
+  <P name="fileId" type="string" required>文件 ID</P>
+</ParamTable>
+
+---
+
+## 完成上传
+
+<Endpoint method="POST" path="file.completeUpload" auth="protected" scope="file:write" />
+
+<ParamTable>
+  <P name="fileId" type="string" required>文件 ID</P>
+  <P name="uploadId" type="string">S3 上传 ID（分片上传时需要）</P>
+  <P name="parts" type="object[]">分片信息</P>
+  <P name="hash" type="string">文件哈希</P>
+</ParamTable>
+
+---
+
+## 关联文件
+
+<Endpoint method="POST" path="file.attach" auth="protected" scope="file:write" />
+
+<ParamTable>
+  <P name="fileId" type="string" required>文件 ID</P>
+  <P name="contentType" type="string" required>`video` / `game` / `imagePost`</P>
+  <P name="contentId" type="string" required>内容 ID</P>
+</ParamTable>
+
+---
+
+## 取消关联
+
+<Endpoint method="POST" path="file.detach" auth="protected" scope="file:write" />
+
+<ParamTable>
+  <P name="fileId" type="string" required>文件 ID</P>
+</ParamTable>
+
+---
+
+## 删除文件
+
+<Endpoint method="POST" path="file.delete" auth="protected" scope="file:write" />
+
+<ParamTable>
+  <P name="fileId" type="string" required>文件 ID</P>
+</ParamTable>
+
+---
+
+## 文件列表
+
+<Endpoint method="POST" path="file.list" auth="protected" scope="file:read" />
+
+<ParamTable>
+  <P name="cursor" type="string">分页游标</P>
+  <P name="limit" type="number">每页数量</P>
+  <P name="contentType" type="string">内容类型筛选</P>
+  <P name="contentId" type="string">内容 ID 筛选</P>
+  <P name="mimePrefix" type="string">MIME 前缀筛选（如 `image/`）</P>
+</ParamTable>
+
+---
+
+## 获取内容关联文件
+
+<Endpoint method="POST" path="file.getByContent" auth="public" />
+
+<ParamTable>
+  <P name="contentType" type="string" required>`video` / `game` / `imagePost`</P>
+  <P name="contentId" type="string" required>内容 ID</P>
+</ParamTable>
+
+---
+
+## 存储用量
+
+<Endpoint method="POST" path="file.getStorageUsage" auth="protected" scope="file:read" />
+
+返回已用空间和配额信息。

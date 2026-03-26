@@ -1,0 +1,84 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 图片
+
+图片帖的发布、查询和互动操作接口。
+
+---
+
+## 获取图片列表
+
+<Endpoint method="POST" path="image.list" auth="public" />
+
+<ParamTable>
+  <P name="limit" type="number" required>每页数量</P>
+  <P name="page" type="number" required>页码</P>
+  <P name="search" type="string">搜索关键词</P>
+  <P name="tagSlugs" type="string[]">标签 slug 筛选</P>
+  <P name="sortBy" type="string">排序：`latest` / `views`</P>
+</ParamTable>
+
+---
+
+## 获取图片详情
+
+<Endpoint method="POST" path="image.getById" auth="public" />
+
+<ParamTable>
+  <P name="id" type="string" required>图片帖 ID</P>
+</ParamTable>
+
+---
+
+## 创建图片帖
+
+<Endpoint method="POST" path="image.create" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="title" type="string" required>标题（1-200 字符）</P>
+  <P name="images" type="string[]" required>图片 URL 数组（至少一张）</P>
+  <P name="description" type="string">描述（最长 5000 字符）</P>
+  <P name="tagNames" type="string[]">标签名称数组</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/image.create' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"title":"图片标题","images":["https://example.com/img1.jpg","https://example.com/img2.jpg"],"tagNames":["标签1"]}}'`}</CopyBlock>
+
+---
+
+## 批量创建图片帖
+
+<Endpoint method="POST" path="image.batchCreate" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="posts" type="object[]" required>图片帖数组，每项同单个创建的字段</P>
+</ParamTable>
+
+---
+
+## 更新图片帖
+
+<Endpoint method="POST" path="image.update" auth="protected" scope="content:write" />
+
+<ParamTable>
+  <P name="id" type="string" required>图片帖 ID</P>
+  <P name="title" type="string">新标题</P>
+  <P name="description" type="string">新描述</P>
+  <P name="images" type="string[]">新图片 URL 数组</P>
+  <P name="tagNames" type="string[]">新标签</P>
+</ParamTable>
+
+---
+
+## 图片互动
+
+<Endpoint method="POST" path="image.toggleReaction" auth="protected" scope="content:write" />
+<ParamTable>
+  <P name="imagePostId" type="string" required>图片帖 ID</P>
+  <P name="type" type="string" required>`like` 或 `dislike`</P>
+</ParamTable>
+
+<Endpoint method="POST" path="image.toggleFavorite" auth="protected" scope="content:write" />
+<ParamTable><P name="imagePostId" type="string" required>图片帖 ID</P></ParamTable>

@@ -1,0 +1,39 @@
+import { Endpoint, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# API Key 管理
+
+API Key 的创建、列表和删除接口。所有接口均需登录。
+
+> API Key 管理接口通过 Cookie Session 认证即可调用，也可以使用已有的 API Key 认证。
+
+---
+
+## 列表
+
+<Endpoint method="POST" path="apiKey.list" auth="protected" />
+
+返回当前用户的所有 API Key（不含完整密钥）。
+
+---
+
+## 创建
+
+<Endpoint method="POST" path="apiKey.create" auth="protected" />
+
+创建成功后返回完整密钥（仅此一次），请妥善保存。每个用户最多 10 个 Key。
+
+<ParamTable>
+  <P name="name" type="string" required>Key 名称（1-50 字符）</P>
+  <P name="scopes" type="string[]" required>权限范围数组</P>
+  <P name="expiresAt" type="Date">过期时间（不设置则永不过期）</P>
+</ParamTable>
+
+---
+
+## 删除
+
+<Endpoint method="POST" path="apiKey.delete" auth="protected" />
+
+<ParamTable>
+  <P name="id" type="string" required>API Key ID</P>
+</ParamTable>

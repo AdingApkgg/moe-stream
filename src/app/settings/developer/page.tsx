@@ -384,8 +384,8 @@ export default function DeveloperSettingsPage() {
           </p>
           <p>
             详细接口文档请前往{" "}
-            <a href="/upload" className="text-primary underline underline-offset-2">
-              发布页 → API 发布
+            <a href="/api-docs" className="text-primary underline underline-offset-2">
+              API 文档
             </a>{" "}
             查看。
           </p>
