@@ -1,0 +1,53 @@
+# 依赖
+node_modules/
+
+# 构建产物
+.next/
+out/
+build/
+
+# Prisma 生成客户端（机器生成，不应被 AI 索引）
+src/generated/
+
+# 锁文件（体积大、无语义价值）
+pnpm-lock.yaml
+
+# 生成的 Service Worker & 弹幕库
+public/sw.js
+public/sw.js.map
+public/ccl*.js
+
+# 部署平台配置（模板文件，不影响业务逻辑）
+k8s/
+aws/
+coolify/
+sealos/
+.do/
+fly.toml
+railway.toml
+zbpack.json
+render.yaml
+Dockerfile
+Dockerfile.socket
+deploy.sh
+
+# 日志 & 临时文件
+logs/
+coverage/
+.nyc_output/
+
+# 二进制 & 媒体（AI 无法解析）
+uploads/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.svg
+*.woff
+*.woff2
+*.ttf
+*.eot
+*.mp4
+*.webm

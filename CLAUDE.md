@@ -4,12 +4,12 @@
 
 - **Next.js 16** (App Router, Turbopack, `output: "standalone"`)、**React 19**、**TypeScript 5.9** (`strict`)
 - **tRPC 11** + **Zod 4** (API)、**TanStack Query 5** (数据获取)、**superjson** (序列化)
-- **Prisma 7** + **PostgreSQL** (ORM，客户端输出到 `src/generated/prisma`)
+- **Prisma 7** + **PostgreSQL** (ORM，适配器 `@prisma/adapter-pg`，客户端输出到 `src/generated/prisma`)
 - **Better Auth** (认证，JWT + 邮箱验证码 + 2FA/Passkey)
 - **Tailwind CSS v4** + **shadcn/ui** (new-york 风格, Radix 原语) + **Framer Motion**
 - **Zustand** (全局状态，`src/stores/`)、**React Context** (`src/contexts/`)
 - **Socket.io** (实时通信，独立进程)、**Redis** (`ioredis`)
-- **pnpm 10** (包管理)
+- **pnpm 10** (包管理)、**Biome** (格式化)、**ESLint** (lint)
 
 ## 路径别名
 
@@ -81,4 +81,12 @@ Context 可用字段：`ctx.prisma`、`ctx.redis`、`ctx.session`、`ctx.ipv4Add
 - `pnpm db:generate` — 生成 Prisma 客户端
 - `pnpm db:push` — 推送 schema 到数据库
 - `pnpm lint` — ESLint + TypeScript 检查
+- `pnpm biome check .` — Biome 格式 & lint 检查
 - `pnpm build` — 构建生产版本（Prisma Generate → Next Build → Serwist Build）
+
+## 代码风格
+
+- 格式化由 **Biome** 负责（`biome.json`），缩进 2 空格，双引号，分号，行宽 120
+- Lint 由 **ESLint** 负责（flat config），Biome linter 已禁用避免冲突
+- pre-commit hook 自动运行 `lint-staged`（Biome check + ESLint fix）
+- 界面文案与代码注释使用**中文**
