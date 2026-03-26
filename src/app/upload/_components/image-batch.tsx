@@ -122,14 +122,14 @@ export function ImageBatchUpload() {
   const totalChunks = parsed ? Math.ceil(parsed.posts.length / CHUNK_SIZE) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <FileText className="h-4 w-4" />
             批量导入图片帖
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             拖入或选择 JSON 文件批量导入图片帖（每 {CHUNK_SIZE} 个一批，自动分块处理）
           </CardDescription>
         </CardHeader>
@@ -146,7 +146,7 @@ export function ImageBatchUpload() {
           />
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button type="button" onClick={handleImport} disabled={!parsed || parsed.posts.length === 0 || importing}>
+            <Button type="button" size="sm" onClick={handleImport} disabled={!parsed || parsed.posts.length === 0 || importing}>
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
               {importing
                 ? `导入中 ${progress.current}/${progress.total}`
@@ -185,8 +185,8 @@ function ImagePreviewCard({ parsed, totalChunks }: { parsed: ParsedImageBatchDat
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">解析预览</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-sm font-medium">解析预览</CardTitle>
+        <CardDescription className="text-xs">
           共 {parsed.posts.length} 个图片帖{totalChunks > 1 ? `，将分 ${totalChunks} 批处理` : ""}
         </CardDescription>
       </CardHeader>

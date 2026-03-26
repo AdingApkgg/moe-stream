@@ -80,12 +80,22 @@ export function ImageSingleUpload() {
     }
   };
 
+  const submitButton = (
+    <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
+      {isLoading ? (
+        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</>
+      ) : (
+        <><Upload className="mr-2 h-4 w-4" />发布图片</>
+      )}
+    </Button>
+  );
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
           {/* 左侧主内容 */}
-          <div className="space-y-6 min-w-0">
+          <div className="space-y-5 min-w-0 pb-20 lg:pb-0">
             <Card>
               <CardContent className="pt-6 space-y-4">
                 <FormField
@@ -189,20 +199,15 @@ export function ImageSingleUpload() {
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
 
-            <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  发布中...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  发布图片
-                </>
-              )}
-            </Button>
+            <div className="hidden lg:block">
+              {submitButton}
+            </div>
           </div>
+        </div>
+
+        {/* 移动端底部固定提交栏 */}
+        <div className="fixed bottom-0 inset-x-0 p-4 bg-background/95 backdrop-blur-sm border-t lg:hidden z-40">
+          {submitButton}
         </div>
       </form>
     </Form>

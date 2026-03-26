@@ -140,7 +140,7 @@ export function ImageQuickBatch() {
   useSubmitShortcut(handleSubmit, !importing && validEntries.length > 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-20 lg:pb-0">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -325,6 +325,23 @@ export function ImageQuickBatch() {
       </Card>
 
       <ImageBatchResults results={results} importing={importing} />
+
+      {/* 移动端底部固定提交栏 */}
+      <div className="fixed bottom-0 inset-x-0 p-4 bg-background/95 backdrop-blur-sm border-t lg:hidden z-40">
+        <Button
+          type="button"
+          className="w-full h-11"
+          size="lg"
+          onClick={handleSubmit}
+          disabled={validEntries.length === 0 || importing}
+        >
+          {importing ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</>
+          ) : (
+            <><Upload className="mr-2 h-4 w-4" />批量发布 ({validEntries.length})</>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

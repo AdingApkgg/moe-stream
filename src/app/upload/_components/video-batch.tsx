@@ -169,14 +169,14 @@ export function VideoBatchUpload() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <FileText className="h-4 w-4" />
             JSON 文件导入
           </CardTitle>
-          <CardDescription>拖入或选择 JSON 文件，自动解析合集与视频并批量导入</CardDescription>
+          <CardDescription className="text-xs">拖入或选择 JSON 文件，自动解析合集与视频并批量导入</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <DropZone
@@ -193,6 +193,7 @@ export function VideoBatchUpload() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               type="button"
+              size="sm"
               onClick={handleImport}
               disabled={!parsed || parsed.totalVideos === 0 || importing}
             >
@@ -234,8 +235,8 @@ function PreviewCard({ parsed }: { parsed: ParsedBatchData }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">解析预览</CardTitle>
-        <CardDescription>共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频</CardDescription>
+        <CardTitle className="text-sm font-medium">解析预览</CardTitle>
+        <CardDescription className="text-xs">共 {parsed.series.length} 个合集，{parsed.totalVideos} 个视频</CardDescription>
       </CardHeader>
       <CardContent>
         <ScrollArea className={parsed.series.length > 5 ? "h-[500px]" : ""}>

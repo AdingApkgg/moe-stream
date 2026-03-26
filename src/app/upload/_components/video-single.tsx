@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
 import { VideoPlayer } from "@/components/video/video-player";
@@ -21,10 +22,11 @@ import { CoverInput } from "./cover-input";
 import type { TagItem } from "../_lib/types";
 import type { VideoExtraInfo } from "@/lib/shortcode-parser";
 import {
-  Download, Eye, EyeOff,
+  ChevronDown, Download, Eye, EyeOff,
   Layers, ListVideo, Loader2, Plus, Trash2, Upload, User,
 } from "lucide-react";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
+import { cn } from "@/lib/utils";
 
 export function VideoSingleUpload() {
   const router = useRouter();
@@ -38,6 +40,7 @@ export function VideoSingleUpload() {
   const [showCreateSeries, setShowCreateSeries] = useState(false);
   const [newSeriesTitle, setNewSeriesTitle] = useState("");
   const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
+  const [extraOpen, setExtraOpen] = useState(false);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery({ limit: 50 });
@@ -77,6 +80,18 @@ export function VideoSingleUpload() {
     (extraInfo.episodes?.length ?? 0) > 0 || (extraInfo.relatedVideos?.length ?? 0) > 0 ||
     (extraInfo.notices?.length ?? 0) > 0;
 
+  const extraFilledCount = useMemo(() => {
+    let count = 0;
+    if (extraInfo.intro) count++;
+    if (extraInfo.author || extraInfo.authorIntro) count++;
+    if (extraInfo.keywords?.length) count++;
+    if (extraInfo.downloads?.length) count++;
+    if (extraInfo.episodes?.length) count++;
+    if (extraInfo.relatedVideos?.length) count++;
+    if (extraInfo.notices?.length) count++;
+    return count;
+  }, [extraInfo]);
+
   const onSubmit = async (data: VideoUploadForm) => {
     setIsLoading(true);
     try {
@@ -107,12 +122,18 @@ export function VideoSingleUpload() {
     }
   };
 
+  const submitButton = (
+    <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
+      {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</> : <><Upload className="mr-2 h-4 w-4" />发布视频</>}
+    </Button>
+  );
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
           {/* 左侧主内容 */}
-          <div className="space-y-6 min-w-0">
+          <div className="space-y-5 min-w-0 pb-20 lg:pb-0">
             <Card>
               <CardContent className="pt-6 space-y-4">
                 <FormField control={form.control} name="title" render={({ field }) => (
@@ -165,104 +186,119 @@ export function VideoSingleUpload() {
               </CardContent>
             </Card>
 
-            {/* 扩展信息 Tabs */}
-            <Card>
-              <CardContent className="pt-6">
-                <Tabs defaultValue="intro" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="intro" className="text-xs">作品介绍</TabsTrigger>
-                    <TabsTrigger value="author" className="text-xs">作者信息</TabsTrigger>
-                    <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
-                    <TabsTrigger value="related" className="text-xs">相关内容</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="intro" className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      <FormLabel>作品介绍</FormLabel>
-                      <Textarea placeholder="详细的作品介绍..." value={extraInfo.intro || ""} onChange={(e) => setExtraInfo({ ...extraInfo, intro: e.target.value })} className="min-h-[100px]" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <FormLabel>剧集介绍</FormLabel>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, episodes: [...(extraInfo.episodes || []), { title: "", content: "" }] })}>
-                          <Plus className="h-4 w-4 mr-1" />添加剧集
-                        </Button>
+            {/* 扩展信息 — Collapsible */}
+            <Collapsible open={extraOpen} onOpenChange={setExtraOpen}>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer select-none hover:bg-muted/50 transition-colors rounded-t-lg">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">扩展信息（可选）</CardTitle>
+                      <div className="flex items-center gap-2">
+                        {extraFilledCount > 0 && <Badge variant="secondary" className="text-[11px]">已填 {extraFilledCount} 项</Badge>}
+                        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", extraOpen && "rotate-180")} />
                       </div>
-                      {extraInfo.episodes?.map((ep, i) => (
-                        <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                          <div className="flex-1 space-y-2">
-                            <Input placeholder={`第 ${i + 1} 集标题`} value={ep.title} onChange={(e) => { const eps = [...(extraInfo.episodes || [])]; eps[i] = { ...eps[i], title: e.target.value }; setExtraInfo({ ...extraInfo, episodes: eps }); }} />
-                            <Textarea placeholder="剧集介绍..." value={ep.content} onChange={(e) => { const eps = [...(extraInfo.episodes || [])]; eps[i] = { ...eps[i], content: e.target.value }; setExtraInfo({ ...extraInfo, episodes: eps }); }} className="min-h-[60px]" />
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <Tabs defaultValue="intro" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="intro" className="text-xs">作品介绍</TabsTrigger>
+                        <TabsTrigger value="author" className="text-xs">作者信息</TabsTrigger>
+                        <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
+                        <TabsTrigger value="related" className="text-xs">相关内容</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="intro" className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <FormLabel>作品介绍</FormLabel>
+                          <Textarea placeholder="详细的作品介绍..." value={extraInfo.intro || ""} onChange={(e) => setExtraInfo({ ...extraInfo, intro: e.target.value })} className="min-h-[100px]" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <FormLabel>剧集介绍</FormLabel>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, episodes: [...(extraInfo.episodes || []), { title: "", content: "" }] })}>
+                              <Plus className="h-4 w-4 mr-1" />添加剧集
+                            </Button>
                           </div>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, episodes: extraInfo.episodes?.filter((_, j) => j !== i) })}>
-                            <Trash2 className="h-4 w-4" />
+                          {extraInfo.episodes?.map((ep, i) => (
+                            <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
+                              <div className="flex-1 space-y-2">
+                                <Input placeholder={`第 ${i + 1} 集标题`} value={ep.title} onChange={(e) => { const eps = [...(extraInfo.episodes || [])]; eps[i] = { ...eps[i], title: e.target.value }; setExtraInfo({ ...extraInfo, episodes: eps }); }} />
+                                <Textarea placeholder="剧集介绍..." value={ep.content} onChange={(e) => { const eps = [...(extraInfo.episodes || [])]; eps[i] = { ...eps[i], content: e.target.value }; setExtraInfo({ ...extraInfo, episodes: eps }); }} className="min-h-[60px]" />
+                              </div>
+                              <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, episodes: extraInfo.episodes?.filter((_, j) => j !== i) })}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="author" className="space-y-4 mt-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />原作者</FormLabel>
+                            <Input placeholder="原作者名称" value={extraInfo.author || ""} onChange={(e) => setExtraInfo({ ...extraInfo, author: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <FormLabel>作者介绍</FormLabel>
+                          <Textarea placeholder="作者介绍..." value={extraInfo.authorIntro || ""} onChange={(e) => setExtraInfo({ ...extraInfo, authorIntro: e.target.value })} className="min-h-[80px]" />
+                        </div>
+                        <div className="space-y-2">
+                          <FormLabel>搜索关键词</FormLabel>
+                          <Input placeholder="用逗号分隔多个关键词" value={extraInfo.keywords?.join(", ") || ""} onChange={(e) => setExtraInfo({ ...extraInfo, keywords: e.target.value.split(",").map(k => k.trim()).filter(Boolean) })} />
+                          <p className="text-xs text-muted-foreground">帮助用户找到这个视频的关键词</p>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="downloads" className="space-y-4 mt-4">
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="flex items-center gap-2"><Download className="h-4 w-4" />下载链接</FormLabel>
+                          <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, downloads: [...(extraInfo.downloads || []), { name: "", url: "", password: "" }] })}>
+                            <Plus className="h-4 w-4 mr-1" />添加链接
                           </Button>
                         </div>
-                      ))}
-                    </div>
-                  </TabsContent>
+                        {extraInfo.downloads?.map((dl, i) => (
+                          <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
+                            <div className="flex-1 grid gap-2 sm:grid-cols-3">
+                              <Input placeholder="网盘名称" value={dl.name} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], name: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
+                              <Input placeholder="下载链接" value={dl.url} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], url: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
+                              <Input placeholder="提取码（可选）" value={dl.password || ""} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], password: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, downloads: extraInfo.downloads?.filter((_, j) => j !== i) })}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        {(!extraInfo.downloads || extraInfo.downloads.length === 0) && (
+                          <p className="text-sm text-muted-foreground text-center py-4">暂无下载链接，点击上方按钮添加</p>
+                        )}
+                      </TabsContent>
 
-                  <TabsContent value="author" className="space-y-4 mt-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <FormLabel className="flex items-center gap-2"><User className="h-4 w-4" />原作者</FormLabel>
-                        <Input placeholder="原作者名称" value={extraInfo.author || ""} onChange={(e) => setExtraInfo({ ...extraInfo, author: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>作者介绍</FormLabel>
-                      <Textarea placeholder="作者介绍..." value={extraInfo.authorIntro || ""} onChange={(e) => setExtraInfo({ ...extraInfo, authorIntro: e.target.value })} className="min-h-[80px]" />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>搜索关键词</FormLabel>
-                      <Input placeholder="用逗号分隔多个关键词" value={extraInfo.keywords?.join(", ") || ""} onChange={(e) => setExtraInfo({ ...extraInfo, keywords: e.target.value.split(",").map(k => k.trim()).filter(Boolean) })} />
-                      <p className="text-xs text-muted-foreground">帮助用户找到这个视频的关键词</p>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="downloads" className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="flex items-center gap-2"><Download className="h-4 w-4" />下载链接</FormLabel>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, downloads: [...(extraInfo.downloads || []), { name: "", url: "", password: "" }] })}>
-                        <Plus className="h-4 w-4 mr-1" />添加链接
-                      </Button>
-                    </div>
-                    {extraInfo.downloads?.map((dl, i) => (
-                      <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                        <div className="flex-1 grid gap-2 sm:grid-cols-3">
-                          <Input placeholder="网盘名称" value={dl.name} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], name: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
-                          <Input placeholder="下载链接" value={dl.url} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], url: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
-                          <Input placeholder="提取码（可选）" value={dl.password || ""} onChange={(e) => { const dls = [...(extraInfo.downloads || [])]; dls[i] = { ...dls[i], password: e.target.value }; setExtraInfo({ ...extraInfo, downloads: dls }); }} />
+                      <TabsContent value="related" className="space-y-4 mt-4">
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="flex items-center gap-2"><ListVideo className="h-4 w-4" />相关视频</FormLabel>
+                          <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, relatedVideos: [...(extraInfo.relatedVideos || []), ""] })}>
+                            <Plus className="h-4 w-4 mr-1" />添加
+                          </Button>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, downloads: extraInfo.downloads?.filter((_, j) => j !== i) })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {(!extraInfo.downloads || extraInfo.downloads.length === 0) && (
-                      <p className="text-sm text-muted-foreground text-center py-4">暂无下载链接，点击上方按钮添加</p>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="related" className="space-y-4 mt-4">
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="flex items-center gap-2"><ListVideo className="h-4 w-4" />相关视频</FormLabel>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setExtraInfo({ ...extraInfo, relatedVideos: [...(extraInfo.relatedVideos || []), ""] })}>
-                        <Plus className="h-4 w-4 mr-1" />添加
-                      </Button>
-                    </div>
-                    {extraInfo.relatedVideos?.map((v, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input placeholder="相关视频标题" value={v} onChange={(e) => { const rv = [...(extraInfo.relatedVideos || [])]; rv[i] = e.target.value; setExtraInfo({ ...extraInfo, relatedVideos: rv }); }} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, relatedVideos: extraInfo.relatedVideos?.filter((_, j) => j !== i) })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                        {extraInfo.relatedVideos?.map((v, i) => (
+                          <div key={i} className="flex gap-2">
+                            <Input placeholder="相关视频标题" value={v} onChange={(e) => { const rv = [...(extraInfo.relatedVideos || [])]; rv[i] = e.target.value; setExtraInfo({ ...extraInfo, relatedVideos: rv }); }} />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => setExtraInfo({ ...extraInfo, relatedVideos: extraInfo.relatedVideos?.filter((_, j) => j !== i) })}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </div>
 
           {/* 右侧边栏 */}
@@ -341,10 +377,15 @@ export function VideoSingleUpload() {
               onRemoveNewTag={(name) => setNewTags(newTags.filter(t => t !== name))}
             />
 
-            <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
-              {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</> : <><Upload className="mr-2 h-4 w-4" />发布视频</>}
-            </Button>
+            <div className="hidden lg:block">
+              {submitButton}
+            </div>
           </div>
+        </div>
+
+        {/* 移动端底部固定提交栏 */}
+        <div className="fixed bottom-0 inset-x-0 p-4 bg-background/95 backdrop-blur-sm border-t lg:hidden z-40">
+          {submitButton}
         </div>
       </form>
     </Form>
