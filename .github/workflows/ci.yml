@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
       - uses: actions/setup-node@v5
         with:
@@ -32,6 +32,9 @@ jobs:
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
+
+      - name: 生成 Prisma 客户端
+        run: pnpm db:generate
 
       - name: Biome 格式检查
         run: pnpm biome check .
