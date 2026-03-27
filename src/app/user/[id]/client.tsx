@@ -40,7 +40,7 @@ import { useSound } from "@/hooks/use-sound";
 import type { SoundType } from "@/lib/audio";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
-import { FadeIn, CountUp } from "@/components/motion";
+import { MotionPage, CountUp } from "@/components/motion";
 import type { SerializedUser } from "./page";
 
 // ==================== 社交图标 ====================
@@ -886,7 +886,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
   return (
     <div className="container py-6">
       {/* ===== 用户信息头部 ===== */}
-      <FadeIn>
+      <MotionPage>
         <div className="rounded-2xl bg-gradient-to-br from-primary/5 via-primary/8 to-accent/5 border p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <Avatar className="h-24 w-24 ring-4 ring-background shadow-lg">
@@ -990,10 +990,10 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
             <StatItem icon={Star} label="收藏" value={totalFavorites} />
           </div>
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* ===== 分区 Tab ===== */}
-      <FadeIn delay={0.05}>
+      <MotionPage>
         <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-none">
           {zones.map((zone) => {
             const Icon = zone.icon;
@@ -1014,10 +1014,10 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
             );
           })}
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* ===== 分区内容 ===== */}
-      <FadeIn delay={0.1}>
+      <MotionPage>
         <div
           key={activeZone}
           className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both"
@@ -1028,7 +1028,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
           {activeZone === "image" && renderImageContent()}
           {activeZone === "game" && renderGameContent()}
         </div>
-      </FadeIn>
+      </MotionPage>
     </div>
   );
 }

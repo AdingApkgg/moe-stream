@@ -9,6 +9,7 @@ interface ThemeConfig {
   themeBorderRadius: number;
   themeGlassOpacity: number;
   themeAnimations: boolean;
+  animationSpeed?: number;
 }
 
 const DEFAULTS: ThemeConfig = {
@@ -17,6 +18,7 @@ const DEFAULTS: ThemeConfig = {
   themeBorderRadius: 0.625,
   themeGlassOpacity: 0.7,
   themeAnimations: true,
+  animationSpeed: 1.0,
 };
 
 function isDefault(config: ThemeConfig): boolean {
@@ -25,7 +27,8 @@ function isDefault(config: ThemeConfig): boolean {
     config.themeColorTemp === DEFAULTS.themeColorTemp &&
     config.themeBorderRadius === DEFAULTS.themeBorderRadius &&
     config.themeGlassOpacity === DEFAULTS.themeGlassOpacity &&
-    config.themeAnimations === DEFAULTS.themeAnimations
+    config.themeAnimations === DEFAULTS.themeAnimations &&
+    (config.animationSpeed ?? 1.0) === 1.0
   );
 }
 
@@ -36,6 +39,7 @@ export function generateThemeCSS(config: Partial<ThemeConfig>): string {
     themeBorderRadius: config.themeBorderRadius ?? DEFAULTS.themeBorderRadius,
     themeGlassOpacity: config.themeGlassOpacity ?? DEFAULTS.themeGlassOpacity,
     themeAnimations: config.themeAnimations ?? DEFAULTS.themeAnimations,
+    animationSpeed: config.animationSpeed ?? DEFAULTS.animationSpeed,
   };
 
   if (isDefault(resolved)) return "";
@@ -141,7 +145,7 @@ export function generateThemeCSS(config: Partial<ThemeConfig>): string {
 .dark .glass-card { background: oklch(0.18 0.025 ${h} / ${Math.round(glassOp * 71)}%); }`);
   }
 
-  // 关闭动画
+  // 动画速度与开关
   if (!themeAnimations) {
     parts.push(`*, *::before, *::after {
   animation-duration: 0s !important;
@@ -149,6 +153,12 @@ export function generateThemeCSS(config: Partial<ThemeConfig>): string {
   transition-duration: 0s !important;
   transition-delay: 0s !important;
 }`);
+  } else {
+    const speed = resolved.animationSpeed ?? 1.0;
+    if (speed !== 1.0) {
+      const factor = 1 / Math.max(0.1, speed);
+      parts.push(`:root { --animation-speed: ${factor.toFixed(3)}; }`);
+    }
   }
 
   return parts.join("\n");

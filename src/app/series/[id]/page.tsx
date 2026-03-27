@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Play, Clock, Eye, ArrowLeft, User, Download, AlertCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { PageWrapper, FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { getCoverUrl } from "@/lib/cover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -27,7 +27,7 @@ export default function SeriesPage() {
 
   if (isLoading) {
     return (
-      <PageWrapper>
+      <MotionPage direction="none">
         <div className="container py-6 max-w-6xl">
           <Skeleton className="h-8 w-48 mb-4" />
           <Skeleton className="h-4 w-96 mb-6" />
@@ -37,13 +37,13 @@ export default function SeriesPage() {
             ))}
           </div>
         </div>
-      </PageWrapper>
+      </MotionPage>
     );
   }
 
   if (error || !series) {
     return (
-      <PageWrapper>
+      <MotionPage direction="none">
         <div className="container py-6 max-w-6xl">
           <div className="text-center py-16">
             <p className="text-lg text-muted-foreground">合集不存在或已被删除</p>
@@ -55,7 +55,7 @@ export default function SeriesPage() {
             </Button>
           </div>
         </div>
-      </PageWrapper>
+      </MotionPage>
     );
   }
 
@@ -63,20 +63,20 @@ export default function SeriesPage() {
   const totalViews = publishedEpisodes.reduce((sum, ep) => sum + ep.video.views, 0);
 
   return (
-    <PageWrapper>
+    <MotionPage direction="none">
       <div className="container py-6 max-w-6xl">
         {/* 返回按钮 */}
-        <FadeIn>
+        <MotionPage>
           <Button variant="ghost" size="sm" asChild className="mb-4">
             <Link href="/">
               <ArrowLeft className="h-4 w-4 mr-2" />
               返回首页
             </Link>
           </Button>
-        </FadeIn>
+        </MotionPage>
 
         {/* 合集信息 */}
-        <FadeIn delay={0.05}>
+        <MotionPage>
           <div className="mb-6">
             <h1 className="text-2xl font-bold mb-2">{series.title}</h1>
             {series.description && <p className="text-muted-foreground mb-3">{series.description}</p>}
@@ -122,10 +122,10 @@ export default function SeriesPage() {
               </div>
             )}
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* 剧集列表 */}
-        <FadeIn delay={0.1}>
+        <MotionPage>
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {publishedEpisodes.map((episode) => (
               <Link key={episode.video.id} href={`/video/${episode.video.id}`}>
@@ -170,17 +170,17 @@ export default function SeriesPage() {
               </Link>
             ))}
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* 无剧集提示 */}
         {publishedEpisodes.length === 0 && (
-          <FadeIn delay={0.1}>
+          <MotionPage>
             <div className="text-center py-16">
               <p className="text-muted-foreground">该合集暂无已发布的视频</p>
             </div>
-          </FadeIn>
+          </MotionPage>
         )}
       </div>
-    </PageWrapper>
+    </MotionPage>
   );
 }

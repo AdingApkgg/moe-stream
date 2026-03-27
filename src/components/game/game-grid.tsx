@@ -2,6 +2,7 @@
 
 import { GameCard, type GameCardData } from "./game-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MotionList, MotionItem } from "@/components/motion";
 
 interface GameGridProps {
   games: GameCardData[];
@@ -35,11 +36,13 @@ export function GameGrid({ games, isLoading, columns = 4 }: GameGridProps) {
   }
 
   return (
-    <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
+    <MotionList className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
       {games.map((game, index) => (
-        <GameCard key={game.id} game={game} index={index} />
+        <MotionItem key={game.id}>
+          <GameCard game={game} index={index} />
+        </MotionItem>
       ))}
-    </div>
+    </MotionList>
   );
 }
 

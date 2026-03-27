@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -191,6 +192,15 @@ const configFormSchema = z.object({
   themeBorderRadius: z.number().min(0).max(2),
   themeGlassOpacity: z.number().min(0).max(1),
   themeAnimations: z.boolean(),
+
+  // 动画细分配置
+  animationSpeed: z.number().min(0.5).max(2.0),
+  animationPageTransition: z.boolean(),
+  animationStagger: z.boolean(),
+  animationHover: z.boolean(),
+  animationDialog: z.boolean(),
+  animationTab: z.boolean(),
+  animationPreset: z.enum(["minimal", "standard", "rich"]),
 
   // 视觉效果
   effectEnabled: z.boolean(),
@@ -696,6 +706,13 @@ export default function AdminSettingsPage() {
       themeBorderRadius: 0.625,
       themeGlassOpacity: 0.7,
       themeAnimations: true,
+      animationSpeed: 1.0,
+      animationPageTransition: true,
+      animationStagger: true,
+      animationHover: true,
+      animationDialog: true,
+      animationTab: true,
+      animationPreset: "standard" as const,
       effectEnabled: true,
       effectType: "sakura",
       effectDensity: 50,
@@ -838,6 +855,13 @@ export default function AdminSettingsPage() {
         themeBorderRadius: (cfg.themeBorderRadius as number) ?? 0.625,
         themeGlassOpacity: (cfg.themeGlassOpacity as number) ?? 0.7,
         themeAnimations: (cfg.themeAnimations as boolean) ?? true,
+        animationSpeed: (cfg.animationSpeed as number) ?? 1.0,
+        animationPageTransition: (cfg.animationPageTransition as boolean) ?? true,
+        animationStagger: (cfg.animationStagger as boolean) ?? true,
+        animationHover: (cfg.animationHover as boolean) ?? true,
+        animationDialog: (cfg.animationDialog as boolean) ?? true,
+        animationTab: (cfg.animationTab as boolean) ?? true,
+        animationPreset: validEnum(cfg.animationPreset, ["minimal", "standard", "rich"] as const, "standard"),
         effectEnabled: (cfg.effectEnabled as boolean) ?? true,
         effectType: validEnum(
           cfg.effectType,
@@ -1887,7 +1911,8 @@ export default function AdminSettingsPage() {
                           <CardTitle className="text-base">动画</CardTitle>
                           <CardDescription>控制全站界面过渡与关键帧动画</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-6">
+                          {/* 总开关 */}
                           <FormField
                             control={form.control}
                             name="themeAnimations"
@@ -1917,6 +1942,194 @@ export default function AdminSettingsPage() {
                               </FormItem>
                             )}
                           />
+
+                          {form.watch("themeAnimations") && (
+                            <>
+                              {/* 预设方案 */}
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <FormLabel className="text-sm">动画预设</FormLabel>
+                                  <FormDescription className="text-xs">一键切换动画风格强度</FormDescription>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {(
+                                    [
+                                      {
+                                        value: "minimal" as const,
+                                        label: "精简",
+                                        desc: "轻柔微妙",
+                                        speed: 1.5,
+                                        toggles: {
+                                          pageTransition: true,
+                                          stagger: false,
+                                          hover: true,
+                                          dialog: true,
+                                          tab: false,
+                                        },
+                                      },
+                                      {
+                                        value: "standard" as const,
+                                        label: "标准",
+                                        desc: "平衡流畅",
+                                        speed: 1.0,
+                                        toggles: {
+                                          pageTransition: true,
+                                          stagger: true,
+                                          hover: true,
+                                          dialog: true,
+                                          tab: true,
+                                        },
+                                      },
+                                      {
+                                        value: "rich" as const,
+                                        label: "丰富",
+                                        desc: "华丽饱满",
+                                        speed: 0.8,
+                                        toggles: {
+                                          pageTransition: true,
+                                          stagger: true,
+                                          hover: true,
+                                          dialog: true,
+                                          tab: true,
+                                        },
+                                      },
+                                    ] as const
+                                  ).map(({ value, label, desc, speed, toggles }) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => {
+                                        form.setValue("animationPreset", value, { shouldDirty: true });
+                                        form.setValue("animationSpeed", speed, { shouldDirty: true });
+                                        form.setValue("animationPageTransition", toggles.pageTransition, {
+                                          shouldDirty: true,
+                                        });
+                                        form.setValue("animationStagger", toggles.stagger, { shouldDirty: true });
+                                        form.setValue("animationHover", toggles.hover, { shouldDirty: true });
+                                        form.setValue("animationDialog", toggles.dialog, { shouldDirty: true });
+                                        form.setValue("animationTab", toggles.tab, { shouldDirty: true });
+                                      }}
+                                      className={cn(
+                                        "relative overflow-hidden rounded-lg border p-3 text-left transition-all hover:shadow-sm",
+                                        form.watch("animationPreset") === value
+                                          ? "border-primary ring-1 ring-primary/30"
+                                          : "border-border hover:border-primary/40",
+                                      )}
+                                    >
+                                      <div className="text-sm font-medium">{label}</div>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">{desc}</p>
+                                      <div className="mt-2 flex gap-1">
+                                        {[...Array(value === "minimal" ? 1 : value === "standard" ? 2 : 3)].map(
+                                          (_, i) => (
+                                            <div
+                                              key={i}
+                                              className="h-1 w-3 rounded-full bg-primary/60"
+                                              style={{
+                                                animation:
+                                                  form.watch("animationPreset") === value
+                                                    ? `pulse ${1.5 - i * 0.3}s ease-in-out infinite`
+                                                    : "none",
+                                              }}
+                                            />
+                                          ),
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* 速度倍率 */}
+                              <FormField
+                                control={form.control}
+                                name="animationSpeed"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <div className="flex items-center justify-between">
+                                      <FormLabel className="text-sm">速度倍率</FormLabel>
+                                      <span className="text-sm text-muted-foreground">{field.value.toFixed(1)}x</span>
+                                    </div>
+                                    <FormControl>
+                                      <input
+                                        type="range"
+                                        min={0.5}
+                                        max={2.0}
+                                        step={0.1}
+                                        value={field.value}
+                                        onChange={(e) => field.onChange(Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                      />
+                                    </FormControl>
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                      <span>0.5x 慢</span>
+                                      <span>1.0x 正常</span>
+                                      <span>2.0x 快</span>
+                                    </div>
+                                  </FormItem>
+                                )}
+                              />
+
+                              {/* 分类开关 */}
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <FormLabel className="text-sm">分类控制</FormLabel>
+                                  <FormDescription className="text-xs">独立控制各类动画的开关</FormDescription>
+                                </div>
+                                <div className="space-y-2">
+                                  {(
+                                    [
+                                      {
+                                        name: "animationPageTransition" as const,
+                                        label: "页面过渡",
+                                        desc: "页面加载时的渐入滑动效果",
+                                      },
+                                      {
+                                        name: "animationStagger" as const,
+                                        label: "列表交错",
+                                        desc: "卡片网格依次出现的动画",
+                                      },
+                                      {
+                                        name: "animationHover" as const,
+                                        label: "悬停效果",
+                                        desc: "鼠标悬停时的缩放和位移",
+                                      },
+                                      {
+                                        name: "animationDialog" as const,
+                                        label: "弹窗动画",
+                                        desc: "对话框和侧栏的进出动效",
+                                      },
+                                      {
+                                        name: "animationTab" as const,
+                                        label: "标签切换",
+                                        desc: "Tab 内容区域的切换过渡",
+                                      },
+                                    ] as const
+                                  ).map(({ name, label, desc }) => (
+                                    <FormField
+                                      key={name}
+                                      control={form.control}
+                                      name={name}
+                                      render={({ field }) => (
+                                        <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                                          <div className="space-y-0.5">
+                                            <FormLabel className="text-xs font-medium">{label}</FormLabel>
+                                            <FormDescription className="text-[10px]">{desc}</FormDescription>
+                                          </div>
+                                          <FormControl>
+                                            <Switch
+                                              checked={field.value}
+                                              onCheckedChange={field.onChange}
+                                              className="scale-90"
+                                            />
+                                          </FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </CardContent>
                       </Card>
                     </div>
@@ -1991,6 +2204,13 @@ export default function AdminSettingsPage() {
                           form.setValue("themeBorderRadius", 0.625, { shouldDirty: true });
                           form.setValue("themeGlassOpacity", 0.7, { shouldDirty: true });
                           form.setValue("themeAnimations", true, { shouldDirty: true });
+                          form.setValue("animationSpeed", 1.0, { shouldDirty: true });
+                          form.setValue("animationPageTransition", true, { shouldDirty: true });
+                          form.setValue("animationStagger", true, { shouldDirty: true });
+                          form.setValue("animationHover", true, { shouldDirty: true });
+                          form.setValue("animationDialog", true, { shouldDirty: true });
+                          form.setValue("animationTab", true, { shouldDirty: true });
+                          form.setValue("animationPreset", "standard", { shouldDirty: true });
                         }}
                       >
                         全部重置为默认

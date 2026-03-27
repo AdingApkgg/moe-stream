@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Play, Layers } from "lucide-react";
-import { PageWrapper, FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { useTagFilter } from "@/hooks/use-tag-filter";
@@ -174,7 +174,7 @@ export default function VideoListClient({
   );
 
   return (
-    <PageWrapper>
+    <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
         {/* 公告横幅 */}
         {siteConfig?.announcementEnabled && siteConfig.announcement && (
@@ -197,7 +197,7 @@ export default function VideoListClient({
         )}
 
         {/* 标签栏 */}
-        <FadeIn delay={0.15}>
+        <MotionPage>
           <CollapsibleTagBar className="mb-6">
             {viewModeOptions.map((option) => (
               <button
@@ -251,7 +251,7 @@ export default function VideoListClient({
               </>
             )}
           </CollapsibleTagBar>
-        </FadeIn>
+        </MotionPage>
 
         {/* 内容区域 */}
         <section>
@@ -398,6 +398,6 @@ export default function VideoListClient({
           )}
         </section>
       </div>
-    </PageWrapper>
+    </MotionPage>
   );
 }

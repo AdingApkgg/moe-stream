@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
+import { useAnimationConfig } from "@/hooks/use-animation-config";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   ADV: "ADV",
@@ -96,10 +97,12 @@ function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: 
 
 function GameCardComponent({ game, index = 0 }: GameCardProps) {
   const { play } = useSound();
+  const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
     maxTilt: 8,
     scale: 1.03,
     glareMaxOpacity: 0.12,
+    disabled: !animConfig.hover,
   });
 
   const extra =
@@ -112,12 +115,7 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
   const likeColor = likeRatio >= 90 ? "text-green-400" : likeRatio >= 70 ? "text-yellow-400" : "text-red-400";
 
   return (
-    <div
-      ref={tiltRef}
-      className="group"
-      style={{ animationDelay: `${index * 50}ms` }}
-      onMouseEnter={() => play("hover")}
-    >
+    <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/game/${game.id}`} className="block">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out">
           <GameCoverImage coverUrl={game.coverUrl} title={game.title} />

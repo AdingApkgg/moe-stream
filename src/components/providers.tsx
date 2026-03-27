@@ -12,6 +12,7 @@ import type { PublicSiteConfig } from "@/lib/site-config";
 import dynamic from "next/dynamic";
 import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { SocketProvider } from "@/components/socket-provider";
+import { MotionProvider } from "@/components/motion";
 
 const ParticleBackground = dynamic(() => import("@/components/effects/particle-background"), { ssr: false });
 
@@ -153,7 +154,9 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
                 />
               </EffectErrorBoundary>
             )}
-            <SocketProvider>{children}</SocketProvider>
+            <MotionProvider>
+              <SocketProvider>{children}</SocketProvider>
+            </MotionProvider>
             <Toaster richColors position="top-center" />
             <AnalyticsScripts config={siteConfig} />
           </SiteConfigProvider>

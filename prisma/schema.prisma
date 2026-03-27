@@ -1112,6 +1112,15 @@ model SiteConfig {
   themeGlassOpacity   Float   @default(0.7)         // 玻璃态透明度 0-1
   themeAnimations     Boolean @default(true)        // 启用界面动画
 
+  // 动画细分配置
+  animationSpeed          Float   @default(1.0)        // 动画速度倍率 0.5-2.0
+  animationPageTransition Boolean @default(true)       // 页面过渡动画
+  animationStagger        Boolean @default(true)       // 列表交错动画
+  animationHover          Boolean @default(true)       // 悬停效果
+  animationDialog         Boolean @default(true)       // 弹窗动画
+  animationTab            Boolean @default(true)       // Tab 切换动画
+  animationPreset         String  @default("standard") // minimal | standard | rich
+
   // 视觉效果
   effectEnabled       Boolean @default(true)
   effectType          String  @default("sakura")  // sakura | firefly | snow | stars | aurora | cyber | none

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import {
   motion,
   LazyMotion,
@@ -13,10 +13,10 @@ import {
 import { useIsMounted as useIsMountedFn } from "usehooks-ts";
 import ReactCountUp from "react-countup";
 import { cn } from "@/lib/utils";
+import { useAnimationConfig, type AnimationConfig } from "@/hooks/use-animation-config";
 
 /**
  * 客户端挂载检测 Hook
- * 包装 usehooks-ts 的 useIsMounted，直接返回布尔值
  */
 export function useIsMounted(): boolean {
   const isMountedFn = useIsMountedFn();
@@ -27,43 +27,103 @@ export function useIsMounted(): boolean {
 // 缓动曲线
 // ============================================================================
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_OUT: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
-const EASE_IN_OUT: [number, number, number, number] = [0.4, 0, 0.2, 1];
+export const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+export const EASE_OUT: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+export const EASE_IN_OUT: [number, number, number, number] = [0.4, 0, 0.2, 1];
 
 // ============================================================================
-// 预定义动画变体（供需要 Framer Motion 的场景使用）
+// 变体工厂（config-aware）
 // ============================================================================
 
-/** 渐入动画 */
+export function createFadeIn(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: config.duration.normal, ease: EASE_OUT } },
+    exit: { opacity: 0, transition: { duration: config.duration.fast } },
+  };
+}
+
+export function createSlideUp(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0, y: config.displacement.medium },
+    visible: { opacity: 1, y: 0, transition: { duration: config.duration.normal, ease: EASE_OUT_EXPO } },
+    exit: {
+      opacity: 0,
+      y: config.displacement.small,
+      transition: { duration: config.duration.fast, ease: EASE_IN_OUT },
+    },
+  };
+}
+
+export function createSlideDown(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0, y: -config.displacement.medium },
+    visible: { opacity: 1, y: 0, transition: { duration: config.duration.normal, ease: EASE_OUT_EXPO } },
+    exit: {
+      opacity: 0,
+      y: -config.displacement.small,
+      transition: { duration: config.duration.fast, ease: EASE_IN_OUT },
+    },
+  };
+}
+
+export function createScaleIn(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0, scale: 0.96 },
+    visible: { opacity: 1, scale: 1, transition: { duration: config.duration.normal, ease: EASE_OUT_EXPO } },
+    exit: { opacity: 0, scale: 0.98, transition: { duration: config.duration.fast } },
+  };
+}
+
+export function createStaggerContainer(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: config.staggerDelay,
+        delayChildren: config.staggerDelay * 1.5,
+      },
+    },
+  };
+}
+
+export function createStaggerItem(config: AnimationConfig): Variants {
+  return {
+    hidden: { opacity: 0, y: config.displacement.small },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: config.duration.normal, ease: EASE_OUT_EXPO },
+    },
+  };
+}
+
+// 静态变体（向后兼容）
 export const fadeIn: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.25, ease: EASE_OUT } },
   exit: { opacity: 0, transition: { duration: 0.15 } },
 };
 
-/** 从下方滑入 */
 export const slideUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE_OUT_EXPO } },
   exit: { opacity: 0, y: 8, transition: { duration: 0.15, ease: EASE_IN_OUT } },
 };
 
-/** 从上方滑入 */
 export const slideDown: Variants = {
   hidden: { opacity: 0, y: -16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE_OUT_EXPO } },
   exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: EASE_IN_OUT } },
 };
 
-/** 缩放渐入 */
 export const scaleIn: Variants = {
   hidden: { opacity: 0, scale: 0.96 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.25, ease: EASE_OUT_EXPO } },
   exit: { opacity: 0, scale: 0.98, transition: { duration: 0.15 } },
 };
 
-/** 弹性缩放 */
 export const springScale: Variants = {
   hidden: { opacity: 0, scale: 0.92 },
   visible: {
@@ -74,19 +134,14 @@ export const springScale: Variants = {
   exit: { opacity: 0, scale: 0.96, transition: { duration: 0.12 } },
 };
 
-/** 交错容器 - 用于列表/网格动画 */
 export const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.04,
-      delayChildren: 0.06,
-    },
+    transition: { staggerChildren: 0.04, delayChildren: 0.06 },
   },
 };
 
-/** 交错子项 */
 export const staggerItem: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: {
@@ -96,7 +151,6 @@ export const staggerItem: Variants = {
   },
 };
 
-/** 卡片悬停动画 */
 export const cardHover: Variants = {
   rest: { scale: 1, y: 0 },
   hover: {
@@ -110,7 +164,6 @@ export const cardHover: Variants = {
   },
 };
 
-/** 按钮点击动画 */
 export const buttonTap = {
   whileHover: { scale: 1.02 },
   whileTap: { scale: 0.97 },
@@ -118,16 +171,13 @@ export const buttonTap = {
 };
 
 // ============================================================================
-// 工具组件
+// MotionProvider
 // ============================================================================
 
 interface MotionProviderProps {
   children: ReactNode;
 }
 
-/**
- * 动画提供器 - 使用 LazyMotion 延迟加载动画功能
- */
 export function MotionProvider({ children }: MotionProviderProps) {
   return (
     <LazyMotion features={domAnimation} strict>
@@ -137,7 +187,230 @@ export function MotionProvider({ children }: MotionProviderProps) {
 }
 
 // ============================================================================
-// 客户端安全的动画组件
+// MotionPage — 页面过渡（替代 PageWrapper + FadeIn）
+// ============================================================================
+
+interface MotionPageProps {
+  children: ReactNode;
+  className?: string;
+  direction?: "up" | "down" | "left" | "right" | "none";
+}
+
+export function MotionPage({ children, className, direction = "up" }: MotionPageProps) {
+  const config = useAnimationConfig();
+  const mounted = useIsMounted();
+
+  if (!mounted || !config.enabled || !config.pageTransition) {
+    return <div className={className}>{children}</div>;
+  }
+
+  const directionMap = {
+    up: { y: config.displacement.medium },
+    down: { y: -config.displacement.medium },
+    left: { x: config.displacement.medium },
+    right: { x: -config.displacement.medium },
+    none: {},
+  };
+
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, ...directionMap[direction] }}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      transition={{ duration: config.duration.normal, ease: EASE_OUT_EXPO }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// MotionList / MotionItem — 列表交错动画
+// ============================================================================
+
+interface MotionListProps {
+  children: ReactNode;
+  className?: string;
+  staggerDelay?: number;
+}
+
+export function MotionList({ children, className, staggerDelay }: MotionListProps) {
+  const config = useAnimationConfig();
+  const mounted = useIsMounted();
+
+  if (!mounted || !config.enabled || !config.stagger) {
+    return <div className={className}>{children}</div>;
+  }
+
+  const delay = staggerDelay ?? config.staggerDelay;
+
+  return (
+    <motion.div
+      className={className}
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: delay,
+            delayChildren: delay * 1.5,
+          },
+        },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+interface MotionItemProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export function MotionItem({ children, className }: MotionItemProps) {
+  const config = useAnimationConfig();
+
+  if (!config.enabled || !config.stagger) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      className={className}
+      variants={{
+        hidden: { opacity: 0, y: config.displacement.small },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: config.duration.normal, ease: EASE_OUT_EXPO },
+        },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// MotionCard — 卡片悬停动画
+// ============================================================================
+
+interface MotionCardProps {
+  children: ReactNode;
+  className?: string;
+  scale?: number;
+  yOffset?: number;
+}
+
+export function MotionCard({ children, className, scale = 1.02, yOffset = -3 }: MotionCardProps) {
+  const config = useAnimationConfig();
+
+  if (!config.enabled || !config.hover) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      className={className}
+      initial="rest"
+      whileHover="hover"
+      whileTap="tap"
+      variants={{
+        rest: { scale: 1, y: 0 },
+        hover: {
+          scale,
+          y: yOffset,
+          transition: { type: "spring", ...config.spring },
+        },
+        tap: {
+          scale: 0.98,
+          transition: { type: "spring", stiffness: 500, damping: 30 },
+        },
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// MotionTabContent — Tab 切换动画
+// ============================================================================
+
+interface MotionTabContentProps {
+  children: ReactNode;
+  activeKey: string;
+  className?: string;
+}
+
+export function MotionTabContent({ children, activeKey, className }: MotionTabContentProps) {
+  const config = useAnimationConfig();
+  const id = useId();
+
+  if (!config.enabled || !config.tab) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`${id}-${activeKey}`}
+        className={className}
+        initial={{ opacity: 0, y: config.displacement.small }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -config.displacement.small }}
+        transition={{ duration: config.duration.fast, ease: EASE_OUT }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ============================================================================
+// MotionDialog — 弹窗动画包装器
+// ============================================================================
+
+interface MotionDialogProps {
+  children: ReactNode;
+  className?: string;
+  isOpen?: boolean;
+}
+
+export function MotionDialog({ children, className, isOpen }: MotionDialogProps) {
+  const config = useAnimationConfig();
+
+  if (!config.enabled || !config.dialog) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className={className}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.97 }}
+          transition={{
+            type: "spring",
+            stiffness: config.spring.stiffness,
+            damping: config.spring.damping,
+            mass: config.spring.mass,
+          }}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ============================================================================
+// 客户端安全的动画 div（通用）
 // ============================================================================
 
 interface ClientOnlyMotionProps extends HTMLMotionProps<"div"> {
@@ -145,14 +418,11 @@ interface ClientOnlyMotionProps extends HTMLMotionProps<"div"> {
   className?: string;
 }
 
-/**
- * 客户端安全的动画 div - 服务端渲染时返回静态 div
- */
 export function MotionDiv({ children, className, ...props }: ClientOnlyMotionProps) {
   const mounted = useIsMounted();
-  const shouldReduce = useReducedMotion();
+  const config = useAnimationConfig();
 
-  if (!mounted || shouldReduce) {
+  if (!mounted || !config.enabled) {
     return <div className={className}>{children}</div>;
   }
 
@@ -164,7 +434,7 @@ export function MotionDiv({ children, className, ...props }: ClientOnlyMotionPro
 }
 
 // ============================================================================
-// 纯 CSS 入场动画组件（SSR 安全，不会闪烁）
+// 纯 CSS 入场动画组件（SSR 安全，向后兼容）
 // ============================================================================
 
 const SLIDE_CLASSES: Record<string, string> = {
@@ -184,13 +454,6 @@ interface FadeInProps {
   distance?: number;
 }
 
-/**
- * 渐入动画组件（纯 CSS，SSR 安全）
- *
- * 使用 tw-animate-css 的 CSS @keyframes，
- * 浏览器首次绘制时直接从 opacity:0 开始动画，
- * 不会出现「内容可见→消失→淡入」的闪烁。
- */
 export function FadeIn({ children, className, delay = 0, duration = 0.4, direction = "up" }: FadeInProps) {
   const slideClass = SLIDE_CLASSES[direction] || "";
 
@@ -214,9 +477,6 @@ interface PageWrapperProps {
   className?: string;
 }
 
-/**
- * 页面过渡包装器（纯 CSS，SSR 安全）
- */
 export function PageWrapper({ children, className }: PageWrapperProps) {
   return (
     <div
@@ -233,7 +493,7 @@ export function PageWrapper({ children, className }: PageWrapperProps) {
 }
 
 // ============================================================================
-// Framer Motion 高级动画组件（仅客户端交互使用）
+// Framer Motion 高级动画组件
 // ============================================================================
 
 interface StaggerListProps {
@@ -242,9 +502,6 @@ interface StaggerListProps {
   staggerDelay?: number;
 }
 
-/**
- * 交错列表动画容器
- */
 export function StaggerList({ children, className, staggerDelay = 0.04 }: StaggerListProps) {
   const mounted = useIsMounted();
   const shouldReduce = useReducedMotion();
@@ -279,9 +536,6 @@ interface StaggerItemProps {
   className?: string;
 }
 
-/**
- * 交错列表子项
- */
 export function StaggerItem({ children, className }: StaggerItemProps) {
   const shouldReduce = useReducedMotion();
   return (
@@ -297,9 +551,6 @@ interface ScaleOnHoverProps {
   scale?: number;
 }
 
-/**
- * 悬停缩放效果
- */
 export function ScaleOnHover({ children, className, scale = 1.03 }: ScaleOnHoverProps) {
   const shouldReduce = useReducedMotion();
 
@@ -326,9 +577,6 @@ interface CountUpProps {
   formatter?: (value: number) => string;
 }
 
-/**
- * 数字递增动画 - 使用 react-countup
- */
 export function CountUp({
   value,
   duration = 0.8,
@@ -358,3 +606,4 @@ export function CountUp({
 // ============================================================================
 
 export { motion, AnimatePresence, useReducedMotion };
+export type { Variants, HTMLMotionProps };

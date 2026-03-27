@@ -7,6 +7,7 @@ import { Play, ThumbsUp } from "lucide-react";
 import { formatDuration, formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
+import { useAnimationConfig } from "@/hooks/use-animation-config";
 
 interface VideoCardProps {
   video: {
@@ -37,10 +38,12 @@ interface VideoCardProps {
 
 function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
   const { play } = useSound();
+  const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
     maxTilt: 8,
     scale: 1.03,
     glareMaxOpacity: 0.12,
+    disabled: !animConfig.hover,
   });
 
   const extra =
@@ -52,12 +55,7 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
   const likeColor = likeRatio >= 90 ? "text-green-400" : likeRatio >= 70 ? "text-yellow-400" : "text-red-400";
 
   return (
-    <div
-      ref={tiltRef}
-      className="group"
-      style={{ animationDelay: `${index * 50}ms` }}
-      onMouseEnter={() => play("hover")}
-    >
+    <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/video/${video.id}`} className="block">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out">
           <VideoCover

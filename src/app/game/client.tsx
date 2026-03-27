@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Gamepad2 } from "lucide-react";
-import { PageWrapper, FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { useTagFilter } from "@/hooks/use-tag-filter";
@@ -152,7 +152,7 @@ export function GameListClient({
   }, [typeStats]);
 
   return (
-    <PageWrapper>
+    <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
         {/* 公告横幅 */}
         {siteConfig?.announcementEnabled && siteConfig.announcement && (
@@ -175,15 +175,15 @@ export function GameListClient({
         )}
 
         {/* 页面标题 */}
-        <FadeIn delay={0.05}>
+        <MotionPage>
           <div className="flex items-center gap-3 mb-4">
             <Gamepad2 className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">游戏</h1>
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* 游戏类型筛选条 */}
-        <FadeIn delay={0.1}>
+        <MotionPage>
           <div className="flex flex-wrap gap-2 mb-4">
             {availableTypes.map((opt) => {
               const stat = typeStats.find((s) => s.type === opt.id);
@@ -204,10 +204,10 @@ export function GameListClient({
               );
             })}
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* 排序 + 标签栏 */}
-        <FadeIn delay={0.15}>
+        <MotionPage>
           <CollapsibleTagBar className="mb-6">
             {sortOptions.map((option) => (
               <button
@@ -243,7 +243,7 @@ export function GameListClient({
               </>
             )}
           </CollapsibleTagBar>
-        </FadeIn>
+        </MotionPage>
 
         {/* 游戏网格 */}
         <section>
@@ -290,6 +290,6 @@ export function GameListClient({
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
         </section>
       </div>
-    </PageWrapper>
+    </MotionPage>
   );
 }

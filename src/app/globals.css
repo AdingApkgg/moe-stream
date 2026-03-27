@@ -428,6 +428,24 @@ header.fixed {
   }
 }
 
+/* 动画速度倍率 — 由后台 animationSpeed 配置 */
+:root {
+  --animation-speed: 1;
+}
+
+/* 当 --animation-speed 非 1 时，通过此规则缩放所有 CSS 动画/过渡时长 */
+@layer base {
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-overlay"],
+  [data-slot="sheet-content"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="alert-dialog-content"] {
+    animation-duration: calc(200ms * var(--animation-speed));
+    transition-duration: calc(200ms * var(--animation-speed));
+  }
+}
+
 /* 隐藏滚动条但保持滚动功能 */
 @layer utilities {
   .scrollbar-hide {

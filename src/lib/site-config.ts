@@ -39,6 +39,13 @@ export interface PublicSiteConfig {
   themeBorderRadius: number;
   themeGlassOpacity: number;
   themeAnimations: boolean;
+  animationSpeed: number;
+  animationPageTransition: boolean;
+  animationStagger: boolean;
+  animationHover: boolean;
+  animationDialog: boolean;
+  animationTab: boolean;
+  animationPreset: string;
   effectEnabled: boolean;
   effectType: string;
   effectDensity: number;
@@ -102,6 +109,13 @@ const selectFields = {
   themeBorderRadius: true,
   themeGlassOpacity: true,
   themeAnimations: true,
+  animationSpeed: true,
+  animationPageTransition: true,
+  animationStagger: true,
+  animationHover: true,
+  animationDialog: true,
+  animationTab: true,
+  animationPreset: true,
   effectEnabled: true,
   effectType: true,
   effectDensity: true,
@@ -193,6 +207,13 @@ const defaultConfig: PublicSiteConfig = {
   themeBorderRadius: 0.625,
   themeGlassOpacity: 0.7,
   themeAnimations: true,
+  animationSpeed: 1.0,
+  animationPageTransition: true,
+  animationStagger: true,
+  animationHover: true,
+  animationDialog: true,
+  animationTab: true,
+  animationPreset: "standard",
   effectEnabled: true,
   effectType: "sakura",
   effectDensity: 50,

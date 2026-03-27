@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 
 import Image from "next/image";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
-import { PageWrapper, FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -312,7 +312,7 @@ export function GamePageClient({
     initialGame.version;
 
   return (
-    <PageWrapper>
+    <MotionPage direction="none">
       {/* ==================== Hero 区域 ==================== */}
       <div className="relative overflow-hidden">
         {/* 模糊封面背景 */}
@@ -335,7 +335,7 @@ export function GamePageClient({
 
         <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 pb-4 sm:pb-6">
           {/* 返回 */}
-          <FadeIn delay={0.05}>
+          <MotionPage>
             <Link
               href="/game"
               className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 sm:mb-4"
@@ -343,10 +343,10 @@ export function GamePageClient({
               <ChevronLeft className="h-4 w-4" />
               返回游戏列表
             </Link>
-          </FadeIn>
+          </MotionPage>
 
           {/* 封面 */}
-          <FadeIn delay={0.1}>
+          <MotionPage>
             <div className="relative aspect-video max-w-4xl mx-auto rounded-lg sm:rounded-xl overflow-hidden bg-muted shadow-2xl ring-1 ring-white/10">
               {coverSrc ? (
                 <Image
@@ -394,10 +394,10 @@ export function GamePageClient({
                 </button>
               )}
             </div>
-          </FadeIn>
+          </MotionPage>
 
           {/* 标题 + 统计 + 标签 + 操作 */}
-          <FadeIn delay={0.15}>
+          <MotionPage>
             <div className="max-w-4xl mx-auto mt-3 sm:mt-5 space-y-2 sm:space-y-3">
               {/* 标题 + 编辑 */}
               <div className="flex items-start justify-between gap-2">
@@ -649,7 +649,7 @@ export function GamePageClient({
                 )}
               </div>
             </div>
-          </FadeIn>
+          </MotionPage>
         </div>
       </div>
 
@@ -662,7 +662,7 @@ export function GamePageClient({
           <div className="flex-1 min-w-0">
             {/* 公告 */}
             {extra.notices && extra.notices.length > 0 && (
-              <FadeIn delay={0.2}>
+              <MotionPage>
                 <div className="space-y-2 mb-4 sm:mb-6">
                   {extra.notices.map((notice, i) => (
                     <div
@@ -684,12 +684,12 @@ export function GamePageClient({
                     </div>
                   ))}
                 </div>
-              </FadeIn>
+              </MotionPage>
             )}
 
             {/* 下载区 */}
             {hasDownloads && (
-              <FadeIn delay={0.2}>
+              <MotionPage>
                 <section id="downloads" className="mb-4 sm:mb-6 scroll-mt-20">
                   <SectionTitle icon={Download}>游戏下载</SectionTitle>
                   <Card className="border-primary/20">
@@ -740,12 +740,12 @@ export function GamePageClient({
                     </CardContent>
                   </Card>
                 </section>
-              </FadeIn>
+              </MotionPage>
             )}
 
             {/* 内容 Tabs */}
             {availableTabs.length > 0 && (
-              <FadeIn delay={0.25}>
+              <MotionPage>
                 <Tabs defaultValue={defaultTab} className="mb-4 sm:mb-6">
                   {/* 移动端可横向滚动的 TabsList */}
                   <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
@@ -913,32 +913,32 @@ export function GamePageClient({
                     </TabsContent>
                   )}
                 </Tabs>
-              </FadeIn>
+              </MotionPage>
             )}
 
             {/* 没有 tab 内容时直接显示各区块 */}
             {availableTabs.length === 0 && descriptionContent && (
-              <FadeIn delay={0.25}>
+              <MotionPage>
                 <section className="mb-4 sm:mb-6">
                   <SectionTitle icon={Gamepad2}>游戏介绍</SectionTitle>
                   <Card>
                     <CardContent className="p-3 sm:p-6">{descriptionContent}</CardContent>
                   </Card>
                 </section>
-              </FadeIn>
+              </MotionPage>
             )}
 
             {/* 评论区 */}
-            <FadeIn delay={0.35}>
+            <MotionPage>
               <section className="mb-6 sm:mb-8">
                 <GameCommentSection gameId={id} />
               </section>
-            </FadeIn>
+            </MotionPage>
 
             {/* 附件资源 */}
-            <FadeIn delay={0.4}>
+            <MotionPage>
               <FileAttachmentPanel contentType="game" contentId={id} uploaderId={initialGame.uploader.id} />
-            </FadeIn>
+            </MotionPage>
           </div>
 
           {/* ——— 右侧信息栏 ——— */}
@@ -946,7 +946,7 @@ export function GamePageClient({
             <div className="lg:sticky lg:top-20 space-y-3 sm:space-y-4">
               {/* 移动端：紧凑可折叠游戏信息 */}
               {hasExtraInfo && (
-                <FadeIn delay={0.2}>
+                <MotionPage>
                   <Card className="lg:hidden">
                     <CardContent className="p-3">
                       <button
@@ -1066,12 +1066,12 @@ export function GamePageClient({
                       )}
                     </CardContent>
                   </Card>
-                </FadeIn>
+                </MotionPage>
               )}
 
               {/* 桌面端：完整游戏信息卡 */}
               {hasExtraInfo && (
-                <FadeIn delay={0.2}>
+                <MotionPage>
                   <Card className="hidden lg:block">
                     <CardContent className="p-4">
                       <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
@@ -1149,11 +1149,11 @@ export function GamePageClient({
                       </dl>
                     </CardContent>
                   </Card>
-                </FadeIn>
+                </MotionPage>
               )}
 
               {/* 上传者信息卡 */}
-              <FadeIn delay={0.25}>
+              <MotionPage>
                 <Card>
                   <CardContent className="p-3 sm:p-4">
                     <h3 className="text-xs sm:text-sm font-bold mb-2 sm:mb-3 flex items-center gap-1.5">
@@ -1189,11 +1189,11 @@ export function GamePageClient({
                     </Link>
                   </CardContent>
                 </Card>
-              </FadeIn>
+              </MotionPage>
 
               {/* 关键词 */}
               {extra.keywords && extra.keywords.length > 0 && (
-                <FadeIn delay={0.3}>
+                <MotionPage>
                   <Card>
                     <CardContent className="p-3 sm:p-4">
                       <h3 className="text-xs sm:text-sm font-bold mb-2 sm:mb-3 flex items-center gap-1.5">
@@ -1209,7 +1209,7 @@ export function GamePageClient({
                       </div>
                     </CardContent>
                   </Card>
-                </FadeIn>
+                </MotionPage>
               )}
             </div>
           </aside>
@@ -1287,6 +1287,6 @@ export function GamePageClient({
           )}
         </DialogContent>
       </Dialog>
-    </PageWrapper>
+    </MotionPage>
   );
 }

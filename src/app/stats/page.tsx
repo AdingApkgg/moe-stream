@@ -28,7 +28,7 @@ import {
   Search,
   type LucideIcon,
 } from "lucide-react";
-import { FadeIn, CountUp } from "@/components/motion";
+import { MotionPage, CountUp } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import {
   ChartContainer,
@@ -458,15 +458,15 @@ export default function StatsPage() {
   return (
     <div className="container max-w-5xl py-6 space-y-8">
       {/* 标题 */}
-      <FadeIn>
+      <MotionPage>
         <div>
           <h1 className="text-2xl font-bold">数据总览</h1>
           <p className="text-muted-foreground text-sm mt-1">全站运营数据和增长趋势</p>
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 核心内容指标 */}
-      <FadeIn delay={0.05}>
+      <MotionPage>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <HeroStat icon={Users} label="注册用户" value={stats?.userCount ?? 0} color="blue" isLoading={statsLoading} />
           <HeroStat icon={Video} label="视频" value={stats?.videoCount ?? 0} color="green" isLoading={statsLoading} />
@@ -479,10 +479,10 @@ export default function StatsPage() {
           />
           <HeroStat icon={Gamepad2} label="游戏" value={stats?.gameCount ?? 0} color="amber" isLoading={statsLoading} />
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 全站互动总量 */}
-      <FadeIn delay={0.1}>
+      <MotionPage>
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-muted-foreground">全站互动</h2>
           <EngagementRow
@@ -495,10 +495,10 @@ export default function StatsPage() {
             ]}
           />
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 内容分布 + 分区互动对比 */}
-      <FadeIn delay={0.15}>
+      <MotionPage>
         <div className="grid gap-4 md:grid-cols-2">
           <ContentDistributionChart
             videoCount={stats?.videoCount ?? 0}
@@ -522,15 +522,15 @@ export default function StatsPage() {
             isLoading={statsLoading}
           />
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 每日增长趋势图 */}
-      <FadeIn delay={0.2}>
+      <MotionPage>
         <GrowthTrendChart range={trendRange} onRangeChange={setTrendRange} />
-      </FadeIn>
+      </MotionPage>
 
       {/* 其他累计数据 */}
-      <FadeIn delay={0.25}>
+      <MotionPage>
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-muted-foreground">其他数据</h2>
           <div className="grid grid-cols-3 gap-3">
@@ -559,10 +559,10 @@ export default function StatsPage() {
             ))}
           </div>
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 增长趋势 */}
-      <FadeIn delay={0.3}>
+      <MotionPage>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold flex items-center gap-2">
@@ -651,7 +651,7 @@ export default function StatsPage() {
             />
           </div>
         </div>
-      </FadeIn>
+      </MotionPage>
     </div>
   );
 }

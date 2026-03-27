@@ -2,6 +2,7 @@
 
 import { VideoCard } from "./video-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MotionList, MotionItem } from "@/components/motion";
 
 interface Video {
   id: string;
@@ -59,11 +60,13 @@ export function VideoGrid({ videos, isLoading, columns = 4 }: VideoGridProps) {
   }
 
   return (
-    <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
+    <MotionList className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
       {videos.map((video, index) => (
-        <VideoCard key={video.id} video={video} index={index} />
+        <MotionItem key={video.id}>
+          <VideoCard video={video} index={index} />
+        </MotionItem>
       ))}
-    </div>
+    </MotionList>
   );
 }
 

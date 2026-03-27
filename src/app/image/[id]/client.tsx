@@ -5,7 +5,7 @@ import { isPrivileged } from "@/lib/permissions";
 import { ArrowLeft, Eye, Calendar, User, Images, Pencil, ThumbsUp, ThumbsDown, Heart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageWrapper, FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { ImageViewer } from "@/components/image/image-viewer";
 import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSession } from "@/lib/auth-client";
@@ -111,10 +111,10 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
   };
 
   return (
-    <PageWrapper>
+    <MotionPage direction="none">
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-4">
         {/* Back button */}
-        <FadeIn>
+        <MotionPage>
           <Link href="/image">
             <Button
               variant="ghost"
@@ -125,18 +125,18 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
               图片列表
             </Button>
           </Link>
-        </FadeIn>
+        </MotionPage>
 
         {/* Title & description */}
-        <FadeIn delay={0.05}>
+        <MotionPage>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">{post.title}</h1>
           {post.description && (
             <p className="text-muted-foreground text-sm sm:text-base mb-3 whitespace-pre-line">{post.description}</p>
           )}
-        </FadeIn>
+        </MotionPage>
 
         {/* Meta info */}
-        <FadeIn delay={0.1}>
+        <MotionPage>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-4">
             <span className="flex items-center gap-1">
               <User className="h-3.5 w-3.5" />
@@ -163,10 +163,10 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
               </Link>
             )}
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* 好评率 + 交互按钮 */}
-        <FadeIn delay={0.12}>
+        <MotionPage>
           <div className="space-y-3 mb-6">
             {totalVotes > 0 && (
               <div className="space-y-1 max-w-xs">
@@ -265,11 +265,11 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
               </div>
             </div>
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {/* Tags */}
         {post.tags && post.tags.length > 0 && (
-          <FadeIn delay={0.15}>
+          <MotionPage>
             <div className="flex flex-wrap gap-1.5 mb-6">
               {post.tags.map(({ tag }) => (
                 <Link key={tag.id} href={`/image/tag/${tag.slug}`}>
@@ -279,11 +279,11 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
                 </Link>
               ))}
             </div>
-          </FadeIn>
+          </MotionPage>
         )}
 
         {/* Image grid */}
-        <FadeIn delay={0.2}>
+        <MotionPage>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             {imageUrls.map((url, index) => (
               <button
@@ -302,7 +302,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
               </button>
             ))}
           </div>
-        </FadeIn>
+        </MotionPage>
 
         {imageUrls.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
@@ -313,16 +313,16 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
       </div>
 
       {/* 评论区 */}
-      <FadeIn delay={0.3}>
+      <MotionPage>
         <section className="mt-8 mb-8">
           <ImagePostCommentSection imagePostId={post.id} />
         </section>
-      </FadeIn>
+      </MotionPage>
 
       {/* 附件资源 */}
-      <FadeIn delay={0.35}>
+      <MotionPage>
         <FileAttachmentPanel contentType="imagePost" contentId={post.id} uploaderId={post.uploader.id} />
-      </FadeIn>
+      </MotionPage>
 
       {/* Image viewer lightbox */}
       <ImageViewer
@@ -331,6 +331,6 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
       />
-    </PageWrapper>
+    </MotionPage>
   );
 }

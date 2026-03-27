@@ -20,7 +20,7 @@ import {
   Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import type { UploadContentType } from "./_lib/types";
 import { VideoSingleUpload } from "./_components/video-single";
 import { VideoBatchUpload } from "./_components/video-batch";
@@ -199,9 +199,9 @@ export default function UploadPage() {
         </TabsList>
 
         <TabsContent value={mode} forceMount className="mt-6">
-          <FadeIn key={`${contentType}-${mode}`} duration={0.25} direction="none">
+          <MotionPage key={`${contentType}-${mode}`} direction="none">
             {renderContent()}
-          </FadeIn>
+          </MotionPage>
         </TabsContent>
       </Tabs>
     </div>

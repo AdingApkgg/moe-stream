@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { FadeIn } from "@/components/motion";
+import { MotionPage } from "@/components/motion";
 import { useSound } from "@/hooks/use-sound";
 import {
   Trophy,
@@ -350,7 +350,7 @@ export default function RankingPage() {
   return (
     <div className="container max-w-3xl py-6 space-y-6">
       {/* 标题 */}
-      <FadeIn>
+      <MotionPage>
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Trophy className="h-6 w-6 text-amber-500" />
@@ -358,10 +358,10 @@ export default function RankingPage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">全站内容与用户排行</p>
         </div>
-      </FadeIn>
+      </MotionPage>
 
       {/* 大类切换：内容排行 / 用户排行 */}
-      <FadeIn delay={0.05}>
+      <MotionPage>
         <Tabs
           value={category}
           onValueChange={(v) => {
@@ -380,10 +380,10 @@ export default function RankingPage() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </FadeIn>
+      </MotionPage>
 
       {/* 子类切换 */}
-      <FadeIn delay={0.08}>
+      <MotionPage>
         {category === "content" ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <Tabs
@@ -438,10 +438,10 @@ export default function RankingPage() {
             </TabsList>
           </Tabs>
         )}
-      </FadeIn>
+      </MotionPage>
 
       {/* 排名列表 */}
-      <FadeIn delay={0.12}>
+      <MotionPage>
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-muted-foreground">
@@ -463,7 +463,7 @@ export default function RankingPage() {
             <UserRankingList userType={userType} />
           )}
         </div>
-      </FadeIn>
+      </MotionPage>
     </div>
   );
 }
