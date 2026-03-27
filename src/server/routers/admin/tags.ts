@@ -16,13 +16,15 @@ export const adminTagsRouter = router({
 
   createTagCategory: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      name: z.string().min(1).max(30),
-      slug: z.string().min(1).max(30),
-      color: z.string().max(20).default("#6366f1"),
-      sortOrder: z.number().int().default(0),
-      type: z.string().max(20).default("genre"),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(30),
+        slug: z.string().min(1).max(30),
+        color: z.string().max(20).default("#6366f1"),
+        sortOrder: z.number().int().default(0),
+        type: z.string().max(20).default("genre"),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.tagCategory.findFirst({
         where: { OR: [{ name: input.name }, { slug: input.slug }] },
@@ -36,14 +38,16 @@ export const adminTagsRouter = router({
 
   updateTagCategory: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      id: z.string(),
-      name: z.string().min(1).max(30).optional(),
-      slug: z.string().min(1).max(30).optional(),
-      color: z.string().max(20).optional(),
-      sortOrder: z.number().int().optional(),
-      type: z.string().max(20).optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(30).optional(),
+        slug: z.string().min(1).max(30).optional(),
+        color: z.string().max(20).optional(),
+        sortOrder: z.number().int().optional(),
+        type: z.string().max(20).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const cat = await ctx.prisma.tagCategory.update({ where: { id }, data });
@@ -98,14 +102,21 @@ export const adminTagsRouter = router({
 
   createTag: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      name: z.string().min(1).max(50),
-      slug: z.string().min(1).max(50).optional(),
-      categoryId: z.string().optional(),
-      description: z.string().max(200).optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(50),
+        slug: z.string().min(1).max(50).optional(),
+        categoryId: z.string().optional(),
+        description: z.string().max(200).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const slug = input.slug || input.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
+      const slug =
+        input.slug ||
+        input.name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-\u4e00-\u9fa5]/g, "");
 
       const existing = await ctx.prisma.tag.findFirst({
         where: { OR: [{ name: input.name }, { slug }] },
@@ -127,13 +138,15 @@ export const adminTagsRouter = router({
 
   listTags: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(50),
-      page: z.number().min(1).default(1),
-      search: z.string().optional(),
-      categoryId: z.string().optional(),
-      uncategorized: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        categoryId: z.string().optional(),
+        uncategorized: z.boolean().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
       const conditions: Prisma.TagWhereInput[] = [];
@@ -180,13 +193,15 @@ export const adminTagsRouter = router({
 
   updateTag: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      tagId: z.string(),
-      name: z.string().min(1).max(50).optional(),
-      slug: z.string().min(1).max(50).optional(),
-      categoryId: z.string().nullable().optional(),
-      description: z.string().max(200).nullable().optional(),
-    }))
+    .input(
+      z.object({
+        tagId: z.string(),
+        name: z.string().min(1).max(50).optional(),
+        slug: z.string().min(1).max(50).optional(),
+        categoryId: z.string().nullable().optional(),
+        description: z.string().max(200).nullable().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { tagId, ...data } = input;
       const tag = await ctx.prisma.tag.update({ where: { id: tagId }, data });
@@ -197,10 +212,12 @@ export const adminTagsRouter = router({
 
   batchUpdateTagCategory: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      tagIds: z.array(z.string()).min(1).max(100),
-      categoryId: z.string().nullable(),
-    }))
+    .input(
+      z.object({
+        tagIds: z.array(z.string()).min(1).max(100),
+        categoryId: z.string().nullable(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.prisma.tag.updateMany({
         where: { id: { in: input.tagIds } },
@@ -235,10 +252,12 @@ export const adminTagsRouter = router({
 
   mergeTags: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      sourceTagIds: z.array(z.string()).min(1).max(100),
-      targetTagId: z.string(),
-    }))
+    .input(
+      z.object({
+        sourceTagIds: z.array(z.string()).min(1).max(100),
+        targetTagId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
@@ -298,19 +317,13 @@ export const adminTagsRouter = router({
         // 迁移蕴含关系：先收集、再删除、再去重重建，避免唯一约束冲突
         const sourceImplications = await tx.tagImplication.findMany({
           where: {
-            OR: [
-              { sourceTagId: { in: input.sourceTagIds } },
-              { targetTagId: { in: input.sourceTagIds } },
-            ],
+            OR: [{ sourceTagId: { in: input.sourceTagIds } }, { targetTagId: { in: input.sourceTagIds } }],
           },
         });
 
         await tx.tagImplication.deleteMany({
           where: {
-            OR: [
-              { sourceTagId: { in: input.sourceTagIds } },
-              { targetTagId: { in: input.sourceTagIds } },
-            ],
+            OR: [{ sourceTagId: { in: input.sourceTagIds } }, { targetTagId: { in: input.sourceTagIds } }],
           },
         });
 
@@ -350,10 +363,12 @@ export const adminTagsRouter = router({
 
   addAlias: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      tagId: z.string(),
-      name: z.string().min(1).max(50),
-    }))
+    .input(
+      z.object({
+        tagId: z.string(),
+        name: z.string().min(1).max(50),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.tagAlias.findUnique({ where: { name: input.name } });
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "该别名已存在" });
@@ -393,10 +408,12 @@ export const adminTagsRouter = router({
 
   addImplication: adminProcedure
     .use(requireScope("tag:manage"))
-    .input(z.object({
-      sourceTagId: z.string(),
-      targetTagId: z.string(),
-    }))
+    .input(
+      z.object({
+        sourceTagId: z.string(),
+        targetTagId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       if (input.sourceTagId === input.targetTagId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "不能蕴含自身" });
@@ -455,12 +472,10 @@ export const adminTagsRouter = router({
 
   // ========== 全量重算标签计数 ==========
 
-  refreshAllCounts: adminProcedure
-    .use(requireScope("tag:manage"))
-    .mutation(async () => {
-      const { refreshAllTagCounts } = await import("@/lib/tag-counts");
-      const count = await refreshAllTagCounts();
-      await deleteCachePattern("tag:*");
-      return { success: true, tagCount: count };
-    }),
+  refreshAllCounts: adminProcedure.use(requireScope("tag:manage")).mutation(async () => {
+    const { refreshAllTagCounts } = await import("@/lib/tag-counts");
+    const count = await refreshAllTagCounts();
+    await deleteCachePattern("tag:*");
+    return { success: true, tagCount: count };
+  }),
 });

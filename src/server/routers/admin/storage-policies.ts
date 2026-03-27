@@ -23,19 +23,17 @@ const policyInput = z.object({
 });
 
 export const adminStoragePoliciesRouter = router({
-  listStoragePolicies: adminProcedure
-    .use(requireScope("settings:manage"))
-    .query(async ({ ctx }) => {
-      const policies = await ctx.prisma.storagePolicy.findMany({
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-        include: { _count: { select: { files: true } } },
-      });
-      return policies.map((p) => ({
-        ...p,
-        maxFileSize: Number(p.maxFileSize),
-        fileCount: p._count.files,
-      }));
-    }),
+  listStoragePolicies: adminProcedure.use(requireScope("settings:manage")).query(async ({ ctx }) => {
+    const policies = await ctx.prisma.storagePolicy.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      include: { _count: { select: { files: true } } },
+    });
+    return policies.map((p) => ({
+      ...p,
+      maxFileSize: Number(p.maxFileSize),
+      fileCount: p._count.files,
+    }));
+  }),
 
   createStoragePolicy: adminProcedure
     .use(requireScope("settings:manage"))
@@ -124,9 +122,7 @@ export const adminStoragePoliciesRouter = router({
           pathPrefix: null,
         });
 
-        await client.send(
-          new HeadBucketCommand({ Bucket: input.bucket! }),
-        );
+        await client.send(new HeadBucketCommand({ Bucket: input.bucket! }));
         client.destroy();
 
         return { success: true, message: "连接成功" };

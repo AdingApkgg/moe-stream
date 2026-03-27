@@ -31,10 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Layers,
@@ -120,7 +117,7 @@ export function SeriesPanel() {
 
   const { data, isLoading, isFetching } = trpc.admin.listAllSeries.useQuery(
     { page, limit, search: search || undefined },
-    { enabled: permissions?.scopes.includes("video:moderate") }
+    { enabled: permissions?.scopes.includes("video:moderate") },
   );
 
   const deleteMutation = trpc.admin.adminDeleteSeries.useMutation({
@@ -163,10 +160,7 @@ export function SeriesPanel() {
     onError: (error: { message: string }) => toast.error(error.message || "移除失败"),
   });
 
-  const seriesList = useMemo(
-    () => (data?.series || []) as unknown as SeriesItem[],
-    [data?.series]
-  );
+  const seriesList = useMemo(() => (data?.series || []) as unknown as SeriesItem[], [data?.series]);
 
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
@@ -175,7 +169,7 @@ export function SeriesPanel() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const { data: seriesDetail, refetch: expandedDetailRefetch } = trpc.admin.getSeriesDetail.useQuery(
     { id: detailId! },
-    { enabled: !!detailId }
+    { enabled: !!detailId },
   );
 
   const toggleSelect = useCallback((id: string) => {
@@ -251,11 +245,7 @@ export function SeriesPanel() {
   const isPageAllSelected = seriesList.length > 0 && seriesList.every((s) => selectedIds.has(s.id));
 
   if (!canModerate) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有合集管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有合集管理权限</div>;
   }
 
   return (
@@ -265,7 +255,9 @@ export function SeriesPanel() {
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5" />
           <h2 className="text-xl font-semibold">合集管理</h2>
-          <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
+          <Badge variant="outline" className="ml-2">
+            {totalCount} 个
+          </Badge>
         </div>
 
         {stats && (
@@ -304,18 +296,8 @@ export function SeriesPanel() {
       {/* 批量操作栏 */}
       <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={togglePageSelect}
-            className="gap-1"
-            title="选择/取消本页"
-          >
-            {isPageAllSelected ? (
-              <CheckSquare className="h-4 w-4" />
-            ) : (
-              <Square className="h-4 w-4" />
-            )}
+          <Button variant="ghost" size="sm" onClick={togglePageSelect} className="gap-1" title="选择/取消本页">
+            {isPageAllSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             本页
           </Button>
           {selectedIds.size > 0 && (
@@ -327,17 +309,11 @@ export function SeriesPanel() {
 
         {selectedIds.size > 0 && (
           <>
-            <span className="text-sm text-muted-foreground">
-              已选 {selectedIds.size} 个
-            </span>
+            <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 个</span>
             <div className="flex items-center gap-2 ml-auto">
               {canManage && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTransferOpen(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" />
                     转移所有权
                   </Button>
@@ -366,9 +342,7 @@ export function SeriesPanel() {
         </div>
       ) : seriesList.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            没有找到合集
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">没有找到合集</CardContent>
         </Card>
       ) : (
         <>
@@ -380,24 +354,14 @@ export function SeriesPanel() {
               const coverSrc = series.coverUrl
                 ? getCoverUrl("", series.coverUrl, { w: 260 })
                 : firstEpisodeCover
-                ? getCoverUrl(firstEpisodeCover.id, firstEpisodeCover.coverUrl, { w: 260 })
-                : null;
+                  ? getCoverUrl(firstEpisodeCover.id, firstEpisodeCover.coverUrl, { w: 260 })
+                  : null;
 
               return (
-                <Card
-                  key={series.id}
-                  className={cn(
-                    "transition-colors",
-                    isSelected && "ring-2 ring-primary"
-                  )}
-                >
+                <Card key={series.id} className={cn("transition-colors", isSelected && "ring-2 ring-primary")}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(series.id)}
-                        className="mt-1"
-                      />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(series.id)} className="mt-1" />
 
                       {/* 封面 */}
                       <div className="relative w-32 h-20 rounded-lg bg-muted overflow-hidden shrink-0">
@@ -424,10 +388,7 @@ export function SeriesPanel() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <Link
-                              href={`/series/${series.id}`}
-                              className="font-medium hover:underline line-clamp-1"
-                            >
+                            <Link href={`/series/${series.id}`} className="font-medium hover:underline line-clamp-1">
                               {series.title}
                             </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -468,11 +429,7 @@ export function SeriesPanel() {
                           </Button>
                           {canManage && (
                             <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(series)}
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => handleEdit(series)}>
                                 <Edit className="h-3 w-3 mr-1" />
                                 编辑
                               </Button>
@@ -493,11 +450,7 @@ export function SeriesPanel() {
                             className="h-8 w-8 ml-auto"
                             onClick={() => toggleExpand(series.id)}
                           >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </Button>
                         </div>
 
@@ -506,7 +459,13 @@ export function SeriesPanel() {
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="shrink-0 text-muted-foreground/60">封面</span>
                             {series.coverUrl ? (
-                              <a href={series.coverUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={series.coverUrl}>
+                              <a
+                                href={series.coverUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate hover:underline hover:text-foreground"
+                                title={series.coverUrl}
+                              >
                                 {series.coverUrl}
                               </a>
                             ) : (
@@ -556,7 +515,12 @@ export function SeriesPanel() {
                                 <Download className="h-3 w-3" />
                                 下载链接
                               </div>
-                              <a href={series.downloadUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                              <a
+                                href={series.downloadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline break-all"
+                              >
                                 {series.downloadUrl}
                               </a>
                               {series.downloadNote && (
@@ -607,17 +571,19 @@ export function SeriesPanel() {
                                           <Eye className="h-3 w-3" />
                                           {ep.video.views}
                                         </span>
-                                        {ep.video.duration && (
-                                          <span>{formatDuration(ep.video.duration)}</span>
-                                        )}
+                                        {ep.video.duration && <span>{formatDuration(ep.video.duration)}</span>}
                                         <Badge
                                           variant={ep.video.status === "PUBLISHED" ? "default" : "secondary"}
                                           className={cn(
                                             "text-[10px] px-1 py-0",
-                                            ep.video.status === "PUBLISHED" && "bg-green-500"
+                                            ep.video.status === "PUBLISHED" && "bg-green-500",
                                           )}
                                         >
-                                          {ep.video.status === "PUBLISHED" ? "已发布" : ep.video.status === "PENDING" ? "待审" : "已拒绝"}
+                                          {ep.video.status === "PUBLISHED"
+                                            ? "已发布"
+                                            : ep.video.status === "PENDING"
+                                              ? "待审"
+                                              : "已拒绝"}
                                         </Badge>
                                       </div>
                                     </div>
@@ -641,9 +607,7 @@ export function SeriesPanel() {
                                   </div>
                                 ))}
                                 {seriesDetail.episodes.length === 0 && (
-                                  <p className="text-sm text-muted-foreground text-center py-4">
-                                    合集暂无剧集
-                                  </p>
+                                  <p className="text-sm text-muted-foreground text-center py-4">合集暂无剧集</p>
                                 )}
                               </div>
                             ) : (
@@ -751,9 +715,7 @@ export function SeriesPanel() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定要删除这个合集吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              合集将被删除，但其中的视频不会受影响。此操作不可撤销。
-            </AlertDialogDescription>
+            <AlertDialogDescription>合集将被删除，但其中的视频不会受影响。此操作不可撤销。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -794,9 +756,7 @@ export function SeriesPanel() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>编辑合集</DialogTitle>
-            <DialogDescription>
-              修改合集信息
-            </DialogDescription>
+            <DialogDescription>修改合集信息</DialogDescription>
           </DialogHeader>
           {editData && (
             <div className="space-y-4 py-4">
@@ -805,9 +765,7 @@ export function SeriesPanel() {
                 <Input
                   id="edit-title"
                   value={editData.title}
-                  onChange={(e) =>
-                    setEditData({ ...editData, title: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
                   placeholder="输入合集标题..."
                 />
               </div>
@@ -817,9 +775,7 @@ export function SeriesPanel() {
                 <Textarea
                   id="edit-description"
                   value={editData.description}
-                  onChange={(e) =>
-                    setEditData({ ...editData, description: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                   placeholder="输入合集描述..."
                   rows={3}
                 />
@@ -830,14 +786,10 @@ export function SeriesPanel() {
                 <Input
                   id="edit-cover"
                   value={editData.coverUrl}
-                  onChange={(e) =>
-                    setEditData({ ...editData, coverUrl: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, coverUrl: e.target.value })}
                   placeholder="https://example.com/cover.jpg"
                 />
-                <p className="text-xs text-muted-foreground">
-                  留空则自动使用第一集视频的封面
-                </p>
+                <p className="text-xs text-muted-foreground">留空则自动使用第一集视频的封面</p>
               </div>
 
               <div className="space-y-2">
@@ -845,9 +797,7 @@ export function SeriesPanel() {
                 <Input
                   id="edit-download"
                   value={editData.downloadUrl}
-                  onChange={(e) =>
-                    setEditData({ ...editData, downloadUrl: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, downloadUrl: e.target.value })}
                   placeholder="https://pan.baidu.com/..."
                 />
               </div>
@@ -857,9 +807,7 @@ export function SeriesPanel() {
                 <Textarea
                   id="edit-download-note"
                   value={editData.downloadNote}
-                  onChange={(e) =>
-                    setEditData({ ...editData, downloadNote: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, downloadNote: e.target.value })}
                   placeholder="解压密码、使用说明等..."
                   rows={2}
                 />
@@ -871,9 +819,7 @@ export function SeriesPanel() {
               取消
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+              {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               保存
             </Button>
           </DialogFooter>

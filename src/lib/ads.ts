@@ -81,9 +81,7 @@ export function isAdForPosition(ad: Ad, slotPosition?: string): boolean {
  */
 export function getActiveAds(ads: Ad[], slotPosition?: string): Ad[] {
   const now = new Date();
-  return ads.filter(
-    (a) => a.enabled && isAdInSchedule(a, now) && isAdForPosition(a, slotPosition)
-  );
+  return ads.filter((a) => a.enabled && isAdInSchedule(a, now) && isAdForPosition(a, slotPosition));
 }
 
 /**

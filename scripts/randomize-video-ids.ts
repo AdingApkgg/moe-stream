@@ -1,6 +1,6 @@
 /**
  * 将现有顺序 ID 随机化
- * 
+ *
  * 运行方式: npx tsx scripts/randomize-video-ids.ts
  */
 
@@ -45,16 +45,16 @@ async function randomizeVideoIds() {
 
   // 收集已使用的 ID
   const usedIds = new Set<string>();
-  
+
   // 生成所有新的随机 ID
   const idMapping: { oldId: string; newId: string; title: string }[] = [];
-  
+
   for (const video of videos) {
     let newId: string;
     do {
       newId = generateRandomId();
     } while (usedIds.has(newId));
-    
+
     usedIds.add(newId);
     idMapping.push({ oldId: video.id, newId, title: video.title });
   }
@@ -63,11 +63,11 @@ async function randomizeVideoIds() {
 
   // 使用直接 SQL 更新
   const client = await pool.connect();
-  
+
   try {
     await client.query("BEGIN");
     await client.query("SET session_replication_role = replica");
-    
+
     let successCount = 0;
     let errorCount = 0;
 
@@ -83,11 +83,11 @@ async function randomizeVideoIds() {
         await client.query(`UPDATE "Confused" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
         await client.query(`UPDATE "PlaylistItem" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
         await client.query(`UPDATE "Comment" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
-        
+
         // 更新视频表本身
         await client.query(`UPDATE "Video" SET "id" = $1 WHERE "id" = $2`, [newId, oldId]);
 
-        console.log(`✓ ${oldId} → ${newId} (${title.substring(0, 40)}${title.length > 40 ? '...' : ''})`);
+        console.log(`✓ ${oldId} → ${newId} (${title.substring(0, 40)}${title.length > 40 ? "..." : ""})`);
         successCount++;
       } catch (error) {
         console.error(`✗ ${oldId} 迁移失败:`, error);

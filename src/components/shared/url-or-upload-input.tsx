@@ -116,13 +116,7 @@ export function UrlOrUploadInput({
                 <p className="text-sm font-medium truncate">{uploadedResult.filename}</p>
                 <p className="text-xs text-muted-foreground truncate">{value}</p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={handleClear}
-              >
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleClear}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -146,23 +140,13 @@ export function UrlOrUploadInput({
             disabled={disabled}
           >
             <FolderOpen className="h-5 w-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {value ? "重新选择文件" : "从我的文件中选择"}
-            </span>
+            <span className="text-xs text-muted-foreground">{value ? "重新选择文件" : "从我的文件中选择"}</span>
           </Button>
-          {value && tab === "files" && (
-            <p className="text-xs text-muted-foreground mt-1.5 truncate">
-              当前: {value}
-            </p>
-          )}
+          {value && tab === "files" && <p className="text-xs text-muted-foreground mt-1.5 truncate">当前: {value}</p>}
         </TabsContent>
       </Tabs>
 
-      {value && tab !== "link" && (
-        <p className="text-xs text-muted-foreground truncate">
-          URL: {value}
-        </p>
-      )}
+      {value && tab !== "link" && <p className="text-xs text-muted-foreground truncate">URL: {value}</p>}
 
       <FilePickerDialog
         open={pickerOpen}

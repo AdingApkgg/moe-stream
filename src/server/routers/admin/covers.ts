@@ -3,24 +3,34 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { processVideo, setCoverManually } from "@/lib/cover-auto";
-import { addToQueueBatch, getCoverStats, resetCoverStats, getPermFailedVideos, clearPermFailed, getCoverLogs, clearCoverLogs } from "@/lib/cover-queue";
+import {
+  addToQueueBatch,
+  getCoverStats,
+  resetCoverStats,
+  getPermFailedVideos,
+  clearPermFailed,
+  getCoverLogs,
+  clearCoverLogs,
+} from "@/lib/cover-queue";
 
 export const adminCoversRouter = router({
   // 重置视频封面：清除匹配模式的封面URL并触发自动生成
   resetCovers: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      // 匹配封面URL的模式，如 "/Picture/" 匹配合集封面
-      urlPattern: z.string().min(1).max(200).optional(),
-      // 指定合集ID，重置该合集下所有视频的封面
-      seriesId: z.string().optional(),
-      // 指定视频ID列表
-      videoIds: z.array(z.string()).optional(),
-      // 重置所有没有自动生成封面的视频（coverUrl 非空且不是本地路径）
-      nonLocalOnly: z.boolean().optional(),
-      // 仅重置本地生成的封面（coverUrl 以 /uploads/cover/ 开头）
-      localOnly: z.boolean().optional(),
-    }))
+    .input(
+      z.object({
+        // 匹配封面URL的模式，如 "/Picture/" 匹配合集封面
+        urlPattern: z.string().min(1).max(200).optional(),
+        // 指定合集ID，重置该合集下所有视频的封面
+        seriesId: z.string().optional(),
+        // 指定视频ID列表
+        videoIds: z.array(z.string()).optional(),
+        // 重置所有没有自动生成封面的视频（coverUrl 非空且不是本地路径）
+        nonLocalOnly: z.boolean().optional(),
+        // 仅重置本地生成的封面（coverUrl 以 /uploads/cover/ 开头）
+        localOnly: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // 构建查询条件
       const where: Prisma.VideoWhereInput = {
@@ -113,9 +123,13 @@ export const adminCoversRouter = router({
   // 获取封面生成日志
   getCoverLogs: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      limit: z.number().min(1).max(200).default(100),
-    }).optional())
+    .input(
+      z
+        .object({
+          limit: z.number().min(1).max(200).default(100),
+        })
+        .optional(),
+    )
     .query(async ({ input }) => {
       const logs = await getCoverLogs(input?.limit ?? 100);
       return { logs };
@@ -130,9 +144,13 @@ export const adminCoversRouter = router({
   // 清除永久失败标记，允许重新尝试生成封面
   clearPermFailed: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      videoIds: z.array(z.string()).optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          videoIds: z.array(z.string()).optional(),
+        })
+        .optional(),
+    )
     .mutation(async ({ input }) => {
       const cleared = await clearPermFailed(input?.videoIds);
       return { cleared };
@@ -141,9 +159,11 @@ export const adminCoversRouter = router({
   // 手动触发补全缺失封面的视频
   triggerCoverBackfill: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      limit: z.number().min(1).max(500).default(50),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(500).default(50),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const videos = await ctx.prisma.video.findMany({
         where: {
@@ -166,9 +186,11 @@ export const adminCoversRouter = router({
   // 为指定视频重新生成封面
   regenerateCovers: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      videoIds: z.array(z.string()).min(1).max(100),
-    }))
+    .input(
+      z.object({
+        videoIds: z.array(z.string()).min(1).max(100),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // 清除旧封面URL，触发重新生成
       await ctx.prisma.video.updateMany({
@@ -183,9 +205,11 @@ export const adminCoversRouter = router({
   // 立即生成封面（同步执行，不经过队列）
   generateCoverNow: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      videoId: z.string(),
-    }))
+    .input(
+      z.object({
+        videoId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       // 先清除旧数据
       await ctx.prisma.video.update({
@@ -219,10 +243,12 @@ export const adminCoversRouter = router({
   // 手动上传封面（base64 图片数据）
   uploadCover: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      videoId: z.string(),
-      imageBase64: z.string().max(10 * 1024 * 1024),
-    }))
+    .input(
+      z.object({
+        videoId: z.string(),
+        imageBase64: z.string().max(10 * 1024 * 1024),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const video = await ctx.prisma.video.findUnique({
         where: { id: input.videoId },
@@ -242,5 +268,4 @@ export const adminCoversRouter = router({
       const result = await setCoverManually(input.videoId, imageBuffer);
       return { success: true, coverUrl: result.coverUrl };
     }),
-
 });

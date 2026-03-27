@@ -10,17 +10,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { GameCard } from "@/components/game/game-card";
 import {
-  Gamepad2, ThumbsUp, ThumbsDown, Heart, Eye, Download,
-  Calendar, User, ExternalLink, Copy, Check, Info, Image as ImageIcon,
-  Users, ChevronLeft, ChevronRight, Lock, Monitor, Smartphone, Play,
-  Share2, X, MessageSquare, Tag, Edit, Clock, HardDrive, ChevronDown,
+  Gamepad2,
+  ThumbsUp,
+  ThumbsDown,
+  Heart,
+  Eye,
+  Download,
+  Calendar,
+  User,
+  ExternalLink,
+  Copy,
+  Check,
+  Info,
+  Image as ImageIcon,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  Monitor,
+  Smartphone,
+  Play,
+  Share2,
+  X,
+  MessageSquare,
+  Tag,
+  Edit,
+  Clock,
+  HardDrive,
+  ChevronDown,
 } from "lucide-react";
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
@@ -49,12 +69,25 @@ const GAME_TYPE_COLORS: Record<string, string> = {
 };
 
 const GAME_TYPE_LABELS: Record<string, string> = {
-  ADV: "冒险", SLG: "策略", RPG: "角色扮演", ACT: "动作",
-  STG: "射击", PZL: "解谜", AVG: "文字冒险", FTG: "格斗",
-  TAB: "桌游", OTHER: "其他",
+  ADV: "冒险",
+  SLG: "策略",
+  RPG: "角色扮演",
+  ACT: "动作",
+  STG: "射击",
+  PZL: "解谜",
+  AVG: "文字冒险",
+  FTG: "格斗",
+  TAB: "桌游",
+  OTHER: "其他",
 };
 
-function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
+function SectionTitle({
+  icon: Icon,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
   return (
     <h2 className="flex items-center gap-2 text-base font-bold mb-3">
       <Icon className="h-4.5 w-4.5 text-primary" />
@@ -63,7 +96,11 @@ function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ cl
   );
 }
 
-function InfoRow({ icon: Icon, label, children }: {
+function InfoRow({
+  icon: Icon,
+  label,
+  children,
+}: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   children: React.ReactNode;
@@ -97,7 +134,14 @@ interface GamePageClientProps {
   customTabContents?: Record<string, React.ReactNode>;
 }
 
-export function GamePageClient({ id, initialGame, descriptionContent, characterIntroContent, versionContents, customTabContents }: GamePageClientProps) {
+export function GamePageClient({
+  id,
+  initialGame,
+  descriptionContent,
+  characterIntroContent,
+  versionContents,
+  customTabContents,
+}: GamePageClientProps) {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -105,22 +149,19 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
   const { play } = useSound();
   const { data: session } = useSession();
 
-  const hasMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const hasMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const isOwner = hasMounted && session?.user?.id === initialGame.uploader.id;
 
-  const extra: GameExtraInfo = (initialGame.extraInfo && typeof initialGame.extraInfo === "object")
-    ? initialGame.extraInfo as GameExtraInfo
-    : {};
+  const extra: GameExtraInfo =
+    initialGame.extraInfo && typeof initialGame.extraInfo === "object" ? (initialGame.extraInfo as GameExtraInfo) : {};
 
-  const { data: relatedGames } = trpc.game.getRelated.useQuery(
-    { gameId: id, limit: 6 },
-    { enabled: !!id }
-  );
+  const { data: relatedGames } = trpc.game.getRelated.useQuery({ gameId: id, limit: 6 }, { enabled: !!id });
 
-  const { data: interaction } = trpc.game.getUserInteraction.useQuery(
-    { gameId: id },
-    { enabled: !!id }
-  );
+  const { data: interaction } = trpc.game.getUserInteraction.useQuery({ gameId: id }, { enabled: !!id });
 
   const utils = trpc.useUtils();
 
@@ -152,12 +193,15 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleCopyUrl = useCallback((url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedUrl(url);
-    play("click");
-    setTimeout(() => setCopiedUrl(null), 2000);
-  }, [play]);
+  const handleCopyUrl = useCallback(
+    (url: string) => {
+      navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      play("click");
+      setTimeout(() => setCopiedUrl(null), 2000);
+    },
+    [play],
+  );
 
   const handleShare = useCallback(async () => {
     const url = window.location.href;
@@ -198,17 +242,38 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
   };
 
   const coverSrc = initialGame.coverUrl
-    ? (initialGame.coverUrl.startsWith("/uploads/")
+    ? initialGame.coverUrl.startsWith("/uploads/")
       ? initialGame.coverUrl
-      : `/api/cover/${encodeURIComponent(initialGame.coverUrl)}`)
+      : `/api/cover/${encodeURIComponent(initialGame.coverUrl)}`
     : null;
 
   const availableTabs = useMemo(() => {
-    const tabs: { value: string; label: string; shortLabel: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [];
-    if (hasScreenshots) tabs.push({ value: "screenshots", label: "游戏截图", shortLabel: "截图", icon: ImageIcon, count: imageUrls.length });
+    const tabs: {
+      value: string;
+      label: string;
+      shortLabel: string;
+      icon: React.ComponentType<{ className?: string }>;
+      count?: number;
+    }[] = [];
+    if (hasScreenshots)
+      tabs.push({
+        value: "screenshots",
+        label: "游戏截图",
+        shortLabel: "截图",
+        icon: ImageIcon,
+        count: imageUrls.length,
+      });
     if (descriptionContent) tabs.push({ value: "intro", label: "游戏介绍", shortLabel: "介绍", icon: Gamepad2 });
-    if (hasVersions) tabs.push({ value: "versions", label: "更新版本", shortLabel: "版本", icon: Tag, count: initialGame.versions.length });
-    if (hasVideos) tabs.push({ value: "videos", label: "PV 鉴赏", shortLabel: "PV", icon: Play, count: videoUrls.length });
+    if (hasVersions)
+      tabs.push({
+        value: "versions",
+        label: "更新版本",
+        shortLabel: "版本",
+        icon: Tag,
+        count: initialGame.versions.length,
+      });
+    if (hasVideos)
+      tabs.push({ value: "videos", label: "PV 鉴赏", shortLabel: "PV", icon: Play, count: videoUrls.length });
     if (characterIntroContent) tabs.push({ value: "characters", label: "角色介绍", shortLabel: "角色", icon: Users });
     if (initialGame.customTabs && initialGame.customTabs.length > 0) {
       for (const ct of initialGame.customTabs) {
@@ -218,13 +283,33 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
         }
       }
     }
-    if (relatedGames && relatedGames.length > 0) tabs.push({ value: "related", label: "相关推荐", shortLabel: "推荐", icon: Tag, count: relatedGames.length });
+    if (relatedGames && relatedGames.length > 0)
+      tabs.push({ value: "related", label: "相关推荐", shortLabel: "推荐", icon: Tag, count: relatedGames.length });
     return tabs;
-  }, [descriptionContent, hasScreenshots, hasVideos, hasVersions, characterIntroContent, imageUrls.length, videoUrls.length, initialGame.versions, initialGame.customTabs, customTabContents, relatedGames]);
+  }, [
+    descriptionContent,
+    hasScreenshots,
+    hasVideos,
+    hasVersions,
+    characterIntroContent,
+    imageUrls.length,
+    videoUrls.length,
+    initialGame.versions,
+    initialGame.customTabs,
+    customTabContents,
+    relatedGames,
+  ]);
 
   const defaultTab = availableTabs[0]?.value ?? "intro";
 
-  const hasExtraInfo = extra.originalName || extra.originalAuthor || extra.authorUrl || extra.fileSize || extra.platforms || initialGame.gameType || initialGame.version;
+  const hasExtraInfo =
+    extra.originalName ||
+    extra.originalAuthor ||
+    extra.authorUrl ||
+    extra.fileSize ||
+    extra.platforms ||
+    initialGame.gameType ||
+    initialGame.version;
 
   return (
     <PageWrapper>
@@ -282,7 +367,12 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
               {/* 封面 Badge */}
               <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1.5 sm:gap-2">
                 {initialGame.gameType && (
-                  <Badge className={cn("text-[10px] sm:text-xs font-bold border-0 shadow-lg", GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER)}>
+                  <Badge
+                    className={cn(
+                      "text-[10px] sm:text-xs font-bold border-0 shadow-lg",
+                      GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER,
+                    )}
+                  >
                     {initialGame.gameType}
                   </Badge>
                 )}
@@ -311,9 +401,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
             <div className="max-w-4xl mx-auto mt-3 sm:mt-5 space-y-2 sm:space-y-3">
               {/* 标题 + 编辑 */}
               <div className="flex items-start justify-between gap-2">
-                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold leading-tight">
-                  {initialGame.title}
-                </h1>
+                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold leading-tight">{initialGame.title}</h1>
                 {isOwner && (
                   <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" asChild>
                     <Link href={`/game/edit/${id}`} aria-label="编辑游戏">
@@ -324,25 +412,34 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
               </div>
 
               {/* 原名 */}
-              {extra.originalName && (
-                <p className="text-xs sm:text-sm text-muted-foreground">{extra.originalName}</p>
-              )}
+              {extra.originalName && <p className="text-xs sm:text-sm text-muted-foreground">{extra.originalName}</p>}
 
               {/* Badges 行 */}
               <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 sm:gap-y-1.5 text-sm text-muted-foreground">
                 {initialGame.gameType && (
-                  <Badge className={cn("text-[10px] font-bold border-0 h-5", GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER)}>
+                  <Badge
+                    className={cn(
+                      "text-[10px] font-bold border-0 h-5",
+                      GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER,
+                    )}
+                  >
                     {GAME_TYPE_LABELS[initialGame.gameType] || initialGame.gameType}
                   </Badge>
                 )}
                 {extra.platforms?.map((platform) => (
                   <Badge key={platform} variant="outline" className="gap-1 text-[10px] h-5">
-                    {platform.toLowerCase().includes("android") ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                    {platform.toLowerCase().includes("android") ? (
+                      <Smartphone className="h-3 w-3" />
+                    ) : (
+                      <Monitor className="h-3 w-3" />
+                    )}
                     {platform}
                   </Badge>
                 ))}
                 {initialGame.version && (
-                  <Badge variant="outline" className="text-[10px] h-5">{initialGame.version}</Badge>
+                  <Badge variant="outline" className="text-[10px] h-5">
+                    {initialGame.version}
+                  </Badge>
                 )}
               </div>
 
@@ -406,7 +503,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
-                        likeRatio >= 80 ? "bg-green-500" : likeRatio >= 50 ? "bg-yellow-500" : "bg-red-500"
+                        likeRatio >= 80 ? "bg-green-500" : likeRatio >= 50 ? "bg-yellow-500" : "bg-red-500",
                       )}
                       style={{ width: `${likeRatio}%` }}
                     />
@@ -441,8 +538,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                   disabled={toggleReaction.isPending}
                   onClick={() => toggleReaction.mutate({ gameId: id, type: "dislike" })}
                 >
-                  <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />
-                  踩
+                  <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />踩
                 </Button>
                 <Button
                   variant={interaction?.favorited ? "default" : "outline"}
@@ -477,7 +573,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       onClick={() => toggleReaction.mutate({ gameId: id, type: "like" })}
                       className={cn(
                         "flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-medium transition-colors active:scale-95",
-                        interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted"
+                        interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted",
                       )}
                     >
                       <ThumbsUp className={cn("h-4 w-4", interaction?.liked && "fill-current")} />
@@ -489,7 +585,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       onClick={() => toggleFavorite.mutate({ gameId: id })}
                       className={cn(
                         "flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-medium transition-colors active:scale-95",
-                        interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted"
+                        interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted",
                       )}
                     >
                       <Heart className={cn("h-4 w-4", interaction?.favorited && "fill-current")} />
@@ -512,7 +608,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       onClick={() => toggleReaction.mutate({ gameId: id, type: "like" })}
                       className={cn(
                         "flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-medium transition-colors active:scale-95",
-                        interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted"
+                        interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted",
                       )}
                     >
                       <ThumbsUp className={cn("h-4 w-4", interaction?.liked && "fill-current")} />
@@ -524,11 +620,10 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       onClick={() => toggleReaction.mutate({ gameId: id, type: "dislike" })}
                       className={cn(
                         "flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-medium transition-colors active:scale-95",
-                        interaction?.disliked ? "bg-primary text-primary-foreground" : "bg-muted"
+                        interaction?.disliked ? "bg-primary text-primary-foreground" : "bg-muted",
                       )}
                     >
-                      <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />
-                      踩
+                      <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />踩
                     </button>
                     <button
                       type="button"
@@ -536,7 +631,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       onClick={() => toggleFavorite.mutate({ gameId: id })}
                       className={cn(
                         "flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-medium transition-colors active:scale-95",
-                        interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted"
+                        interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted",
                       )}
                     >
                       <Heart className={cn("h-4 w-4", interaction?.favorited && "fill-current")} />
@@ -574,10 +669,14 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       key={i}
                       className={cn(
                         "rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm flex items-start gap-2",
-                        notice.type === "warning" && "bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
-                        notice.type === "error" && "bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400",
-                        notice.type === "success" && "bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400",
-                        notice.type === "info" && "bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400",
+                        notice.type === "warning" &&
+                          "bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
+                        notice.type === "error" &&
+                          "bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400",
+                        notice.type === "success" &&
+                          "bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400",
+                        notice.type === "info" &&
+                          "bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400",
                       )}
                     >
                       <Info className="h-3.5 w-3.5 sm:h-4 sm:w-4 mt-0.5 shrink-0" />
@@ -612,7 +711,11 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                                     className="text-primary hover:text-primary/80 transition-colors p-0.5"
                                     aria-label="复制密码"
                                   >
-                                    {copiedUrl === dl.password ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                                    {copiedUrl === dl.password ? (
+                                      <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                    ) : (
+                                      <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                    )}
                                   </button>
                                 </div>
                               )}
@@ -648,7 +751,11 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                   <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
                     <TabsList variant="line" className="w-max sm:w-full justify-start mb-3 sm:mb-4">
                       {availableTabs.map((tab) => (
-                        <TabsTrigger key={tab.value} value={tab.value} className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                        <TabsTrigger
+                          key={tab.value}
+                          value={tab.value}
+                          className="gap-1 sm:gap-1.5 text-xs sm:text-sm px-2 sm:px-3"
+                        >
                           <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           <span className="sm:hidden">{tab.shortLabel}</span>
                           <span className="hidden sm:inline">{tab.label}</span>
@@ -666,9 +773,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                   {descriptionContent && (
                     <TabsContent value="intro">
                       <Card>
-                        <CardContent className="p-3 sm:p-6">
-                          {descriptionContent}
-                        </CardContent>
+                        <CardContent className="p-3 sm:p-6">{descriptionContent}</CardContent>
                       </Card>
                     </TabsContent>
                   )}
@@ -753,9 +858,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                   {characterIntroContent && (
                     <TabsContent value="characters">
                       <Card>
-                        <CardContent className="p-3 sm:p-6">
-                          {characterIntroContent}
-                        </CardContent>
+                        <CardContent className="p-3 sm:p-6">{characterIntroContent}</CardContent>
                       </Card>
                     </TabsContent>
                   )}
@@ -765,25 +868,47 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                     customTabContents?.[ct.id] ? (
                       <TabsContent key={ct.id} value={`custom-${ct.id}`}>
                         <Card>
-                          <CardContent className="p-3 sm:p-6">
-                            {customTabContents[ct.id]}
-                          </CardContent>
+                          <CardContent className="p-3 sm:p-6">{customTabContents[ct.id]}</CardContent>
                         </Card>
                       </TabsContent>
-                    ) : null
+                    ) : null,
                   )}
 
                   {/* 相关推荐 */}
                   {relatedGames && relatedGames.length > 0 && (
                     <TabsContent value="related">
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-                        {relatedGames.map((game: { id: string; title: string; description?: string | null; coverUrl?: string | null; gameType?: string | null; isFree: boolean; version?: string | null; views: number; createdAt: Date; extraInfo?: unknown; uploader: { id: string; username: string; nickname?: string | null; avatar?: string | null }; tags?: { tag: { id: string; name: string; slug: string } }[]; _count: { likes: number; dislikes?: number; favorites?: number } }, index: number) => (
-                          <GameCard
-                            key={game.id}
-                            game={{ ...game, createdAt: game.createdAt.toString() }}
-                            index={index}
-                          />
-                        ))}
+                        {relatedGames.map(
+                          (
+                            game: {
+                              id: string;
+                              title: string;
+                              description?: string | null;
+                              coverUrl?: string | null;
+                              gameType?: string | null;
+                              isFree: boolean;
+                              version?: string | null;
+                              views: number;
+                              createdAt: Date;
+                              extraInfo?: unknown;
+                              uploader: {
+                                id: string;
+                                username: string;
+                                nickname?: string | null;
+                                avatar?: string | null;
+                              };
+                              tags?: { tag: { id: string; name: string; slug: string } }[];
+                              _count: { likes: number; dislikes?: number; favorites?: number };
+                            },
+                            index: number,
+                          ) => (
+                            <GameCard
+                              key={game.id}
+                              game={{ ...game, createdAt: game.createdAt.toString() }}
+                              index={index}
+                            />
+                          ),
+                        )}
                       </div>
                     </TabsContent>
                   )}
@@ -797,9 +922,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                 <section className="mb-4 sm:mb-6">
                   <SectionTitle icon={Gamepad2}>游戏介绍</SectionTitle>
                   <Card>
-                    <CardContent className="p-3 sm:p-6">
-                      {descriptionContent}
-                    </CardContent>
+                    <CardContent className="p-3 sm:p-6">{descriptionContent}</CardContent>
                   </Card>
                 </section>
               </FadeIn>
@@ -821,7 +944,6 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
           {/* ——— 右侧信息栏 ——— */}
           <aside className="lg:w-[280px] xl:w-[300px] shrink-0">
             <div className="lg:sticky lg:top-20 space-y-3 sm:space-y-4">
-
               {/* 移动端：紧凑可折叠游戏信息 */}
               {hasExtraInfo && (
                 <FadeIn delay={0.2}>
@@ -836,18 +958,31 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                           <Info className="h-4 w-4 text-primary" />
                           游戏信息
                         </span>
-                        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", mobileInfoExpanded && "rotate-180")} />
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform",
+                            mobileInfoExpanded && "rotate-180",
+                          )}
+                        />
                       </button>
 
                       {/* 预览行：折叠时显示关键信息 */}
                       {!mobileInfoExpanded && (
                         <dl className="grid grid-cols-3 gap-2 mt-2.5 pt-2.5 border-t">
                           {initialGame.gameType && (
-                            <MobileInfoGrid label="类型" value={
-                              <Badge className={cn("text-[9px] border-0 h-4 px-1", GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER)}>
-                                {GAME_TYPE_LABELS[initialGame.gameType] || initialGame.gameType}
-                              </Badge>
-                            } />
+                            <MobileInfoGrid
+                              label="类型"
+                              value={
+                                <Badge
+                                  className={cn(
+                                    "text-[9px] border-0 h-4 px-1",
+                                    GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER,
+                                  )}
+                                >
+                                  {GAME_TYPE_LABELS[initialGame.gameType] || initialGame.gameType}
+                                </Badge>
+                              }
+                            />
                           )}
                           {extra.fileSize && <MobileInfoGrid label="大小" value={extra.fileSize} />}
                           {extra.originalAuthor && <MobileInfoGrid label="作者" value={extra.originalAuthor} />}
@@ -862,41 +997,71 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                         <dl className="space-y-2.5 mt-2.5 pt-2.5 border-t">
                           {initialGame.gameType && (
                             <InfoRow icon={Gamepad2} label="游戏类型">
-                              <Badge className={cn("text-xs border-0", GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER)}>
+                              <Badge
+                                className={cn(
+                                  "text-xs border-0",
+                                  GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER,
+                                )}
+                              >
                                 {initialGame.gameType} · {GAME_TYPE_LABELS[initialGame.gameType] || "游戏"}
                               </Badge>
                             </InfoRow>
                           )}
                           {extra.originalName && (
-                            <InfoRow icon={Tag} label="游戏原名">{extra.originalName}</InfoRow>
+                            <InfoRow icon={Tag} label="游戏原名">
+                              {extra.originalName}
+                            </InfoRow>
                           )}
                           {extra.originalAuthor && (
-                            <InfoRow icon={User} label="原作者">{extra.originalAuthor}</InfoRow>
+                            <InfoRow icon={User} label="原作者">
+                              {extra.originalAuthor}
+                            </InfoRow>
                           )}
                           {extra.authorUrl && (
                             <InfoRow icon={ExternalLink} label="作者网址">
-                              <a href={extra.authorUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs">
+                              <a
+                                href={extra.authorUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+                              >
                                 点击进入 <ExternalLink className="h-3 w-3" />
                               </a>
                             </InfoRow>
                           )}
-                          {extra.fileSize && <InfoRow icon={HardDrive} label="文件大小">{extra.fileSize}</InfoRow>}
+                          {extra.fileSize && (
+                            <InfoRow icon={HardDrive} label="文件大小">
+                              {extra.fileSize}
+                            </InfoRow>
+                          )}
                           {extra.platforms && extra.platforms.length > 0 && (
                             <InfoRow icon={Monitor} label="支持平台">
                               <div className="flex flex-wrap gap-1">
                                 {extra.platforms.map((p) => (
                                   <Badge key={p} variant="secondary" className="text-[10px] gap-1 h-5">
-                                    {p.toLowerCase().includes("android") ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                                    {p.toLowerCase().includes("android") ? (
+                                      <Smartphone className="h-3 w-3" />
+                                    ) : (
+                                      <Monitor className="h-3 w-3" />
+                                    )}
                                     {p}
                                   </Badge>
                                 ))}
                               </div>
                             </InfoRow>
                           )}
-                          {initialGame.version && <InfoRow icon={Tag} label="版本">{initialGame.version}</InfoRow>}
+                          {initialGame.version && (
+                            <InfoRow icon={Tag} label="版本">
+                              {initialGame.version}
+                            </InfoRow>
+                          )}
                           <Separator />
-                          <InfoRow icon={Calendar} label="发布时间">{formatDate(initialGame.createdAt, "YYYY-MM-DD")}</InfoRow>
-                          <InfoRow icon={Clock} label="更新时间">{formatDate(initialGame.updatedAt, "YYYY-MM-DD")}</InfoRow>
+                          <InfoRow icon={Calendar} label="发布时间">
+                            {formatDate(initialGame.createdAt, "YYYY-MM-DD")}
+                          </InfoRow>
+                          <InfoRow icon={Clock} label="更新时间">
+                            {formatDate(initialGame.updatedAt, "YYYY-MM-DD")}
+                          </InfoRow>
                         </dl>
                       )}
                     </CardContent>
@@ -916,41 +1081,71 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                       <dl className="space-y-3">
                         {initialGame.gameType && (
                           <InfoRow icon={Gamepad2} label="游戏类型">
-                            <Badge className={cn("text-xs border-0", GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER)}>
+                            <Badge
+                              className={cn(
+                                "text-xs border-0",
+                                GAME_TYPE_COLORS[initialGame.gameType] || GAME_TYPE_COLORS.OTHER,
+                              )}
+                            >
                               {initialGame.gameType} · {GAME_TYPE_LABELS[initialGame.gameType] || "游戏"}
                             </Badge>
                           </InfoRow>
                         )}
                         {extra.originalName && (
-                          <InfoRow icon={Tag} label="游戏原名">{extra.originalName}</InfoRow>
+                          <InfoRow icon={Tag} label="游戏原名">
+                            {extra.originalName}
+                          </InfoRow>
                         )}
                         {extra.originalAuthor && (
-                          <InfoRow icon={User} label="原作者">{extra.originalAuthor}</InfoRow>
+                          <InfoRow icon={User} label="原作者">
+                            {extra.originalAuthor}
+                          </InfoRow>
                         )}
                         {extra.authorUrl && (
                           <InfoRow icon={ExternalLink} label="作者网址">
-                            <a href={extra.authorUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs">
+                            <a
+                              href={extra.authorUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+                            >
                               点击进入 <ExternalLink className="h-3 w-3" />
                             </a>
                           </InfoRow>
                         )}
-                        {extra.fileSize && <InfoRow icon={HardDrive} label="文件大小">{extra.fileSize}</InfoRow>}
+                        {extra.fileSize && (
+                          <InfoRow icon={HardDrive} label="文件大小">
+                            {extra.fileSize}
+                          </InfoRow>
+                        )}
                         {extra.platforms && extra.platforms.length > 0 && (
                           <InfoRow icon={Monitor} label="支持平台">
                             <div className="flex flex-wrap gap-1">
                               {extra.platforms.map((p) => (
                                 <Badge key={p} variant="secondary" className="text-[10px] gap-1 h-5">
-                                  {p.toLowerCase().includes("android") ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                                  {p.toLowerCase().includes("android") ? (
+                                    <Smartphone className="h-3 w-3" />
+                                  ) : (
+                                    <Monitor className="h-3 w-3" />
+                                  )}
                                   {p}
                                 </Badge>
                               ))}
                             </div>
                           </InfoRow>
                         )}
-                        {initialGame.version && <InfoRow icon={Tag} label="版本">{initialGame.version}</InfoRow>}
+                        {initialGame.version && (
+                          <InfoRow icon={Tag} label="版本">
+                            {initialGame.version}
+                          </InfoRow>
+                        )}
                         <Separator />
-                        <InfoRow icon={Calendar} label="发布时间">{formatDate(initialGame.createdAt, "YYYY-MM-DD")}</InfoRow>
-                        <InfoRow icon={Clock} label="更新时间">{formatDate(initialGame.updatedAt, "YYYY-MM-DD")}</InfoRow>
+                        <InfoRow icon={Calendar} label="发布时间">
+                          {formatDate(initialGame.createdAt, "YYYY-MM-DD")}
+                        </InfoRow>
+                        <InfoRow icon={Clock} label="更新时间">
+                          {formatDate(initialGame.updatedAt, "YYYY-MM-DD")}
+                        </InfoRow>
                       </dl>
                     </CardContent>
                   </Card>
@@ -989,9 +1184,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                         <p className="text-xs sm:text-sm font-medium truncate group-hover:text-primary transition-colors">
                           {initialGame.uploader.nickname || initialGame.uploader.username}
                         </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          @{initialGame.uploader.username}
-                        </p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">@{initialGame.uploader.username}</p>
                       </div>
                     </Link>
                   </CardContent>
@@ -1084,7 +1277,7 @@ export function GamePageClient({ id, initialGame, descriptionContent, characterI
                   onClick={() => setLightboxIndex(i)}
                   className={cn(
                     "relative w-12 h-8 sm:w-16 sm:h-10 rounded-md overflow-hidden bg-muted shrink-0 transition-all",
-                    lightboxIndex === i ? "ring-2 ring-primary opacity-100" : "opacity-50 hover:opacity-80"
+                    lightboxIndex === i ? "ring-2 ring-primary opacity-100" : "opacity-50 hover:opacity-80",
                   )}
                 >
                   <Image src={url} alt={`截图 ${i + 1}`} fill className="object-cover" sizes="64px" unoptimized />

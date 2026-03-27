@@ -1,9 +1,9 @@
 /**
  * 批量生成视频封面（独立脚本，不依赖服务器）
- * 
+ *
  * 依赖: ffmpeg (需要系统安装)
  * 运行方式: npx tsx scripts/generate-covers.ts
- * 
+ *
  * 可选参数:
  *   --force          强制重新生成所有封面（包括已有封面的视频）
  *   --dry-run        仅显示将要处理的视频，不实际生成
@@ -49,9 +49,7 @@ const dryRun = args.includes("--dry-run");
 const limitArg = args.find((arg) => arg.startsWith("--limit="));
 const concurrencyArg = args.find((arg) => arg.startsWith("--concurrency="));
 const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : undefined;
-const concurrency = concurrencyArg
-  ? parseInt(concurrencyArg.split("=")[1], 10)
-  : COVER_CONFIG.maxConcurrency;
+const concurrency = concurrencyArg ? parseInt(concurrencyArg.split("=")[1], 10) : COVER_CONFIG.maxConcurrency;
 const resume = args.includes("--resume");
 
 // 检查 ffmpeg 是否可用
@@ -89,7 +87,7 @@ async function hasProgress(videoId: string): Promise<boolean> {
 async function runWithConcurrency<T>(
   items: T[],
   worker: (item: T, index: number) => Promise<void>,
-  limitCount: number
+  limitCount: number,
 ) {
   let index = 0;
   const workers = Array.from({ length: Math.max(1, limitCount) }, async () => {
@@ -125,10 +123,7 @@ async function main() {
   const whereClause = forceRegenerate
     ? {}
     : {
-        OR: [
-          { coverUrl: null },
-          { coverUrl: "" },
-        ],
+        OR: [{ coverUrl: null }, { coverUrl: "" }],
       };
 
   const videos = await prisma.video.findMany({
@@ -183,17 +178,12 @@ async function main() {
       const progress = `[${index + 1}/${videos.length}]`;
       console.log(`${progress} 处理: ${video.title}`);
 
-      const result = await generateCoverForVideo(
-        video.videoUrl,
-        video.id,
-        COVER_DIR,
-        {
-          width: COVER_CONFIG.width,
-          timeoutMs: COVER_CONFIG.timeout,
-          maxRetries: COVER_CONFIG.maxRetries,
-          retryDelayMs: COVER_CONFIG.retryDelay,
-        }
-      );
+      const result = await generateCoverForVideo(video.videoUrl, video.id, COVER_DIR, {
+        width: COVER_CONFIG.width,
+        timeoutMs: COVER_CONFIG.timeout,
+        maxRetries: COVER_CONFIG.maxRetries,
+        retryDelayMs: COVER_CONFIG.retryDelay,
+      });
 
       if (result) {
         await prisma.video.update({
@@ -212,7 +202,7 @@ async function main() {
 
       await markProgress(video.id, !!result);
     },
-    concurrency
+    concurrency,
   );
 
   // 输出统计

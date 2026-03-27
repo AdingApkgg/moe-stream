@@ -4,22 +4,9 @@ import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  FileIcon,
-  Search,
-  Check,
-  Image as ImageIcon,
-  FileVideo,
-  File,
-} from "lucide-react";
+import { FileIcon, Search, Check, Image as ImageIcon, FileVideo, File } from "lucide-react";
 
 interface FilePickerDialogProps {
   open: boolean;
@@ -55,33 +42,25 @@ function getMimeIcon(mimeType: string) {
   return File;
 }
 
-export function FilePickerDialog({
-  open,
-  onOpenChange,
-  onSelect,
-  mimePrefix,
-}: FilePickerDialogProps) {
+export function FilePickerDialog({ open, onOpenChange, onSelect, mimePrefix }: FilePickerDialogProps) {
   const [search, setSearch] = useState("");
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    trpc.file.list.useInfiniteQuery(
-      {
-        limit: 20,
-        ...(mimePrefix ? { mimePrefix } : {}),
-      },
-      {
-        enabled: open,
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    );
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = trpc.file.list.useInfiniteQuery(
+    {
+      limit: 20,
+      ...(mimePrefix ? { mimePrefix } : {}),
+    },
+    {
+      enabled: open,
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    },
+  );
 
   const allFiles = data?.pages.flatMap((p) => p.items) ?? [];
 
   const filtered = search.trim()
-    ? allFiles.filter((f) =>
-        f.filename.toLowerCase().includes(search.toLowerCase()),
-      )
+    ? allFiles.filter((f) => f.filename.toLowerCase().includes(search.toLowerCase()))
     : allFiles;
 
   const handleConfirm = useCallback(() => {
@@ -130,9 +109,7 @@ export function FilePickerDialog({
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
               <FileIcon className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                {search ? "未找到匹配文件" : "暂无已上传文件"}
-              </p>
+              <p className="text-sm text-muted-foreground">{search ? "未找到匹配文件" : "暂无已上传文件"}</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -144,24 +121,18 @@ export function FilePickerDialog({
                     key={file.id}
                     type="button"
                     className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                      isSelected
-                        ? "bg-primary/10 ring-1 ring-primary/30"
-                        : "hover:bg-muted/60"
+                      isSelected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted/60"
                     }`}
                     onClick={() => setSelectedUrl(isSelected ? null : file.url)}
                   >
                     <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {file.filename}
-                      </p>
+                      <p className="text-sm font-medium truncate">{file.filename}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatBytes(file.size)} · {formatDate(file.createdAt)}
                       </p>
                     </div>
-                    {isSelected && (
-                      <Check className="h-4 w-4 text-primary shrink-0" />
-                    )}
+                    {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                   </button>
                 );
               })}
@@ -183,20 +154,10 @@ export function FilePickerDialog({
         </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={!selectedUrl}
-            onClick={handleConfirm}
-          >
+          <Button type="button" size="sm" disabled={!selectedUrl} onClick={handleConfirm}>
             确认选择
           </Button>
         </div>

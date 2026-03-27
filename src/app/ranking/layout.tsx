@@ -5,10 +5,6 @@ export const metadata: Metadata = {
   description: "内容排名和投稿者排行",
 };
 
-export default function RankingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RankingLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

@@ -15,7 +15,7 @@ export const userRouter = router({
         nickname: z.string().optional(),
         referralCode: z.string().optional(),
         fingerprint: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const existingUser = await ctx.prisma.user.findFirst({
@@ -138,46 +138,44 @@ export const userRouter = router({
     }),
 
   // 获取用户公开资料
-  getProfile: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: input.id },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          nickname: true,
-          avatar: true,
-          bio: true,
-          pronouns: true,
-          website: true,
-          location: true,
-          socialLinks: true,
-          lastIpLocation: true,
-          createdAt: true,
-          _count: {
-            select: {
-              videos: { where: { status: "PUBLISHED" } },
-              likes: true,
-              favorites: true,
-              games: { where: { status: "PUBLISHED" } },
-              gameFavorites: true,
-              gameLikes: true,
-              imagePosts: { where: { status: "PUBLISHED" } },
-              imagePostLikes: true,
-              imagePostFavorites: true,
-            },
+  getProfile: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        nickname: true,
+        avatar: true,
+        bio: true,
+        pronouns: true,
+        website: true,
+        location: true,
+        socialLinks: true,
+        lastIpLocation: true,
+        createdAt: true,
+        _count: {
+          select: {
+            videos: { where: { status: "PUBLISHED" } },
+            likes: true,
+            favorites: true,
+            games: { where: { status: "PUBLISHED" } },
+            gameFavorites: true,
+            gameLikes: true,
+            imagePosts: { where: { status: "PUBLISHED" } },
+            imagePostLikes: true,
+            imagePostFavorites: true,
           },
         },
-      });
+      },
+    });
 
-      if (!user) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
+    if (!user) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+    }
 
-      return user;
-    }),
+    return user;
+  }),
 
   getVideos: publicProcedure
     .input(
@@ -185,7 +183,7 @@ export const userRouter = router({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -221,7 +219,7 @@ export const userRouter = router({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -292,14 +290,16 @@ export const userRouter = router({
         pronouns: z.string().max(30).optional(),
         website: z.string().url().or(z.literal("")).optional(),
         location: z.string().max(100).optional(),
-        socialLinks: z.object({
-          twitter: z.string().optional(),
-          github: z.string().optional(),
-          discord: z.string().optional(),
-          youtube: z.string().optional(),
-          pixiv: z.string().optional(),
-        }).optional(),
-      })
+        socialLinks: z
+          .object({
+            twitter: z.string().optional(),
+            github: z.string().optional(),
+            discord: z.string().optional(),
+            youtube: z.string().optional(),
+            pixiv: z.string().optional(),
+          })
+          .optional(),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { socialLinks, ...rest } = input;
@@ -317,13 +317,15 @@ export const userRouter = router({
   // 获取登录会话列表
   getLoginSessions: protectedProcedure
     .input(
-      z.object({
-        limit: z.number().min(1).max(50).default(20),
-      }).optional()
+      z
+        .object({
+          limit: z.number().min(1).max(50).default(20),
+        })
+        .optional(),
     )
     .query(async ({ ctx, input }) => {
       const sessions = await ctx.prisma.loginSession.findMany({
-        where: { 
+        where: {
           userId: ctx.session.user.id,
           isRevoked: false,
           expiresAt: { gt: new Date() },
@@ -358,35 +360,33 @@ export const userRouter = router({
     }),
 
   // 撤销会话（登出其他设备）— 同时删除 Better Auth Session 使 cookie 立即失效
-  revokeLoginSession: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const loginSession = await ctx.prisma.loginSession.findUnique({
+  revokeLoginSession: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const loginSession = await ctx.prisma.loginSession.findUnique({
+      where: { id: input.id },
+      select: { userId: true, jti: true },
+    });
+
+    if (!loginSession || loginSession.userId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权限撤销该会话" });
+    }
+
+    if (loginSession.jti === ctx.session.jti) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "不能撤销当前会话，请使用登出功能" });
+    }
+
+    await ctx.prisma.$transaction([
+      ctx.prisma.loginSession.update({
         where: { id: input.id },
-        select: { userId: true, jti: true },
-      });
+        data: { isRevoked: true, revokedAt: new Date() },
+      }),
+      // 删除 Better Auth Session，使对应 cookie 立即失效
+      ctx.prisma.session.deleteMany({
+        where: { sessionToken: loginSession.jti },
+      }),
+    ]);
 
-      if (!loginSession || loginSession.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权限撤销该会话" });
-      }
-
-      if (loginSession.jti === ctx.session.jti) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "不能撤销当前会话，请使用登出功能" });
-      }
-
-      await ctx.prisma.$transaction([
-        ctx.prisma.loginSession.update({
-          where: { id: input.id },
-          data: { isRevoked: true, revokedAt: new Date() },
-        }),
-        // 删除 Better Auth Session，使对应 cookie 立即失效
-        ctx.prisma.session.deleteMany({
-          where: { sessionToken: loginSession.jti },
-        }),
-      ]);
-      
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
   // 撤销所有其他会话
   revokeAllOtherSessions: protectedProcedure.mutation(async ({ ctx }) => {
@@ -400,7 +400,7 @@ export const userRouter = router({
       select: { jti: true },
     });
 
-    const jtis = toRevoke.map(s => s.jti);
+    const jtis = toRevoke.map((s) => s.jti);
 
     const [result] = await ctx.prisma.$transaction([
       ctx.prisma.loginSession.updateMany({
@@ -413,9 +413,11 @@ export const userRouter = router({
       }),
       // 删除所有对应的 Better Auth Session
       ...(jtis.length > 0
-        ? [ctx.prisma.session.deleteMany({
-            where: { sessionToken: { in: jtis } },
-          })]
+        ? [
+            ctx.prisma.session.deleteMany({
+              where: { sessionToken: { in: jtis } },
+            }),
+          ]
         : []),
     ]);
 
@@ -426,9 +428,14 @@ export const userRouter = router({
   updateAccount: protectedProcedure
     .input(
       z.object({
-        username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线").optional(),
+        username: z
+          .string()
+          .min(3, "用户名至少3个字符")
+          .max(20, "用户名最多20个字符")
+          .regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线")
+          .optional(),
         email: z.string().email("请输入有效的邮箱地址").optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const updates: { username?: string; email?: string } = {};
@@ -479,7 +486,7 @@ export const userRouter = router({
       z.object({
         currentPassword: z.string(),
         newPassword: z.string().min(6),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -528,7 +535,7 @@ export const userRouter = router({
       z.object({
         email: z.string().email(),
         newPassword: z.string().min(6, "密码至少6个字符"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.prisma.user.findUnique({
@@ -572,7 +579,7 @@ export const userRouter = router({
       z.object({
         password: z.string().optional(),
         confirmText: z.literal("DELETE", { message: "请输入 DELETE 确认" }),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
@@ -669,7 +676,7 @@ export const userRouter = router({
     try {
       const files = await fs.readdir(avatarDir);
       const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"];
-      
+
       for (const file of files) {
         const ext = path.extname(file).toLowerCase();
         if (imageExtensions.includes(ext)) {
@@ -700,9 +707,9 @@ export const userRouter = router({
               return false;
             }
           },
-          { message: "请输入有效的图片URL或路径" }
+          { message: "请输入有效的图片URL或路径" },
         ),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await ctx.prisma.user.update({
@@ -720,7 +727,7 @@ export const userRouter = router({
         limit: z.number().min(1).max(100).default(50),
         cursor: z.string().nullish(),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const users = await ctx.prisma.user.findMany({
@@ -763,7 +770,7 @@ export const userRouter = router({
       z.object({
         userId: z.string(),
         role: z.enum(["USER", "ADMIN"]), // 站长只能设置为 USER 或 ADMIN
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // 不能修改自己的角色
@@ -795,41 +802,41 @@ export const userRouter = router({
     }),
 
   // 转让站长权限（仅站长）
-  transferOwnership: ownerProcedure
-    .input(z.object({ userId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      if (input.userId === ctx.session.user.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "不能转让给自己" });
-      }
+  transferOwnership: ownerProcedure.input(z.object({ userId: z.string() })).mutation(async ({ ctx, input }) => {
+    if (input.userId === ctx.session.user.id) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "不能转让给自己" });
+    }
 
-      const targetUser = await ctx.prisma.user.findUnique({
+    const targetUser = await ctx.prisma.user.findUnique({
+      where: { id: input.userId },
+    });
+
+    if (!targetUser) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+    }
+
+    // 事务：将目标用户设为站长，将自己降为管理员
+    await ctx.prisma.$transaction([
+      ctx.prisma.user.update({
         where: { id: input.userId },
-      });
+        data: { role: "OWNER" },
+      }),
+      ctx.prisma.user.update({
+        where: { id: ctx.session.user.id },
+        data: { role: "ADMIN" },
+      }),
+    ]);
 
-      if (!targetUser) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
-
-      // 事务：将目标用户设为站长，将自己降为管理员
-      await ctx.prisma.$transaction([
-        ctx.prisma.user.update({
-          where: { id: input.userId },
-          data: { role: "OWNER" },
-        }),
-        ctx.prisma.user.update({
-          where: { id: ctx.session.user.id },
-          data: { role: "ADMIN" },
-        }),
-      ]);
-
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
   search: protectedProcedure
-    .input(z.object({
-      query: z.string().min(1).max(50),
-      limit: z.number().min(1).max(30).default(15),
-    }))
+    .input(
+      z.object({
+        query: z.string().min(1).max(50),
+        limit: z.number().min(1).max(30).default(15),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const users = await ctx.prisma.user.findMany({
         where: {

@@ -5,10 +5,6 @@ export const metadata: Metadata = {
   description: "网站运营数据和增长趋势",
 };
 
-export default function StatsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function StatsLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

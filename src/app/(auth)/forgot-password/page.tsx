@@ -38,16 +38,18 @@ export default function ForgotPasswordPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [sliderValue, setSliderValue] = useState<number | null>(null);
 
-  const resetPasswordSchema = z.object({
-    email: z.string().email("请输入有效的邮箱地址"),
-    emailCode: z.string().length(6, "请输入6位验证码"),
-    newPassword: z.string().min(6, "密码至少6个字符"),
-    confirmPassword: z.string(),
-    captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
-  }).refine((data) => data.newPassword === data.confirmPassword, {
-    message: "两次密码不一致",
-    path: ["confirmPassword"],
-  });
+  const resetPasswordSchema = z
+    .object({
+      email: z.string().email("请输入有效的邮箱地址"),
+      emailCode: z.string().length(6, "请输入6位验证码"),
+      newPassword: z.string().min(6, "密码至少6个字符"),
+      confirmPassword: z.string(),
+      captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+      message: "两次密码不一致",
+      path: ["confirmPassword"],
+    });
 
   type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
@@ -117,8 +119,8 @@ export default function ForgotPasswordPage() {
       const verifyRes = await fetch("/api/email/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: data.email, 
+        body: JSON.stringify({
+          email: data.email,
           code: data.emailCode,
           type: "RESET_PASSWORD",
         }),
@@ -151,129 +153,129 @@ export default function ForgotPasswordPage() {
             </div>
           </CardHeader>
           <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>邮箱</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="your@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="emailCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>邮箱验证码</FormLabel>
-                    <FormControl>
-                      <EmailCodeInput
-                        email={email}
-                        type="RESET_PASSWORD"
-                        value={field.value}
-                        onChange={field.onChange}
-                        error={form.formState.errors.emailCode?.message}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>新密码</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="******" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>确认新密码</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="******" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {captchaType === "math" && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="captcha"
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>验证码</FormLabel>
+                      <FormLabel>邮箱</FormLabel>
                       <FormControl>
-                        <UnifiedCaptcha
-                          type="math"
-                          mathValue={field.value || ""}
-                          onMathChange={field.onChange}
-                          mathError={form.formState.errors.captcha?.message}
-                          refreshKey={captchaKey}
+                        <Input type="email" placeholder="your@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="emailCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>邮箱验证码</FormLabel>
+                      <FormControl>
+                        <EmailCodeInput
+                          email={email}
+                          type="RESET_PASSWORD"
+                          value={field.value}
+                          onChange={field.onChange}
+                          error={form.formState.errors.emailCode?.message}
                         />
                       </FormControl>
                     </FormItem>
                   )}
                 />
-              )}
-              {captchaType === "slider" && (
-                <div className="space-y-2">
-                  <UnifiedCaptcha
-                    type="slider"
-                    onSliderVerify={(p) => setSliderValue(p)}
-                    refreshKey={captchaKey}
+                <FormField
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>新密码</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="******" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>确认新密码</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="******" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {captchaType === "math" && (
+                  <FormField
+                    control={form.control}
+                    name="captcha"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>验证码</FormLabel>
+                        <FormControl>
+                          <UnifiedCaptcha
+                            type="math"
+                            mathValue={field.value || ""}
+                            onMathChange={field.onChange}
+                            mathError={form.formState.errors.captcha?.message}
+                            refreshKey={captchaKey}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
                   />
-                </div>
-              )}
-              {isTokenCaptcha && (
-                <div className="space-y-2">
-                  <UnifiedCaptcha
-                    type={captchaType}
-                    turnstileSiteKey={turnstileSiteKey}
-                    recaptchaSiteKey={recaptchaSiteKey}
-                    hcaptchaSiteKey={hcaptchaSiteKey}
-                    onTurnstileVerify={handleTurnstileVerify}
-                    onTurnstileExpire={handleTurnstileExpire}
-                    refreshKey={captchaKey}
-                  />
-                </div>
-              )}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || (isTokenCaptcha && !turnstileToken) || (captchaType === "slider" && sliderValue === null)}
-              >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                重置密码
-              </Button>
-            </form>
-          </Form>
+                )}
+                {captchaType === "slider" && (
+                  <div className="space-y-2">
+                    <UnifiedCaptcha type="slider" onSliderVerify={(p) => setSliderValue(p)} refreshKey={captchaKey} />
+                  </div>
+                )}
+                {isTokenCaptcha && (
+                  <div className="space-y-2">
+                    <UnifiedCaptcha
+                      type={captchaType}
+                      turnstileSiteKey={turnstileSiteKey}
+                      recaptchaSiteKey={recaptchaSiteKey}
+                      hcaptchaSiteKey={hcaptchaSiteKey}
+                      onTurnstileVerify={handleTurnstileVerify}
+                      onTurnstileExpire={handleTurnstileExpire}
+                      refreshKey={captchaKey}
+                    />
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={
+                    isLoading ||
+                    (isTokenCaptcha && !turnstileToken) ||
+                    (captchaType === "slider" && sliderValue === null)
+                  }
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  重置密码
+                </Button>
+              </form>
+            </Form>
 
-          <div className="mt-6 text-center">
-            <Link 
-              href="/login" 
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              返回登录
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-6 text-center">
+              <Link
+                href="/login"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" />
+                返回登录
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

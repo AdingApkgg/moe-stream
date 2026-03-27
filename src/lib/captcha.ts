@@ -145,7 +145,7 @@ export async function verifyHcaptchaToken(token: string): Promise<boolean> {
 export async function verifyCaptcha(
   type: CaptchaType,
   token: string | undefined,
-  mathCookieValue: string | undefined
+  mathCookieValue: string | undefined,
 ): Promise<{ valid: boolean; message: string }> {
   if (type === "none") {
     return { valid: true, message: "" };

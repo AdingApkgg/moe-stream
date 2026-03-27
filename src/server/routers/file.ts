@@ -1,15 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import {
-  initUpload,
-  completeUpload,
-  deleteUserFile,
-  policyToStorageConfig,
-} from "@/lib/storage-policy";
-import {
-  getPresignedPartUrls as s3PresignedParts,
-} from "@/lib/s3-client";
+import { initUpload, completeUpload, deleteUserFile, policyToStorageConfig } from "@/lib/storage-policy";
+import { getPresignedPartUrls as s3PresignedParts } from "@/lib/s3-client";
 
 export const fileRouter = router({
   /** Check if a file with the same hash already exists (flash upload / 闪传) */
@@ -114,12 +107,7 @@ export const fileRouter = router({
       }
 
       if (input.contentType && input.contentId) {
-        await verifyContentOwnership(
-          ctx.prisma,
-          input.contentType,
-          input.contentId,
-          ctx.session.user.id,
-        );
+        await verifyContentOwnership(ctx.prisma, input.contentType, input.contentId, ctx.session.user.id);
       }
 
       try {
@@ -142,28 +130,26 @@ export const fileRouter = router({
     }),
 
   /** Get upload progress for resumable uploads */
-  getUploadProgress: protectedProcedure
-    .input(z.object({ fileId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const file = await ctx.prisma.userFile.findUnique({
-        where: { id: input.fileId },
-        include: { storagePolicy: true },
-      });
+  getUploadProgress: protectedProcedure.input(z.object({ fileId: z.string() })).query(async ({ ctx, input }) => {
+    const file = await ctx.prisma.userFile.findUnique({
+      where: { id: input.fileId },
+      include: { storagePolicy: true },
+    });
 
-      if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
-      if (file.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权查看" });
-      }
+    if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
+    if (file.userId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权查看" });
+    }
 
-      return {
-        fileId: file.id,
-        status: file.status,
-        totalChunks: file.totalChunks ?? 1,
-        uploadedChunks: (file.uploadedChunks as { index: number; etag?: string }[] | null) ?? [],
-        isLocal: file.storagePolicy.provider === "local",
-        s3UploadId: file.s3UploadId,
-      };
-    }),
+    return {
+      fileId: file.id,
+      status: file.status,
+      totalChunks: file.totalChunks ?? 1,
+      uploadedChunks: (file.uploadedChunks as { index: number; etag?: string }[] | null) ?? [],
+      isLocal: file.storagePolicy.provider === "local",
+      s3UploadId: file.s3UploadId,
+    };
+  }),
 
   /** Get fresh presigned URLs for remaining S3 parts (for resume after URL expiry) */
   getResumeUrls: protectedProcedure
@@ -194,12 +180,7 @@ export const fileRouter = router({
       }
 
       const config = policyToStorageConfig(file.storagePolicy);
-      const allParts = await s3PresignedParts(
-        config,
-        file.storageKey,
-        file.s3UploadId,
-        file.totalChunks ?? 1,
-      );
+      const allParts = await s3PresignedParts(config, file.storageKey, file.s3UploadId, file.totalChunks ?? 1);
 
       const requested = new Set(input.partNumbers);
       return allParts.filter((p) => requested.has(p.partNumber));
@@ -210,9 +191,7 @@ export const fileRouter = router({
       z.object({
         fileId: z.string(),
         uploadId: z.string().optional(),
-        parts: z
-          .array(z.object({ partNumber: z.number(), etag: z.string() }))
-          .optional(),
+        parts: z.array(z.object({ partNumber: z.number(), etag: z.string() })).optional(),
         hash: z.string().length(64).optional(),
       }),
     )
@@ -317,12 +296,7 @@ export const fileRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
       }
 
-      await verifyContentOwnership(
-        ctx.prisma,
-        input.contentType,
-        input.contentId,
-        ctx.session.user.id,
-      );
+      await verifyContentOwnership(ctx.prisma, input.contentType, input.contentId, ctx.session.user.id);
 
       await ctx.prisma.userFile.update({
         where: { id: input.fileId },
@@ -335,37 +309,33 @@ export const fileRouter = router({
       return { success: true };
     }),
 
-  detach: protectedProcedure
-    .input(z.object({ fileId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const file = await ctx.prisma.userFile.findUnique({
-        where: { id: input.fileId },
-      });
-      if (!file || file.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
-      }
+  detach: protectedProcedure.input(z.object({ fileId: z.string() })).mutation(async ({ ctx, input }) => {
+    const file = await ctx.prisma.userFile.findUnique({
+      where: { id: input.fileId },
+    });
+    if (!file || file.userId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "文件不存在" });
+    }
 
-      await ctx.prisma.userFile.update({
-        where: { id: input.fileId },
-        data: { contentType: null, contentId: null },
-      });
+    await ctx.prisma.userFile.update({
+      where: { id: input.fileId },
+      data: { contentType: null, contentId: null },
+    });
 
+    return { success: true };
+  }),
+
+  delete: protectedProcedure.input(z.object({ fileId: z.string() })).mutation(async ({ ctx, input }) => {
+    try {
+      await deleteUserFile(input.fileId, ctx.session.user.id);
       return { success: true };
-    }),
-
-  delete: protectedProcedure
-    .input(z.object({ fileId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        await deleteUserFile(input.fileId, ctx.session.user.id);
-        return { success: true };
-      } catch (err) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: err instanceof Error ? err.message : "删除失败",
-        });
-      }
-    }),
+    } catch (err) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: err instanceof Error ? err.message : "删除失败",
+      });
+    }
+  }),
 
   getStorageUsage: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({

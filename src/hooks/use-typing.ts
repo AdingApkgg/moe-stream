@@ -11,10 +11,7 @@ interface TypingUser {
 
 const TYPING_TIMEOUT = 3000;
 
-export function useTyping(
-  scope: "conversation" | "channel",
-  targetId: string | undefined,
-) {
+export function useTyping(scope: "conversation" | "channel", targetId: string | undefined) {
   const connected = useSocketStore((s) => s.connected);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,9 +62,7 @@ export function useTyping(
     socket.on(stopEvent, handleStop);
 
     const cleanup = setInterval(() => {
-      setTypingUsers((prev) =>
-        prev.filter((u) => Date.now() - u.timestamp < TYPING_TIMEOUT),
-      );
+      setTypingUsers((prev) => prev.filter((u) => Date.now() - u.timestamp < TYPING_TIMEOUT));
     }, 1000);
 
     return () => {

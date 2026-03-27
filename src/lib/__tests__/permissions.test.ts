@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  isPrivileged,
-  isOwner,
-  canUploadContent,
-  userHasScope,
-} from "../permissions";
+import { isPrivileged, isOwner, canUploadContent, userHasScope } from "../permissions";
 
 describe("isPrivileged", () => {
   it("OWNER 应为特权用户", () => {
@@ -63,18 +58,12 @@ describe("userHasScope", () => {
   });
 
   it("USER 无任何管理权限", () => {
-    expect(
-      userHasScope("USER", ["video:manage", "user:manage"], "video:manage"),
-    ).toBe(false);
+    expect(userHasScope("USER", ["video:manage", "user:manage"], "video:manage")).toBe(false);
   });
 
   it("ADMIN 根据 scopes 数组判断", () => {
-    expect(
-      userHasScope("ADMIN", ["video:manage", "tag:manage"], "video:manage"),
-    ).toBe(true);
-    expect(
-      userHasScope("ADMIN", ["video:manage", "tag:manage"], "user:manage"),
-    ).toBe(false);
+    expect(userHasScope("ADMIN", ["video:manage", "tag:manage"], "video:manage")).toBe(true);
+    expect(userHasScope("ADMIN", ["video:manage", "tag:manage"], "user:manage")).toBe(false);
     expect(userHasScope("ADMIN", [], "video:manage")).toBe(false);
   });
 });

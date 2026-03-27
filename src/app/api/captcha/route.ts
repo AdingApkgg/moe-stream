@@ -64,7 +64,10 @@ function generateSliderSvg(target: number): string {
   }).join("");
 
   const noiseLines = Array.from({ length: ri(4, 8) }, () => {
-    const x1 = ri(0, W), y1 = ri(0, H), x2 = ri(0, W), y2 = ri(0, H);
+    const x1 = ri(0, W),
+      y1 = ri(0, H),
+      x2 = ri(0, W),
+      y2 = ri(0, H);
     const gray = ri(180, 220);
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgb(${gray},${gray},${gray})" stroke-width="${(r() * 1.5 + 0.5).toFixed(1)}" opacity="${(r() * 0.3 + 0.15).toFixed(2)}"/>`;
   }).join("");
@@ -142,17 +145,19 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Captcha generation error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate captcha" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate captcha" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { captcha, type = "math", turnstileToken, consume } = body as {
+    const {
+      captcha,
+      type = "math",
+      turnstileToken,
+      consume,
+    } = body as {
       captcha?: string;
       type?: CaptchaType;
       turnstileToken?: string;
@@ -185,9 +190,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch {
-    return NextResponse.json(
-      { valid: false, message: "验证失败" },
-      { status: 500 }
-    );
+    return NextResponse.json({ valid: false, message: "验证失败" }, { status: 500 });
   }
 }

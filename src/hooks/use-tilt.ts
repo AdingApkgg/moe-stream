@@ -56,10 +56,7 @@ export function useTilt<T extends HTMLElement>(options: TiltOptions = {}) {
 
       el.style.transform = `perspective(${perspective}px) rotateX(${c.rx}deg) rotateY(${c.ry}deg) scale3d(${c.s},${c.s},${c.s})`;
 
-      const stillMoving =
-        Math.abs(c.rx - t.rx) > 0.01 ||
-        Math.abs(c.ry - t.ry) > 0.01 ||
-        Math.abs(c.s - t.s) > 0.001;
+      const stillMoving = Math.abs(c.rx - t.rx) > 0.01 || Math.abs(c.ry - t.ry) > 0.01 || Math.abs(c.s - t.s) > 0.001;
 
       if (hovering.current || stillMoving) {
         raf.current = requestAnimationFrame(tick);

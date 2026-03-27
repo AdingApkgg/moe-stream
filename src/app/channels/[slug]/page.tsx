@@ -229,9 +229,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
   const allMessages = messagesData?.pages.flatMap((p) => p.messages).reverse() ?? [];
   const membersList = membersData?.members ?? [];
   const userIsMember = membershipData?.isMember ?? false;
-  const typingNames = typingUsers
-    .filter((u) => u.userId !== userId)
-    .map((u) => u.userId.slice(0, 6));
+  const typingNames = typingUsers.filter((u) => u.userId !== userId).map((u) => u.userId.slice(0, 6));
 
   return (
     <div className="mx-auto max-w-5xl px-0 md:px-4 py-0 md:py-6">
@@ -279,12 +277,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                   加入
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowMembers(!showMembers)}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowMembers(!showMembers)}>
                 <Users className="h-4 w-4" />
               </Button>
             </div>
@@ -319,9 +312,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
-                          <span className={cn("text-sm font-medium", isMine && "text-primary")}>
-                            {senderName}
-                          </span>
+                          <span className={cn("text-sm font-medium", isMine && "text-primary")}>{senderName}</span>
                           <span className="text-[10px] text-muted-foreground/60">
                             {dayjs(msg.createdAt).format("MM/DD HH:mm")}
                           </span>
@@ -351,7 +342,8 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                         </div>
                         {msg.replyTo && (
                           <div className="text-xs text-muted-foreground border-l-2 border-primary/30 pl-2 mt-0.5 mb-1 line-clamp-1">
-                            回复 {msg.replyTo.sender?.nickname || msg.replyTo.sender?.username}: {msg.replyTo.content?.slice(0, 40)}
+                            回复 {msg.replyTo.sender?.nickname || msg.replyTo.sender?.username}:{" "}
+                            {msg.replyTo.content?.slice(0, 40)}
                           </div>
                         )}
                         {msg.type === "TEXT" && (
@@ -367,11 +359,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                         )}
                         {msg.type === "STICKER" && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={meta?.stickerUrl || ""}
-                            alt="表情"
-                            className="h-24 w-24 object-contain mt-1"
-                          />
+                          <img src={meta?.stickerUrl || ""} alt="表情" className="h-24 w-24 object-contain mt-1" />
                         )}
                         {msg.type === "FILE" && (
                           <a
@@ -439,7 +427,9 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
           ) : (
             <div className="border-t px-4 py-3 text-center text-sm text-muted-foreground">
               {!userId ? (
-                <Link href="/login" className="text-primary hover:underline">登录</Link>
+                <Link href="/login" className="text-primary hover:underline">
+                  登录
+                </Link>
               ) : (
                 <span>加入频道后即可发言</span>
               )}
@@ -470,9 +460,7 @@ export default function ChannelPage({ params }: { params: Promise<{ slug: string
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <span className="text-sm truncate block">
-                      {m.user.nickname || m.user.username}
-                    </span>
+                    <span className="text-sm truncate block">{m.user.nickname || m.user.username}</span>
                     {m.role !== "MEMBER" && (
                       <Badge variant="secondary" className="text-[9px] px-1 py-0">
                         {m.role === "OWNER" ? "创建者" : "管理员"}

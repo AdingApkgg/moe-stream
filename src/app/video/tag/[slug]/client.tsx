@@ -14,10 +14,7 @@ interface VideoTagPageClientProps {
   initialTag: SerializedVideoTag | null;
 }
 
-export function VideoTagPageClient({
-  slug,
-  initialTag,
-}: VideoTagPageClientProps) {
+export function VideoTagPageClient({ slug, initialTag }: VideoTagPageClientProps) {
   const [page, setPage] = usePageParam();
 
   const { data: tag, isLoading: tagLoading } = trpc.tag.getBySlug.useQuery(
@@ -25,7 +22,7 @@ export function VideoTagPageClient({
     {
       staleTime: initialTag ? 60000 : 0,
       refetchOnMount: !initialTag,
-    }
+    },
   );
 
   const displayTag = tag || initialTag;
@@ -35,7 +32,7 @@ export function VideoTagPageClient({
     {
       enabled: !!displayTag?.id,
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   const videos = data?.videos ?? [];
@@ -45,9 +42,7 @@ export function VideoTagPageClient({
     return (
       <div className="container py-12 text-center">
         <h1 className="text-2xl font-bold">标签不存在</h1>
-        <p className="text-muted-foreground mt-2">
-          找不到标签 &ldquo;{slug}&rdquo;
-        </p>
+        <p className="text-muted-foreground mt-2">找不到标签 &ldquo;{slug}&rdquo;</p>
         <Button asChild className="mt-4">
           <Link href="/">浏览全部视频</Link>
         </Button>
@@ -68,27 +63,15 @@ export function VideoTagPageClient({
               <FileVideo className="h-5 w-5 text-muted-foreground" />
             </h1>
             <p className="text-sm text-muted-foreground">
-              共{" "}
-              {displayTag?.videoCount ??
-                initialTag?.videoCount ??
-                0}{" "}
-              个视频
+              共 {displayTag?.videoCount ?? initialTag?.videoCount ?? 0} 个视频
             </p>
           </div>
         </div>
       </div>
 
-      <VideoGrid
-        videos={videos}
-        isLoading={isLoading || (!initialTag && tagLoading)}
-      />
+      <VideoGrid videos={videos} isLoading={isLoading || (!initialTag && tagLoading)} />
 
-      <Pagination
-        currentPage={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        className="mt-8"
-      />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
 
       {!isLoading && videos.length === 0 && displayTag && (
         <div className="text-center py-12">

@@ -31,8 +31,7 @@ import { writeFileSync } from "fs";
 const BASE_URL = process.env.LEGACY_GAME_SITE_URL || "https://old-site.example.com";
 const SITEMAP_URL = `${BASE_URL}/sitemap.xml`;
 const HEADERS: Record<string, string> = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   Accept: "text/html,application/xhtml+xml",
   "Accept-Language": "zh-CN,zh;q=0.9",
 };
@@ -47,8 +46,14 @@ function parseArgs() {
     export: false,
   };
   for (const arg of args) {
-    if (arg === "--dry-run") { config.dryRun = true; continue; }
-    if (arg === "--export") { config.export = true; continue; }
+    if (arg === "--dry-run") {
+      config.dryRun = true;
+      continue;
+    }
+    if (arg === "--export") {
+      config.export = true;
+      continue;
+    }
     const [key, val] = arg.split("=");
     if (key === "--concurrency") config.concurrency = Number(val);
     else if (key === "--timeout") config.timeout = Number(val) * 1000;
@@ -112,19 +117,13 @@ async function poolAll<T>(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, tasks.length) }, () => run()),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, () => run()));
   return results;
 }
 
 // ─── 工具函数 ────────────────────────────────────────────
 
-async function fetchWithRetry(
-  url: string,
-  timeout: number,
-  retries = 3,
-): Promise<string> {
+async function fetchWithRetry(url: string, timeout: number, retries = 3): Promise<string> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       if (attempt > 0) await sleep(1000 * attempt);
@@ -154,7 +153,9 @@ function decodeGotoUrl(raw: string): string {
   if (m) {
     try {
       return Buffer.from(m[1], "base64").toString("utf-8");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   return raw;
 }
@@ -206,9 +207,7 @@ function parseTitle(title: string): {
 
 // ─── 从 sitemap.xml 发现文章链接 ─────────────────────────
 
-async function discoverArticlesFromSitemap(
-  timeout: number,
-): Promise<string[]> {
+async function discoverArticlesFromSitemap(timeout: number): Promise<string[]> {
   console.log(`  抓取 sitemap: ${SITEMAP_URL}`);
   const xml = await fetchWithRetry(SITEMAP_URL, timeout);
   const $ = cheerio.load(xml, { xmlMode: true });
@@ -234,10 +233,7 @@ async function discoverArticlesFromSitemap(
 
 // ─── 从游戏页面提取信息 ──────────────────────────────────
 
-async function extractGameFromPage(
-  pageUrl: string,
-  timeout: number,
-): Promise<GameInfo> {
+async function extractGameFromPage(pageUrl: string, timeout: number): Promise<GameInfo> {
   const idMatch = pageUrl.match(/\/archives\/(\d+)\.html/);
   const legacyId = idMatch?.[1] ?? "0";
 
@@ -278,21 +274,20 @@ async function extractGameFromPage(
       .join("\n");
 
     // Joe.CONTENT.cover
-    const joeContentCover =
-      scriptContent.match(/Joe\.CONTENT\.cover\s*=\s*`([^`]*)`/)?.[1] ?? "";
+    const joeContentCover = scriptContent.match(/Joe\.CONTENT\.cover\s*=\s*`([^`]*)`/)?.[1] ?? "";
 
     // Joe.CONTENT.fields
     let fieldsAbstract = "";
     let fieldsKeywords = "";
-    const fieldsMatch = scriptContent.match(
-      /Joe\.CONTENT\.fields\s*=\s*(\{[\s\S]*?\});/,
-    );
+    const fieldsMatch = scriptContent.match(/Joe\.CONTENT\.fields\s*=\s*(\{[\s\S]*?\});/);
     if (fieldsMatch) {
       try {
         const fields = JSON.parse(fieldsMatch[1]);
         fieldsAbstract = fields.abstract ?? fields.description ?? "";
         fieldsKeywords = fields.keywords ?? "";
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     // ── 标题 ──
@@ -331,10 +326,7 @@ async function extractGameFromPage(
     });
 
     // ── 封面 ──
-    const coverUrl =
-      joeContentCover ||
-      $('meta[property="og:image"]').attr("content") ||
-      "";
+    const coverUrl = joeContentCover || $('meta[property="og:image"]').attr("content") || "";
 
     // ── 下载链接（<joe-cloud> 元素） ──
     const downloads: GameDownload[] = [];
@@ -357,9 +349,7 @@ async function extractGameFromPage(
 
     // 游戏截图（包含图片和视频的混合列表）
     const allMedia: string[] = [];
-    const screenshotMatch = articleHtml.match(
-      /\{tabs-pane label="游戏截图"\}([\s\S]*?)\{\/tabs-pane\}/,
-    );
+    const screenshotMatch = articleHtml.match(/\{tabs-pane label="游戏截图"\}([\s\S]*?)\{\/tabs-pane\}/);
     if (screenshotMatch) {
       // 提取图片 src
       const imgRegex = /src="([^"]+)"/g;
@@ -394,9 +384,7 @@ async function extractGameFromPage(
 
     // 游戏介绍（tabs-pane label="游戏介绍"）
     let gameDescription = "";
-    const introMatch = articleHtml.match(
-      /\{tabs-pane label="游戏介绍"\}([\s\S]*?)\{\/tabs-pane\}/,
-    );
+    const introMatch = articleHtml.match(/\{tabs-pane label="游戏介绍"\}([\s\S]*?)\{\/tabs-pane\}/);
     if (introMatch) {
       gameDescription = introMatch[1]
         .replace(/<[^>]+>/g, "\n")
@@ -407,9 +395,7 @@ async function extractGameFromPage(
 
     // 角色介绍
     let characterIntro = "";
-    const charMatch = articleHtml.match(
-      /\{tabs-pane label="角色介绍"\}([\s\S]*?)\{\/tabs-pane\}/,
-    );
+    const charMatch = articleHtml.match(/\{tabs-pane label="角色介绍"\}([\s\S]*?)\{\/tabs-pane\}/);
     if (charMatch) {
       // 角色介绍可能是图片或文字
       const charImgs: string[] = [];
@@ -440,9 +426,7 @@ async function extractGameFromPage(
     const platforms: string[] = [];
     let gameInfoText = "";
 
-    const infoMatch = articleHtml.match(
-      /\{tabs-pane label="游戏信息"\}([\s\S]*?)\{\/tabs-pane\}/,
-    );
+    const infoMatch = articleHtml.match(/\{tabs-pane label="游戏信息"\}([\s\S]*?)\{\/tabs-pane\}/);
     if (infoMatch) {
       const infoHtml = infoMatch[1];
       gameInfoText = infoHtml
@@ -482,8 +466,7 @@ async function extractGameFromPage(
 
     // ── 浏览量 ──
     let views = 0;
-    const viewsText = $(".joe_detail__count-views .num").text().trim() ||
-      $(".post-meta .views").text().trim();
+    const viewsText = $(".joe_detail__count-views .num").text().trim() || $(".post-meta .views").text().trim();
     if (viewsText) {
       views = parseInt(viewsText.replace(/[,，]/g, ""), 10) || 0;
     }
@@ -590,7 +573,10 @@ async function writeToDatabase(games: GameInfo[]) {
         }
 
         for (const tagName of allTags) {
-          const slug = tagName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\u4e00-\u9fff-]/g, "");
+          const slug = tagName
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^\w\u4e00-\u9fff-]/g, "");
           if (!slug) continue;
           const tag = await prisma.tag.upsert({
             where: { slug },
@@ -653,10 +639,7 @@ async function writeToDatabase(games: GameInfo[]) {
 
 function exportToJson(games: GameInfo[]): string {
   const valid = games.filter((g) => g.title && !g.error);
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[T:]/g, "_")
-    .slice(0, 19);
+  const timestamp = new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19);
   const outputFile = `legacy_games_${timestamp}.json`;
 
   const output = valid.map((game) => {
@@ -746,16 +729,10 @@ async function main() {
   console.log("─".repeat(50));
 
   // 2) 并发抓取详情页
-  const tasks = allLinks.map(
-    (link) => () => extractGameFromPage(link, config.timeout),
-  );
+  const tasks = allLinks.map((link) => () => extractGameFromPage(link, config.timeout));
 
   const allPages = await poolAll(tasks, config.concurrency, (result, done, total) => {
-    const status = result.error
-      ? `✗ ${result.error}`
-      : result.gameType
-        ? `✓ [${result.gameType}]`
-        : "- 非游戏，跳过";
+    const status = result.error ? `✗ ${result.error}` : result.gameType ? `✓ [${result.gameType}]` : "- 非游戏，跳过";
     const name = result.title ? result.title.slice(0, 40) : "未知";
     console.log(`[${done}/${total}] ${name} ${status}`);
   });

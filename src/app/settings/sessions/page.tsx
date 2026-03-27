@@ -7,18 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Laptop,
-  Smartphone,
-  Tablet,
-  Trash2,
-  MapPin,
-  Clock,
-  LogOut,
-  Shield,
-  Globe,
-  Monitor,
-} from "lucide-react";
+import { Laptop, Smartphone, Tablet, Trash2, MapPin, Clock, LogOut, Shield, Globe, Monitor } from "lucide-react";
 import { formatRelativeTime, formatDate } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
 import { getFingerprint } from "@/hooks/use-fingerprint";
@@ -61,7 +50,7 @@ export default function SessionsPage() {
 
   const { data: sessionsData, isLoading } = trpc.user.getLoginSessions.useQuery(
     { limit: 20 },
-    { enabled: !!session?.user?.id }
+    { enabled: !!session?.user?.id },
   );
 
   const revokeMut = trpc.user.revokeLoginSession.useMutation({
@@ -88,14 +77,14 @@ export default function SessionsPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ fingerprint: fp || undefined }),
-          })
+          }),
         )
         .catch(() =>
           fetch("/api/auth/session-info", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({}),
-          })
+          }),
         )
         .then(() => {
           setHasRecorded(true);
@@ -116,7 +105,9 @@ export default function SessionsPage() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64" />
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
       </div>
     );
   }
@@ -125,8 +116,8 @@ export default function SessionsPage() {
 
   const sessions = sessionsData?.sessions || [];
   const currentJti = sessionsData?.currentJti;
-  const currentSession = sessions.find(s => s.jti === currentJti);
-  const otherSessions = sessions.filter(s => s.jti !== currentJti);
+  const currentSession = sessions.find((s) => s.jti === currentJti);
+  const otherSessions = sessions.filter((s) => s.jti !== currentJti);
 
   return (
     <div className="space-y-8">
@@ -249,10 +240,12 @@ function SessionCard({
 
   const [now] = useState(() => Date.now());
   const lastActive = new Date(s.lastActiveAt);
-  const isOnline = isCurrent || (now - lastActive.getTime() < 5 * 60 * 1000);
+  const isOnline = isCurrent || now - lastActive.getTime() < 5 * 60 * 1000;
 
   return (
-    <div className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${isCurrent ? "border-primary/30 bg-primary/5" : "hover:bg-muted/50"}`}>
+    <div
+      className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${isCurrent ? "border-primary/30 bg-primary/5" : "hover:bg-muted/50"}`}
+    >
       {/* 设备图标 */}
       <div className={`p-2.5 rounded-lg shrink-0 ${isCurrent ? "bg-primary/10" : "bg-muted"}`}>
         <DeviceIcon type={s.deviceType} className={`h-5 w-5 ${isCurrent ? "text-primary" : "text-muted-foreground"}`} />
@@ -295,7 +288,10 @@ function SessionCard({
               {location}
             </span>
           )}
-          <span className="inline-flex items-center gap-1" title={`登录时间: ${formatDate(s.createdAt, "YYYY-MM-DD HH:mm")}`}>
+          <span
+            className="inline-flex items-center gap-1"
+            title={`登录时间: ${formatDate(s.createdAt, "YYYY-MM-DD HH:mm")}`}
+          >
             <Clock className="h-3 w-3" />
             {isCurrent ? "当前活跃" : formatRelativeTime(s.lastActiveAt)}
           </span>

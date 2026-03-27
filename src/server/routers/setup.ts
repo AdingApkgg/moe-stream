@@ -20,7 +20,7 @@ export const setupRouter = router({
         nickname: z.string().optional(),
         siteName: z.string().max(100).optional(),
         siteUrl: z.string().url().optional().or(z.literal("")),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const complete = await isSetupComplete();

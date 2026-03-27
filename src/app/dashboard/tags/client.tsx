@@ -28,13 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Tag,
@@ -138,19 +132,35 @@ function CategoryManager() {
   };
 
   const PRESET_COLORS = [
-    "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4",
-    "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899", "#6b7280",
+    "#ef4444",
+    "#f97316",
+    "#eab308",
+    "#22c55e",
+    "#06b6d4",
+    "#3b82f6",
+    "#6366f1",
+    "#8b5cf6",
+    "#ec4899",
+    "#6b7280",
   ];
 
   const formFields = (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
         <label className="text-sm font-medium">分类名称 *</label>
-        <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="例如：类型" />
+        <Input
+          value={form.name}
+          onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          placeholder="例如：类型"
+        />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">URL 标识 (slug) *</label>
-        <Input value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} placeholder="例如：genre" />
+        <Input
+          value={form.slug}
+          onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))}
+          placeholder="例如：genre"
+        />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">颜色</label>
@@ -161,17 +171,28 @@ function CategoryManager() {
                 key={c}
                 type="button"
                 onClick={() => setForm((p) => ({ ...p, color: c }))}
-                className={cn("w-6 h-6 rounded-full border-2 transition-transform", form.color === c ? "border-foreground scale-110" : "border-transparent")}
+                className={cn(
+                  "w-6 h-6 rounded-full border-2 transition-transform",
+                  form.color === c ? "border-foreground scale-110" : "border-transparent",
+                )}
                 style={{ backgroundColor: c }}
               />
             ))}
           </div>
-          <Input value={form.color} onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))} className="w-24 ml-2" />
+          <Input
+            value={form.color}
+            onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
+            className="w-24 ml-2"
+          />
         </div>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">排序权重</label>
-        <Input type="number" value={form.sortOrder} onChange={(e) => setForm((p) => ({ ...p, sortOrder: Number(e.target.value) }))} />
+        <Input
+          type="number"
+          value={form.sortOrder}
+          onChange={(e) => setForm((p) => ({ ...p, sortOrder: Number(e.target.value) }))}
+        />
         <p className="text-xs text-muted-foreground">数值越小越靠前</p>
       </div>
     </div>
@@ -184,7 +205,13 @@ function CategoryManager() {
           <FolderOpen className="h-5 w-5" />
           标签分类
         </h2>
-        <Button size="sm" onClick={() => { setIsCreating(true); setForm({ name: "", slug: "", color: "#6366f1", sortOrder: 0 }); }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setIsCreating(true);
+            setForm({ name: "", slug: "", color: "#6366f1", sortOrder: 0 });
+          }}
+        >
           <Plus className="h-4 w-4 mr-1" />
           新建分类
         </Button>
@@ -192,13 +219,13 @@ function CategoryManager() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-lg" />
+          ))}
         </div>
       ) : !categories?.length ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            暂无标签分类，点击右上角创建
-          </CardContent>
+          <CardContent className="py-8 text-center text-muted-foreground">暂无标签分类，点击右上角创建</CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -210,13 +237,20 @@ function CategoryManager() {
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{cat.name}</div>
-                    <div className="text-xs text-muted-foreground">/{cat.slug} · {cat._count.tags} 个标签</div>
+                    <div className="text-xs text-muted-foreground">
+                      /{cat.slug} · {cat._count.tags} 个标签
+                    </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}>
                       <Edit2 className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingId(cat.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => setDeletingId(cat.id)}
+                    >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -236,7 +270,9 @@ function CategoryManager() {
           </DialogHeader>
           {formFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              取消
+            </Button>
             <Button onClick={handleCreate} disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               创建
@@ -254,7 +290,9 @@ function CategoryManager() {
           </DialogHeader>
           {formFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingCat(null)}>取消</Button>
+            <Button variant="outline" onClick={() => setEditingCat(null)}>
+              取消
+            </Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
               {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               保存
@@ -268,7 +306,9 @@ function CategoryManager() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定删除分类？</AlertDialogTitle>
-            <AlertDialogDescription>分类将被删除，该分类下的标签不会被删除，但会变为未分类状态。</AlertDialogDescription>
+            <AlertDialogDescription>
+              分类将被删除，该分类下的标签不会被删除，但会变为未分类状态。
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -398,9 +438,7 @@ function TagManager({ page: initialPage }: { page: number }) {
   }, []);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) =>
-      prev.size === tags.length ? new Set() : new Set(tags.map((t) => t.id)),
-    );
+    setSelectedIds((prev) => (prev.size === tags.length ? new Set() : new Set(tags.map((t) => t.id))));
   }, [tags]);
 
   const handleEdit = (tag: TagItem) => {
@@ -481,13 +519,27 @@ function TagManager({ page: initialPage }: { page: number }) {
         <div className="flex items-center gap-4">
           {stats && (
             <div className="flex items-center gap-3 text-sm flex-wrap">
-              <span className="flex items-center gap-1.5 text-muted-foreground">总计 <Badge variant="outline">{stats.total}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">分类 <Badge variant="secondary">{stats.categoryCount}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">未分类 <Badge variant="outline">{stats.uncategorized}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">有视频 <Badge variant="secondary">{stats.withVideos}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">有游戏 <Badge variant="secondary">{stats.withGames}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">有图片 <Badge variant="secondary">{stats.withImages}</Badge></span>
-              <span className="flex items-center gap-1.5 text-muted-foreground">空标签 <Badge variant="outline">{stats.empty}</Badge></span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                总计 <Badge variant="outline">{stats.total}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                分类 <Badge variant="secondary">{stats.categoryCount}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                未分类 <Badge variant="outline">{stats.uncategorized}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                有视频 <Badge variant="secondary">{stats.withVideos}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                有游戏 <Badge variant="secondary">{stats.withGames}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                有图片 <Badge variant="secondary">{stats.withImages}</Badge>
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                空标签 <Badge variant="outline">{stats.empty}</Badge>
+              </span>
             </div>
           )}
           <Button onClick={() => setIsCreating(true)}>
@@ -501,9 +553,23 @@ function TagManager({ page: initialPage }: { page: number }) {
       <div className="flex gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="搜索标签名称或 slug..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-10" />
+          <Input
+            placeholder="搜索标签名称或 slug..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="pl-10"
+          />
         </div>
-        <Select value={filterCategoryId} onValueChange={(v) => { setFilterCategoryId(v); setCurrentPage(1); }}>
+        <Select
+          value={filterCategoryId}
+          onValueChange={(v) => {
+            setFilterCategoryId(v);
+            setCurrentPage(1);
+          }}
+        >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="筛选分类" />
           </SelectTrigger>
@@ -526,7 +592,11 @@ function TagManager({ page: initialPage }: { page: number }) {
       {tags.length > 0 && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
-            {selectedIds.size === tags.length && tags.length > 0 ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            {selectedIds.size === tags.length && tags.length > 0 ? (
+              <CheckSquare className="h-4 w-4" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
             {selectedIds.size === tags.length && tags.length > 0 ? "取消全选" : "全选"}
           </Button>
           {selectedIds.size > 0 && (
@@ -556,7 +626,9 @@ function TagManager({ page: initialPage }: { page: number }) {
       {/* 标签列表 */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
+          {Array.from({ length: 9 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
         </div>
       ) : tags.length === 0 ? (
         <Card>
@@ -568,30 +640,49 @@ function TagManager({ page: initialPage }: { page: number }) {
             {tags.map((tag) => {
               const isSelected = selectedIds.has(tag.id);
               return (
-                <Card key={tag.id} className={cn("transition-colors hover:bg-muted/50", isSelected && "ring-2 ring-primary")}>
+                <Card
+                  key={tag.id}
+                  className={cn("transition-colors hover:bg-muted/50", isSelected && "ring-2 ring-primary")}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(tag.id)} className="mt-1" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <Link href={`/video/tag/${tag.slug}`} className="font-medium hover:underline block truncate">{tag.name}</Link>
+                            <Link
+                              href={`/video/tag/${tag.slug}`}
+                              className="font-medium hover:underline block truncate"
+                            >
+                              {tag.name}
+                            </Link>
                             <div className="text-sm text-muted-foreground mt-0.5">/{tag.slug}</div>
                           </div>
                           <div className="flex gap-1 shrink-0">
                             <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                              <Link href={`/video/tag/${tag.slug}`} target="_blank" title="视频"><Video className="h-3 w-3" /></Link>
+                              <Link href={`/video/tag/${tag.slug}`} target="_blank" title="视频">
+                                <Video className="h-3 w-3" />
+                              </Link>
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                              <Link href={`/game/tag/${tag.slug}`} target="_blank" title="游戏"><Gamepad2 className="h-3 w-3" /></Link>
+                              <Link href={`/game/tag/${tag.slug}`} target="_blank" title="游戏">
+                                <Gamepad2 className="h-3 w-3" />
+                              </Link>
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                              <Link href={`/image/tag/${tag.slug}`} target="_blank" title="图片"><Images className="h-3 w-3" /></Link>
+                              <Link href={`/image/tag/${tag.slug}`} target="_blank" title="图片">
+                                <Images className="h-3 w-3" />
+                              </Link>
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tag)}>
                               <Edit2 className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingId(tag.id)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={() => setDeletingId(tag.id)}
+                            >
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
@@ -599,16 +690,33 @@ function TagManager({ page: initialPage }: { page: number }) {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2 flex-wrap">
                           {tag.category ? (
                             <Badge variant="outline" className="text-[10px] py-0 px-1.5 gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.category.color }} />
+                              <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: tag.category.color }}
+                              />
                               {tag.category.name}
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 opacity-50">未分类</Badge>
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 opacity-50">
+                              未分类
+                            </Badge>
                           )}
-                          <span className="flex items-center gap-1"><Video className="h-3 w-3" />{tag.videoCount}</span>
-                          <span className="flex items-center gap-1"><Gamepad2 className="h-3 w-3" />{tag.gameCount}</span>
-                          <span className="flex items-center gap-1"><Images className="h-3 w-3" />{tag.imagePostCount}</span>
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(tag.createdAt).toLocaleDateString("zh-CN")}</span>
+                          <span className="flex items-center gap-1">
+                            <Video className="h-3 w-3" />
+                            {tag.videoCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Gamepad2 className="h-3 w-3" />
+                            {tag.gameCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Images className="h-3 w-3" />
+                            {tag.imagePostCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(tag.createdAt).toLocaleDateString("zh-CN")}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -617,7 +725,13 @@ function TagManager({ page: initialPage }: { page: number }) {
               );
             })}
           </div>
-          <Pagination currentPage={currentPage} totalPages={data?.totalPages ?? 1} basePath="/dashboard/tags" onPageChange={setCurrentPage} className="mt-6" />
+          <Pagination
+            currentPage={currentPage}
+            totalPages={data?.totalPages ?? 1}
+            basePath="/dashboard/tags"
+            onPageChange={setCurrentPage}
+            className="mt-6"
+          />
         </>
       )}
 
@@ -640,7 +754,9 @@ function TagManager({ page: initialPage }: { page: number }) {
             {categorySelect(newCategoryId, setNewCategoryId)}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreating(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              取消
+            </Button>
             <Button onClick={handleCreate} disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               创建
@@ -668,7 +784,9 @@ function TagManager({ page: initialPage }: { page: number }) {
             {categorySelect(editCategoryId, setEditCategoryId)}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTag(null)}>取消</Button>
+            <Button variant="outline" onClick={() => setEditingTag(null)}>
+              取消
+            </Button>
             <Button onClick={handleSave} disabled={isUpdating}>
               {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               保存
@@ -686,7 +804,10 @@ function TagManager({ page: initialPage }: { page: number }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deletingId && deleteMutation.mutate({ tagId: deletingId })}>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletingId && deleteMutation.mutate({ tagId: deletingId })}
+            >
               {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               确认删除
             </AlertDialogAction>
@@ -703,7 +824,10 @@ function TagManager({ page: initialPage }: { page: number }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => batchDeleteMutation.mutate({ tagIds: Array.from(selectedIds) })}>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => batchDeleteMutation.mutate({ tagIds: Array.from(selectedIds) })}
+            >
               确认删除
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -717,11 +841,11 @@ function TagManager({ page: initialPage }: { page: number }) {
             <DialogTitle>批量修改分类</DialogTitle>
             <DialogDescription>将 {selectedIds.size} 个标签移动到指定分类</DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            {categorySelect(batchCategoryId, setBatchCategoryId, "目标分类")}
-          </div>
+          <div className="py-4">{categorySelect(batchCategoryId, setBatchCategoryId, "目标分类")}</div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBatchAction(null)}>取消</Button>
+            <Button variant="outline" onClick={() => setBatchAction(null)}>
+              取消
+            </Button>
             <Button onClick={handleBatchCategory} disabled={batchCategoryMutation.isPending}>
               {batchCategoryMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               确认修改
@@ -744,16 +868,20 @@ function TagManager({ page: initialPage }: { page: number }) {
                 <SelectValue placeholder="选择保留的目标标签" />
               </SelectTrigger>
               <SelectContent>
-                {tags.filter((t) => selectedIds.has(t.id)).map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name} ({tag.videoCount} 视频, {tag.gameCount} 游戏, {tag.imagePostCount} 图片)
-                  </SelectItem>
-                ))}
+                {tags
+                  .filter((t) => selectedIds.has(t.id))
+                  .map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      {tag.name} ({tag.videoCount} 视频, {tag.gameCount} 游戏, {tag.imagePostCount} 图片)
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBatchAction(null)}>取消</Button>
+            <Button variant="outline" onClick={() => setBatchAction(null)}>
+              取消
+            </Button>
             <Button onClick={handleMerge} disabled={mergeMutation.isPending || !mergeTargetId}>
               {mergeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               确认合并
@@ -771,11 +899,7 @@ export default function AdminTagsClient({ page: initialPage }: { page: number })
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
 
   if (!permissions?.scopes.includes("tag:manage")) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有标签管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有标签管理权限</div>;
   }
 
   return (

@@ -8,10 +8,7 @@ const TOKEN_TTL = 3600; // 1 hour
  * OAuth callback for cloud providers (Google Drive, OneDrive).
  * Exchanges the authorization code for an access token and stores it in Redis.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ provider: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
@@ -110,7 +107,5 @@ export async function GET(
 
 function redirectWithMessage(msg: string) {
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return NextResponse.redirect(
-    new URL(`/my-files?cloud_auth_error=${encodeURIComponent(msg)}`, siteUrl),
-  );
+  return NextResponse.redirect(new URL(`/my-files?cloud_auth_error=${encodeURIComponent(msg)}`, siteUrl));
 }

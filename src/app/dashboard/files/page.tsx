@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,14 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,8 +47,7 @@ import {
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
@@ -110,8 +96,7 @@ export default function AdminFilesPage() {
     },
   );
 
-  const { data: userStats, isLoading: statsLoading } =
-    trpc.admin.getFileUserStats.useQuery({ limit: 20 });
+  const { data: userStats, isLoading: statsLoading } = trpc.admin.getFileUserStats.useQuery({ limit: 20 });
 
   const deleteMutation = trpc.admin.deleteFile.useMutation({
     onSuccess: () => {
@@ -162,15 +147,9 @@ export default function AdminFilesPage() {
             <HardDrive className="h-6 w-6 text-primary" />
             文件管理
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            管理全站用户上传的文件
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">管理全站用户上传的文件</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => cleanMutation.mutate()}
-          disabled={cleanMutation.isPending}
-        >
+        <Button variant="outline" onClick={() => cleanMutation.mutate()} disabled={cleanMutation.isPending}>
           {cleanMutation.isPending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
@@ -245,7 +224,6 @@ export default function AdminFilesPage() {
                     </TableRow>
                   ) : (
                     allFiles.map((file) => {
-                      
                       const statusInfo = STATUS_MAP[file.status] || STATUS_MAP.UPLOADED;
                       return (
                         <TableRow key={file.id}>
@@ -265,9 +243,7 @@ export default function AdminFilesPage() {
                                   {(file.user.nickname || file.user.username)?.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm truncate">
-                                {file.user.nickname || file.user.username}
-                              </span>
+                              <span className="text-sm truncate">{file.user.nickname || file.user.username}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-sm">{formatBytes(file.size)}</TableCell>
@@ -309,18 +285,13 @@ export default function AdminFilesPage() {
                                   </DropdownMenuItem>
                                 )}
                                 {file.contentId && (
-                                  <DropdownMenuItem
-                                    onClick={() => detachMutation.mutate({ fileId: file.id })}
-                                  >
+                                  <DropdownMenuItem onClick={() => detachMutation.mutate({ fileId: file.id })}>
                                     <Unlink className="h-4 w-4 mr-2" />
                                     解除关联
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => setDeleteFileId(file.id)}
-                                >
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteFileId(file.id)}>
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   删除
                                 </DropdownMenuItem>
@@ -338,11 +309,7 @@ export default function AdminFilesPage() {
 
           {hasNextPage && (
             <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
+              <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
                 {isFetchingNextPage && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 加载更多
               </Button>
@@ -367,9 +334,7 @@ export default function AdminFilesPage() {
                   ))}
                 </div>
               ) : !userStats || userStats.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  暂无用户文件数据
-                </p>
+                <p className="text-sm text-muted-foreground text-center py-8">暂无用户文件数据</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -383,10 +348,7 @@ export default function AdminFilesPage() {
                   </TableHeader>
                   <TableBody>
                     {userStats.map((user) => {
-                      const pct =
-                        user.storageQuota > 0
-                          ? Math.round((user.storageUsed / user.storageQuota) * 100)
-                          : 0;
+                      const pct = user.storageQuota > 0 ? Math.round((user.storageUsed / user.storageQuota) * 100) : 0;
                       return (
                         <TableRow key={user.id}>
                           <TableCell>
@@ -397,21 +359,13 @@ export default function AdminFilesPage() {
                                   {(user.nickname || user.username)?.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm">
-                                {user.nickname || user.username}
-                              </span>
+                              <span className="text-sm">{user.nickname || user.username}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">
-                            {formatBytes(user.storageUsed)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatBytes(user.storageQuota)}
-                          </TableCell>
+                          <TableCell className="text-sm">{formatBytes(user.storageUsed)}</TableCell>
+                          <TableCell className="text-sm">{formatBytes(user.storageQuota)}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={pct > 90 ? "destructive" : pct > 70 ? "outline" : "secondary"}
-                            >
+                            <Badge variant={pct > 90 ? "destructive" : pct > 70 ? "outline" : "secondary"}>
                               {pct}%
                             </Badge>
                           </TableCell>
@@ -432,16 +386,11 @@ export default function AdminFilesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除文件？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作将从存储中永久删除该文件，且无法恢复。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作将从存储中永久删除该文件，且无法恢复。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
+            <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending}>
               {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               删除
             </AlertDialogAction>

@@ -55,17 +55,17 @@ export default function HistoryClient({ page }: { page: number }) {
 
   const { data, isLoading } = trpc.video.getHistory.useQuery(
     { limit: 20, page },
-    { enabled: !!session && activeTab === "video" }
+    { enabled: !!session && activeTab === "video" },
   );
 
   const { data: gameData, isLoading: gameLoading } = trpc.game.getUserHistory.useQuery(
     { userId: userId!, limit: 20, page: gamePage },
-    { enabled: !!userId && activeTab === "game" }
+    { enabled: !!userId && activeTab === "game" },
   );
 
   const { data: imageData, isLoading: imageLoading } = trpc.image.getUserHistory.useQuery(
     { userId: userId!, limit: 20, page: imagePage },
-    { enabled: !!userId && activeTab === "image" }
+    { enabled: !!userId && activeTab === "image" },
   );
 
   const removeHistoryItemMutation = trpc.video.removeHistoryItem.useMutation({
@@ -148,7 +148,7 @@ export default function HistoryClient({ page }: { page: number }) {
     if (selectedIds.size === history.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(history.map(v => v.id)));
+      setSelectedIds(new Set(history.map((v) => v.id)));
     }
   };
 
@@ -187,7 +187,7 @@ export default function HistoryClient({ page }: { page: number }) {
         dateKey = itemDate.toISOString().split("T")[0];
       }
 
-      const existingGroup = groups.find(g => g.date === dateKey);
+      const existingGroup = groups.find((g) => g.date === dateKey);
       if (existingGroup) {
         existingGroup.items.push(item);
       } else {
@@ -244,10 +244,14 @@ export default function HistoryClient({ page }: { page: number }) {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <Button variant="ghost" size="sm" onClick={() => {
-                  setSelectMode(false);
-                  setSelectedIds(new Set());
-                }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  }}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </>
@@ -266,9 +270,7 @@ export default function HistoryClient({ page }: { page: number }) {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>确定要清空观看历史吗？</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        此操作不可撤销，所有观看记录将被永久删除。
-                      </AlertDialogDescription>
+                      <AlertDialogDescription>此操作不可撤销，所有观看记录将被永久删除。</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>取消</AlertDialogCancel>
@@ -276,9 +278,7 @@ export default function HistoryClient({ page }: { page: number }) {
                         onClick={() => clearHistoryMutation.mutate()}
                         disabled={clearHistoryMutation.isPending}
                       >
-                        {clearHistoryMutation.isPending && (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        )}
+                        {clearHistoryMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                         确定清空
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -302,7 +302,7 @@ export default function HistoryClient({ page }: { page: number }) {
                 "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
                 activeTab === tab.key
                   ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -371,10 +371,7 @@ export default function HistoryClient({ page }: { page: number }) {
                         </Link>
 
                         <div className="flex-1 min-w-0">
-                          <Link
-                            href={`/video/${video.id}`}
-                            className="font-medium hover:text-primary line-clamp-2"
-                          >
+                          <Link href={`/video/${video.id}`} className="font-medium hover:text-primary line-clamp-2">
                             {video.title}
                           </Link>
                           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -411,12 +408,7 @@ export default function HistoryClient({ page }: { page: number }) {
                 </div>
               ))}
 
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                basePath="/history"
-                className="mt-8"
-              />
+              <Pagination currentPage={page} totalPages={totalPages} basePath="/history" className="mt-8" />
             </>
           )}
         </>
@@ -486,7 +478,11 @@ export default function HistoryClient({ page }: { page: number }) {
                 {(imageData?.posts ?? [])
                   .filter((p): p is NonNullable<typeof p> => p?.id != null)
                   .map((post, index) => (
-                    <ImagePostCard key={post.id} post={post as Parameters<typeof ImagePostCard>[0]["post"]} index={index} />
+                    <ImagePostCard
+                      key={post.id}
+                      post={post as Parameters<typeof ImagePostCard>[0]["post"]}
+                      index={index}
+                    />
                   ))}
               </div>
               <Pagination

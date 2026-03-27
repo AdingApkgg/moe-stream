@@ -92,17 +92,12 @@ export async function processVideo(videoId: string): Promise<boolean> {
   log(`视频 ${videoId} URL: ${video.videoUrl.slice(0, 80)}...`);
 
   const coverDir = await getCoverDir();
-  const result = await generateCoverForVideo(
-    video.videoUrl,
-    videoId,
-    coverDir,
-    {
-      width: COVER_CONFIG.width,
-      timeoutMs: COVER_CONFIG.timeout,
-      maxRetries: COVER_CONFIG.maxRetries,
-      retryDelayMs: COVER_CONFIG.retryDelay,
-    }
-  );
+  const result = await generateCoverForVideo(video.videoUrl, videoId, coverDir, {
+    width: COVER_CONFIG.width,
+    timeoutMs: COVER_CONFIG.timeout,
+    maxRetries: COVER_CONFIG.maxRetries,
+    retryDelayMs: COVER_CONFIG.retryDelay,
+  });
 
   if (result) {
     try {
@@ -145,7 +140,7 @@ export async function processVideo(videoId: string): Promise<boolean> {
 async function tryCdnThumbnailFallback(
   videoUrl: string,
   videoId: string,
-  coverDir: string
+  coverDir: string,
 ): Promise<{ coverUrl: string; blurDataURL: string | null } | null> {
   const patterns: string[] = [];
   if (/\.m3u8(\?|$)/i.test(videoUrl)) {
@@ -176,15 +171,21 @@ async function tryCdnThumbnailFallback(
       const avifPath = path.join(coverDir, `${videoId}.avif`);
 
       // 保存为 JPEG + 尝试 AVIF
-      await sharp(buffer).resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
-        .jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true }).toFile(jpgPath);
+      await sharp(buffer)
+        .resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
+        .jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true })
+        .toFile(jpgPath);
 
       let coverUrl = `/uploads/cover/${videoId}.jpg`;
       try {
-        await sharp(buffer).resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
-          .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort }).toFile(avifPath);
+        await sharp(buffer)
+          .resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
+          .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort })
+          .toFile(avifPath);
         coverUrl = `/uploads/cover/${videoId}.avif`;
-      } catch { /* AVIF 失败则用 JPEG */ }
+      } catch {
+        /* AVIF 失败则用 JPEG */
+      }
 
       const blurDataURL = await generateBlurDataURL(jpgPath);
       log(`CDN 缩略图回退成功: ${videoId} <- ${thumbUrl}`);
@@ -222,13 +223,7 @@ let backfillTimer: NodeJS.Timeout | null = null;
 
 async function tryAcquireBackfillLock(): Promise<boolean> {
   try {
-    const result = await redis.set(
-      "cover:backfill:lock",
-      "1",
-      "EX",
-      COVER_CONFIG.backfillLockTtlSeconds,
-      "NX"
-    );
+    const result = await redis.set("cover:backfill:lock", "1", "EX", COVER_CONFIG.backfillLockTtlSeconds, "NX");
     return result === "OK";
   } catch {
     return false;
@@ -284,10 +279,7 @@ export function startBackfillScheduler() {
  * 将视频加入封面生成队列
  * 供 tRPC mutation 和 API route 调用
  */
-export async function enqueueCoverForVideo(
-  videoId: string,
-  coverUrl?: string | null
-): Promise<void> {
+export async function enqueueCoverForVideo(videoId: string, coverUrl?: string | null): Promise<void> {
   if (coverUrl) return;
   if (process.env.NODE_ENV === "development") return;
   await addToQueue(videoId);
@@ -298,7 +290,7 @@ export async function enqueueCoverForVideo(
  */
 export async function setCoverManually(
   videoId: string,
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
 ): Promise<{ coverUrl: string; blurDataURL: string | null }> {
   await ensureCoverDir();
   const coverDir = await getCoverDir();
@@ -312,8 +304,16 @@ export async function setCoverManually(
 
   const [, , , blurDataURL] = await Promise.all([
     src.clone().jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true }).toFile(jpgPath),
-    src.clone().avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort }).toFile(avifPath).catch(() => null),
-    src.clone().webp({ quality: COVER_CONFIG.webpQuality }).toFile(webpPath).catch(() => null),
+    src
+      .clone()
+      .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort })
+      .toFile(avifPath)
+      .catch(() => null),
+    src
+      .clone()
+      .webp({ quality: COVER_CONFIG.webpQuality })
+      .toFile(webpPath)
+      .catch(() => null),
     generateBlurDataURL(imageBuffer),
   ]);
 
@@ -322,7 +322,9 @@ export async function setCoverManually(
   try {
     const avifStat = await fs.stat(avifPath);
     if (avifStat.size > 0) coverUrl = `/uploads/cover/${videoId}.avif`;
-  } catch { /* 用 jpg */ }
+  } catch {
+    /* 用 jpg */
+  }
 
   await prisma.video.update({
     where: { id: videoId },

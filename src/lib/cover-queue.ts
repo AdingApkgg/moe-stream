@@ -26,9 +26,12 @@ const LOG_KEY = "cover:logs";
 const LOG_MAX_ENTRIES = 200;
 
 function appendCoverLog(line: string): void {
-  redis.lpush(LOG_KEY, line).then(() => {
-    redis.ltrim(LOG_KEY, 0, LOG_MAX_ENTRIES - 1).catch(() => {});
-  }).catch(() => {});
+  redis
+    .lpush(LOG_KEY, line)
+    .then(() => {
+      redis.ltrim(LOG_KEY, 0, LOG_MAX_ENTRIES - 1).catch(() => {});
+    })
+    .catch(() => {});
 }
 
 /**
@@ -58,13 +61,7 @@ function retryKey(videoId: string) {
 }
 
 export async function acquireCoverLock(videoId: string): Promise<boolean> {
-  const result = await redis.set(
-    lockKey(videoId),
-    "1",
-    "EX",
-    COVER_CONFIG.lockTtlSeconds,
-    "NX"
-  );
+  const result = await redis.set(lockKey(videoId), "1", "EX", COVER_CONFIG.lockTtlSeconds, "NX");
   return result === "OK";
 }
 
@@ -267,7 +264,7 @@ export async function clearPermFailed(videoIds?: string[]): Promise<number> {
 
 export async function processQueue(
   processor: (videoId: string) => Promise<boolean>,
-  options: ProcessOptions = {}
+  options: ProcessOptions = {},
 ): Promise<{ processed: number; errors: number }> {
   const concurrency = options.concurrency ?? COVER_CONFIG.maxConcurrency;
   const pollTimeoutSeconds = options.pollTimeoutSeconds ?? 5;

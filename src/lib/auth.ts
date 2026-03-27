@@ -20,8 +20,18 @@ interface OAuthProviderCredentials {
 type OAuthConfig = Record<string, OAuthProviderCredentials>;
 
 const OAUTH_PROVIDER_KEYS = [
-  "Google", "Github", "Discord", "Apple", "Twitter", "Facebook",
-  "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit",
+  "Google",
+  "Github",
+  "Discord",
+  "Apple",
+  "Twitter",
+  "Facebook",
+  "Microsoft",
+  "Twitch",
+  "Spotify",
+  "Linkedin",
+  "Gitlab",
+  "Reddit",
 ] as const;
 
 type OAuthProviderKey = (typeof OAUTH_PROVIDER_KEYS)[number];
@@ -46,10 +56,10 @@ async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
           select[`oauth${k}ClientSecret`] = true;
         }
 
-        const config = await prisma.siteConfig.findUnique({
+        const config = (await prisma.siteConfig.findUnique({
           where: { id: "default" },
           select,
-        }) as Record<string, string | null> | null;
+        })) as Record<string, string | null> | null;
 
         if (!config) return { oauth: {}, siteUrl: null };
 
@@ -85,9 +95,7 @@ const LOCAL_ORIGIN_RE =
   /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
 
 function buildTrustedOrigins(baseURL: string) {
-  const staticOrigins = new Set(
-    [baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v),
-  );
+  const staticOrigins = new Set([baseURL, process.env.NEXT_PUBLIC_APP_URL].filter((v): v is string => !!v));
 
   return (request?: Request) => {
     const origins = [...staticOrigins];
@@ -104,12 +112,7 @@ function buildTrustedOrigins(baseURL: string) {
 // ---------------------------------------------------------------------------
 
 function resolveBaseURL(siteUrl?: string): string {
-  return (
-    siteUrl ||
-    process.env.BETTER_AUTH_BASE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000"
-  );
+  return siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
 
 function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
@@ -140,12 +143,8 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         create: {
           before: async (user) => {
             if (!user.username) {
-              const prefix = (user.email?.split("@")[0] || "user")
-                .replace(/[^a-zA-Z0-9_]/g, "_")
-                .slice(0, 14);
-              const suffix =
-                Date.now().toString(36).slice(-4) +
-                Math.random().toString(36).slice(2, 6);
+              const prefix = (user.email?.split("@")[0] || "user").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 14);
+              const suffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
               return { data: { ...user, username: `${prefix}_${suffix}` } };
             }
             return { data: user };
@@ -246,9 +245,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       accountLinking: {
         enabled: true,
         allowDifferentEmails: true,
-        trustedProviders: OAUTH_PROVIDER_KEYS.map(
-          (k) => k.toLowerCase(),
-        ) as Array<Lowercase<OAuthProviderKey>>,
+        trustedProviders: OAUTH_PROVIDER_KEYS.map((k) => k.toLowerCase()) as Array<Lowercase<OAuthProviderKey>>,
       },
     },
 

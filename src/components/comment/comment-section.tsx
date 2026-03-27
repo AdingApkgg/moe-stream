@@ -9,13 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { CommentItem } from "./comment-item";
@@ -64,23 +58,26 @@ export function CommentSection({ videoId }: CommentSectionProps) {
     setTurnstileToken("");
   }, []);
 
-  const insertAtCursor = useCallback((text: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      setNewComment((prev) => prev + text);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const before = newComment.slice(0, start);
-    const after = newComment.slice(end);
-    setNewComment(before + text + after);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + text.length;
-      el.setSelectionRange(pos, pos);
-    });
-  }, [newComment]);
+  const insertAtCursor = useCallback(
+    (text: string) => {
+      const el = textareaRef.current;
+      if (!el) {
+        setNewComment((prev) => prev + text);
+        return;
+      }
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const before = newComment.slice(0, start);
+      const after = newComment.slice(end);
+      setNewComment(before + text + after);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + text.length;
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [newComment],
+  );
 
   // 访客信息
   const [guestName, setGuestName] = useState("");
@@ -101,11 +98,11 @@ export function CommentSection({ videoId }: CommentSectionProps) {
         screen: `${window.screen.width}x${window.screen.height}`,
         pixelRatio: window.devicePixelRatio || null,
       });
-      
+
       // 尝试获取高精度信息（真实 OS 版本等）
       const highEntropyInfo = await getHighEntropyDeviceInfo();
       const mergedInfo = mergeDeviceInfo(baseInfo, highEntropyInfo);
-      
+
       setDeviceInfo(mergedInfo);
     };
     init();
@@ -115,17 +112,11 @@ export function CommentSection({ videoId }: CommentSectionProps) {
   const { data: commentCount } = trpc.comment.getCount.useQuery({ videoId });
 
   // 获取评论列表
-  const {
-    data,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = trpc.comment.list.useInfiniteQuery(
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = trpc.comment.list.useInfiniteQuery(
     { videoId, sort, limit: 20 },
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    },
   );
 
   // 发表评论
@@ -147,12 +138,12 @@ export function CommentSection({ videoId }: CommentSectionProps) {
 
   const handleSubmit = useCallback(async () => {
     if (!newComment.trim() || isSubmitting) return;
-    
+
     if (!session && !guestName.trim()) {
       toast.error("请填写昵称");
       return;
     }
-    
+
     setIsSubmitting(true);
 
     if (captchaType !== "none") {
@@ -186,7 +177,7 @@ export function CommentSection({ videoId }: CommentSectionProps) {
         return;
       }
     }
-    
+
     let currentDeviceInfo = deviceInfo;
     if (!currentDeviceInfo || currentDeviceInfo.osVersion === "10.15.7") {
       const baseInfo = parseDeviceInfo(navigator.userAgent, {
@@ -202,23 +193,41 @@ export function CommentSection({ videoId }: CommentSectionProps) {
     }
 
     const visitorId = await getVisitorId().catch(() => undefined);
-    
-    createMutation.mutate({ 
-      videoId, 
+
+    createMutation.mutate({
+      videoId,
       content: newComment.trim(),
       deviceInfo: currentDeviceInfo ? { ...currentDeviceInfo, visitorId } : undefined,
-      ...(session ? {} : {
-        guestName: guestName.trim(),
-        guestEmail: guestEmail.trim() || undefined,
-        guestWebsite: guestWebsite.trim() || undefined,
-      }),
+      ...(session
+        ? {}
+        : {
+            guestName: guestName.trim(),
+            guestEmail: guestEmail.trim() || undefined,
+            guestWebsite: guestWebsite.trim() || undefined,
+          }),
     });
 
     setCaptchaKey((k) => k + 1);
     setTurnstileToken("");
     setCaptchaValue("");
     setSliderValue(null);
-  }, [newComment, isSubmitting, createMutation, videoId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, isTokenCaptcha, turnstileToken, captchaValue, sliderValue, getVisitorId]);
+  }, [
+    newComment,
+    isSubmitting,
+    createMutation,
+    videoId,
+    deviceInfo,
+    session,
+    guestName,
+    guestEmail,
+    guestWebsite,
+    captchaType,
+    isTokenCaptcha,
+    turnstileToken,
+    captchaValue,
+    sliderValue,
+    getVisitorId,
+  ]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 
@@ -228,11 +237,9 @@ export function CommentSection({ videoId }: CommentSectionProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">
-            {commentCount !== undefined ? `${commentCount} 条评论` : "评论"}
-          </h3>
+          <h3 className="text-lg font-semibold">{commentCount !== undefined ? `${commentCount} 条评论` : "评论"}</h3>
         </div>
-{isMounted ? (
+        {isMounted ? (
           <Select value={sort} onValueChange={(v) => setSort(v as SortType)}>
             <SelectTrigger className="w-32">
               <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -253,129 +260,129 @@ export function CommentSection({ videoId }: CommentSectionProps) {
       {isMounted && requireLogin && !session ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-muted-foreground">
           <LogIn className="h-4 w-4" />
-          <span>请<a href="/login" className="text-primary underline underline-offset-4 mx-0.5">登录</a>后发表评论</span>
+          <span>
+            请
+            <a href="/login" className="text-primary underline underline-offset-4 mx-0.5">
+              登录
+            </a>
+            后发表评论
+          </span>
         </div>
       ) : (
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          {!isMounted ? (
-            <AvatarFallback>U</AvatarFallback>
-          ) : session ? (
-            <>
-              <AvatarImage src={session.user?.image || undefined} />
+        <div className="flex gap-3">
+          <Avatar className="h-10 w-10 shrink-0">
+            {!isMounted ? (
+              <AvatarFallback>U</AvatarFallback>
+            ) : session ? (
+              <>
+                <AvatarImage src={session.user?.image || undefined} />
+                <AvatarFallback>{(session.user?.name?.trim() || "").charAt(0).toUpperCase() || "U"}</AvatarFallback>
+              </>
+            ) : (
               <AvatarFallback>
-                {(session.user?.name?.trim() || "").charAt(0).toUpperCase() || "U"}
+                <User className="h-5 w-5" />
               </AvatarFallback>
-            </>
-          ) : (
-            <AvatarFallback>
-              <User className="h-5 w-5" />
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <div className="flex-1 space-y-3">
-          {/* 访客信息表单（未登录时显示，使用 isMounted 避免 hydration 不匹配） */}
-          {isMounted && !session && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="guest-name" className="text-xs">
-                  昵称 <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="guest-name"
-                  placeholder="必填"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  maxLength={50}
-                  className="h-8"
-                />
+            )}
+          </Avatar>
+          <div className="flex-1 space-y-3">
+            {/* 访客信息表单（未登录时显示，使用 isMounted 避免 hydration 不匹配） */}
+            {isMounted && !session && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="guest-name" className="text-xs">
+                    昵称 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="guest-name"
+                    placeholder="必填"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    maxLength={50}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="guest-email" className="text-xs">
+                    邮箱
+                  </Label>
+                  <Input
+                    id="guest-email"
+                    type="email"
+                    placeholder="可选，用于显示头像"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="guest-website" className="text-xs">
+                    网址
+                  </Label>
+                  <Input
+                    id="guest-website"
+                    type="url"
+                    placeholder="可选，https://..."
+                    value={guestWebsite}
+                    onChange={(e) => setGuestWebsite(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="guest-email" className="text-xs">
-                  邮箱
-                </Label>
-                <Input
-                  id="guest-email"
-                  type="email"
-                  placeholder="可选，用于显示头像"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="guest-website" className="text-xs">
-                  网址
-                </Label>
-                <Input
-                  id="guest-website"
-                  type="url"
-                  placeholder="可选，https://..."
-                  value={guestWebsite}
-                  onChange={(e) => setGuestWebsite(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-            </div>
-          )}
-          <Textarea
-            ref={textareaRef}
-            placeholder="添加评论..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="min-h-[80px] resize-none"
-            maxLength={2000}
-          />
-          {captchaType !== "none" && (
-            <UnifiedCaptcha
-              type={captchaType}
-              turnstileSiteKey={turnstileSiteKey}
-              recaptchaSiteKey={recaptchaSiteKey}
-              hcaptchaSiteKey={hcaptchaSiteKey}
-              mathValue={captchaValue}
-              onMathChange={setCaptchaValue}
-              onTurnstileVerify={setTurnstileToken}
-              onTurnstileExpire={handleTurnstileExpire}
-              onSliderVerify={(p) => setSliderValue(p)}
-              refreshKey={captchaKey}
+            )}
+            <Textarea
+              ref={textareaRef}
+              placeholder="添加评论..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="min-h-[80px] resize-none"
+              maxLength={2000}
             />
-          )}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-1">
-              <EmojiStickerPicker
-                onEmojiSelect={(emoji) => insertAtCursor(emoji)}
-                onStickerSelect={(markup) => insertAtCursor(markup)}
+            {captchaType !== "none" && (
+              <UnifiedCaptcha
+                type={captchaType}
+                turnstileSiteKey={turnstileSiteKey}
+                recaptchaSiteKey={recaptchaSiteKey}
+                hcaptchaSiteKey={hcaptchaSiteKey}
+                mathValue={captchaValue}
+                onMathChange={setCaptchaValue}
+                onTurnstileVerify={setTurnstileToken}
+                onTurnstileExpire={handleTurnstileExpire}
+                onSliderVerify={(p) => setSliderValue(p)}
+                refreshKey={captchaKey}
               />
-              <span className="text-xs text-muted-foreground">
-                {newComment.length}/2000
-              </span>
-            </div>
-            <div className="flex gap-2">
-              {newComment && (
+            )}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1">
+                <EmojiStickerPicker
+                  onEmojiSelect={(emoji) => insertAtCursor(emoji)}
+                  onStickerSelect={(markup) => insertAtCursor(markup)}
+                />
+                <span className="text-xs text-muted-foreground">{newComment.length}/2000</span>
+              </div>
+              <div className="flex gap-2">
+                {newComment && (
+                  <Button variant="ghost" size="sm" onClick={() => setNewComment("")}>
+                    取消
+                  </Button>
+                )}
                 <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => setNewComment("")}
+                  onClick={handleSubmit}
+                  disabled={
+                    !newComment.trim() ||
+                    isSubmitting ||
+                    (!session && !guestName.trim()) ||
+                    (captchaType === "math" && !captchaValue.trim()) ||
+                    (isTokenCaptcha && !turnstileToken) ||
+                    (captchaType === "slider" && sliderValue === null)
+                  }
                 >
-                  取消
+                  {isSubmitting ? "发表中..." : "发表评论"}
                 </Button>
-              )}
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={
-                  !newComment.trim() || isSubmitting || (!session && !guestName.trim()) ||
-                  (captchaType === "math" && !captchaValue.trim()) ||
-                  (isTokenCaptcha && !turnstileToken) ||
-                  (captchaType === "slider" && sliderValue === null)
-                }
-              >
-                {isSubmitting ? "发表中..." : "发表评论"}
-              </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* 评论列表 */}
@@ -393,25 +400,15 @@ export function CommentSection({ videoId }: CommentSectionProps) {
             </div>
           ))
         ) : comments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            暂无评论，来发表第一条评论吧
-          </div>
+          <div className="text-center py-8 text-muted-foreground">暂无评论，来发表第一条评论吧</div>
         ) : (
           <>
             {comments.map((comment) => (
-              <CommentItem
-                key={comment.id}
-                comment={comment}
-                videoId={videoId}
-              />
+              <CommentItem key={comment.id} comment={comment} videoId={videoId} />
             ))}
             {hasNextPage && (
               <div className="flex justify-center pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
+                <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
                   {isFetchingNextPage ? "加载中..." : "加载更多评论"}
                 </Button>
               </div>

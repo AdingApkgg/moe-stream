@@ -10,19 +10,14 @@ import { Smile, Sticker } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Image from "next/image";
 
-const EmojiPicker = lazy(() =>
-  import("@emoji-mart/react").then((mod) => ({ default: mod.default }))
-);
+const EmojiPicker = lazy(() => import("@emoji-mart/react").then((mod) => ({ default: mod.default })));
 
 interface EmojiStickerPickerProps {
   onEmojiSelect: (emoji: string) => void;
   onStickerSelect: (markup: string) => void;
 }
 
-export function EmojiStickerPicker({
-  onEmojiSelect,
-  onStickerSelect,
-}: EmojiStickerPickerProps) {
+export function EmojiStickerPicker({ onEmojiSelect, onStickerSelect }: EmojiStickerPickerProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("emoji");
 
@@ -32,7 +27,7 @@ export function EmojiStickerPicker({
         onEmojiSelect(emoji.native);
       }
     },
-    [onEmojiSelect]
+    [onEmojiSelect],
   );
 
   const handleStickerClick = useCallback(
@@ -40,7 +35,7 @@ export function EmojiStickerPicker({
       onStickerSelect(`[sticker:${packSlug}:${stickerId}]`);
       setOpen(false);
     },
-    [onStickerSelect]
+    [onStickerSelect],
   );
 
   return (
@@ -50,12 +45,7 @@ export function EmojiStickerPicker({
           <Smile className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[352px] p-0"
-        side="top"
-        align="start"
-        sideOffset={8}
-      >
+      <PopoverContent className="w-[352px] p-0" side="top" align="start" sideOffset={8}>
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="w-full rounded-none border-b bg-transparent h-9">
             <TabsTrigger value="emoji" className="flex-1 text-xs gap-1">
@@ -116,11 +106,7 @@ function EmojiTab({ onSelect }: { onSelect: (emoji: { native?: string }) => void
   );
 }
 
-function StickerTab({
-  onSelect,
-}: {
-  onSelect: (packSlug: string, stickerId: string) => void;
-}) {
+function StickerTab({ onSelect }: { onSelect: (packSlug: string, stickerId: string) => void }) {
   const { data: packs, isLoading } = trpc.sticker.listPacks.useQuery(undefined, {
     staleTime: Infinity,
   });
@@ -155,7 +141,7 @@ function StickerTab({
               key={pack.id}
               onClick={() => setActivePack(pack.id)}
               className={`shrink-0 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                (currentPack?.id === pack.id)
+                currentPack?.id === pack.id
                   ? "bg-primary text-primary-foreground"
                   : "hover:bg-muted text-muted-foreground"
               }`}

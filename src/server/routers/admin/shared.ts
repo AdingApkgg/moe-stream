@@ -28,9 +28,7 @@ export async function processSticker(
 
 const DEFAULT_BATCH_LIMIT = 10000;
 
-export async function getAdminBatchLimit(
-  prisma: typeof import("@/lib/prisma").prisma
-): Promise<number> {
+export async function getAdminBatchLimit(prisma: typeof import("@/lib/prisma").prisma): Promise<number> {
   try {
     const config = await prisma.siteConfig.findUnique({
       where: { id: "default" },

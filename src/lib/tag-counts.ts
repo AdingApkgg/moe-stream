@@ -37,7 +37,10 @@ export async function refreshTagCounts(tagIds: string[]): Promise<void> {
  */
 export async function refreshAllTagCounts(): Promise<number> {
   const tags = await prisma.tag.findMany({ select: { id: true } });
-  await chunked(tags.map((t) => t.id), refreshOne);
+  await chunked(
+    tags.map((t) => t.id),
+    refreshOne,
+  );
   return tags.length;
 }
 

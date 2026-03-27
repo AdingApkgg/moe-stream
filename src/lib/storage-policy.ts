@@ -91,11 +91,7 @@ export async function resolvePolicy(
 }
 
 /** Generate the storage key for a user file */
-export function generateStorageKey(
-  userId: string,
-  filename: string,
-  mimeType: string,
-): string {
+export function generateStorageKey(userId: string, filename: string, mimeType: string): string {
   const ext = filename.includes(".") ? filename.split(".").pop()! : "bin";
   const safeExt = ext.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
   const category = mimeType.split("/")[0] || "file";

@@ -217,9 +217,7 @@ export interface OwoJson {
 /**
  * Resolve a preset into a list of { url, name } items for import.
  */
-export async function resolvePresetItems(
-  preset: StickerPresetPack,
-): Promise<{ name: string; url: string }[]> {
+export async function resolvePresetItems(preset: StickerPresetPack): Promise<{ name: string; url: string }[]> {
   const config = preset.fetchConfig;
 
   if (config.type === "waline") {
@@ -295,9 +293,7 @@ export interface ResolvedPack {
  * - OwO JSON (Twikoo/Valine): .json file with { packName: { type, container } }
  * - Artalk JSON: .json array with [{ name, type, items: [{key, val}] }]
  */
-export async function resolveExternalUrl(
-  rawUrl: string,
-): Promise<ResolvedPack[]> {
+export async function resolveExternalUrl(rawUrl: string): Promise<ResolvedPack[]> {
   const url = rawUrl.trim().replace(/\/+$/, "");
 
   // --- Try Waline info.json ---
@@ -308,13 +304,15 @@ export async function resolveExternalUrl(
       const info: WalineInfoJson = await res.json();
       if (info.prefix && info.items && Array.isArray(info.items)) {
         const baseUrl = infoJsonUrl.replace(/\/info\.json$/, "");
-        return [{
-          packName: info.name || "Waline Pack",
-          items: info.items.map((item) => ({
-            name: item.replace(/_/g, " "),
-            url: `${baseUrl}/${info.prefix}${item}.${info.type}`,
-          })),
-        }];
+        return [
+          {
+            packName: info.name || "Waline Pack",
+            items: info.items.map((item) => ({
+              name: item.replace(/_/g, " "),
+              url: `${baseUrl}/${info.prefix}${item}.${info.type}`,
+            })),
+          },
+        ];
       }
     }
   } catch {
@@ -384,13 +382,15 @@ export async function resolveExternalUrl(
     if (maybeInfo.prefix && maybeInfo.items && Array.isArray(maybeInfo.items)) {
       const info = maybeInfo as unknown as WalineInfoJson;
       const baseDir = url.replace(/\/[^/]+$/, "");
-      return [{
-        packName: (info.name as string) || "Waline Pack",
-        items: (info.items as string[]).map((item) => ({
-          name: item.replace(/_/g, " "),
-          url: `${baseDir}/${info.prefix}${item}.${info.type}`,
-        })),
-      }];
+      return [
+        {
+          packName: (info.name as string) || "Waline Pack",
+          items: (info.items as string[]).map((item) => ({
+            name: item.replace(/_/g, " "),
+            url: `${baseDir}/${info.prefix}${item}.${info.type}`,
+          })),
+        },
+      ];
     }
   }
 

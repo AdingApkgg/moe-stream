@@ -28,18 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Layers,
-  Plus,
-  Edit,
-  Trash2,
-  Loader2,
-  ExternalLink,
-  Download,
-  AlertCircle,
-  Video,
-  Eye,
-} from "lucide-react";
+import { Layers, Plus, Edit, Trash2, Loader2, ExternalLink, Download, AlertCircle, Video, Eye } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
 import Link from "next/link";
@@ -70,7 +59,7 @@ export default function MySeriesClient({ page }: { page: number }) {
 
   const { data, isLoading } = trpc.series.listByUser.useQuery(
     { limit: 20, page },
-    { enabled: !!session, placeholderData: (prev) => prev }
+    { enabled: !!session, placeholderData: (prev) => prev },
   );
 
   const createMutation = trpc.series.create.useMutation({
@@ -180,9 +169,7 @@ export default function MySeriesClient({ page }: { page: number }) {
           <Layers className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">我的合集</h1>
-            <p className="text-sm text-muted-foreground">
-              共 {totalCount} 个合集
-            </p>
+            <p className="text-sm text-muted-foreground">共 {totalCount} 个合集</p>
           </div>
         </div>
 
@@ -194,9 +181,7 @@ export default function MySeriesClient({ page }: { page: number }) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>创建新合集</DialogTitle>
-              <DialogDescription>
-                创建一个新合集来组织你的视频系列
-              </DialogDescription>
+              <DialogDescription>创建一个新合集来组织你的视频系列</DialogDescription>
             </DialogHeader>
             <div className="py-4">
               <Label htmlFor="new-title">合集标题</Label>
@@ -213,9 +198,7 @@ export default function MySeriesClient({ page }: { page: number }) {
                 取消
               </Button>
               <Button onClick={handleCreate} disabled={createMutation.isPending}>
-                {createMutation.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 创建
               </Button>
             </DialogFooter>
@@ -251,12 +234,8 @@ export default function MySeriesClient({ page }: { page: number }) {
                         series.coverUrl
                           ? getCoverUrl("", series.coverUrl, { w: 260 })
                           : series.episodes?.[0]?.video
-                          ? getCoverUrl(
-                              series.episodes[0].video.id,
-                              series.episodes[0].video.coverUrl,
-                              { w: 260 }
-                            )
-                          : "/placeholder.svg"
+                            ? getCoverUrl(series.episodes[0].video.id, series.episodes[0].video.coverUrl, { w: 260 })
+                            : "/placeholder.svg"
                       }
                       alt={series.title}
                       fill
@@ -276,16 +255,11 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/series/${series.id}`}
-                        className="font-medium hover:text-primary line-clamp-1"
-                      >
+                      <Link href={`/series/${series.id}`} className="font-medium hover:text-primary line-clamp-1">
                         {series.title}
                       </Link>
                       {series.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                          {series.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{series.description}</p>
                       )}
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
@@ -303,11 +277,7 @@ export default function MySeriesClient({ page }: { page: number }) {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(series)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(series)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" asChild>
@@ -346,12 +316,7 @@ export default function MySeriesClient({ page }: { page: number }) {
             ))}
           </div>
 
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            basePath="/my-series"
-            className="mt-8"
-          />
+          <Pagination currentPage={page} totalPages={totalPages} basePath="/my-series" className="mt-8" />
         </>
       )}
 
@@ -359,9 +324,7 @@ export default function MySeriesClient({ page }: { page: number }) {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>编辑合集</DialogTitle>
-            <DialogDescription>
-              修改合集信息，设置封面、描述和下载链接
-            </DialogDescription>
+            <DialogDescription>修改合集信息，设置封面、描述和下载链接</DialogDescription>
           </DialogHeader>
           {editData && (
             <div className="space-y-4 py-4">
@@ -370,9 +333,7 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <Input
                   id="edit-title"
                   value={editData.title}
-                  onChange={(e) =>
-                    setEditData({ ...editData, title: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
                   placeholder="输入合集标题..."
                 />
               </div>
@@ -382,9 +343,7 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <Textarea
                   id="edit-description"
                   value={editData.description}
-                  onChange={(e) =>
-                    setEditData({ ...editData, description: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                   placeholder="输入合集描述..."
                   rows={3}
                 />
@@ -395,14 +354,10 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <Input
                   id="edit-cover"
                   value={editData.coverUrl}
-                  onChange={(e) =>
-                    setEditData({ ...editData, coverUrl: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, coverUrl: e.target.value })}
                   placeholder="https://example.com/cover.jpg"
                 />
-                <p className="text-xs text-muted-foreground">
-                  留空则自动使用第一集视频的封面
-                </p>
+                <p className="text-xs text-muted-foreground">留空则自动使用第一集视频的封面</p>
               </div>
 
               <div className="space-y-2">
@@ -413,15 +368,11 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <Textarea
                   id="edit-download-note"
                   value={editData.downloadNote}
-                  onChange={(e) =>
-                    setEditData({ ...editData, downloadNote: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, downloadNote: e.target.value })}
                   placeholder="例如：解压密码、使用说明等..."
                   rows={2}
                 />
-                <p className="text-xs text-muted-foreground">
-                  提示信息会显示在下载链接上方
-                </p>
+                <p className="text-xs text-muted-foreground">提示信息会显示在下载链接上方</p>
               </div>
 
               <div className="space-y-2">
@@ -432,9 +383,7 @@ export default function MySeriesClient({ page }: { page: number }) {
                 <Input
                   id="edit-download"
                   value={editData.downloadUrl}
-                  onChange={(e) =>
-                    setEditData({ ...editData, downloadUrl: e.target.value })
-                  }
+                  onChange={(e) => setEditData({ ...editData, downloadUrl: e.target.value })}
                   placeholder="https://pan.baidu.com/..."
                 />
               </div>
@@ -442,9 +391,7 @@ export default function MySeriesClient({ page }: { page: number }) {
               {editData.downloadUrl && (
                 <Alert>
                   <Eye className="h-4 w-4" />
-                  <AlertDescription>
-                    预览：下载链接将显示在合集详情页
-                  </AlertDescription>
+                  <AlertDescription>预览：下载链接将显示在合集详情页</AlertDescription>
                 </Alert>
               )}
             </div>
@@ -454,9 +401,7 @@ export default function MySeriesClient({ page }: { page: number }) {
               取消
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+              {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               保存
             </Button>
           </DialogFooter>

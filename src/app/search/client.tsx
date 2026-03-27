@@ -48,23 +48,13 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: "month", label: "本月" },
 ];
 
-function FilterChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-        active
-          ? "bg-foreground text-background"
-          : "bg-muted hover:bg-muted/80 text-foreground"
+        active ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80 text-foreground",
       )}
     >
       {label}
@@ -76,10 +66,7 @@ function SearchExplore() {
   const router = useRouter();
   const { history: searchHistory, removeSearch, clearHistory } = useSearchHistoryStore();
 
-  const { data: hotSearches } = trpc.video.getHotSearches.useQuery(
-    { limit: 10 },
-    { staleTime: 300000 }
-  );
+  const { data: hotSearches } = trpc.video.getHotSearches.useQuery({ limit: 10 }, { staleTime: 300000 });
 
   const goSearch = (keyword: string) => {
     router.push(`/search?q=${encodeURIComponent(keyword)}`);
@@ -111,7 +98,10 @@ function SearchExplore() {
                 <span>{keyword}</span>
                 <X
                   className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); removeSearch(keyword); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSearch(keyword);
+                  }}
                 />
               </button>
             ))}
@@ -135,16 +125,14 @@ function SearchExplore() {
                 <span
                   className={cn(
                     "w-6 text-center text-sm font-bold",
-                    index < 3 ? "text-primary" : "text-muted-foreground"
+                    index < 3 ? "text-primary" : "text-muted-foreground",
                   )}
                 >
                   {index + 1}
                 </span>
                 <span className="flex-1 text-sm truncate">{item.keyword}</span>
                 {item.isHot && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">
-                    热
-                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
                 )}
               </button>
             ))}
@@ -182,22 +170,22 @@ export function SearchContent({ query }: SearchContentProps) {
 
   const { data: videoData, isLoading: videoLoading } = trpc.video.list.useQuery(
     { limit: 20, page: videoPage, search: query, sortBy, timeRange },
-    { enabled: !!query && searchTab === "video", placeholderData: (prev) => prev }
+    { enabled: !!query && searchTab === "video", placeholderData: (prev) => prev },
   );
 
   const { data: gameData, isLoading: gameLoading } = trpc.game.list.useQuery(
     { limit: 20, page: gamePage, search: query, sortBy, timeRange },
-    { enabled: !!query && searchTab === "game", placeholderData: (prev) => prev }
+    { enabled: !!query && searchTab === "game", placeholderData: (prev) => prev },
   );
 
   const { data: imageData, isLoading: imageLoading } = trpc.image.list.useQuery(
     { limit: 20, page: imagePage, search: query, sortBy: sortBy === "likes" ? "latest" : sortBy },
-    { enabled: !!query && searchTab === "image", placeholderData: (prev) => prev }
+    { enabled: !!query && searchTab === "image", placeholderData: (prev) => prev },
   );
 
   const { data: tagData, isLoading: tagLoading } = trpc.tag.list.useQuery(
     { search: query, limit: 50 },
-    { enabled: !!query && searchTab === "tag" }
+    { enabled: !!query && searchTab === "tag" },
   );
 
   const videos = videoData?.videos ?? [];
@@ -215,21 +203,33 @@ export function SearchContent({ query }: SearchContentProps) {
   const tags = tagData ?? [];
 
   const videoAdSeed = `search-video-${query}-${videoPage}-${sortBy}-${timeRange}`;
-  const { gridItems: videoGridItems, pickedAds: videoPickedAds, hasAds: videoHasAds } = useInlineAds({
+  const {
+    gridItems: videoGridItems,
+    pickedAds: videoPickedAds,
+    hasAds: videoHasAds,
+  } = useInlineAds({
     items: videos,
     count: 2,
     seed: videoAdSeed,
   });
 
   const gameAdSeed = `search-game-${query}-${gamePage}-${sortBy}-${timeRange}`;
-  const { gridItems: gameGridItems, pickedAds: gamePickedAds, hasAds: gameHasAds } = useInlineAds({
+  const {
+    gridItems: gameGridItems,
+    pickedAds: gamePickedAds,
+    hasAds: gameHasAds,
+  } = useInlineAds({
     items: games,
     count: 2,
     seed: gameAdSeed,
   });
 
   const imageAdSeed = `search-image-${query}-${imagePage}`;
-  const { gridItems: imageGridItems, pickedAds: imagePickedAds, hasAds: imageHasAds } = useInlineAds({
+  const {
+    gridItems: imageGridItems,
+    pickedAds: imagePickedAds,
+    hasAds: imageHasAds,
+  } = useInlineAds({
     items: posts,
     count: 2,
     seed: imageAdSeed,
@@ -280,9 +280,7 @@ export function SearchContent({ query }: SearchContentProps) {
               onClick={() => setSearchTab(tab.value)}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80 text-foreground"
+                isActive ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -299,7 +297,10 @@ export function SearchContent({ query }: SearchContentProps) {
               key={option.value}
               label={option.label}
               active={sortBy === option.value}
-              onClick={() => { setSortBy(option.value); currentSetPage(1); }}
+              onClick={() => {
+                setSortBy(option.value);
+                currentSetPage(1);
+              }}
             />
           ))}
           <div className="w-px bg-border shrink-0 my-1" />
@@ -308,7 +309,10 @@ export function SearchContent({ query }: SearchContentProps) {
               key={option.value}
               label={option.label}
               active={timeRange === option.value}
-              onClick={() => { setTimeRange(option.value); currentSetPage(1); }}
+              onClick={() => {
+                setTimeRange(option.value);
+                currentSetPage(1);
+              }}
             />
           ))}
         </div>
@@ -326,17 +330,31 @@ export function SearchContent({ query }: SearchContentProps) {
                   <AdCard key={`ad-${item.adIndex}`} ad={videoPickedAds[item.adIndex]} />
                 ) : (
                   <VideoCard key={item.data.id} video={item.data} index={index} />
-                )
+                ),
               )}
             </div>
           ) : (
             <VideoGrid videos={videos} isLoading={false} />
           )}
           {currentTotalPages > 1 && (
-            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={currentTotalPages}
+              onPageChange={currentSetPage}
+              className="mt-8"
+            />
           )}
           {!currentLoading && videos.length === 0 && (
-            <EmptyResult icon={Search} label="视频" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+            <EmptyResult
+              icon={Search}
+              label="视频"
+              sortBy={sortBy}
+              timeRange={timeRange}
+              onClear={() => {
+                setSortBy("latest");
+                setTimeRange("all");
+              }}
+            />
           )}
         </>
       )}
@@ -353,17 +371,31 @@ export function SearchContent({ query }: SearchContentProps) {
                   <AdCard key={`ad-${item.adIndex}`} ad={gamePickedAds[item.adIndex]} />
                 ) : (
                   <GameCard key={item.data.id} game={item.data} index={index} />
-                )
+                ),
               )}
             </div>
           ) : (
             <GameGrid games={games} isLoading={false} columns={4} />
           )}
           {currentTotalPages > 1 && (
-            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={currentTotalPages}
+              onPageChange={currentSetPage}
+              className="mt-8"
+            />
           )}
           {!currentLoading && games.length === 0 && (
-            <EmptyResult icon={Gamepad2} label="游戏" sortBy={sortBy} timeRange={timeRange} onClear={() => { setSortBy("latest"); setTimeRange("all"); }} />
+            <EmptyResult
+              icon={Gamepad2}
+              label="游戏"
+              sortBy={sortBy}
+              timeRange={timeRange}
+              onClear={() => {
+                setSortBy("latest");
+                setTimeRange("all");
+              }}
+            />
           )}
         </>
       )}
@@ -384,7 +416,7 @@ export function SearchContent({ query }: SearchContentProps) {
                   <AdCard key={`ad-${item.adIndex}`} ad={imagePickedAds[item.adIndex]} />
                 ) : (
                   <ImagePostCard key={item.data.id} post={item.data} index={index} />
-                )
+                ),
               )}
             </div>
           ) : (
@@ -395,7 +427,12 @@ export function SearchContent({ query }: SearchContentProps) {
             </div>
           )}
           {currentTotalPages > 1 && (
-            <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={currentSetPage} className="mt-8" />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={currentTotalPages}
+              onPageChange={currentSetPage}
+              className="mt-8"
+            />
           )}
           {!currentLoading && posts.length === 0 && (
             <EmptyResult icon={Images} label="图片" sortBy="latest" timeRange="all" onClear={() => {}} />
@@ -415,8 +452,7 @@ export function SearchContent({ query }: SearchContentProps) {
           ) : tags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => {
-                const count =
-                  (tag.videoCount ?? 0) + (tag.gameCount ?? 0) + (tag.imagePostCount ?? 0);
+                const count = (tag.videoCount ?? 0) + (tag.gameCount ?? 0) + (tag.imagePostCount ?? 0);
                 return (
                   <Link
                     key={tag.id}

@@ -56,7 +56,13 @@ interface GameListClientProps {
   initialAds?: Ad[];
 }
 
-export function GameListClient({ initialTags, initialGames, typeStats, siteConfig, initialAds = [] }: GameListClientProps) {
+export function GameListClient({
+  initialTags,
+  initialGames,
+  typeStats,
+  siteConfig,
+  initialAds = [],
+}: GameListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
 
   // 记录用户访问了游戏区
@@ -65,15 +71,13 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
   }, [setContentMode]);
 
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
+    useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");
   const [page, setPage] = usePageParam();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
 
-  const {
-    data: gameData,
-    isLoading,
-  } = trpc.game.list.useQuery(
+  const { data: gameData, isLoading } = trpc.game.list.useQuery(
     {
       limit: 20,
       page,
@@ -84,12 +88,12 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
     },
     {
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   const games = useMemo(
     () => gameData?.games ?? (page === 1 && sortBy === "latest" && !hasFilter && !selectedType ? initialGames : []),
-    [gameData?.games, page, sortBy, hasFilter, selectedType, initialGames]
+    [gameData?.games, page, sortBy, hasFilter, selectedType, initialGames],
   );
   const totalPages = gameData?.totalPages ?? 1;
 
@@ -108,26 +112,38 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
     { id: "likes", label: "高赞" },
   ];
 
-  const handleSortClick = useCallback((id: SortBy) => {
-    setSortBy(id);
-    setPage(1);
-  }, [setPage]);
+  const handleSortClick = useCallback(
+    (id: SortBy) => {
+      setSortBy(id);
+      setPage(1);
+    },
+    [setPage],
+  );
 
-  const handleTagClick = useCallback((slug: string) => {
-    toggleTag(slug);
-    setPage(1);
-  }, [toggleTag, setPage]);
+  const handleTagClick = useCallback(
+    (slug: string) => {
+      toggleTag(slug);
+      setPage(1);
+    },
+    [toggleTag, setPage],
+  );
 
-  const handleTagRightClick = useCallback((e: React.MouseEvent, slug: string) => {
-    e.preventDefault();
-    toggleExclude(slug);
-    setPage(1);
-  }, [toggleExclude, setPage]);
+  const handleTagRightClick = useCallback(
+    (e: React.MouseEvent, slug: string) => {
+      e.preventDefault();
+      toggleExclude(slug);
+      setPage(1);
+    },
+    [toggleExclude, setPage],
+  );
 
-  const handleTypeClick = useCallback((type: string) => {
-    setSelectedType(type);
-    setPage(1);
-  }, [setPage]);
+  const handleTypeClick = useCallback(
+    (type: string) => {
+      setSelectedType(type);
+      setPage(1);
+    },
+    [setPage],
+  );
 
   // 根据 typeStats 过滤有数据的类型
   const availableTypes = useMemo(() => {
@@ -147,9 +163,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
           >
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">
-                {siteConfig.announcement}
-              </p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">{siteConfig.announcement}</p>
               <button
                 onClick={() => setShowAnnouncement(false)}
                 className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
@@ -181,7 +195,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
                     "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                     selectedType === opt.id
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-muted/80 text-foreground"
+                      : "bg-muted hover:bg-muted/80 text-foreground",
                   )}
                 >
                   {opt.label}
@@ -201,9 +215,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
                 onClick={() => handleSortClick(option.id)}
                 className={cn(
                   "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                  sortBy === option.id
-                    ? "bg-foreground text-background"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
+                  sortBy === option.id ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80 text-foreground",
                 )}
               >
                 {option.label}
@@ -242,13 +254,10 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {gridItems.map((item, index) =>
                   item.type === "ad" ? (
-                    <AdCard
-                      key={`ad-${item.adIndex}`}
-                      ad={pickedAds[item.adIndex]}
-                    />
+                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} />
                   ) : (
                     <GameCard key={item.data.id} game={item.data} index={index} />
-                  )
+                  ),
                 )}
               </div>
             ) : (
@@ -260,9 +269,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
                 <div className="text-muted-foreground mb-4">
                   <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">没有找到游戏</p>
-                  <p className="text-sm mt-1">
-                    {hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}
-                  </p>
+                  <p className="text-sm mt-1">{hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}</p>
                 </div>
                 {(hasFilter || selectedType) && (
                   <Button
@@ -280,12 +287,7 @@ export function GameListClient({ initialTags, initialGames, typeStats, siteConfi
             )}
           </div>
 
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            className="mt-8"
-          />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
         </section>
       </div>
     </PageWrapper>

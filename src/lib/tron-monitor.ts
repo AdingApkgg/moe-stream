@@ -88,7 +88,9 @@ async function processTransactions(walletAddress: string): Promise<void> {
       select: { id: true },
     });
     if (existingTx) {
-      try { await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL); } catch {}
+      try {
+        await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL);
+      } catch {}
       continue;
     }
 
@@ -107,7 +109,9 @@ async function processTransactions(walletAddress: string): Promise<void> {
     });
 
     if (!order) {
-      try { await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL); } catch {}
+      try {
+        await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL);
+      } catch {}
       continue;
     }
 
@@ -185,7 +189,9 @@ async function processTransactions(walletAddress: string): Promise<void> {
 
     await releaseAmount(order.amount);
 
-    try { await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL); } catch {}
+    try {
+      await redis.set(`${PROCESSED_TX_PREFIX}${txHash}`, "1", "EX", PROCESSED_TX_TTL);
+    } catch {}
 
     console.log(`[TronMonitor] Order ${order.orderNo} paid: ${amount} USDT, tx=${txHash}`);
   }

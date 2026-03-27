@@ -46,7 +46,7 @@ declare global {
 
 /**
  * 获取高精度设备信息（使用 User-Agent Client Hints API）
- * 
+ *
  * 注意：
  * - Chrome 90+ 支持此 API，可获取真实的 OS 版本（如 macOS 26.2.0）
  * - Safari 和 Firefox 不支持此 API，会回退到 User-Agent 解析
@@ -74,9 +74,7 @@ export async function getHighEntropyDeviceInfo(): Promise<Partial<DeviceInfo>> {
     const osVersion = hints.platformVersion || null;
 
     // 获取主浏览器版本（排除 "Not A;Brand" 等占位符）
-    const browserInfo = hints.fullVersionList?.find(
-      (b) => !b.brand.includes("Not") && !b.brand.includes("Chromium")
-    );
+    const browserInfo = hints.fullVersionList?.find((b) => !b.brand.includes("Not") && !b.brand.includes("Chromium"));
 
     const result = {
       os: platform,
@@ -110,15 +108,7 @@ export function parseDeviceInfo(userAgent: string | null, extra?: Partial<Device
   const brand = result.device.vendor || null;
   const model = result.device.model || null;
 
-  const fingerprintParts = [
-    deviceType,
-    os,
-    osVersion,
-    browser,
-    browserVersion,
-    brand,
-    model,
-  ]
+  const fingerprintParts = [deviceType, os, osVersion, browser, browserVersion, brand, model]
     .filter(Boolean)
     .join("|")
     .toLowerCase();
@@ -155,18 +145,19 @@ export function mergeDeviceInfo(base: DeviceInfo, highEntropy: Partial<DeviceInf
     browserVersion: highEntropy.browserVersion || base.browserVersion,
     model: highEntropy.model || base.model,
     // 重新计算 fingerprint
-    fingerprint: [
-      base.deviceType,
-      highEntropy.os || base.os,
-      highEntropy.osVersion || base.osVersion,
-      highEntropy.browser || base.browser,
-      highEntropy.browserVersion || base.browserVersion,
-      base.brand,
-      highEntropy.model || base.model,
-    ]
-      .filter(Boolean)
-      .join("|")
-      .toLowerCase() || "unknown",
+    fingerprint:
+      [
+        base.deviceType,
+        highEntropy.os || base.os,
+        highEntropy.osVersion || base.osVersion,
+        highEntropy.browser || base.browser,
+        highEntropy.browserVersion || base.browserVersion,
+        base.brand,
+        highEntropy.model || base.model,
+      ]
+        .filter(Boolean)
+        .join("|")
+        .toLowerCase() || "unknown",
   };
 
   console.log("[DeviceInfo] Merged info:", {
@@ -235,7 +226,7 @@ export interface LocationInfo {
  */
 export function normalizeDeviceInfo(
   input: ClientDeviceInput | undefined,
-  headerUserAgent?: string
+  headerUserAgent?: string,
 ): NormalizedDeviceInfo {
   const userAgent = input?.userAgent || headerUserAgent || "";
   const parser = new UAParser(userAgent);
@@ -288,7 +279,7 @@ export function createLocationInfo(
   ipv4: string | null,
   ipv6: string | null,
   ipv4Location: string | null,
-  ipv6Location: string | null
+  ipv6Location: string | null,
 ): LocationInfo {
   return {
     ipv4,

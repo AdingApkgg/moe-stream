@@ -9,15 +9,7 @@ export const notificationRouter = router({
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(20),
         type: z
-          .enum([
-            "COMMENT_REPLY",
-            "LIKE",
-            "FAVORITE",
-            "SYSTEM",
-            "NEW_MESSAGE",
-            "CONTENT_STATUS",
-            "FOLLOW",
-          ])
+          .enum(["COMMENT_REPLY", "LIKE", "FAVORITE", "SYSTEM", "NEW_MESSAGE", "CONTENT_STATUS", "FOLLOW"])
           .optional(),
         unreadOnly: z.boolean().default(false),
       }),
@@ -83,14 +75,12 @@ export const notificationRouter = router({
       return { success: true };
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.notification.deleteMany({
-        where: { id: input.id, userId: ctx.session.user.id },
-      });
-      return { success: true };
-    }),
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await ctx.prisma.notification.deleteMany({
+      where: { id: input.id, userId: ctx.session.user.id },
+    });
+    return { success: true };
+  }),
 
   deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
     await ctx.prisma.notification.deleteMany({

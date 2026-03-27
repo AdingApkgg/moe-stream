@@ -81,16 +81,14 @@ export async function GET() {
         <media:statistics views="${video.views}" />
       </media:content>
       ${video.duration ? `<itunes:duration>${formatDuration(video.duration)}</itunes:duration>` : ""}
-    </item>`
+    </item>`,
     );
 
     // 游戏 items
     const gameItems = games.map((game) => {
       const typeLabel = game.gameType ? `[${game.gameType}] ` : "";
       const freeLabel = game.isFree ? "" : " [付费]";
-      const coverUrl = game.coverUrl
-        ? escapeXml(game.coverUrl)
-        : `${baseUrl}/icon`;
+      const coverUrl = game.coverUrl ? escapeXml(game.coverUrl) : `${baseUrl}/icon`;
 
       return `
     <item>
@@ -109,9 +107,10 @@ export async function GET() {
     // 图片 items
     const imageItems = images.map((image) => {
       const imageUrls = image.images as string[];
-      const thumbUrl = imageUrls.length > 0
-        ? escapeXml(imageUrls[0].startsWith("http") ? imageUrls[0] : `${baseUrl}${imageUrls[0]}`)
-        : `${baseUrl}/icon`;
+      const thumbUrl =
+        imageUrls.length > 0
+          ? escapeXml(imageUrls[0].startsWith("http") ? imageUrls[0] : `${baseUrl}${imageUrls[0]}`)
+          : `${baseUrl}/icon`;
 
       return `
     <item>

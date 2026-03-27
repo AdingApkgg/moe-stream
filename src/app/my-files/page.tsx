@@ -10,20 +10,8 @@ import { FileCard } from "@/components/files/file-card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,19 +23,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  HardDrive,
-  Upload,
-  Download,
-  FolderOpen,
-  Loader2,
-} from "lucide-react";
+import { HardDrive, Upload, Download, FolderOpen, Loader2 } from "lucide-react";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
@@ -111,13 +92,10 @@ export default function MyFilesPage() {
     [detachMutation],
   );
 
-  const handleUploadComplete = useCallback(
-    () => {
-      utils.file.list.invalidate();
-      utils.file.getStorageUsage.invalidate();
-    },
-    [utils],
-  );
+  const handleUploadComplete = useCallback(() => {
+    utils.file.list.invalidate();
+    utils.file.getStorageUsage.invalidate();
+  }, [utils]);
 
   if (sessionLoading) {
     return (
@@ -133,12 +111,9 @@ export default function MyFilesPage() {
     return null;
   }
 
-  const allFiles =
-    filesData?.pages.flatMap((page) => page.items) ?? [];
+  const allFiles = filesData?.pages.flatMap((page) => page.items) ?? [];
 
-  const usedPercent = usage
-    ? Math.min(100, (usage.used / usage.quota) * 100)
-    : 0;
+  const usedPercent = usage ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
 
   return (
     <div className="container max-w-6xl mx-auto py-6 space-y-6">
@@ -149,9 +124,7 @@ export default function MyFilesPage() {
             <HardDrive className="h-6 w-6 text-primary" />
             我的文件
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            管理上传的文件和附件资源
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">管理上传的文件和附件资源</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
@@ -211,25 +184,14 @@ export default function MyFilesPage() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {allFiles.map((file) => (
-              <FileCard
-                key={file.id}
-                file={file}
-                onDelete={(id) => setDeleteFileId(id)}
-                onDetach={handleDetach}
-              />
+              <FileCard key={file.id} file={file} onDelete={(id) => setDeleteFileId(id)} onDetach={handleDetach} />
             ))}
           </div>
 
           {hasNextPage && (
             <div className="flex justify-center pt-4">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
+              <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                {isFetchingNextPage && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 加载更多
               </Button>
             </div>
@@ -242,13 +204,9 @@ export default function MyFilesPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>上传文件</DialogTitle>
-            <DialogDescription>
-              选择或拖拽文件上传至您的存储空间
-            </DialogDescription>
+            <DialogDescription>选择或拖拽文件上传至您的存储空间</DialogDescription>
           </DialogHeader>
-          <FileUploader
-            onAllComplete={handleUploadComplete}
-          />
+          <FileUploader onAllComplete={handleUploadComplete} />
         </DialogContent>
       </Dialog>
 
@@ -264,19 +222,12 @@ export default function MyFilesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除文件？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作将从存储中永久删除该文件，且无法恢复。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作将从存储中永久删除该文件，且无法恢复。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+            <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               删除
             </AlertDialogAction>
           </AlertDialogFooter>

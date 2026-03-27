@@ -19,10 +19,7 @@ export interface CloudProvider {
   /** Parse a share URL to extract file info */
   parseShareUrl(url: string): Promise<CloudFileInfo | null>;
   /** Download file content as a stream */
-  downloadStream(
-    fileInfo: CloudFileInfo,
-    accessToken?: string,
-  ): Promise<DownloadResult>;
+  downloadStream(fileInfo: CloudFileInfo, accessToken?: string): Promise<DownloadResult>;
 }
 
 export { GoogleDriveProvider } from "./google-drive";

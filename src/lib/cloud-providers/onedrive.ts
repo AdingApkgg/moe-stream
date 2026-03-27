@@ -1,7 +1,6 @@
 import type { CloudProvider, CloudFileInfo, DownloadResult } from "./index";
 
-const ONEDRIVE_SHARE_REGEX =
-  /1drv\.ms|onedrive\.live\.com|sharepoint\.com/;
+const ONEDRIVE_SHARE_REGEX = /1drv\.ms|onedrive\.live\.com|sharepoint\.com/;
 
 export class OneDriveProvider implements CloudProvider {
   id = "onedrive";
@@ -16,10 +15,7 @@ export class OneDriveProvider implements CloudProvider {
     };
   }
 
-  async downloadStream(
-    fileInfo: CloudFileInfo,
-    accessToken?: string,
-  ): Promise<DownloadResult> {
+  async downloadStream(fileInfo: CloudFileInfo, accessToken?: string): Promise<DownloadResult> {
     // With OAuth: use Graph API for reliable download
     if (accessToken && fileInfo.fileId) {
       return this.downloadWithApi(fileInfo.fileId, accessToken);
@@ -30,10 +26,9 @@ export class OneDriveProvider implements CloudProvider {
   }
 
   private async downloadWithApi(fileId: string, token: string): Promise<DownloadResult> {
-    const metaResp = await fetch(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const metaResp = await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${fileId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!metaResp.ok) throw new Error(`获取文件信息失败: ${metaResp.status}`);
 
     const meta = (await metaResp.json()) as {
@@ -70,15 +65,12 @@ export class OneDriveProvider implements CloudProvider {
 
     // Method 1: Try the public Graph shares API (no auth required for public links)
     // Encode the share URL to a sharing token: base64url("u!" + url)
-    const encodedUrl = "u!" + Buffer.from(shareUrl).toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    const encodedUrl =
+      "u!" + Buffer.from(shareUrl).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-    const graphResp = await fetch(
-      `https://api.onedrive.com/v1.0/shares/${encodedUrl}/root/content`,
-      { redirect: "manual" },
-    );
+    const graphResp = await fetch(`https://api.onedrive.com/v1.0/shares/${encodedUrl}/root/content`, {
+      redirect: "manual",
+    });
 
     // The API returns a 302 redirect to the actual download URL
     if (graphResp.status === 302) {
@@ -106,7 +98,9 @@ export class OneDriveProvider implements CloudProvider {
     // Check if we got HTML instead of a file (login page)
     const contentType = directResp.headers.get("content-type") || "";
     if (contentType.includes("text/html")) {
-      throw new Error("该 OneDrive 文件可能未设置为公开分享，无法直接下载。请将文件设为「拥有链接的任何人」可访问，或在上方授权 Microsoft 账号后重试。");
+      throw new Error(
+        "该 OneDrive 文件可能未设置为公开分享，无法直接下载。请将文件设为「拥有链接的任何人」可访问，或在上方授权 Microsoft 账号后重试。",
+      );
     }
 
     return {

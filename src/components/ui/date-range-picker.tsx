@@ -9,11 +9,7 @@ import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export interface DateRangeValue {
   from: Date;
@@ -105,10 +101,7 @@ export function DateRangePicker({
           <Button
             variant={activePreset === null ? "default" : "outline"}
             size="sm"
-            className={cn(
-              "h-7 text-xs px-2 gap-1",
-              activePreset === null && "min-w-[100px]"
-            )}
+            className={cn("h-7 text-xs px-2 gap-1", activePreset === null && "min-w-[100px]")}
           >
             <CalendarIcon className="h-3 w-3" />
             {activePreset === null ? formatRange() : "自定义"}

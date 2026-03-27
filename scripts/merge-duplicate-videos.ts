@@ -114,19 +114,25 @@ async function mergeDuplicateVideos() {
         });
 
         const likeUserIds = new Set(
-          (await prisma.like.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map((r) => r.userId),
+          (await prisma.like.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map(
+            (r) => r.userId,
+          ),
         );
         await prisma.like.deleteMany({ where: { videoId: dupId, userId: { in: [...likeUserIds] } } });
         await prisma.like.updateMany({ where: { videoId: dupId }, data: { videoId: canonicalId } });
 
         const dislikeUserIds = new Set(
-          (await prisma.dislike.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map((r) => r.userId),
+          (await prisma.dislike.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map(
+            (r) => r.userId,
+          ),
         );
         await prisma.dislike.deleteMany({ where: { videoId: dupId, userId: { in: [...dislikeUserIds] } } });
         await prisma.dislike.updateMany({ where: { videoId: dupId }, data: { videoId: canonicalId } });
 
         const confusedUserIds = new Set(
-          (await prisma.confused.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map((r) => r.userId),
+          (await prisma.confused.findMany({ where: { videoId: canonicalId }, select: { userId: true } })).map(
+            (r) => r.userId,
+          ),
         );
         await prisma.confused.deleteMany({ where: { videoId: dupId, userId: { in: [...confusedUserIds] } } });
         await prisma.confused.updateMany({ where: { videoId: dupId }, data: { videoId: canonicalId } });

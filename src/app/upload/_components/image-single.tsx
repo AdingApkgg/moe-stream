@@ -83,9 +83,15 @@ export function ImageSingleUpload() {
   const submitButton = (
     <Button type="submit" className="w-full h-11" disabled={isLoading} size="lg">
       {isLoading ? (
-        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />发布中...</>
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          发布中...
+        </>
       ) : (
-        <><Upload className="mr-2 h-4 w-4" />发布图片</>
+        <>
+          <Upload className="mr-2 h-4 w-4" />
+          发布图片
+        </>
       )}
     </Button>
   );
@@ -156,16 +162,20 @@ export function ImageSingleUpload() {
                       />
                     </div>
                     {imageUrls.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => removeImageUrl(i)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-0.5 shrink-0"
+                        onClick={() => removeImageUrl(i)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
                 ))}
 
-                <p className="text-xs text-muted-foreground">
-                  已添加 {validImages.length} 张有效图片
-                </p>
+                <p className="text-xs text-muted-foreground">已添加 {validImages.length} 张有效图片</p>
 
                 {validImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 mt-3">
@@ -199,9 +209,7 @@ export function ImageSingleUpload() {
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
 
-            <div className="hidden lg:block">
-              {submitButton}
-            </div>
+            <div className="hidden lg:block">{submitButton}</div>
           </div>
         </div>
 

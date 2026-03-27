@@ -18,7 +18,7 @@ export const imagePostCommentRouter = router({
       z.object({
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit } = input;
@@ -70,7 +70,7 @@ export const imagePostCommentRouter = router({
         sort: SortType.default("newest"),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { imagePostId, sort, cursor, limit } = input;
@@ -110,9 +110,7 @@ export const imagePostCommentRouter = router({
             select: { id: true, username: true, nickname: true },
           },
           _count: { select: { replies: true } },
-          reactions: ctx.session?.user
-            ? { where: { userId: ctx.session.user.id }, select: { isLike: true } }
-            : false,
+          reactions: ctx.session?.user ? { where: { userId: ctx.session.user.id }, select: { isLike: true } } : false,
         },
       });
 
@@ -138,7 +136,7 @@ export const imagePostCommentRouter = router({
         commentId: z.string(),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(10),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { commentId, cursor, limit } = input;
@@ -155,9 +153,7 @@ export const imagePostCommentRouter = router({
           replyToUser: {
             select: { id: true, username: true, nickname: true },
           },
-          reactions: ctx.session?.user
-            ? { where: { userId: ctx.session.user.id }, select: { isLike: true } }
-            : false,
+          reactions: ctx.session?.user ? { where: { userId: ctx.session.user.id }, select: { isLike: true } } : false,
         },
       });
 
@@ -177,13 +173,11 @@ export const imagePostCommentRouter = router({
       };
     }),
 
-  getCount: publicProcedure
-    .input(z.object({ imagePostId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.imagePostComment.count({
-        where: { imagePostId: input.imagePostId, isDeleted: false, isHidden: false },
-      });
-    }),
+  getCount: publicProcedure.input(z.object({ imagePostId: z.string() })).query(async ({ ctx, input }) => {
+    return ctx.prisma.imagePostComment.count({
+      where: { imagePostId: input.imagePostId, isDeleted: false, isHidden: false },
+    });
+  }),
 
   create: publicProcedure
     .input(
@@ -193,8 +187,14 @@ export const imagePostCommentRouter = router({
         parentId: z.string().optional(),
         replyToUserId: z.string().optional(),
         guestName: z.string().min(1).max(50).optional(),
-        guestEmail: z.string().refine((v) => !v || emailRegex.test(v), { message: "邮箱格式不正确" }).optional(),
-        guestWebsite: z.string().refine((v) => !v || urlRegex.test(v), { message: "网址格式不正确" }).optional(),
+        guestEmail: z
+          .string()
+          .refine((v) => !v || emailRegex.test(v), { message: "邮箱格式不正确" })
+          .optional(),
+        guestWebsite: z
+          .string()
+          .refine((v) => !v || urlRegex.test(v), { message: "网址格式不正确" })
+          .optional(),
         deviceInfo: z
           .object({
             deviceType: z.string().nullable().optional(),
@@ -214,7 +214,7 @@ export const imagePostCommentRouter = router({
             visitorId: z.string().nullable().optional(),
           })
           .optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { imagePostId, content, parentId, replyToUserId, guestName, guestEmail, guestWebsite, deviceInfo } = input;
@@ -357,27 +357,25 @@ export const imagePostCommentRouter = router({
       });
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const comment = await ctx.prisma.imagePostComment.findUnique({
-        where: { id: input.id },
-        select: { userId: true, isDeleted: true },
-      });
-      if (!comment || comment.isDeleted) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "评论不存在" });
-      }
-      const isOwner = comment.userId === ctx.session.user.id;
-      const isAdmin = isPrivileged(ctx.session.user.role ?? "");
-      if (!isOwner && !isAdmin) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此评论" });
-      }
-      await ctx.prisma.imagePostComment.update({
-        where: { id: input.id },
-        data: { isDeleted: true },
-      });
-      return { success: true };
-    }),
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const comment = await ctx.prisma.imagePostComment.findUnique({
+      where: { id: input.id },
+      select: { userId: true, isDeleted: true },
+    });
+    if (!comment || comment.isDeleted) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "评论不存在" });
+    }
+    const isOwner = comment.userId === ctx.session.user.id;
+    const isAdmin = isPrivileged(ctx.session.user.role ?? "");
+    if (!isOwner && !isAdmin) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此评论" });
+    }
+    await ctx.prisma.imagePostComment.update({
+      where: { id: input.id },
+      data: { isDeleted: true },
+    });
+    return { success: true };
+  }),
 
   react: protectedProcedure
     .input(z.object({ commentId: z.string(), isLike: z.boolean().nullable() }))

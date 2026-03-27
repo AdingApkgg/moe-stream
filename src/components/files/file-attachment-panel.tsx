@@ -6,13 +6,7 @@ import { useStableSession } from "@/lib/hooks";
 import { FileUploader } from "./file-uploader";
 import { FileCard } from "./file-card";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,11 +27,7 @@ interface FileAttachmentPanelProps {
   uploaderId: string;
 }
 
-export function FileAttachmentPanel({
-  contentType,
-  contentId,
-  uploaderId,
-}: FileAttachmentPanelProps) {
+export function FileAttachmentPanel({ contentType, contentId, uploaderId }: FileAttachmentPanelProps) {
   const { session } = useStableSession();
   const isOwner = session?.user?.id === uploaderId;
 
@@ -66,14 +56,11 @@ export function FileAttachmentPanel({
     },
   });
 
-  const handleUploadComplete = useCallback(
-    () => {
-      utils.file.getByContent.invalidate({ contentType, contentId });
-      utils.file.getStorageUsage.invalidate();
-      setUploadOpen(false);
-    },
-    [utils, contentType, contentId],
-  );
+  const handleUploadComplete = useCallback(() => {
+    utils.file.getByContent.invalidate({ contentType, contentId });
+    utils.file.getStorageUsage.invalidate();
+    setUploadOpen(false);
+  }, [utils, contentType, contentId]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteFileId) return;
@@ -102,18 +89,10 @@ export function FileAttachmentPanel({
         <h3 className="text-base font-semibold flex items-center gap-1.5">
           <Paperclip className="h-4 w-4" />
           附件资源
-          {files.length > 0 && (
-            <span className="text-sm font-normal text-muted-foreground">
-              ({files.length})
-            </span>
-          )}
+          {files.length > 0 && <span className="text-sm font-normal text-muted-foreground">({files.length})</span>}
         </h3>
         {isOwner && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setUploadOpen(true)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             添加附件
           </Button>
@@ -127,11 +106,7 @@ export function FileAttachmentPanel({
               key={file.id}
               file={file}
               onDelete={isOwner ? (id) => setDeleteFileId(id) : undefined}
-              onDetach={
-                isOwner
-                  ? (id) => detachMutation.mutate({ fileId: id })
-                  : undefined
-              }
+              onDetach={isOwner ? (id) => detachMutation.mutate({ fileId: id }) : undefined}
               showAttachInfo={false}
             />
           ))}
@@ -149,39 +124,23 @@ export function FileAttachmentPanel({
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>上传附件</DialogTitle>
-            <DialogDescription>
-              上传的文件将关联到当前内容
-            </DialogDescription>
+            <DialogDescription>上传的文件将关联到当前内容</DialogDescription>
           </DialogHeader>
-          <FileUploader
-            contentType={contentType}
-            contentId={contentId}
-            onAllComplete={handleUploadComplete}
-          />
+          <FileUploader contentType={contentType} contentId={contentId} onAllComplete={handleUploadComplete} />
         </DialogContent>
       </Dialog>
 
       {/* 删除确认 */}
-      <AlertDialog
-        open={!!deleteFileId}
-        onOpenChange={(open) => !open && setDeleteFileId(null)}
-      >
+      <AlertDialog open={!!deleteFileId} onOpenChange={(open) => !open && setDeleteFileId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除文件？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作将永久删除该文件，且无法恢复。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作将永久删除该文件，且无法恢复。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+            <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               删除
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -14,7 +14,7 @@ export const adminCommentsRouter = router({
         page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -119,7 +119,7 @@ export const adminCommentsRouter = router({
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
         action: z.enum(["hide", "show", "delete", "restore"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const data = (() => {
@@ -199,7 +199,7 @@ export const adminCommentsRouter = router({
         page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -299,7 +299,7 @@ export const adminCommentsRouter = router({
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
         action: z.enum(["hide", "show", "delete", "restore"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const data = (() => {
@@ -371,7 +371,7 @@ export const adminCommentsRouter = router({
         page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -471,7 +471,7 @@ export const adminCommentsRouter = router({
       z.object({
         commentIds: z.array(z.string()).min(1).max(100),
         action: z.enum(["hide", "show", "delete", "restore"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const data = (() => {
@@ -543,7 +543,7 @@ export const adminCommentsRouter = router({
         page: z.number().min(1).default(1),
         search: z.string().optional(),
         status: z.enum(["ALL", "VISIBLE", "HIDDEN", "DELETED"]).default("ALL"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -632,7 +632,7 @@ export const adminCommentsRouter = router({
       z.object({
         messageIds: z.array(z.string()).min(1).max(100),
         action: z.enum(["hide", "show", "delete", "restore"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const dataMap = {
@@ -671,5 +671,4 @@ export const adminCommentsRouter = router({
 
       return { success: true, count: result.count };
     }),
-
 });

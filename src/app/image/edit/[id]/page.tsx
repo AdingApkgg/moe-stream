@@ -18,10 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  Loader2, ArrowLeft, Plus, X, Image as ImageIcon,
-  Tag, Search, AlertCircle, Trash2, Save,
-} from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, Image as ImageIcon, Tag, Search, AlertCircle, Trash2, Save } from "lucide-react";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -50,10 +47,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
   const [newTagInput, setNewTagInput] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([""]);
 
-  const { data: post, isLoading: postLoading } = trpc.image.getForEdit.useQuery(
-    { id },
-    { enabled: !!session }
-  );
+  const { data: post, isLoading: postLoading } = trpc.image.getForEdit.useQuery({ id }, { enabled: !!session });
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
 
@@ -72,10 +66,11 @@ export default function EditImagePage({ params }: EditImagePageProps) {
     defaultValues: { title: "", description: "" },
   });
 
-  const filteredTags = allTags?.filter((tag) => {
-    if (!tagSearch.trim()) return true;
-    return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
-  }) || [];
+  const filteredTags =
+    allTags?.filter((tag) => {
+      if (!tagSearch.trim()) return true;
+      return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
+    }) || [];
 
   const toggleTag = (tag: { id: string; name: string }) => {
     const exists = selectedTags.find((t) => t.id === tag.id);
@@ -171,9 +166,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
           <AlertCircle className="h-12 w-12 text-destructive" />
         </div>
         <h1 className="text-2xl font-bold">暂无编辑权限</h1>
-        <p className="text-muted-foreground text-center max-w-md">
-          您的账号暂未开通投稿功能，无法编辑图片帖
-        </p>
+        <p className="text-muted-foreground text-center max-w-md">您的账号暂未开通投稿功能，无法编辑图片帖</p>
         <Button asChild variant="outline">
           <Link href="/image">返回图片列表</Link>
         </Button>
@@ -273,16 +266,20 @@ export default function EditImagePage({ params }: EditImagePageProps) {
                         />
                       </div>
                       {imageUrls.length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => setImageUrls(imageUrls.filter((_, j) => j !== i))}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="mt-0.5 shrink-0"
+                          onClick={() => setImageUrls(imageUrls.filter((_, j) => j !== i))}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
                   ))}
 
-                  <p className="text-xs text-muted-foreground">
-                    已添加 {validImages.length} 张有效图片
-                  </p>
+                  <p className="text-xs text-muted-foreground">已添加 {validImages.length} 张有效图片</p>
 
                   {validImages.length > 0 && (
                     <div className="grid grid-cols-4 gap-2 mt-3">
@@ -293,7 +290,9 @@ export default function EditImagePage({ params }: EditImagePageProps) {
                             src={url}
                             alt={`预览 ${i + 1}`}
                             className="w-full h-full object-cover"
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
                           />
                         </div>
                       ))}
@@ -347,7 +346,12 @@ export default function EditImagePage({ params }: EditImagePageProps) {
                         placeholder="输入新标签名称..."
                         value={newTagInput}
                         onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNewTag(); } }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddNewTag();
+                          }
+                        }}
                         disabled={selectedTags.length + newTags.length >= 10}
                         className="pl-9"
                       />
@@ -390,7 +394,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
                                 variant={isSelected ? "default" : "outline"}
                                 className={cn(
                                   "cursor-pointer text-xs transition-all",
-                                  isSelected ? "hover:bg-primary/80" : "hover:bg-accent hover:text-accent-foreground"
+                                  isSelected ? "hover:bg-primary/80" : "hover:bg-accent hover:text-accent-foreground",
                                 )}
                                 onClick={() => toggleTag(tag)}
                               >

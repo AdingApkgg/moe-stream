@@ -116,17 +116,14 @@ async function migrateUserIds() {
       try {
         // 更新所有外键表
         for (const fk of fkTables) {
-          await client.query(
-            `UPDATE "${fk.table}" SET "${fk.column}" = $1 WHERE "${fk.column}" = $2`,
-            [m.newId, m.oldId]
-          );
+          await client.query(`UPDATE "${fk.table}" SET "${fk.column}" = $1 WHERE "${fk.column}" = $2`, [
+            m.newId,
+            m.oldId,
+          ]);
         }
 
         // 更新用户表自身
-        await client.query(
-          `UPDATE "User" SET id = $1 WHERE id = $2`,
-          [m.newId, m.oldId]
-        );
+        await client.query(`UPDATE "User" SET id = $1 WHERE id = $2`, [m.newId, m.oldId]);
 
         console.log(`  ✓ ${m.newId} ← ${m.oldId} (@${m.username})`);
         successCount++;
@@ -152,7 +149,7 @@ async function migrateUserIds() {
     // 6. 清除所有会话（迁移后旧会话无效）
     const { rowCount: sessionCount } = await client.query(`DELETE FROM "Session"`);
     const { rowCount: loginSessionCount } = await client.query(
-      `UPDATE "LoginSession" SET "isRevoked" = true WHERE "isRevoked" = false`
+      `UPDATE "LoginSession" SET "isRevoked" = true WHERE "isRevoked" = false`,
     );
     console.log(`\n已清除 ${sessionCount} 个会话，撤销 ${loginSessionCount} 个登录会话`);
 
@@ -173,10 +170,7 @@ async function migrateUserIds() {
   }
 }
 
-async function ensureSequence(
-  client: import("pg").PoolClient,
-  users: { id: string }[]
-) {
+async function ensureSequence(client: import("pg").PoolClient, users: { id: string }[]) {
   const maxId = Math.max(...users.map((u) => parseInt(u.id, 10)), 0);
   await client.query(`CREATE SEQUENCE IF NOT EXISTS user_id_seq`);
   await client.query(`SELECT setval('user_id_seq', $1)`, [maxId]);

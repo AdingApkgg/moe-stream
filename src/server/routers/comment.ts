@@ -22,7 +22,7 @@ export const commentRouter = router({
       z.object({
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit } = input;
@@ -76,7 +76,7 @@ export const commentRouter = router({
         sort: SortType.default("newest"),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { videoId, sort, cursor, limit } = input;
@@ -159,7 +159,7 @@ export const commentRouter = router({
         commentId: z.string(),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(10),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { commentId, cursor, limit } = input;
@@ -218,18 +218,16 @@ export const commentRouter = router({
     }),
 
   // 获取评论数量
-  getCount: publicProcedure
-    .input(z.object({ videoId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const count = await ctx.prisma.comment.count({
-        where: {
-          videoId: input.videoId,
-          isDeleted: false,
-          isHidden: false,
-        },
-      });
-      return count;
-    }),
+  getCount: publicProcedure.input(z.object({ videoId: z.string() })).query(async ({ ctx, input }) => {
+    const count = await ctx.prisma.comment.count({
+      where: {
+        videoId: input.videoId,
+        isDeleted: false,
+        isHidden: false,
+      },
+    });
+    return count;
+  }),
 
   // 发表评论（支持登录用户和访客）
   create: publicProcedure
@@ -241,8 +239,14 @@ export const commentRouter = router({
         replyToUserId: z.string().optional(), // 回复的目标用户
         // 访客信息（匿名评论时需要填写）
         guestName: z.string().min(1).max(50).optional(),
-        guestEmail: z.string().refine(val => !val || emailRegex.test(val), { message: "邮箱格式不正确" }).optional(),
-        guestWebsite: z.string().refine(val => !val || urlRegex.test(val), { message: "网址格式不正确" }).optional(),
+        guestEmail: z
+          .string()
+          .refine((val) => !val || emailRegex.test(val), { message: "邮箱格式不正确" })
+          .optional(),
+        guestWebsite: z
+          .string()
+          .refine((val) => !val || urlRegex.test(val), { message: "网址格式不正确" })
+          .optional(),
         deviceInfo: z
           .object({
             deviceType: z.string().nullable().optional(),
@@ -262,7 +266,7 @@ export const commentRouter = router({
             visitorId: z.string().nullable().optional(),
           })
           .optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { videoId, content, parentId, replyToUserId, guestName, guestEmail, guestWebsite, deviceInfo } = input;
@@ -280,7 +284,7 @@ export const commentRouter = router({
       if (siteConfig?.requireLoginToComment && !userId) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "请登录后再发表评论" });
       }
-      
+
       if (!userId && !guestName) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -297,13 +301,13 @@ export const commentRouter = router({
           throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "评论太频繁，请稍后再试" });
         }
       }
-      
+
       // 获取 IPv4 和 IPv6 位置
       const [ipv4Location, ipv6Location] = await Promise.all([
         getIpLocation(ctx.ipv4Address),
         getIpLocation(ctx.ipv6Address),
       ]);
-      
+
       let normalizedDeviceInfo: DeviceInfo;
       if (deviceInfo && deviceInfo.os && deviceInfo.osVersion) {
         normalizedDeviceInfo = {
@@ -452,7 +456,7 @@ export const commentRouter = router({
       z.object({
         id: z.string(),
         content: z.string().min(1).max(2000),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, content } = input;
@@ -489,43 +493,41 @@ export const commentRouter = router({
     }),
 
   // 删除评论
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const userRole = ctx.session.user.role;
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const userRole = ctx.session.user.role;
 
-      const comment = await ctx.prisma.comment.findUnique({
-        where: { id: input.id },
-        select: { userId: true, isDeleted: true },
+    const comment = await ctx.prisma.comment.findUnique({
+      where: { id: input.id },
+      select: { userId: true, isDeleted: true },
+    });
+
+    if (!comment || comment.isDeleted) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "评论不存在",
       });
+    }
 
-      if (!comment || comment.isDeleted) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "评论不存在",
-        });
-      }
+    // 只有评论作者或管理员可以删除
+    const isOwner = comment.userId === userId;
+    const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
 
-      // 只有评论作者或管理员可以删除
-      const isOwner = comment.userId === userId;
-      const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
-
-      if (!isOwner && !isAdmin) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "无权删除此评论",
-        });
-      }
-
-      // 软删除
-      await ctx.prisma.comment.update({
-        where: { id: input.id },
-        data: { isDeleted: true },
+    if (!isOwner && !isAdmin) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "无权删除此评论",
       });
+    }
 
-      return { success: true };
-    }),
+    // 软删除
+    await ctx.prisma.comment.update({
+      where: { id: input.id },
+      data: { isDeleted: true },
+    });
+
+    return { success: true };
+  }),
 
   // 点赞/踩评论
   react: protectedProcedure
@@ -533,7 +535,7 @@ export const commentRouter = router({
       z.object({
         commentId: z.string(),
         isLike: z.boolean().nullable(), // null = 取消反应
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { commentId, isLike } = input;
@@ -613,7 +615,7 @@ export const commentRouter = router({
       z.object({
         commentId: z.string(),
         isPinned: z.boolean(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { commentId, isPinned } = input;

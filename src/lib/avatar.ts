@@ -10,10 +10,7 @@ const QQ_EMAIL_RE = /^(\d{5,11})@qq\.com$/;
  * - QQ 邮箱：使用 QQ 头像
  * - 其他邮箱：使用 WeAvatar（兼容 Gravatar）
  */
-export async function getAvatarUrl(
-  email: string | null | undefined,
-  size = 80,
-): Promise<string | undefined> {
+export async function getAvatarUrl(email: string | null | undefined, size = 80): Promise<string | undefined> {
   if (!email) return undefined;
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -57,10 +54,7 @@ function resolveAvatarUrl(email: string, size: number): void {
   });
 }
 
-export function useAvatarUrl(
-  email: string | null | undefined,
-  size = 80,
-): string | undefined {
+export function useAvatarUrl(email: string | null | undefined, size = 80): string | undefined {
   const key = email ? `${email}|${size}` : "";
 
   useMemo(() => {

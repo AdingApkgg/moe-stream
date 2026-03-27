@@ -15,7 +15,7 @@ declare global {
           "error-callback"?: () => void;
           theme?: "light" | "dark" | "auto";
           size?: "normal" | "compact";
-        }
+        },
       ) => string;
       remove: (widgetId: string) => void;
       reset: (widgetId: string) => void;
@@ -39,7 +39,7 @@ const loadCallbacks: (() => void)[] = [];
 
 function loadTurnstileScript(): Promise<void> {
   if (scriptLoaded) return Promise.resolve();
-  
+
   return new Promise((resolve) => {
     if (scriptLoading) {
       loadCallbacks.push(resolve);

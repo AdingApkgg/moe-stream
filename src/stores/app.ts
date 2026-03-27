@@ -36,8 +36,8 @@ export const useSearchHistoryStore = create<SearchHistoryState>()(
     {
       name: "search-history",
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );
 
 // ==================== UI Store ====================
@@ -82,8 +82,7 @@ export const useUIStore = create<UIState>()(
       playerFullscreen: false,
       playerPiP: false,
       reducedMotion: false,
-      toggleSidebar: () =>
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setPlayerFullscreen: (fullscreen) => set({ playerFullscreen: fullscreen }),
@@ -99,8 +98,8 @@ export const useUIStore = create<UIState>()(
         contentMode: state.contentMode,
         isContentModeChosen: state.isContentModeChosen,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // ==================== 观看历史 Store ====================
@@ -154,8 +153,8 @@ export const useWatchHistoryStore = create<WatchHistoryState>()(
     {
       name: "watch-history-local",
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );
 
 // ==================== 快捷键 Store ====================

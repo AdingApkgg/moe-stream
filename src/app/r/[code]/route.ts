@@ -15,17 +15,16 @@ function extractIp(request: NextRequest): string {
   );
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-  const siteConfig = await prisma.siteConfig.findUnique({
-    where: { id: "default" },
-    select: { referralEnabled: true },
-  }).catch(() => null);
+  const siteConfig = await prisma.siteConfig
+    .findUnique({
+      where: { id: "default" },
+      select: { referralEnabled: true },
+    })
+    .catch(() => null);
 
   if (!siteConfig?.referralEnabled) {
     return NextResponse.redirect(siteUrl);

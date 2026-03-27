@@ -76,7 +76,7 @@ export function useRandomAds(count: number, seed?: string | number, slotPosition
   const picked = useMemo(
     () => (showAds ? pickWeightedRandomAds(enabledAds, count, slotPosition) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showAds, enabledAds, count, seed, slotPosition]
+    [showAds, enabledAds, count, seed, slotPosition],
   );
 
   return { ads: picked, showAds };

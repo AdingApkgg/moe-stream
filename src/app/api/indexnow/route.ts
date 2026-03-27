@@ -65,20 +65,14 @@ export async function POST(request: NextRequest) {
           prisma.video.findMany({
             where: {
               status: "PUBLISHED",
-              OR: [
-                { createdAt: { gte: since } },
-                { updatedAt: { gte: since } },
-              ],
+              OR: [{ createdAt: { gte: since } }, { updatedAt: { gte: since } }],
             },
             select: { id: true },
           }),
           prisma.game.findMany({
             where: {
               status: "PUBLISHED",
-              OR: [
-                { createdAt: { gte: since } },
-                { updatedAt: { gte: since } },
-              ],
+              OR: [{ createdAt: { gte: since } }, { updatedAt: { gte: since } }],
             },
             select: { id: true },
           }),
@@ -156,7 +150,7 @@ export async function GET() {
   const config = await getServerConfig();
   const indexNowConfigured = !!config.indexNowKey;
   const googleConfigured = await isGoogleConfigured();
-  
+
   return NextResponse.json({
     indexnow: {
       configured: indexNowConfigured,

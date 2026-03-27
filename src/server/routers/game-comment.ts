@@ -17,7 +17,7 @@ export const gameCommentRouter = router({
       z.object({
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit } = input;
@@ -71,7 +71,7 @@ export const gameCommentRouter = router({
         sort: SortType.default("newest"),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { gameId, sort, cursor, limit } = input;
@@ -151,7 +151,7 @@ export const gameCommentRouter = router({
         commentId: z.string(),
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(10),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { commentId, cursor, limit } = input;
@@ -210,18 +210,16 @@ export const gameCommentRouter = router({
     }),
 
   // 获取评论数量
-  getCount: publicProcedure
-    .input(z.object({ gameId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const count = await ctx.prisma.gameComment.count({
-        where: {
-          gameId: input.gameId,
-          isDeleted: false,
-          isHidden: false,
-        },
-      });
-      return count;
-    }),
+  getCount: publicProcedure.input(z.object({ gameId: z.string() })).query(async ({ ctx, input }) => {
+    const count = await ctx.prisma.gameComment.count({
+      where: {
+        gameId: input.gameId,
+        isDeleted: false,
+        isHidden: false,
+      },
+    });
+    return count;
+  }),
 
   // 发表评论（支持登录用户和访客）
   create: publicProcedure
@@ -232,8 +230,14 @@ export const gameCommentRouter = router({
         parentId: z.string().optional(),
         replyToUserId: z.string().optional(),
         guestName: z.string().min(1).max(50).optional(),
-        guestEmail: z.string().refine(val => !val || emailRegex.test(val), { message: "邮箱格式不正确" }).optional(),
-        guestWebsite: z.string().refine(val => !val || urlRegex.test(val), { message: "网址格式不正确" }).optional(),
+        guestEmail: z
+          .string()
+          .refine((val) => !val || emailRegex.test(val), { message: "邮箱格式不正确" })
+          .optional(),
+        guestWebsite: z
+          .string()
+          .refine((val) => !val || urlRegex.test(val), { message: "网址格式不正确" })
+          .optional(),
         deviceInfo: z
           .object({
             deviceType: z.string().nullable().optional(),
@@ -253,7 +257,7 @@ export const gameCommentRouter = router({
             visitorId: z.string().nullable().optional(),
           })
           .optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { gameId, content, parentId, replyToUserId, guestName, guestEmail, guestWebsite, deviceInfo } = input;
@@ -411,7 +415,7 @@ export const gameCommentRouter = router({
       z.object({
         id: z.string(),
         content: z.string().min(1).max(2000),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, content } = input;
@@ -448,41 +452,39 @@ export const gameCommentRouter = router({
     }),
 
   // 删除评论
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const userRole = ctx.session.user.role;
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const userRole = ctx.session.user.role;
 
-      const comment = await ctx.prisma.gameComment.findUnique({
-        where: { id: input.id },
-        select: { userId: true, isDeleted: true },
+    const comment = await ctx.prisma.gameComment.findUnique({
+      where: { id: input.id },
+      select: { userId: true, isDeleted: true },
+    });
+
+    if (!comment || comment.isDeleted) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "评论不存在",
       });
+    }
 
-      if (!comment || comment.isDeleted) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "评论不存在",
-        });
-      }
+    const isOwner = comment.userId === userId;
+    const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
 
-      const isOwner = comment.userId === userId;
-      const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
-
-      if (!isOwner && !isAdmin) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "无权删除此评论",
-        });
-      }
-
-      await ctx.prisma.gameComment.update({
-        where: { id: input.id },
-        data: { isDeleted: true },
+    if (!isOwner && !isAdmin) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "无权删除此评论",
       });
+    }
 
-      return { success: true };
-    }),
+    await ctx.prisma.gameComment.update({
+      where: { id: input.id },
+      data: { isDeleted: true },
+    });
+
+    return { success: true };
+  }),
 
   // 点赞/踩评论
   react: protectedProcedure
@@ -490,7 +492,7 @@ export const gameCommentRouter = router({
       z.object({
         commentId: z.string(),
         isLike: z.boolean().nullable(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { commentId, isLike } = input;
@@ -565,7 +567,7 @@ export const gameCommentRouter = router({
       z.object({
         commentId: z.string(),
         isPinned: z.boolean(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { commentId, isPinned } = input;

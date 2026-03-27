@@ -22,9 +22,7 @@ export class DropboxProvider implements CloudProvider {
     };
   }
 
-  async downloadStream(
-    fileInfo: CloudFileInfo,
-  ): Promise<DownloadResult> {
+  async downloadStream(fileInfo: CloudFileInfo): Promise<DownloadResult> {
     const url = fileInfo.downloadUrl;
     if (!url) throw new Error("缺少下载链接");
 
@@ -33,9 +31,7 @@ export class DropboxProvider implements CloudProvider {
     if (!resp.body) throw new Error("响应体为空");
 
     const contentDisposition = resp.headers.get("content-disposition");
-    const filename = contentDisposition
-      ? decodeFilenameFromHeader(contentDisposition)
-      : fileInfo.name;
+    const filename = contentDisposition ? decodeFilenameFromHeader(contentDisposition) : fileInfo.name;
 
     return {
       stream: resp.body,

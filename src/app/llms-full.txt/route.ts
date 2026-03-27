@@ -123,7 +123,7 @@ ${recentVideos
 - 观看次数: ${video.views}
 - 上传时间: ${new Date(video.createdAt).toISOString().split("T")[0]}
 ${video.description ? `- 简介: ${video.description.slice(0, 200)}${video.description.length > 200 ? "..." : ""}` : ""}
-`
+`,
   )
   .join("\n")}
 `;
@@ -160,7 +160,7 @@ ${recentGames
 - 浏览次数: ${game.views}
 - 上传时间: ${new Date(game.createdAt).toISOString().split("T")[0]}
 ${game.description ? `- 简介: ${game.description.slice(0, 200)}${game.description.length > 200 ? "..." : ""}` : ""}
-`
+`,
   )
   .join("\n")}
 `;
@@ -195,7 +195,7 @@ ${recentImages
 - 浏览次数: ${image.views}
 - 上传时间: ${new Date(image.createdAt).toISOString().split("T")[0]}
 ${image.description ? `- 简介: ${image.description.slice(0, 200)}${image.description.length > 200 ? "..." : ""}` : ""}
-`
+`,
   )
   .join("\n")}
 `;

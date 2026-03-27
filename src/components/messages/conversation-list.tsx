@@ -77,15 +77,11 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
           >
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src={user?.avatar || undefined} />
-              <AvatarFallback>
-                {(user?.nickname || user?.username || "?")[0]}
-              </AvatarFallback>
+              <AvatarFallback>{(user?.nickname || user?.username || "?")[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-sm truncate">
-                  {user?.nickname || user?.username || "未知用户"}
-                </span>
+                <span className="font-medium text-sm truncate">{user?.nickname || user?.username || "未知用户"}</span>
                 {lastMsg && (
                   <span className="text-[11px] text-muted-foreground/60 shrink-0 ml-2">
                     {dayjs(lastMsg.createdAt).fromNow()}
@@ -93,9 +89,7 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground truncate flex-1">
-                  {preview}
-                </p>
+                <p className="text-xs text-muted-foreground truncate flex-1">{preview}</p>
                 {conv.unreadCount > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground shrink-0">
                     {conv.unreadCount > 99 ? "99+" : conv.unreadCount}

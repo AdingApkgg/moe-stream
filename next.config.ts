@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
-import createMDX from "@next/mdx";
+import remarkGfm from "remark-gfm";
 
 export default function config(phase: string) {
   if (phase === PHASE_PRODUCTION_BUILD) {
@@ -12,7 +12,14 @@ export default function config(phase: string) {
   const nextConfig: NextConfig = {
     output: isServerless ? undefined : "standalone",
     pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
-    turbopack: {},
+    turbopack: {
+      rules: {
+        "*.mdx": {
+          loaders: [{ loader: "./mdx-loader.mjs" }],
+          as: "*.jsx",
+        },
+      },
+    },
     images: {
       unoptimized: false,
       remotePatterns: [
@@ -35,7 +42,21 @@ export default function config(phase: string) {
         bodySizeLimit: "10mb",
       },
       optimizeCss: true,
-      mdxRs: true,
+    },
+    webpack: (webpackConfig) => {
+      webpackConfig.module.rules.push({
+        test: /\.mdx?$/,
+        use: [
+          {
+            loader: "@mdx-js/loader",
+            options: {
+              remarkPlugins: [remarkGfm],
+              providerImportSource: "@mdx-js/react",
+            },
+          },
+        ],
+      });
+      return webpackConfig;
     },
     async rewrites() {
       return [
@@ -67,9 +88,5 @@ export default function config(phase: string) {
     },
   };
 
-  const withMDX = createMDX({
-    extension: /\.mdx?$/,
-  });
-
-  return withMDX(nextConfig);
+  return nextConfig;
 }

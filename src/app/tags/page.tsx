@@ -44,9 +44,7 @@ async function getTagsData() {
     }),
   ]);
 
-  const groupByCategory = <T extends { categoryId: string | null }>(
-    tags: T[],
-  ) => {
+  const groupByCategory = <T extends { categoryId: string | null }>(tags: T[]) => {
     const grouped: {
       category: { id: string; name: string; slug: string; color: string } | null;
       tags: T[];

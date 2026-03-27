@@ -15,13 +15,11 @@ export const stickerRouter = router({
     return packs;
   }),
 
-  listStickers: publicProcedure
-    .input(z.object({ packId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const stickers = await ctx.prisma.sticker.findMany({
-        where: { packId: input.packId },
-        orderBy: { sortOrder: "asc" },
-      });
-      return stickers;
-    }),
+  listStickers: publicProcedure.input(z.object({ packId: z.string() })).query(async ({ ctx, input }) => {
+    const stickers = await ctx.prisma.sticker.findMany({
+      where: { packId: input.packId },
+      orderBy: { sortOrder: "asc" },
+    });
+    return stickers;
+  }),
 });

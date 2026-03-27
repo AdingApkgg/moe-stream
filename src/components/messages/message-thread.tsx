@@ -31,13 +31,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
     return () => setActiveConversation(null);
   }, [conversationId, setActiveConversation]);
 
-  const {
-    data,
-    isLoading,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = trpc.message.messages.useInfiniteQuery(
+  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = trpc.message.messages.useInfiniteQuery(
     { conversationId, limit: 30 },
     { getNextPageParam: (last) => last.nextCursor },
   );
@@ -112,15 +106,8 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
     <div className="flex flex-col h-full overflow-y-auto px-4 py-4">
       {hasNextPage && (
         <div className="text-center mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : null}
+          <Button variant="ghost" size="sm" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+            {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
             加载更早消息
           </Button>
         </div>
@@ -130,10 +117,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
         {allMessages.map((msg) => {
           const isMine = msg.senderId === userId;
           return (
-            <div
-              key={msg.id}
-              className={cn("flex items-end gap-2", isMine ? "flex-row-reverse" : "")}
-            >
+            <div key={msg.id} className={cn("flex items-end gap-2", isMine ? "flex-row-reverse" : "")}>
               {!isMine && (
                 <Avatar className="h-7 w-7 shrink-0">
                   <AvatarImage src={msg.sender.avatar || undefined} />
@@ -145,9 +129,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
               <div
                 className={cn(
                   "max-w-[70%] rounded-2xl px-3.5 py-2 text-sm",
-                  isMine
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-muted rounded-bl-md",
+                  isMine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md",
                 )}
               >
                 {msg.type === "TEXT" && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
@@ -177,10 +159,12 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
                     {(msg.metadata as Record<string, string>)?.fileName || "文件"}
                   </a>
                 )}
-                <div className={cn(
-                  "flex items-center gap-1 mt-1",
-                  isMine ? "text-primary-foreground/60 justify-end" : "text-muted-foreground/60"
-                )}>
+                <div
+                  className={cn(
+                    "flex items-center gap-1 mt-1",
+                    isMine ? "text-primary-foreground/60 justify-end" : "text-muted-foreground/60",
+                  )}
+                >
                   <span className="text-[10px]">{dayjs(msg.createdAt).format("HH:mm")}</span>
                   {isMine && <CheckCheck className="h-3 w-3" />}
                 </div>

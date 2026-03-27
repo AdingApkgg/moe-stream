@@ -7,11 +7,7 @@ const INDEXNOW_ENDPOINTS = [
 
 const REQUEST_TIMEOUT = 5000;
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeout: number
-): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -63,7 +59,7 @@ export async function submitToIndexNow(urls: string | string[]): Promise<boolean
         const response = await fetchWithTimeout(
           endpoint.url,
           { method: "POST", headers, body: payload },
-          REQUEST_TIMEOUT
+          REQUEST_TIMEOUT,
         );
 
         if (response.ok || response.status === 202) {
@@ -71,7 +67,7 @@ export async function submitToIndexNow(urls: string | string[]): Promise<boolean
           return true;
         }
         throw new Error(`${endpoint.name}: ${response.status}`);
-      })
+      }),
     );
     return true;
   } catch {
@@ -83,7 +79,7 @@ export async function submitVideoToIndexNow(videoId: string): Promise<boolean> {
   const config = await getServerConfig();
   const appUrl = config.siteUrl;
   if (!appUrl) return false;
-  
+
   const videoUrl = `${appUrl}/video/${videoId}`;
   return submitToIndexNow(videoUrl);
 }
@@ -96,7 +92,7 @@ export async function submitVideosToIndexNow(videoIds: string[]): Promise<{ succ
   }
 
   const urls = videoIds.map((id) => `${appUrl}/video/${id}`);
-  
+
   const batchSize = 10000;
   let success = 0;
   let failed = 0;
@@ -118,7 +114,7 @@ export async function submitGameToIndexNow(gameId: string): Promise<boolean> {
   const config = await getServerConfig();
   const appUrl = config.siteUrl;
   if (!appUrl) return false;
-  
+
   const gameUrl = `${appUrl}/game/${gameId}`;
   return submitToIndexNow(gameUrl);
 }
@@ -131,7 +127,7 @@ export async function submitGamesToIndexNow(gameIds: string[]): Promise<{ succes
   }
 
   const urls = gameIds.map((id) => `${appUrl}/game/${id}`);
-  
+
   const batchSize = 10000;
   let success = 0;
   let failed = 0;
@@ -154,11 +150,7 @@ export async function submitSitePages(): Promise<boolean> {
   const appUrl = config.siteUrl;
   if (!appUrl) return false;
 
-  const pages = [
-    appUrl,
-    `${appUrl}/tags`,
-    `${appUrl}/search`,
-  ];
+  const pages = [appUrl, `${appUrl}/tags`, `${appUrl}/search`];
 
   return submitToIndexNow(pages);
 }

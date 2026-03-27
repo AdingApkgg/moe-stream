@@ -20,13 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,10 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Users,
@@ -120,7 +111,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
 
   const { data, isLoading } = trpc.admin.listUsers.useQuery(
     { limit: 20, page: currentPage, search: search || undefined, role: roleFilter, banned: bannedFilter },
-    { enabled: permissions?.scopes.includes("user:view") }
+    { enabled: permissions?.scopes.includes("user:view") },
   );
 
   const updateRoleMutation = trpc.admin.updateUserRole.useMutation({
@@ -257,9 +248,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   };
 
   const toggleScope = (scope: string) => {
-    setEditingScopes((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
-    );
+    setEditingScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
   };
 
   const getRoleBadge = (role: UserRole) => {
@@ -274,11 +263,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   };
 
   if (!permissions?.scopes.includes("user:view")) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有用户管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有用户管理权限</div>;
   }
 
   const selectableUsers = users.filter((u) => u.role !== "OWNER");
@@ -325,10 +310,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
             className="pl-10"
           />
         </div>
-        <Select
-          value={roleFilter}
-          onValueChange={(v) => handleRoleFilterChange(v as typeof roleFilter)}
-        >
+        <Select value={roleFilter} onValueChange={(v) => handleRoleFilterChange(v as typeof roleFilter)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="角色" />
           </SelectTrigger>
@@ -339,10 +321,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
             <SelectItem value="OWNER">站长</SelectItem>
           </SelectContent>
         </Select>
-        <Select
-          value={bannedFilter}
-          onValueChange={(v) => handleBannedFilterChange(v as typeof bannedFilter)}
-        >
+        <Select value={bannedFilter} onValueChange={(v) => handleBannedFilterChange(v as typeof bannedFilter)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="状态" />
           </SelectTrigger>
@@ -357,12 +336,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
       {/* 批量操作栏 */}
       {users.length > 0 && permissions?.scopes.includes("user:manage") && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSelectAll}
-            className="gap-1"
-          >
+          <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
             {selectedIds.size === selectableUsers.length && selectableUsers.length > 0 ? (
               <CheckSquare className="h-4 w-4" />
             ) : (
@@ -373,9 +347,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
 
           {selectedIds.size > 0 && (
             <>
-              <span className="text-sm text-muted-foreground">
-                已选 {selectedIds.size} 个
-              </span>
+              <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 个</span>
               <div className="flex items-center gap-2 ml-auto">
                 <Button
                   variant="outline"
@@ -410,9 +382,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
         </div>
       ) : users.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            没有找到用户
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">没有找到用户</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -424,35 +394,22 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
             return (
               <Card
                 key={user.id}
-                className={cn(
-                  "transition-colors",
-                  isSelected && "ring-2 ring-primary",
-                  user.isBanned && "opacity-60"
-                )}
+                className={cn("transition-colors", isSelected && "ring-2 ring-primary", user.isBanned && "opacity-60")}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     {canSelect && permissions?.scopes.includes("user:manage") && (
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(user.id)}
-                        className="mt-2"
-                      />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(user.id)} className="mt-2" />
                     )}
 
                     <Avatar className="h-12 w-12 shrink-0">
                       <AvatarImage src={user.avatar || undefined} />
-                      <AvatarFallback>
-                        {(user.nickname || user.username).charAt(0).toUpperCase()}
-                      </AvatarFallback>
+                      <AvatarFallback>{(user.nickname || user.username).charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          href={`/user/${user.id}`}
-                          className="font-medium hover:underline"
-                        >
+                        <Link href={`/user/${user.id}`} className="font-medium hover:underline">
                           {user.nickname || user.username}
                         </Link>
                         {getRoleBadge(user.role)}
@@ -531,12 +488,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                         </Button>
                       )}
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        asChild
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                         <Link href={`/user/${user.id}`} target="_blank" title="查看主页">
                           <ExternalLink className="h-4 w-4" />
                         </Link>
@@ -549,11 +501,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                         onClick={() => toggleExpand(user.id)}
                         title="详情"
                       >
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -651,9 +599,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
               <Shield className="h-5 w-5" />
               管理用户权限
             </DialogTitle>
-            <DialogDescription>
-              修改 {selectedUser?.nickname || selectedUser?.username} 的角色和权限
-            </DialogDescription>
+            <DialogDescription>修改 {selectedUser?.nickname || selectedUser?.username} 的角色和权限</DialogDescription>
           </DialogHeader>
 
           {selectedUser && (

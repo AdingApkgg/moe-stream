@@ -60,7 +60,12 @@ interface VideoListClientProps {
   initialAds?: Ad[];
 }
 
-export default function VideoListClient({ initialTags, initialVideos, siteConfig, initialAds = [] }: VideoListClientProps) {
+export default function VideoListClient({
+  initialTags,
+  initialVideos,
+  siteConfig,
+  initialAds = [],
+}: VideoListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
 
   // 记录用户访问了视频区
@@ -70,44 +75,39 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
 
   const [viewMode, setViewMode] = useState<ViewMode>("videos");
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
+    useTagFilter();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
   const [videoPage, setVideoPage] = usePageParam("page");
   const [seriesPage, setSeriesPage] = usePageParam("sp");
 
-  const {
-    data: videoData,
-    isLoading: videoLoading,
-  } = trpc.video.list.useQuery(
-    { 
-      limit: 20, 
+  const { data: videoData, isLoading: videoLoading } = trpc.video.list.useQuery(
+    {
+      limit: 20,
       page: videoPage,
-      sortBy, 
+      sortBy,
       tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
       excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
     },
     {
       enabled: viewMode === "videos",
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   // 合集列表查询
-  const {
-    data: seriesData,
-    isLoading: seriesLoading,
-  } = trpc.series.list.useQuery(
+  const { data: seriesData, isLoading: seriesLoading } = trpc.series.list.useQuery(
     { limit: 12, page: seriesPage },
     {
       enabled: viewMode === "series",
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   // 数据（用 useMemo 稳定引用，避免下游 useMemo 依赖在每次渲染时变化）
   const videos = useMemo(
     () => videoData?.videos ?? (videoPage === 1 ? initialVideos : []),
-    [videoData?.videos, videoPage, initialVideos]
+    [videoData?.videos, videoPage, initialVideos],
   );
   const videoTotalPages = videoData?.totalPages ?? 1;
   const series = seriesData?.items ?? [];
@@ -136,46 +136,56 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
     { id: "likes", label: "高赞" },
   ];
 
-  const handleViewModeClick = useCallback((id: ViewMode) => {
-    setViewMode(id);
-    if (id === "series") {
-      clearAll();
-    }
-  }, [clearAll]);
+  const handleViewModeClick = useCallback(
+    (id: ViewMode) => {
+      setViewMode(id);
+      if (id === "series") {
+        clearAll();
+      }
+    },
+    [clearAll],
+  );
 
-  const handleSortClick = useCallback((id: SortBy) => {
-    setSortBy(id);
-    setVideoPage(1);
-  }, [setVideoPage]);
+  const handleSortClick = useCallback(
+    (id: SortBy) => {
+      setSortBy(id);
+      setVideoPage(1);
+    },
+    [setVideoPage],
+  );
 
-  const handleTagClick = useCallback((slug: string) => {
-    if (viewMode === "series") return;
-    toggleTag(slug);
-    setVideoPage(1);
-  }, [viewMode, toggleTag, setVideoPage]);
+  const handleTagClick = useCallback(
+    (slug: string) => {
+      if (viewMode === "series") return;
+      toggleTag(slug);
+      setVideoPage(1);
+    },
+    [viewMode, toggleTag, setVideoPage],
+  );
 
-  const handleTagRightClick = useCallback((e: React.MouseEvent, slug: string) => {
-    e.preventDefault();
-    if (viewMode === "series") return;
-    toggleExclude(slug);
-    setVideoPage(1);
-  }, [viewMode, toggleExclude, setVideoPage]);
+  const handleTagRightClick = useCallback(
+    (e: React.MouseEvent, slug: string) => {
+      e.preventDefault();
+      if (viewMode === "series") return;
+      toggleExclude(slug);
+      setVideoPage(1);
+    },
+    [viewMode, toggleExclude, setVideoPage],
+  );
 
   return (
     <PageWrapper>
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
         {/* 公告横幅 */}
         {siteConfig?.announcementEnabled && siteConfig.announcement && (
-          <div 
+          <div
             className={`mb-4 relative overflow-hidden transition-all duration-300 ${
               showAnnouncement ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
             }`}
           >
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">
-                {siteConfig.announcement}
-              </p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">{siteConfig.announcement}</p>
               <button
                 onClick={() => setShowAnnouncement(false)}
                 className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
@@ -197,27 +207,28 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                   "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                   viewMode === option.id
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
+                    : "bg-muted hover:bg-muted/80 text-foreground",
                 )}
               >
                 {option.label}
               </button>
             ))}
             <div className="shrink-0 w-px bg-border my-1" />
-            {viewMode === "videos" && sortOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => handleSortClick(option.id)}
-                className={cn(
-                  "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                  sortBy === option.id
-                    ? "bg-foreground text-background"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+            {viewMode === "videos" &&
+              sortOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => handleSortClick(option.id)}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                    sortBy === option.id
+                      ? "bg-foreground text-background"
+                      : "bg-muted hover:bg-muted/80 text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
             {viewMode === "videos" && initialTags.length > 0 && (
               <>
                 <div className="shrink-0 w-px bg-border my-1" />
@@ -254,13 +265,10 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                   <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                     {gridItems.map((item, index) =>
                       item.type === "ad" ? (
-                        <AdCard
-                          key={`ad-${item.adIndex}`}
-                          ad={pickedAds[item.adIndex]}
-                        />
+                        <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} />
                       ) : (
                         <VideoCard key={item.data.id} video={item.data} index={index} />
-                      )
+                      ),
                     )}
                   </div>
                 ) : (
@@ -272,9 +280,7 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
                   <div className="text-center py-16">
                     <div className="text-muted-foreground mb-4">
                       <p className="text-lg font-medium">没有找到视频</p>
-                      <p className="text-sm mt-1">
-                        {hasFilter ? "尝试调整标签筛选条件" : "暂无视频内容"}
-                      </p>
+                      <p className="text-sm mt-1">{hasFilter ? "尝试调整标签筛选条件" : "暂无视频内容"}</p>
                     </div>
                     {hasFilter && (
                       <Button variant="outline" onClick={clearAll} className="mt-4">
@@ -297,85 +303,77 @@ export default function VideoListClient({ initialTags, initialVideos, siteConfig
             // 合集网格
             <>
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {seriesLoading && series.length === 0 ? (
-                  // 加载骨架屏
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <Card key={i} className="overflow-hidden">
-                      <Skeleton className="aspect-video w-full" />
-                      <CardContent className="p-3 space-y-2">
-                        <Skeleton className="h-5 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  series.map((s) => (
-                    <Link key={s.id} href={`/series/${s.id}`}>
-                      <Card className="overflow-hidden group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
-                        {/* 合集封面 - 2x2 网格预览 */}
-                        <div className="relative aspect-video bg-muted">
-                          {s.previewVideos.length > 0 ? (
-                            <div className="grid grid-cols-2 grid-rows-2 h-full">
-                              {[0, 1, 2, 3].map((idx) => {
-                                const video = s.previewVideos[idx];
-                                return (
-                                  <div key={idx} className="relative overflow-hidden">
-                                    {video ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={getCoverUrl(video.id, video.coverUrl, { w: 250 })}
-                                        alt={video.title}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                                        <Play className="w-6 h-6 text-muted-foreground/50" />
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : s.coverUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={s.coverUrl}
-                              alt={s.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Layers className="w-12 h-12 text-muted-foreground/30" />
-                            </div>
-                          )}
-                          
-                          {/* 集数徽章 */}
-                          <Badge 
-                            className="absolute bottom-2 right-2 bg-black/70 hover:bg-black/70 text-white"
-                          >
-                            {s.episodeCount} 集
-                          </Badge>
-
-                          {/* 悬停遮罩 */}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <Play className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </div>
-
-                        <CardContent className="p-3">
-                          <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">
-                            {s.title}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                            <span>{s.creator.nickname || s.creator.username}</span>
-                            <span>·</span>
-                            <span>{s.totalViews.toLocaleString()} 播放</span>
-                          </div>
+                {seriesLoading && series.length === 0
+                  ? // 加载骨架屏
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <Card key={i} className="overflow-hidden">
+                        <Skeleton className="aspect-video w-full" />
+                        <CardContent className="p-3 space-y-2">
+                          <Skeleton className="h-5 w-3/4" />
+                          <Skeleton className="h-4 w-1/2" />
                         </CardContent>
                       </Card>
-                    </Link>
-                  ))
-                )}
+                    ))
+                  : series.map((s) => (
+                      <Link key={s.id} href={`/series/${s.id}`}>
+                        <Card className="overflow-hidden group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+                          {/* 合集封面 - 2x2 网格预览 */}
+                          <div className="relative aspect-video bg-muted">
+                            {s.previewVideos.length > 0 ? (
+                              <div className="grid grid-cols-2 grid-rows-2 h-full">
+                                {[0, 1, 2, 3].map((idx) => {
+                                  const video = s.previewVideos[idx];
+                                  return (
+                                    <div key={idx} className="relative overflow-hidden">
+                                      {video ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          src={getCoverUrl(video.id, video.coverUrl, { w: 250 })}
+                                          alt={video.title}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                                          <Play className="w-6 h-6 text-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : s.coverUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.coverUrl} alt={s.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Layers className="w-12 h-12 text-muted-foreground/30" />
+                              </div>
+                            )}
+
+                            {/* 集数徽章 */}
+                            <Badge className="absolute bottom-2 right-2 bg-black/70 hover:bg-black/70 text-white">
+                              {s.episodeCount} 集
+                            </Badge>
+
+                            {/* 悬停遮罩 */}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Play className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+
+                          <CardContent className="p-3">
+                            <h3 className="font-medium line-clamp-2 group-hover:text-primary transition-colors">
+                              {s.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                              <span>{s.creator.nickname || s.creator.username}</span>
+                              <span>·</span>
+                              <span>{s.totalViews.toLocaleString()} 播放</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
               </div>
 
               {/* 无结果提示 */}

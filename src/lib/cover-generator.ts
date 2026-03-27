@@ -34,8 +34,10 @@ function isHlsUrl(url: string): boolean {
 function getStreamHints(videoUrl?: string): string[] {
   const hls = videoUrl && isHlsUrl(videoUrl);
   return [
-    "-analyzeduration", String(hls ? COVER_CONFIG.analyzeDuration * 3 : COVER_CONFIG.analyzeDuration),
-    "-probesize", String(hls ? COVER_CONFIG.probeSize * 3 : COVER_CONFIG.probeSize),
+    "-analyzeduration",
+    String(hls ? COVER_CONFIG.analyzeDuration * 3 : COVER_CONFIG.analyzeDuration),
+    "-probesize",
+    String(hls ? COVER_CONFIG.probeSize * 3 : COVER_CONFIG.probeSize),
   ];
 }
 
@@ -98,9 +100,12 @@ export function getVideoDuration(videoUrl: string): Promise<number | null> {
     const args = [
       ...getStreamHints(videoUrl),
       ...getRemoteInputArgs(videoUrl),
-      "-v", "error",
-      "-show_entries", "format=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
       videoUrl,
     ];
     const probeTimeout = hls ? COVER_CONFIG.probeTimeout * 3 : COVER_CONFIG.probeTimeout;
@@ -125,9 +130,15 @@ export function getVideoDuration(videoUrl: string): Promise<number | null> {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (code !== 0) { resolve(null); return; }
+      if (code !== 0) {
+        resolve(null);
+        return;
+      }
       const duration = parseFloat(stdout.trim());
-      if (isNaN(duration) || duration <= 0) { resolve(null); return; }
+      if (isNaN(duration) || duration <= 0) {
+        resolve(null);
+        return;
+      }
       log("ffprobe", `视频时长: ${duration.toFixed(1)}s`);
       resolve(duration);
     });
@@ -158,18 +169,14 @@ export function computeSamplePoints(duration: number | null, count: number): num
     const start = 0.5;
     const end = duration - 0.5;
     const step = count > 1 ? (end - start) / (count - 1) : 0;
-    return Array.from({ length: count }, (_, i) =>
-      Math.round((start + i * step) * 10) / 10
-    );
+    return Array.from({ length: count }, (_, i) => Math.round((start + i * step) * 10) / 10);
   }
 
   // 正常/长视频: 从 5% 到 75% 区间均匀分布
   const start = duration * 0.05;
   const end = duration * 0.75;
   const step = count > 1 ? (end - start) / (count - 1) : 0;
-  return Array.from({ length: count }, (_, i) =>
-    Math.round((start + i * step) * 10) / 10
-  );
+  return Array.from({ length: count }, (_, i) => Math.round((start + i * step) * 10) / 10);
 }
 
 // ========== 帧提取与分析 ==========
@@ -179,17 +186,22 @@ async function extractFrame(
   timeSec: number,
   outputPath: string,
   width: number,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<boolean> {
   const hls = isHlsUrl(videoUrl);
   const args = [
-    "-ss", String(timeSec),
+    "-ss",
+    String(timeSec),
     ...getStreamHints(videoUrl),
     ...getRemoteInputArgs(videoUrl),
-    "-i", videoUrl,
-    "-vframes", "1",
-    "-vf", `scale=${width}:-2`,
-    "-q:v", "2",
+    "-i",
+    videoUrl,
+    "-vframes",
+    "1",
+    "-vf",
+    `scale=${width}:-2`,
+    "-q:v",
+    "2",
     "-y",
     outputPath,
   ];
@@ -236,14 +248,8 @@ async function analyzeFrame(filePath: string): Promise<{
   const green = channels[1];
   const blue = channels[2];
 
-  const mean =
-    red && green && blue
-      ? (red.mean + green.mean + blue.mean) / 3
-      : channels[0]?.mean ?? 0;
-  const stddev =
-    red && green && blue
-      ? (red.stdev + green.stdev + blue.stdev) / 3
-      : channels[0]?.stdev ?? 0;
+  const mean = red && green && blue ? (red.mean + green.mean + blue.mean) / 3 : (channels[0]?.mean ?? 0);
+  const stddev = red && green && blue ? (red.stdev + green.stdev + blue.stdev) / 3 : (channels[0]?.stdev ?? 0);
 
   const finalSharpness = sharpnessRaw || stddev;
 
@@ -261,8 +267,7 @@ async function analyzeFrame(filePath: string): Promise<{
   const sharpness = Math.min(1, finalSharpness / 50);
   const saturation = Math.min(1, rawSaturation);
 
-  const score =
-    brightness * 0.3 + contrast * 0.25 + sharpness * 0.25 + saturation * 0.2;
+  const score = brightness * 0.3 + contrast * 0.25 + sharpness * 0.25 + saturation * 0.2;
 
   return { brightness, contrast, sharpness, saturation, score, valid };
 }
@@ -293,7 +298,7 @@ export async function selectBestFrame(
     samplePoints?: number[];
     width?: number;
     timeoutMs?: number;
-  }
+  },
 ): Promise<BestFrameResult | null> {
   const width = options?.width ?? COVER_CONFIG.width;
   const timeoutMs = options?.timeoutMs ?? COVER_CONFIG.timeout;
@@ -325,10 +330,7 @@ export async function selectBestFrame(
       // 交错延迟（首帧不等待）
       if (i > 0) await sleep(STAGGER_DELAY_MS);
 
-      const ok = await extractFrame(
-        videoUrl, timeSec, framePath, width,
-        Math.min(timeoutMs, 15000)
-      );
+      const ok = await extractFrame(videoUrl, timeSec, framePath, width, Math.min(timeoutMs, 15000));
       if (!ok) {
         frameResults.push(null);
         continue;
@@ -338,7 +340,7 @@ export async function selectBestFrame(
         const analysis = await analyzeFrame(framePath);
         log(
           "CoverGen",
-          `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 饱和=${analysis.saturation.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`
+          `帧 @${timeSec}s: 亮度=${analysis.brightness.toFixed(2)} 对比=${analysis.contrast.toFixed(2)} 锐度=${analysis.sharpness.toFixed(2)} 饱和=${analysis.saturation.toFixed(2)} 总分=${analysis.score.toFixed(3)} ${analysis.valid ? "✓" : "✗"}`,
         );
         frameResults.push({ timeSec, framePath, analysis });
 
@@ -393,7 +395,7 @@ export async function convertFrameToCover(
   framePath: string,
   outputPath: string,
   format: CoverFormat,
-  width?: number
+  width?: number,
 ): Promise<boolean> {
   try {
     let pipeline = sharp(framePath);
@@ -404,19 +406,13 @@ export async function convertFrameToCover(
 
     switch (format) {
       case "avif":
-        await pipeline
-          .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort })
-          .toFile(outputPath);
+        await pipeline.avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort }).toFile(outputPath);
         break;
       case "webp":
-        await pipeline
-          .webp({ quality: COVER_CONFIG.webpQuality })
-          .toFile(outputPath);
+        await pipeline.webp({ quality: COVER_CONFIG.webpQuality }).toFile(outputPath);
         break;
       case "jpg":
-        await pipeline
-          .jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true })
-          .toFile(outputPath);
+        await pipeline.jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true }).toFile(outputPath);
         break;
       default:
         await pipeline.jpeg({ quality: 88 }).toFile(outputPath);
@@ -445,11 +441,7 @@ export async function convertFrameToCover(
  */
 export async function generateBlurDataURL(input: string | Buffer): Promise<string | null> {
   try {
-    const tiny = await sharp(input)
-      .resize(32, 18, { fit: "cover" })
-      .blur(8)
-      .jpeg({ quality: 30 })
-      .toBuffer();
+    const tiny = await sharp(input).resize(32, 18, { fit: "cover" }).blur(8).jpeg({ quality: 30 }).toBuffer();
     return `data:image/jpeg;base64,${tiny.toString("base64")}`;
   } catch {
     return null;
@@ -483,7 +475,7 @@ export async function generateCoverForVideo(
   videoUrl: string,
   videoId: string,
   coverDir: string,
-  options?: GenerateCoverOptions
+  options?: GenerateCoverOptions,
 ): Promise<GenerateCoverResult | null> {
   const maxRetries = options?.maxRetries ?? COVER_CONFIG.maxRetries;
   const retryDelayMs = options?.retryDelayMs ?? COVER_CONFIG.retryDelay;
@@ -516,14 +508,9 @@ export async function generateCoverForVideo(
       return null;
     });
 
-    const [blurDataURL, ...formatResults] = await Promise.all([
-      generateBlurDataURL(best.framePath),
-      ...formatTasks,
-    ]);
+    const [blurDataURL, ...formatResults] = await Promise.all([generateBlurDataURL(best.framePath), ...formatTasks]);
 
-    const successFormats = formatResults.filter(
-      (r): r is NonNullable<typeof r> => r !== null
-    );
+    const successFormats = formatResults.filter((r): r is NonNullable<typeof r> => r !== null);
     const elapsed = Date.now() - startTime;
 
     if (successFormats.length === 0) {
@@ -535,7 +522,7 @@ export async function generateCoverForVideo(
     const primary = successFormats[0];
     log(
       "CoverGen",
-      `✓ 封面生成成功: videoId=${videoId}, 格式=${successFormats.map((f) => f.format).join("+")}, 耗时=${elapsed}ms`
+      `✓ 封面生成成功: videoId=${videoId}, 格式=${successFormats.map((f) => f.format).join("+")}, 耗时=${elapsed}ms`,
     );
 
     return {
@@ -554,7 +541,7 @@ export async function retryGenerateCover(
   videoUrl: string,
   outputPath: string,
   format: CoverFormat,
-  options?: GenerateCoverOptions
+  options?: GenerateCoverOptions,
 ): Promise<boolean> {
   const maxRetries = options?.maxRetries ?? COVER_CONFIG.maxRetries;
   const retryDelayMs = options?.retryDelayMs ?? COVER_CONFIG.retryDelay;

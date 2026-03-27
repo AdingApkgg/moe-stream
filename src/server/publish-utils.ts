@@ -15,10 +15,7 @@ const DEFAULT_UPLOAD_BATCH_LIMIT = 1000;
 /**
  * 生成随机 6 位数字 ID，保证唯一。
  */
-export async function generateContentId(
-  prisma: PrismaClient,
-  type: ContentType,
-): Promise<string> {
+export async function generateContentId(prisma: PrismaClient, type: ContentType): Promise<string> {
   const maxAttempts = 100;
   const model = MODEL_MAP[type];
 
@@ -42,11 +39,7 @@ export async function generateContentId(
 /**
  * 批量生成唯一 ID，一次性候选池 + 批量查重。
  */
-export async function generateContentIds(
-  prisma: PrismaClient,
-  type: ContentType,
-  count: number,
-): Promise<string[]> {
+export async function generateContentIds(prisma: PrismaClient, type: ContentType, count: number): Promise<string[]> {
   if (count === 0) return [];
   const model = MODEL_MAP[type];
 
@@ -67,9 +60,7 @@ export async function generateContentIds(
     where: { id: { in: candidates } },
     select: { id: true },
   });
-  const existingIds = new Set<string>(
-    existingRows.map((r: { id: string }) => r.id),
-  );
+  const existingIds = new Set<string>(existingRows.map((r: { id: string }) => r.id));
 
   const result: string[] = [];
   for (const id of candidates) {
@@ -101,10 +92,7 @@ export function generateTagSlug(tagName: string): string {
 /**
  * 批量将标签名称解析为 tagId（含并发控制和 slug 冲突 fallback）。
  */
-export async function resolveTagNames(
-  prisma: PrismaClient,
-  tagNames: string[],
-): Promise<Map<string, string>> {
+export async function resolveTagNames(prisma: PrismaClient, tagNames: string[]): Promise<Map<string, string>> {
   const tagNameToId = new Map<string, string>();
   if (tagNames.length === 0) return tagNameToId;
 
@@ -231,10 +219,7 @@ export async function getUploadBatchLimit(prisma: PrismaClient): Promise<number>
 /**
  * 校验批量投稿数量是否超出后台配置上限。
  */
-export async function assertBatchLimit(
-  prisma: PrismaClient,
-  count: number,
-): Promise<void> {
+export async function assertBatchLimit(prisma: PrismaClient, count: number): Promise<void> {
   const limit = await getUploadBatchLimit(prisma);
   if (count > limit) {
     throw new TRPCError({

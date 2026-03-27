@@ -21,12 +21,7 @@ async function createTransporter(): Promise<{ transporter: Transporter; from: st
   };
 }
 
-export async function sendMail(
-  to: string,
-  subject: string,
-  html: string,
-  siteName: string
-): Promise<void> {
+export async function sendMail(to: string, subject: string, html: string, siteName: string): Promise<void> {
   const config = await getServerConfig();
 
   if (config.mailSendMode === "http_api" && config.httpEmailApi) {
@@ -143,7 +138,7 @@ function generateCode(): string {
 // 发送验证码邮件
 export async function sendVerificationCode(
   email: string,
-  type: VerificationType
+  type: VerificationType,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const code = generateCode();
@@ -215,7 +210,7 @@ export async function sendVerificationCode(
 export async function verifyCode(
   email: string,
   code: string,
-  type: VerificationType
+  type: VerificationType,
 ): Promise<{ valid: boolean; message: string }> {
   try {
     const record = await prisma.verificationCode.findFirst({

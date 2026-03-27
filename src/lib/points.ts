@@ -42,19 +42,19 @@ export const ACTION_LABELS: Record<PointsAction, string> = {
 };
 
 export const DEFAULT_POINTS_RULES: PointsRulesConfig = {
-  DAILY_LOGIN:    { enabled: false, points: 10,  dailyLimit: 1 },
-  WATCH_VIDEO:    { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_VIDEO:     { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_VIDEO: { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_VIDEO:  { enabled: false, points: 3,   dailyLimit: 5 },
-  VIEW_GAME:      { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_GAME:      { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_GAME:  { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_GAME:   { enabled: false, points: 3,   dailyLimit: 5 },
-  VIEW_IMAGE:     { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_IMAGE:     { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_IMAGE: { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_IMAGE:  { enabled: false, points: 3,   dailyLimit: 5 },
+  DAILY_LOGIN: { enabled: false, points: 10, dailyLimit: 1 },
+  WATCH_VIDEO: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_VIDEO: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_VIDEO: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_VIDEO: { enabled: false, points: 3, dailyLimit: 5 },
+  VIEW_GAME: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_GAME: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_GAME: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_GAME: { enabled: false, points: 3, dailyLimit: 5 },
+  VIEW_IMAGE: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_IMAGE: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_IMAGE: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_IMAGE: { enabled: false, points: 3, dailyLimit: 5 },
 };
 
 let cachedRules: PointsRulesConfig | null = null;
@@ -102,7 +102,7 @@ export async function awardPoints(
   action: PointsAction,
   description?: string,
   relatedId?: string,
-  options?: { firstTimeOnly?: boolean }
+  options?: { firstTimeOnly?: boolean },
 ): Promise<number> {
   try {
     const rules = await getPointsRules();
@@ -170,7 +170,8 @@ export async function awardDailyLogin(userId: string): Promise<number> {
  * Box-Muller transform: generate a standard normal random variable.
  */
 function randomNormal(): number {
-  let u = 0, v = 0;
+  let u = 0,
+    v = 0;
   while (u === 0) u = Math.random();
   while (v === 0) v = Math.random();
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);

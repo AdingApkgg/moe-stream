@@ -18,7 +18,7 @@ export const adminLinksRouter = router({
         description: z.string().max(200).optional(),
         sort: z.number().int().default(0),
         visible: z.boolean().default(true),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.friendLink.create({ data: input });
@@ -35,7 +35,7 @@ export const adminLinksRouter = router({
         description: z.string().max(200).optional(),
         sort: z.number().int().optional(),
         visible: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
@@ -49,5 +49,4 @@ export const adminLinksRouter = router({
       await ctx.prisma.friendLink.delete({ where: { id: input.id } });
       return { success: true };
     }),
-
 });

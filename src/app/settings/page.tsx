@@ -26,13 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast-with-sound";
 import { Loader2, Upload, Link, X, Images, MapPin, Globe, AtSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PRONOUNS_OPTIONS = [
   { value: "", label: "不设置" },
@@ -51,13 +45,15 @@ const profileSchema = z.object({
   pronouns: z.string().max(30).optional(),
   website: z.string().url("请输入有效的URL").or(z.literal("")).optional(),
   location: z.string().max(100).optional(),
-  socialLinks: z.object({
-    twitter: z.string().optional(),
-    github: z.string().optional(),
-    discord: z.string().optional(),
-    youtube: z.string().optional(),
-    pixiv: z.string().optional(),
-  }).optional(),
+  socialLinks: z
+    .object({
+      twitter: z.string().optional(),
+      github: z.string().optional(),
+      discord: z.string().optional(),
+      youtube: z.string().optional(),
+      pixiv: z.string().optional(),
+    })
+    .optional(),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
@@ -74,15 +70,11 @@ export default function ProfileSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
-  const { data: user, isLoading: userLoading } = trpc.user.me.useQuery(
-    undefined,
-    { enabled: !!session }
-  );
+  const { data: user, isLoading: userLoading } = trpc.user.me.useQuery(undefined, { enabled: !!session });
 
-  const { data: avatarGallery } = trpc.user.getAvatarGallery.useQuery(
-    undefined,
-    { enabled: !!session && avatarDialogOpen }
-  );
+  const { data: avatarGallery } = trpc.user.getAvatarGallery.useQuery(undefined, {
+    enabled: !!session && avatarDialogOpen,
+  });
 
   const updateMutation = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -119,9 +111,9 @@ export default function ProfileSettingsPage() {
     if (user) {
       const socialLinks = (user.socialLinks as Record<string, string>) || {};
       const pronounsValue = user.pronouns || "";
-      const isCustom = Boolean(pronounsValue && !PRONOUNS_OPTIONS.find(p => p.value === pronounsValue));
+      const isCustom = Boolean(pronounsValue && !PRONOUNS_OPTIONS.find((p) => p.value === pronounsValue));
       setCustomPronouns(isCustom);
-      
+
       form.reset({
         nickname: user.nickname || "",
         bio: user.bio || "",
@@ -170,7 +162,7 @@ export default function ProfileSettingsPage() {
 
     setPreviewUrl(URL.createObjectURL(file));
     setIsUploading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -215,9 +207,7 @@ export default function ProfileSettingsPage() {
       {/* 页面标题 */}
       <div>
         <h2 className="text-xl font-semibold">个人资料</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          管理你的公开个人信息
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">管理你的公开个人信息</p>
       </div>
 
       {/* 头像 */}
@@ -244,9 +234,18 @@ export default function ProfileSettingsPage() {
 
             <Tabs defaultValue="gallery" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="gallery"><Images className="h-4 w-4 mr-1.5" />选择</TabsTrigger>
-                <TabsTrigger value="upload"><Upload className="h-4 w-4 mr-1.5" />上传</TabsTrigger>
-                <TabsTrigger value="url"><Link className="h-4 w-4 mr-1.5" />URL</TabsTrigger>
+                <TabsTrigger value="gallery">
+                  <Images className="h-4 w-4 mr-1.5" />
+                  选择
+                </TabsTrigger>
+                <TabsTrigger value="upload">
+                  <Upload className="h-4 w-4 mr-1.5" />
+                  上传
+                </TabsTrigger>
+                <TabsTrigger value="url">
+                  <Link className="h-4 w-4 mr-1.5" />
+                  URL
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="gallery" className="mt-4">
@@ -257,7 +256,10 @@ export default function ProfileSettingsPage() {
                         <AvatarImage src={previewUrl} />
                       </Avatar>
                       <button
-                        onClick={() => { setPreviewUrl(null); setAvatarUrl(""); }}
+                        onClick={() => {
+                          setPreviewUrl(null);
+                          setAvatarUrl("");
+                        }}
                         className="absolute -top-1 -right-1 p-0.5 bg-destructive text-white rounded-full"
                       >
                         <X className="h-3 w-3" />
@@ -270,7 +272,10 @@ export default function ProfileSettingsPage() {
                         {avatarGallery.map((avatar, i) => (
                           <button
                             key={i}
-                            onClick={() => { setPreviewUrl(avatar); setAvatarUrl(avatar); }}
+                            onClick={() => {
+                              setPreviewUrl(avatar);
+                              setAvatarUrl(avatar);
+                            }}
                             className={`h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${
                               previewUrl === avatar ? "border-primary" : "border-transparent"
                             }`}
@@ -298,7 +303,11 @@ export default function ProfileSettingsPage() {
                         <AvatarImage src={previewUrl} />
                       </Avatar>
                       <button
-                        onClick={() => { setPreviewUrl(null); setAvatarUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                        onClick={() => {
+                          setPreviewUrl(null);
+                          setAvatarUrl("");
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
                         className="absolute -top-1 -right-1 p-0.5 bg-destructive text-white rounded-full"
                       >
                         <X className="h-3 w-3" />
@@ -309,20 +318,40 @@ export default function ProfileSettingsPage() {
                       onClick={() => fileInputRef.current?.click()}
                       className="h-24 w-24 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                     >
-                      {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
+                      {isUploading ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                      )}
                     </div>
                   )}
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
                   <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WebP, AVIF · 最大 5MB</p>
                 </div>
               </TabsContent>
 
               <TabsContent value="url" className="mt-4">
                 <div className="flex flex-col items-center gap-4">
-                  {previewUrl && <Avatar className="h-24 w-24"><AvatarImage src={previewUrl} /></Avatar>}
+                  {previewUrl && (
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={previewUrl} />
+                    </Avatar>
+                  )}
                   <div className="w-full flex gap-2">
-                    <Input placeholder="输入图片 URL" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
-                    <Button variant="secondary" onClick={() => avatarUrl && setPreviewUrl(avatarUrl)}>预览</Button>
+                    <Input
+                      placeholder="输入图片 URL"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                    />
+                    <Button variant="secondary" onClick={() => avatarUrl && setPreviewUrl(avatarUrl)}>
+                      预览
+                    </Button>
                   </div>
                 </div>
               </TabsContent>
@@ -330,11 +359,19 @@ export default function ProfileSettingsPage() {
 
             <DialogFooter className="gap-2 sm:gap-0">
               {user.avatar && (
-                <Button variant="ghost" onClick={() => updateAvatarMutation.mutateAsync({ avatar: "" })} disabled={updateAvatarMutation.isPending} className="text-destructive">
+                <Button
+                  variant="ghost"
+                  onClick={() => updateAvatarMutation.mutateAsync({ avatar: "" })}
+                  disabled={updateAvatarMutation.isPending}
+                  className="text-destructive"
+                >
                   移除
                 </Button>
               )}
-              <Button onClick={handleSaveAvatar} disabled={(!avatarUrl && !previewUrl) || updateAvatarMutation.isPending}>
+              <Button
+                onClick={handleSaveAvatar}
+                disabled={(!avatarUrl && !previewUrl) || updateAvatarMutation.isPending}
+              >
                 {updateAvatarMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 保存
               </Button>
@@ -389,18 +426,47 @@ export default function ProfileSettingsPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
-                    <AtSign className="h-3.5 w-3.5" />代词
+                    <AtSign className="h-3.5 w-3.5" />
+                    代词
                   </FormLabel>
                   {customPronouns ? (
                     <div className="flex gap-2">
-                      <FormControl><Input placeholder="自定义代词" {...field} /></FormControl>
-                      <Button type="button" variant="outline" size="sm" onClick={() => { setCustomPronouns(false); field.onChange(""); }}>选择</Button>
+                      <FormControl>
+                        <Input placeholder="自定义代词" {...field} />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setCustomPronouns(false);
+                          field.onChange("");
+                        }}
+                      >
+                        选择
+                      </Button>
                     </div>
                   ) : (
-                    <Select value={field.value || ""} onValueChange={(v) => { if (v === "custom") { setCustomPronouns(true); field.onChange(""); } else field.onChange(v); }}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="选择代词" /></SelectTrigger></FormControl>
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={(v) => {
+                        if (v === "custom") {
+                          setCustomPronouns(true);
+                          field.onChange("");
+                        } else field.onChange(v);
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择代词" />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
-                        {PRONOUNS_OPTIONS.map((o) => <SelectItem key={o.value || "none"} value={o.value || "none"}>{o.label}</SelectItem>)}
+                        {PRONOUNS_OPTIONS.map((o) => (
+                          <SelectItem key={o.value || "none"} value={o.value || "none"}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -414,9 +480,12 @@ export default function ProfileSettingsPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />所在地
+                    <MapPin className="h-3.5 w-3.5" />
+                    所在地
                   </FormLabel>
-                  <FormControl><Input placeholder="城市、国家" {...field} /></FormControl>
+                  <FormControl>
+                    <Input placeholder="城市、国家" {...field} />
+                  </FormControl>
                 </FormItem>
               )}
             />
@@ -428,9 +497,12 @@ export default function ProfileSettingsPage() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" />个人网站
+                  <Globe className="h-3.5 w-3.5" />
+                  个人网站
                 </FormLabel>
-                <FormControl><Input placeholder="https://example.com" {...field} className="max-w-md" /></FormControl>
+                <FormControl>
+                  <Input placeholder="https://example.com" {...field} className="max-w-md" />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -454,7 +526,9 @@ export default function ProfileSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm">{item.label}</FormLabel>
-                      <FormControl><Input placeholder={item.placeholder} {...field} value={field.value as string || ""} /></FormControl>
+                      <FormControl>
+                        <Input placeholder={item.placeholder} {...field} value={(field.value as string) || ""} />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

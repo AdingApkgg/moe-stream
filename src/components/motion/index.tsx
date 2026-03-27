@@ -191,13 +191,7 @@ interface FadeInProps {
  * 浏览器首次绘制时直接从 opacity:0 开始动画，
  * 不会出现「内容可见→消失→淡入」的闪烁。
  */
-export function FadeIn({
-  children,
-  className,
-  delay = 0,
-  duration = 0.4,
-  direction = "up",
-}: FadeInProps) {
+export function FadeIn({ children, className, delay = 0, duration = 0.4, direction = "up" }: FadeInProps) {
   const slideClass = SLIDE_CLASSES[direction] || "";
 
   return (
@@ -291,10 +285,7 @@ interface StaggerItemProps {
 export function StaggerItem({ children, className }: StaggerItemProps) {
   const shouldReduce = useReducedMotion();
   return (
-    <motion.div
-      className={className}
-      variants={shouldReduce ? fadeIn : staggerItem}
-    >
+    <motion.div className={className} variants={shouldReduce ? fadeIn : staggerItem}>
       {children}
     </motion.div>
   );

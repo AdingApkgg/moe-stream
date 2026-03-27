@@ -21,16 +21,12 @@ export async function createNotification(params: CreateNotificationParams) {
     },
   });
 
-  socketEmitter
-    .to(`user:${params.userId}`)
-    .emit("notification:new", notification);
+  socketEmitter.to(`user:${params.userId}`).emit("notification:new", notification);
 
   return notification;
 }
 
-export async function createBulkNotifications(
-  notifications: CreateNotificationParams[],
-) {
+export async function createBulkNotifications(notifications: CreateNotificationParams[]) {
   if (notifications.length === 0) return;
 
   const created = await prisma.$transaction(
@@ -48,9 +44,7 @@ export async function createBulkNotifications(
   );
 
   for (const notification of created) {
-    socketEmitter
-      .to(`user:${notification.userId}`)
-      .emit("notification:new", notification);
+    socketEmitter.to(`user:${notification.userId}`).emit("notification:new", notification);
   }
 
   return created;

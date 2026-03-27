@@ -5,7 +5,7 @@ import { useSiteConfig } from "@/contexts/site-config";
 
 export function Footer() {
   const config = useSiteConfig();
-  
+
   const siteName = config?.siteName || "ACGN Site";
   const footerLinks = config?.footerLinks || [];
   const icpBeian = config?.icpBeian;
@@ -17,11 +17,13 @@ export function Footer() {
       <div className="container py-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <p>© {new Date().getFullYear()} {siteName}</p>
+            <p>
+              © {new Date().getFullYear()} {siteName}
+            </p>
             {icpBeian && (
-              <a 
-                href="https://beian.miit.gov.cn/" 
-                target="_blank" 
+              <a
+                href="https://beian.miit.gov.cn/"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
@@ -29,9 +31,9 @@ export function Footer() {
               </a>
             )}
             {publicSecurityBeian && (
-              <a 
-                href="https://www.beian.gov.cn/" 
-                target="_blank" 
+              <a
+                href="https://www.beian.gov.cn/"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
@@ -68,9 +70,9 @@ export function Footer() {
               Sitemap
             </Link>
             {githubUrl && (
-              <a 
+              <a
                 href={githubUrl}
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
@@ -79,10 +81,10 @@ export function Footer() {
             )}
             {/* 自定义页脚链接 */}
             {footerLinks.map((link, index) => (
-              <a 
+              <a
                 key={index}
                 href={link.url}
-                target="_blank" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
               >
@@ -93,7 +95,7 @@ export function Footer() {
         </div>
         {/* 自定义页脚文本 */}
         {config?.footerText && (
-          <div 
+          <div
             className="mt-2 text-xs text-muted-foreground text-center"
             dangerouslySetInnerHTML={{ __html: config.footerText }}
           />

@@ -6,15 +6,7 @@ import { trpc } from "@/lib/trpc";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/zh-cn";
-import {
-  MessageSquare,
-  Heart,
-  Star,
-  Megaphone,
-  Mail,
-  Shield,
-  UserPlus,
-} from "lucide-react";
+import { MessageSquare, Heart, Star, Megaphone, Mail, Shield, UserPlus } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 
 dayjs.extend(relativeTime);
@@ -128,18 +120,12 @@ export function NotificationItem({ notification, onNavigate }: NotificationItemP
           <span className={cn("text-sm font-medium", !notification.isRead && "text-foreground")}>
             {notification.title}
           </span>
-          {!notification.isRead && (
-            <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
-          )}
+          {!notification.isRead && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
         </div>
         {notification.content && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-            {notification.content}
-          </p>
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{notification.content}</p>
         )}
-        <p className="text-[11px] text-muted-foreground/60 mt-1">
-          {dayjs(notification.createdAt).fromNow()}
-        </p>
+        <p className="text-[11px] text-muted-foreground/60 mt-1">{dayjs(notification.createdAt).fromNow()}</p>
       </div>
     </button>
   );

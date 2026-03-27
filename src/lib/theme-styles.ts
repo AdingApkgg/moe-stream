@@ -40,7 +40,13 @@ export function generateThemeCSS(config: Partial<ThemeConfig>): string {
 
   if (isDefault(resolved)) return "";
 
-  const { themeHue: h, themeColorTemp: temp, themeBorderRadius: r, themeGlassOpacity: glassOp, themeAnimations } = resolved;
+  const {
+    themeHue: h,
+    themeColorTemp: temp,
+    themeBorderRadius: r,
+    themeGlassOpacity: glassOp,
+    themeAnimations,
+  } = resolved;
 
   const accentHue = (h + 45) % 360;
 

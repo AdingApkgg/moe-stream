@@ -8,22 +8,18 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const step1Schema = z
   .object({
     email: z.string().email("请输入有效的邮箱地址"),
-    username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
+    username: z
+      .string()
+      .min(3, "用户名至少3个字符")
+      .max(20, "用户名最多20个字符")
+      .regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
     password: z.string().min(6, "密码至少6个字符"),
     confirmPassword: z.string(),
     nickname: z.string().optional(),

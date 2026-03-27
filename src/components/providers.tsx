@@ -13,14 +13,13 @@ import dynamic from "next/dynamic";
 import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { SocketProvider } from "@/components/socket-provider";
 
-const ParticleBackground = dynamic(
-  () => import("@/components/effects/particle-background"),
-  { ssr: false },
-);
+const ParticleBackground = dynamic(() => import("@/components/effects/particle-background"), { ssr: false });
 
 class EffectErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.warn("[ParticleBackground] Effect failed:", error, info);
   }
@@ -114,7 +113,7 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
             refetchOnWindowFocus: false,
           },
         },
-      })
+      }),
   );
 
   const [trpcClient] = useState(() =>
@@ -125,40 +124,40 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
           transformer: superjson,
         }),
       ],
-    })
+    }),
   );
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SiteConfigProvider value={siteConfig}>
-                <ServiceWorkerRegistration />
-                {siteConfig.effectEnabled && siteConfig.effectType !== "none" && (
-                  <EffectErrorBoundary>
-                    <ParticleBackground
-                      config={{
-                        type: siteConfig.effectType as "sakura" | "firefly" | "snow" | "stars" | "aurora" | "cyber" | "none",
-                        density: siteConfig.effectDensity,
-                        speed: siteConfig.effectSpeed,
-                        opacity: siteConfig.effectOpacity,
-                        color: siteConfig.effectColor,
-                      }}
-                    />
-                  </EffectErrorBoundary>
-                )}
-                <SocketProvider>
-                  {children}
-                </SocketProvider>
-                <Toaster richColors position="top-center" />
-                <AnalyticsScripts config={siteConfig} />
-            </SiteConfigProvider>
-          </ThemeProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <SiteConfigProvider value={siteConfig}>
+            <ServiceWorkerRegistration />
+            {siteConfig.effectEnabled && siteConfig.effectType !== "none" && (
+              <EffectErrorBoundary>
+                <ParticleBackground
+                  config={{
+                    type: siteConfig.effectType as
+                      | "sakura"
+                      | "firefly"
+                      | "snow"
+                      | "stars"
+                      | "aurora"
+                      | "cyber"
+                      | "none",
+                    density: siteConfig.effectDensity,
+                    speed: siteConfig.effectSpeed,
+                    opacity: siteConfig.effectOpacity,
+                    color: siteConfig.effectColor,
+                  }}
+                />
+              </EffectErrorBoundary>
+            )}
+            <SocketProvider>{children}</SocketProvider>
+            <Toaster richColors position="top-center" />
+            <AnalyticsScripts config={siteConfig} />
+          </SiteConfigProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

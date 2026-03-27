@@ -20,11 +20,17 @@ export const adminStickersRouter = router({
   }),
 
   createStickerPack: adminProcedure
-    .input(z.object({
-      name: z.string().min(1).max(50),
-      slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
-      coverUrl: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1).max(50),
+        slug: z
+          .string()
+          .min(1)
+          .max(50)
+          .regex(/^[a-z0-9-]+$/),
+        coverUrl: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.stickerPack.create({
         data: {
@@ -36,43 +42,48 @@ export const adminStickersRouter = router({
     }),
 
   updateStickerPack: adminProcedure
-    .input(z.object({
-      id: z.string(),
-      name: z.string().min(1).max(50).optional(),
-      slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
-      coverUrl: z.string().nullable().optional(),
-      isActive: z.boolean().optional(),
-      sortOrder: z.number().int().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(50).optional(),
+        slug: z
+          .string()
+          .min(1)
+          .max(50)
+          .regex(/^[a-z0-9-]+$/)
+          .optional(),
+        coverUrl: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+        sortOrder: z.number().int().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.prisma.stickerPack.update({ where: { id }, data });
     }),
 
-  deleteStickerPack: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.stickerPack.delete({ where: { id: input.id } });
-      return { success: true };
-    }),
+  deleteStickerPack: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await ctx.prisma.stickerPack.delete({ where: { id: input.id } });
+    return { success: true };
+  }),
 
-  listStickers: adminProcedure
-    .input(z.object({ packId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.sticker.findMany({
-        where: { packId: input.packId },
-        orderBy: { sortOrder: "asc" },
-      });
-    }),
+  listStickers: adminProcedure.input(z.object({ packId: z.string() })).query(async ({ ctx, input }) => {
+    return ctx.prisma.sticker.findMany({
+      where: { packId: input.packId },
+      orderBy: { sortOrder: "asc" },
+    });
+  }),
 
   addSticker: adminProcedure
-    .input(z.object({
-      packId: z.string(),
-      name: z.string().min(1).max(50),
-      imageUrl: z.string(),
-      width: z.number().int().optional(),
-      height: z.number().int().optional(),
-    }))
+    .input(
+      z.object({
+        packId: z.string(),
+        name: z.string().min(1).max(50),
+        imageUrl: z.string(),
+        width: z.number().int().optional(),
+        height: z.number().int().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const maxSort = await ctx.prisma.sticker.aggregate({
         where: { packId: input.packId },
@@ -91,34 +102,34 @@ export const adminStickersRouter = router({
     }),
 
   updateSticker: adminProcedure
-    .input(z.object({
-      id: z.string(),
-      name: z.string().min(1).max(50).optional(),
-      imageUrl: z.string().optional(),
-      sortOrder: z.number().int().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(50).optional(),
+        imageUrl: z.string().optional(),
+        sortOrder: z.number().int().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.prisma.sticker.update({ where: { id }, data });
     }),
 
-  deleteSticker: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.sticker.delete({ where: { id: input.id } });
-      return { success: true };
-    }),
+  deleteSticker: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await ctx.prisma.sticker.delete({ where: { id: input.id } });
+    return { success: true };
+  }),
 
   reorderStickers: adminProcedure
-    .input(z.object({
-      packId: z.string(),
-      stickerIds: z.array(z.string()),
-    }))
+    .input(
+      z.object({
+        packId: z.string(),
+        stickerIds: z.array(z.string()),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.$transaction(
-        input.stickerIds.map((id, index) =>
-          ctx.prisma.sticker.update({ where: { id }, data: { sortOrder: index } })
-        )
+        input.stickerIds.map((id, index) => ctx.prisma.sticker.update({ where: { id }, data: { sortOrder: index } })),
       );
       return { success: true };
     }),
@@ -127,21 +138,26 @@ export const adminStickersRouter = router({
     .input(z.object({ packIds: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.$transaction(
-        input.packIds.map((id, index) =>
-          ctx.prisma.stickerPack.update({ where: { id }, data: { sortOrder: index } })
-        )
+        input.packIds.map((id, index) => ctx.prisma.stickerPack.update({ where: { id }, data: { sortOrder: index } })),
       );
       return { success: true };
     }),
 
   importStickersFromUrl: adminProcedure
-    .input(z.object({
-      packId: z.string(),
-      items: z.array(z.object({
-        url: z.string().url(),
-        name: z.string().optional(),
-      })).min(1).max(50),
-    }))
+    .input(
+      z.object({
+        packId: z.string(),
+        items: z
+          .array(
+            z.object({
+              url: z.string().url(),
+              name: z.string().optional(),
+            }),
+          )
+          .min(1)
+          .max(50),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const config = await getServerConfig();
       const stickerDir = join(config.uploadDir, "sticker");
@@ -167,7 +183,13 @@ export const adminStickersRouter = router({
           const { data: processed, filename, width, height } = await processSticker(buffer, "import");
           await writeFile(join(stickerDir, filename), processed);
 
-          const stickerName = item.name || item.url.split("/").pop()?.replace(/\.[^.]+$/, "") || "sticker";
+          const stickerName =
+            item.name ||
+            item.url
+              .split("/")
+              .pop()
+              ?.replace(/\.[^.]+$/, "") ||
+            "sticker";
           await ctx.prisma.sticker.create({
             data: {
               packId: input.packId,
@@ -189,16 +211,28 @@ export const adminStickersRouter = router({
 
   listStickerPresets: adminProcedure.query(() => {
     return STICKER_PRESETS.map(({ id, name, slug, source, description, preview }) => ({
-      id, name, slug, source, description, preview,
+      id,
+      name,
+      slug,
+      source,
+      description,
+      preview,
     }));
   }),
 
   importPresetPack: adminProcedure
-    .input(z.object({
-      presetId: z.string(),
-      customName: z.string().min(1).max(50).optional(),
-      customSlug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
-    }))
+    .input(
+      z.object({
+        presetId: z.string(),
+        customName: z.string().min(1).max(50).optional(),
+        customSlug: z
+          .string()
+          .min(1)
+          .max(50)
+          .regex(/^[a-z0-9-]+$/)
+          .optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const preset = STICKER_PRESETS.find((p) => p.id === input.presetId);
       if (!preset) throw new TRPCError({ code: "NOT_FOUND", message: "预设不存在" });
@@ -280,10 +314,17 @@ export const adminStickersRouter = router({
     }),
 
   importFromExternalUrl: adminProcedure
-    .input(z.object({
-      url: z.string().url(),
-      slugPrefix: z.string().min(1).max(30).regex(/^[a-z0-9-]+$/).optional(),
-    }))
+    .input(
+      z.object({
+        url: z.string().url(),
+        slugPrefix: z
+          .string()
+          .min(1)
+          .max(30)
+          .regex(/^[a-z0-9-]+$/)
+          .optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const resolvedPacks = await resolveExternalUrl(input.url);
       const totalItems = resolvedPacks.reduce((s, p) => s + p.items.length, 0);
@@ -302,8 +343,12 @@ export const adminStickersRouter = router({
       );
 
       const autoSlug = (name: string, idx: number): string => {
-        const base = (input.slugPrefix ? `${input.slugPrefix}-` : "") +
-          (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `pack-${idx}`);
+        const base =
+          (input.slugPrefix ? `${input.slugPrefix}-` : "") +
+          (name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") || `pack-${idx}`);
         let slug = base;
         let n = 2;
         while (existingSlugs.has(slug)) {
@@ -399,7 +444,7 @@ export const adminStickersRouter = router({
         itemIds: z.array(z.string()).min(1),
         contentType: z.enum(["video", "game", "image", "series"]),
         toUserId: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const batchLimit = await getAdminBatchLimit(ctx.prisma);

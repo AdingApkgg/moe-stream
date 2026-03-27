@@ -9,10 +9,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FavoritesLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function FavoritesLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

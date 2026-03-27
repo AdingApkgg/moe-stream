@@ -28,7 +28,10 @@ export function DropZone({ id, accept = ".json", fileName, summary, hint, onFile
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       className={cn(
@@ -36,7 +39,7 @@ export function DropZone({ id, accept = ".json", fileName, summary, hint, onFile
         dragOver
           ? "border-primary bg-primary/5 scale-[1.01]"
           : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30",
-        hasData && "border-green-500/50 bg-green-500/5"
+        hasData && "border-green-500/50 bg-green-500/5",
       )}
       onClick={() => document.getElementById(id)?.click()}
     >
@@ -63,7 +66,10 @@ export function DropZone({ id, accept = ".json", fileName, summary, hint, onFile
               variant="ghost"
               size="sm"
               className="text-xs"
-              onClick={(e) => { e.stopPropagation(); onClear(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
             >
               <X className="h-3 w-3 mr-1" /> 清除
             </Button>

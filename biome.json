@@ -24,6 +24,11 @@
   "assist": {
     "enabled": false
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "files": {
     "includes": [
       "**",
@@ -34,7 +39,8 @@
       "!src/generated/**",
       "!public/sw.js",
       "!public/ccl*.js",
-      "!pnpm-lock.yaml"
+      "!pnpm-lock.yaml",
+      "!.claude/**"
     ]
   }
 }

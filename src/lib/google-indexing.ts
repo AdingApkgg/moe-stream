@@ -21,7 +21,7 @@ async function getAccessToken(): Promise<string | null> {
 
   try {
     const now = Math.floor(Date.now() / 1000);
-    
+
     const formattedKey = privateKey.replace(/\\n/g, "\n");
     const key = await importPKCS8(formattedKey, "RS256");
 
@@ -66,7 +66,7 @@ export async function submitSitemapToGoogle(): Promise<boolean> {
   const token = await getAccessToken();
   const config = await getServerConfig();
   const appUrl = config.siteUrl;
-  
+
   if (!token || !appUrl) {
     return false;
   }
@@ -74,16 +74,13 @@ export async function submitSitemapToGoogle(): Promise<boolean> {
   try {
     const siteUrl = encodeURIComponent(appUrl);
     const sitemapUrl = encodeURIComponent(`${appUrl}/sitemap.xml`);
-    
-    const response = await fetch(
-      `https://www.googleapis.com/webmasters/v3/sites/${siteUrl}/sitemaps/${sitemapUrl}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+
+    const response = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${siteUrl}/sitemaps/${sitemapUrl}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (response.ok || response.status === 204) {
       console.log("Google Search Console: Sitemap 提交成功");

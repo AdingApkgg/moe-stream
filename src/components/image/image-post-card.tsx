@@ -107,9 +107,7 @@ function ImagePostCardComponent({ post, index = 0 }: ImagePostCardProps) {
             {post.title}
           </h3>
           {post.description && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">
-              {post.description}
-            </p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{post.description}</p>
           )}
           <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
             {post.uploader.nickname || post.uploader.username} · {formatRelativeTime(post.createdAt)}
@@ -121,9 +119,5 @@ function ImagePostCardComponent({ post, index = 0 }: ImagePostCardProps) {
 }
 
 export const ImagePostCard = memo(ImagePostCardComponent, (prev, next) => {
-  return (
-    prev.post.id === next.post.id &&
-    prev.post.views === next.post.views &&
-    prev.index === next.index
-  );
+  return prev.post.id === next.post.id && prev.post.views === next.post.views && prev.index === next.index;
 });

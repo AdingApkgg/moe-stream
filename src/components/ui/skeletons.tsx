@@ -14,12 +14,12 @@ export function VideoCardSkeleton({ className }: VideoCardSkeletonProps) {
     <div className={cn("space-y-3", className)}>
       {/* 封面骨架 */}
       <Skeleton className="aspect-video rounded-xl" />
-      
+
       {/* 信息区域骨架 */}
       <div className="flex gap-3">
         {/* 头像 */}
         <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
-        
+
         {/* 标题和作者 */}
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-full" />
@@ -44,7 +44,7 @@ export function VideoGridSkeleton({ count = 12, className }: VideoGridSkeletonPr
       className={cn(
         "grid gap-4 sm:gap-5 md:gap-6",
         "grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-        className
+        className,
       )}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -120,13 +120,7 @@ export function TableRowSkeleton({ columns = 5, className }: TableRowSkeletonPro
   return (
     <div className={cn("flex items-center gap-4 p-4", className)}>
       {Array.from({ length: columns }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className={cn(
-            "h-4",
-            i === 0 ? "w-8" : i === columns - 1 ? "w-16" : "flex-1"
-          )}
-        />
+        <Skeleton key={i} className={cn("h-4", i === 0 ? "w-8" : i === columns - 1 ? "w-16" : "flex-1")} />
       ))}
     </div>
   );

@@ -78,7 +78,7 @@ function parseHttpHeaders(raw: unknown): Record<string, string> {
       Object.entries(parsed)
         .filter(([k, v]) => typeof k === "string" && typeof v === "string")
         .map(([k, v]) => [k.trim(), v.trim()])
-        .filter(([k, v]) => k.length > 0 && v.length > 0)
+        .filter(([k, v]) => k.length > 0 && v.length > 0),
     );
   } catch {
     return {};
@@ -109,7 +109,7 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
         if (!row) {
           console.warn(
             "[ServerConfig] 数据库中未找到 SiteConfig 记录（id=default），返回默认配置。" +
-            "如果你的后台设置丢失，请检查数据库是否被重置。"
+              "如果你的后台设置丢失，请检查数据库是否被重置。",
           );
           throw new Error("SiteConfig not available");
         }
@@ -126,18 +126,9 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
         const mailSendMode = (row.mailSendMode as string) === "http_api" ? "http_api" : "smtp";
 
         return {
-          siteUrl:
-            (row.siteUrl as string) ||
-            process.env.NEXT_PUBLIC_APP_URL ||
-            "http://localhost:3000",
-          siteName:
-            (row.siteName as string) ||
-            process.env.NEXT_PUBLIC_APP_NAME ||
-            "ACGN Site",
-          uploadDir:
-            (row.uploadDir as string) ||
-            process.env.UPLOAD_DIR ||
-            "./uploads",
+          siteUrl: (row.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          siteName: (row.siteName as string) || process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
+          uploadDir: (row.uploadDir as string) || process.env.UPLOAD_DIR || "./uploads",
           mailSendMode,
           smtp: hasSmtp
             ? {
@@ -157,15 +148,14 @@ export const getServerConfig = cache(async (): Promise<ServerConfig> => {
               }
             : null,
           indexNowKey: (row.indexNowKey as string) || null,
-          googleServiceAccountEmail:
-            (row.googleServiceAccountEmail as string) || null,
+          googleServiceAccountEmail: (row.googleServiceAccountEmail as string) || null,
           googlePrivateKey: (row.googlePrivateKey as string) || null,
           turnstileSecretKey: (row.turnstileSecretKey as string) || null,
           recaptchaSecretKey: (row.recaptchaSecretKey as string) || null,
           hcaptchaSecretKey: (row.hcaptchaSecretKey as string) || null,
         };
       },
-      300
+      300,
     );
   } catch {
     return defaultConfig;

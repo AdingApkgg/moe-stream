@@ -1,12 +1,12 @@
 /**
  * 封面图片代理和缓存 API
- * 
+ *
  * 功能：
  * 1. 代理外部图片（解决 CORS 问题）
  * 2. 本地缓存图片（减少重复请求）
  * 3. 自动从视频生成封面（使用 ffmpeg）
  * 4. 支持 ?w=&h=&q= 参数生成缩略图（sharp 缩放 + WebP）
- * 
+ *
  * 使用方式：
  * - /api/cover/https://example.com/image.jpg - 代理外部图片
  * - /api/cover/video/123456 - 自动生成视频封面
@@ -24,15 +24,15 @@ import { getServerConfig } from "@/lib/server-config";
 
 const CACHE_DIR = path.join(process.cwd(), "public", "cache", "covers");
 
-const PLACEHOLDER_GIF = Buffer.from(
-  "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-  "base64"
-);
+const PLACEHOLDER_GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
 
 let cacheDirPromise: Promise<void> | null = null;
 function ensureCacheDir(): Promise<void> {
   if (!cacheDirPromise) {
-    cacheDirPromise = fs.mkdir(CACHE_DIR, { recursive: true }).then(() => {}).catch(() => {});
+    cacheDirPromise = fs
+      .mkdir(CACHE_DIR, { recursive: true })
+      .then(() => {})
+      .catch(() => {});
   }
   return cacheDirPromise;
 }
@@ -76,10 +76,7 @@ async function getThumbCacheFile(cacheKey: string, thumb: ThumbParams): Promise<
   return path.join(CACHE_DIR, `${hash}.webp`);
 }
 
-async function resizeImage(
-  data: Buffer,
-  params: ThumbParams
-): Promise<Buffer> {
+async function resizeImage(data: Buffer, params: ThumbParams): Promise<Buffer> {
   return sharp(data)
     .resize(params.w, params.h, { fit: "cover", withoutEnlargement: true })
     .webp({ quality: params.q ?? 70 })
@@ -122,7 +119,7 @@ function getContentType(ext: string): string {
 
 function getPreferredFormat(acceptHeader: string | null): { ext: string; contentType: string }[] {
   const formats: { ext: string; contentType: string; priority: number }[] = [];
-  
+
   if (acceptHeader?.includes("image/avif")) {
     formats.push({ ext: ".avif", contentType: "image/avif", priority: 1 });
   }
@@ -130,7 +127,7 @@ function getPreferredFormat(acceptHeader: string | null): { ext: string; content
     formats.push({ ext: ".webp", contentType: "image/webp", priority: 2 });
   }
   formats.push({ ext: ".jpg", contentType: "image/jpeg", priority: 3 });
-  
+
   return formats.sort((a, b) => a.priority - b.priority);
 }
 
@@ -142,13 +139,7 @@ async function tryFetchThumbnailFromCDN(videoUrl: string): Promise<Buffer | null
 
   if (/\.m3u8$/i.test(videoUrl)) {
     const base = videoUrl.replace(/\.m3u8$/i, "");
-    thumbPatterns.push(
-      `${base}.jpg`,
-      `${base}_thumb.jpg`,
-      `${base}_poster.jpg`,
-      `${base}.png`,
-      `${base}.webp`,
-    );
+    thumbPatterns.push(`${base}.jpg`, `${base}_thumb.jpg`, `${base}_poster.jpg`, `${base}.png`, `${base}.webp`);
   } else {
     thumbPatterns.push(
       videoUrl.replace(/\.mp4$/i, "_thumb.jpg"),
@@ -193,12 +184,9 @@ async function serveLocalFile(localPath: string): Promise<Response | null> {
 
 // ==================== 主请求处理 ====================
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path: pathSegments } = await params;
-  
+
   if (!pathSegments || pathSegments.length === 0) {
     return NextResponse.json({ error: "Missing path" }, { status: 400 });
   }
@@ -254,10 +242,7 @@ export async function GET(
 
 // ==================== 原图请求处理（不含缩略图逻辑） ====================
 
-async function handleOriginalRequest(
-  request: NextRequest,
-  pathSegments: string[]
-): Promise<Response> {
+async function handleOriginalRequest(request: NextRequest, pathSegments: string[]): Promise<Response> {
   // 处理视频封面请求：/api/cover/video/123456
   if (pathSegments[0] === "video" && pathSegments[1]) {
     return handleVideoCover(request, pathSegments[1]);
@@ -267,33 +252,23 @@ async function handleOriginalRequest(
   const rawImageUrl = pathSegments.join("/");
   const imageUrl = decodeURIComponent(rawImageUrl);
 
-  const normalizedLocalPath = imageUrl.startsWith("/")
-    ? imageUrl.slice(1)
-    : imageUrl;
+  const normalizedLocalPath = imageUrl.startsWith("/") ? imageUrl.slice(1) : imageUrl;
   const config = await getServerConfig();
   const uploadsRoot = path.join(process.cwd(), config.uploadDir);
   const candidateLocalPath = path.join(process.cwd(), normalizedLocalPath);
-  if (
-    normalizedLocalPath.startsWith("uploads/") &&
-    candidateLocalPath.startsWith(uploadsRoot)
-  ) {
+  if (normalizedLocalPath.startsWith("uploads/") && candidateLocalPath.startsWith(uploadsRoot)) {
     const resp = await serveLocalFile(candidateLocalPath);
     if (resp) return resp;
 
-    const coverMatch = normalizedLocalPath.match(
-      /^uploads\/cover\/([^/]+)\.\w+$/
-    );
+    const coverMatch = normalizedLocalPath.match(/^uploads\/cover\/([^/]+)\.\w+$/);
     if (coverMatch) {
       const videoId = coverMatch[1];
-      return NextResponse.redirect(
-        new URL(`/api/cover/video/${videoId}`, request.url),
-        307
-      );
+      return NextResponse.redirect(new URL(`/api/cover/video/${videoId}`, request.url), 307);
     }
 
     return NextResponse.json({ error: "Local image not found" }, { status: 404 });
   }
-  
+
   let url: URL;
   try {
     url = new URL(imageUrl);
@@ -351,10 +326,7 @@ async function handleOriginalRequest(
 
 // ==================== 视频封面处理 ====================
 
-async function handleVideoCover(
-  request: NextRequest,
-  videoId: string
-): Promise<Response> {
+async function handleVideoCover(request: NextRequest, videoId: string): Promise<Response> {
   const video = await prisma.video.findUnique({
     where: { id: videoId },
     select: { coverUrl: true, videoUrl: true },
@@ -372,14 +344,12 @@ async function handleVideoCover(
       if (localPath) {
         const resp = await serveLocalFile(localPath);
         if (resp) return resp;
-        prisma.video
-          .update({ where: { id: videoId }, data: { coverUrl: null } })
-          .catch(() => {});
+        prisma.video.update({ where: { id: videoId }, data: { coverUrl: null } }).catch(() => {});
       }
     } else {
       await ensureCacheDir();
       const cacheFile = path.join(CACHE_DIR, await getCacheFileName(video.coverUrl));
-      
+
       try {
         const cached = await fs.readFile(cacheFile);
         const ext = path.extname(cacheFile);
@@ -429,7 +399,7 @@ async function handleVideoCover(
         headers: {
           "Content-Type": format.contentType,
           "Cache-Control": "public, max-age=31536000, immutable",
-          "Vary": "Accept",
+          Vary: "Accept",
         },
       });
     } catch {
@@ -441,12 +411,12 @@ async function handleVideoCover(
   if (cdnThumbnail) {
     const cdnCoverPath = path.join(coverDir, `${videoId}.jpg`);
     await fs.writeFile(cdnCoverPath, cdnThumbnail).catch(() => {});
-    
+
     return new Response(new Uint8Array(cdnThumbnail), {
       headers: {
         "Content-Type": "image/jpeg",
         "Cache-Control": "public, max-age=31536000, immutable",
-        "Vary": "Accept",
+        Vary: "Accept",
       },
     });
   }

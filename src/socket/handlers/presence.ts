@@ -19,11 +19,7 @@ const redis = new Redis(parseRedisUrl(REDIS_URL));
 const ONLINE_TTL = 60;
 const HEARTBEAT_INTERVAL = 30_000;
 
-async function broadcastPresenceToContacts(
-  io: Server,
-  userId: string,
-  event: "presence:online" | "presence:offline",
-) {
+async function broadcastPresenceToContacts(io: Server, userId: string, event: "presence:online" | "presence:offline") {
   try {
     const participations = await prisma.conversationParticipant.findMany({
       where: { userId },

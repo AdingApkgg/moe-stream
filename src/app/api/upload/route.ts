@@ -21,23 +21,23 @@ interface ImageConfig {
 }
 
 const IMAGE_CONFIG: Record<string, ImageConfig> = {
-  avatar: { 
-    width: 256, 
-    height: 256, 
+  avatar: {
+    width: 256,
+    height: 256,
     format: "avif",
     quality: 100,
     lossless: true,
   },
-  cover: { 
+  cover: {
     width: 1920,
-    height: 1080, 
+    height: 1080,
     format: "avif",
     quality: 100,
     lossless: true,
   },
-  misc: { 
-    width: 1920, 
-    height: 1080, 
+  misc: {
+    width: 1920,
+    height: 1080,
     format: "webp",
     quality: 85,
     lossless: false,
@@ -71,16 +71,13 @@ export async function POST(request: NextRequest) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: "不支持的文件类型，请上传 JPEG、PNG、GIF、WebP 或 AVIF 图片" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // 检查大小限制
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `文件大小不能超过 ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `文件大小不能超过 ${MAX_FILE_SIZE / 1024 / 1024}MB` }, { status: 400 });
     }
 
     const config = await getServerConfig();
@@ -107,30 +104,28 @@ export async function POST(request: NextRequest) {
       compressionMode = "none";
     } else {
       const config = IMAGE_CONFIG[uploadType] || IMAGE_CONFIG.misc;
-      
+
       try {
         // 获取原始图片信息
         const imageInfo = await sharp(inputBuffer).metadata();
         metadata = { width: imageInfo.width, height: imageInfo.height };
-        
+
         // 使用 sharp 进行处理
         let sharpInstance = sharp(inputBuffer, { animated: false });
-        
+
         // 根据类型调整尺寸
         if (uploadType === "avatar") {
-          sharpInstance = sharpInstance
-            .resize(config.width, config.height, {
-              fit: "cover",
-              position: "centre",
-            });
+          sharpInstance = sharpInstance.resize(config.width, config.height, {
+            fit: "cover",
+            position: "centre",
+          });
         } else {
-          sharpInstance = sharpInstance
-            .resize(config.width, config.height, {
-              fit: "inside",
-              withoutEnlargement: true,
-            });
+          sharpInstance = sharpInstance.resize(config.width, config.height, {
+            fit: "inside",
+            withoutEnlargement: true,
+          });
         }
-        
+
         // 根据配置选择输出格式
         if (config.format === "avif") {
           outputBuffer = await sharpInstance
@@ -144,8 +139,8 @@ export async function POST(request: NextRequest) {
           compressionMode = config.lossless ? "lossless" : "lossy";
         } else {
           outputBuffer = await sharpInstance
-            .webp({ 
-              quality: config.quality, 
+            .webp({
+              quality: config.quality,
               effort: 4,
               lossless: config.lossless,
             })
@@ -153,11 +148,11 @@ export async function POST(request: NextRequest) {
           outputExt = "webp";
           compressionMode = config.lossless ? "lossless" : "lossy";
         }
-        
+
         // 如果压缩后比原图大很多，回退到有损压缩
         if (config.lossless && outputBuffer.length > originalSize * 1.5) {
           console.log(`无损压缩后体积过大，回退到有损压缩`);
-          
+
           if (config.format === "avif") {
             outputBuffer = await sharp(inputBuffer)
               .resize(config.width, config.height, {

@@ -10,9 +10,7 @@ export default function NotFound() {
         <div className="space-y-2">
           <h1 className="text-8xl font-bold text-primary">404</h1>
           <h2 className="text-xl font-medium">页面不存在</h2>
-          <p className="text-muted-foreground">
-            你访问的页面可能已被删除、移动或从未存在过
-          </p>
+          <p className="text-muted-foreground">你访问的页面可能已被删除、移动或从未存在过</p>
         </div>
 
         {/* 操作按钮 */}

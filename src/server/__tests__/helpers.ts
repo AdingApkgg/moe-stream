@@ -40,9 +40,7 @@ function createMockRedis() {
   } as unknown as Context["redis"];
 }
 
-export function createMockSession(
-  overrides?: DeepPartial<AppSession>,
-): AppSession {
+export function createMockSession(overrides?: DeepPartial<AppSession>): AppSession {
   return {
     user: {
       id: "test-user-id",
@@ -63,9 +61,7 @@ export function createMockSession(
   };
 }
 
-export function createMockContext(
-  overrides?: Partial<Context>,
-): Context {
+export function createMockContext(overrides?: Partial<Context>): Context {
   return {
     prisma: createMockPrisma(),
     redis: createMockRedis(),
@@ -87,20 +83,10 @@ export function createAuthedContext(
   });
 }
 
-export function createAdminContext(
-  contextOverrides?: Partial<Omit<Context, "session">>,
-): Context {
-  return createAuthedContext(
-    { user: { role: "ADMIN" } },
-    contextOverrides,
-  );
+export function createAdminContext(contextOverrides?: Partial<Omit<Context, "session">>): Context {
+  return createAuthedContext({ user: { role: "ADMIN" } }, contextOverrides);
 }
 
-export function createOwnerContext(
-  contextOverrides?: Partial<Omit<Context, "session">>,
-): Context {
-  return createAuthedContext(
-    { user: { role: "OWNER" } },
-    contextOverrides,
-  );
+export function createOwnerContext(contextOverrides?: Partial<Omit<Context, "session">>): Context {
+  return createAuthedContext({ user: { role: "OWNER" } }, contextOverrides);
 }

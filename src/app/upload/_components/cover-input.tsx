@@ -52,7 +52,9 @@ export function CoverInput({ form, fieldName = "coverUrl", watchValue, contentTy
               src={coverUrl}
               alt="封面预览"
               className="w-full h-full object-cover"
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
             <Button
               type="button"

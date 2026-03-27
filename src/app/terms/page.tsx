@@ -12,11 +12,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function TermsPage() {
-  return (
-    <LegalPage
-      field="termsOfService"
-      title="服务条款"
-      icon={<FileText className="h-6 w-6 text-primary" />}
-    />
-  );
+  return <LegalPage field="termsOfService" title="服务条款" icon={<FileText className="h-6 w-6 text-primary" />} />;
 }

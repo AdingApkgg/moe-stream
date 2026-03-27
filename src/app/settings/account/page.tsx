@@ -12,24 +12,43 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import { Loader2, Check, Link2, Unlink, Fingerprint, ShieldCheck, Plus, Trash2, Pencil, Copy, Eye, EyeOff } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  Link2,
+  Unlink,
+  Fingerprint,
+  ShieldCheck,
+  Plus,
+  Trash2,
+  Pencil,
+  Copy,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { PROVIDER_CONFIG, type OAuthProvider } from "@/components/auth/social-login-buttons";
 import { useSiteConfig } from "@/contexts/site-config";
 import QRCode from "react-qr-code";
 
 const accountSchema = z.object({
-  username: z.string().min(3, "用户名至少3个字符").max(20, "用户名最多20个字符").regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
+  username: z
+    .string()
+    .min(3, "用户名至少3个字符")
+    .max(20, "用户名最多20个字符")
+    .regex(/^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
   email: z.string().email("请输入有效的邮箱地址"),
 });
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, "请输入当前密码"),
-  newPassword: z.string().min(6, "新密码至少6个字符"),
-  confirmPassword: z.string().min(1, "请确认新密码"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "两次输入的密码不一致",
-  path: ["confirmPassword"],
-});
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "请输入当前密码"),
+    newPassword: z.string().min(6, "新密码至少6个字符"),
+    confirmPassword: z.string().min(1, "请确认新密码"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "两次输入的密码不一致",
+    path: ["confirmPassword"],
+  });
 
 interface LinkedAccount {
   id: string;
@@ -50,10 +69,10 @@ function normalizeAccounts(raw: unknown[]): LinkedAccount[] {
 
 const LINK_ERROR_MESSAGES: Record<string, string> = {
   "email_doesn't_match": "第三方账号邮箱与当前账号邮箱不一致",
-  "account_already_linked_to_different_user": "该第三方账号已被其他用户绑定",
-  "unable_to_link_account": "无法绑定该第三方账号",
-  "state_mismatch": "登录状态已过期，请重试",
-  "please_restart_the_process": "操作超时，请重试",
+  account_already_linked_to_different_user: "该第三方账号已被其他用户绑定",
+  unable_to_link_account: "无法绑定该第三方账号",
+  state_mismatch: "登录状态已过期，请重试",
+  please_restart_the_process: "操作超时，请重试",
 };
 
 function OAuthAccountSection() {
@@ -81,9 +100,7 @@ function OAuthAccountSection() {
     }
   }, [searchParams, router]);
 
-  const availableProviders = (siteConfig?.oauthProviders ?? []).filter(
-    (p): p is OAuthProvider => p in PROVIDER_CONFIG,
-  );
+  const availableProviders = (siteConfig?.oauthProviders ?? []).filter((p): p is OAuthProvider => p in PROVIDER_CONFIG);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -102,13 +119,9 @@ function OAuthAccountSection() {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  const linkedProviderIds = new Set(
-    linkedAccounts.map((a) => a.providerId),
-  );
+  const linkedProviderIds = new Set(linkedAccounts.map((a) => a.providerId));
 
-  const hasCredentialAccount = linkedAccounts.some(
-    (a) => a.providerId === "credential",
-  );
+  const hasCredentialAccount = linkedAccounts.some((a) => a.providerId === "credential");
 
   function resetLinkLoading() {
     setActionLoading(null);
@@ -183,9 +196,7 @@ function OAuthAccountSection() {
   return (
     <div className="pb-6 border-b">
       <h3 className="font-medium mb-1">第三方账号绑定</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        绑定后可使用第三方账号快捷登录
-      </p>
+      <p className="text-sm text-muted-foreground mb-4">绑定后可使用第三方账号快捷登录</p>
       {isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-12 w-full max-w-sm" />
@@ -199,10 +210,7 @@ function OAuthAccountSection() {
             const loading = actionLoading === provider;
 
             return (
-              <div
-                key={provider}
-                className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm"
-              >
+              <div key={provider} className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm">
                 <div className="flex items-center gap-3">
                   <span className="shrink-0">{config.icon}</span>
                   <span className="text-sm font-medium">{config.label}</span>
@@ -215,25 +223,12 @@ function OAuthAccountSection() {
                     disabled={loading}
                     onClick={() => handleUnlink(provider)}
                   >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Unlink className="h-4 w-4 mr-1" />
-                    )}
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4 mr-1" />}
                     解绑
                   </Button>
                 ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={loading}
-                    onClick={() => handleLink(provider)}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Link2 className="h-4 w-4 mr-1" />
-                    )}
+                  <Button variant="outline" size="sm" disabled={loading} onClick={() => handleLink(provider)}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4 mr-1" />}
                     绑定
                   </Button>
                 )}
@@ -338,9 +333,7 @@ function PasskeySection() {
         <Fingerprint className="h-4 w-4" />
         <h3 className="font-medium">通行密钥</h3>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">
-        使用指纹、面容或安全密钥快速登录，无需输入密码
-      </p>
+      <p className="text-sm text-muted-foreground mb-4">使用指纹、面容或安全密钥快速登录，无需输入密码</p>
       {isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-12 w-full max-w-sm" />
@@ -350,10 +343,7 @@ function PasskeySection() {
           {passkeys.length > 0 && (
             <div className="space-y-2 mb-4">
               {passkeys.map((pk) => (
-                <div
-                  key={pk.id}
-                  className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm"
-                >
+                <div key={pk.id} className="flex items-center justify-between rounded-lg border px-4 py-3 max-w-sm">
                   <div className="flex-1 min-w-0">
                     {editingId === pk.id ? (
                       <div className="flex items-center gap-2">
@@ -383,9 +373,7 @@ function PasskeySection() {
                       </div>
                     ) : (
                       <>
-                        <div className="text-sm font-medium truncate">
-                          {pk.name || "通行密钥"}
-                        </div>
+                        <div className="text-sm font-medium truncate">{pk.name || "通行密钥"}</div>
                         {pk.createdAt && (
                           <div className="text-xs text-muted-foreground">
                             添加于 {new Date(pk.createdAt).toLocaleDateString("zh-CN")}
@@ -426,17 +414,8 @@ function PasskeySection() {
               ))}
             </div>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAdd}
-            disabled={addLoading}
-          >
-            {addLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
+          <Button variant="outline" size="sm" onClick={handleAdd} disabled={addLoading}>
+            {addLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             添加通行密钥
           </Button>
         </>
@@ -547,11 +526,14 @@ function TwoFactorSection() {
   }
 
   function copyBackupCodes() {
-    navigator.clipboard.writeText(backupCodes.join("\n")).then(() => {
-      toast.success("已复制到剪贴板");
-    }).catch(() => {
-      toast.error("复制失败");
-    });
+    navigator.clipboard
+      .writeText(backupCodes.join("\n"))
+      .then(() => {
+        toast.success("已复制到剪贴板");
+      })
+      .catch(() => {
+        toast.error("复制失败");
+      });
   }
 
   return (
@@ -561,9 +543,7 @@ function TwoFactorSection() {
         <h3 className="font-medium">两步验证 (2FA)</h3>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        {is2faEnabled
-          ? "两步验证已启用，登录时需要额外验证"
-          : "启用后，登录时需输入验证器应用生成的验证码，提升安全性"}
+        {is2faEnabled ? "两步验证已启用，登录时需要额外验证" : "启用后，登录时需输入验证器应用生成的验证码，提升安全性"}
       </p>
 
       {step === "idle" && !is2faEnabled && (
@@ -584,15 +564,11 @@ function TwoFactorSection() {
 
       {step === "verify" && (
         <div className="space-y-4 max-w-sm">
-          <p className="text-sm">
-            使用 Google Authenticator、Microsoft Authenticator 等验证器应用扫描下方二维码：
-          </p>
+          <p className="text-sm">使用 Google Authenticator、Microsoft Authenticator 等验证器应用扫描下方二维码：</p>
           <div className="bg-white p-4 rounded-lg w-fit">
             <QRCode value={totpUri} size={180} />
           </div>
-          <p className="text-sm text-muted-foreground">
-            扫描后，输入验证器应用显示的 6 位验证码确认：
-          </p>
+          <p className="text-sm text-muted-foreground">扫描后，输入验证器应用显示的 6 位验证码确认：</p>
           <Input
             value={verifyCode}
             onChange={(e) => setVerifyCode(e.target.value)}
@@ -633,18 +609,9 @@ function TwoFactorSection() {
                   className="h-7 w-7 p-0"
                   onClick={() => setShowBackupCodes(!showBackupCodes)}
                 >
-                  {showBackupCodes ? (
-                    <EyeOff className="h-3.5 w-3.5" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" />
-                  )}
+                  {showBackupCodes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={copyBackupCodes}
-                >
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={copyBackupCodes}>
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -655,18 +622,13 @@ function TwoFactorSection() {
             {showBackupCodes ? (
               <div className="grid grid-cols-2 gap-1">
                 {backupCodes.map((code, i) => (
-                  <code
-                    key={i}
-                    className="text-xs bg-background px-2 py-1 rounded font-mono"
-                  >
+                  <code key={i} className="text-xs bg-background px-2 py-1 rounded font-mono">
                     {code}
                   </code>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground italic">
-                点击眼睛图标查看恢复码
-              </p>
+              <p className="text-xs text-muted-foreground italic">点击眼睛图标查看恢复码</p>
             )}
           </div>
           {step === "backup" && (
@@ -698,21 +660,11 @@ function TwoFactorSection() {
               autoComplete="current-password"
             />
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateBackupCodes}
-                disabled={isLoading || !password}
-              >
+              <Button variant="outline" size="sm" onClick={handleGenerateBackupCodes} disabled={isLoading || !password}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 重新生成恢复码
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDisable}
-                disabled={isLoading || !password}
-              >
+              <Button variant="destructive" size="sm" onClick={handleDisable} disabled={isLoading || !password}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 关闭两步验证
               </Button>
@@ -731,10 +683,7 @@ export default function AccountSettingsPage() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const utils = trpc.useUtils();
 
-  const { data: user, isLoading: userLoading } = trpc.user.me.useQuery(
-    undefined,
-    { enabled: !!session }
-  );
+  const { data: user, isLoading: userLoading } = trpc.user.me.useQuery(undefined, { enabled: !!session });
 
   const updateAccountMutation = trpc.user.updateAccount.useMutation({
     onSuccess: () => {
@@ -814,9 +763,7 @@ export default function AccountSettingsPage() {
       {/* 页面标题 */}
       <div>
         <h2 className="text-xl font-semibold">账号安全</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          管理你的账号信息和密码
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">管理你的账号信息和密码</p>
       </div>
 
       {/* 账号信息 */}
@@ -833,9 +780,7 @@ export default function AccountSettingsPage() {
                   <FormControl>
                     <Input {...field} className="max-w-sm" />
                   </FormControl>
-                  <FormDescription>
-                    用于登录和你的个人主页地址 /user/{field.value || "username"}
-                  </FormDescription>
+                  <FormDescription>用于登录和你的个人主页地址 /user/{field.value || "username"}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

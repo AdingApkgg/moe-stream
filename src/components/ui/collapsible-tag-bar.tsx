@@ -11,10 +11,7 @@ interface CollapsibleTagBarProps {
   className?: string;
 }
 
-export function CollapsibleTagBar({
-  children,
-  className,
-}: CollapsibleTagBarProps) {
+export function CollapsibleTagBar({ children, className }: CollapsibleTagBarProps) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -54,12 +51,7 @@ export function CollapsibleTagBar({
           onClick={() => setExpanded((v) => !v)}
           className="flex items-center justify-center w-full py-1 text-xs text-muted-foreground hover:text-foreground transition-colors gap-1"
         >
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 transition-transform duration-300",
-              expanded && "rotate-180",
-            )}
-          />
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-300", expanded && "rotate-180")} />
           {expanded ? "收起" : "展开更多"}
         </button>
       )}

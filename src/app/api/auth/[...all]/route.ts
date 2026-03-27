@@ -20,8 +20,7 @@ function recordLoginSessionInBackground(req: Request, response: Response) {
   const userAgent = req.headers.get("user-agent") || "";
   const forwardedFor = req.headers.get("x-forwarded-for");
   const realIp = req.headers.get("x-real-ip");
-  const clientIp =
-    forwardedFor?.split(",")[0]?.trim() || realIp || "unknown";
+  const clientIp = forwardedFor?.split(",")[0]?.trim() || realIp || "unknown";
 
   (async () => {
     try {
@@ -83,10 +82,10 @@ async function handler(req: Request) {
     auth = await getAuthWithOAuth();
   } catch (err) {
     console.error("[auth] Failed to initialize auth instance:", err);
-    return new Response(
-      JSON.stringify({ error: "Auth initialization failed" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Auth initialization failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -108,10 +107,7 @@ async function handler(req: Request) {
     return response;
   } catch (err) {
     const url = new URL(req.url);
-    console.error(
-      `[auth] Unhandled error on ${req.method} ${url.pathname}:`,
-      err,
-    );
+    console.error(`[auth] Unhandled error on ${req.method} ${url.pathname}:`, err);
 
     if (url.pathname.match(OAUTH_CALLBACK_RE)) {
       const loginUrl = new URL("/login", url.origin);
@@ -119,10 +115,10 @@ async function handler(req: Request) {
       return Response.redirect(loginUrl.toString(), 302);
     }
 
-    return new Response(
-      JSON.stringify({ error: "Internal auth error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Internal auth error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
 

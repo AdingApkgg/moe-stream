@@ -35,7 +35,7 @@ export async function GET() {
     <lastmod>${now}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
-  </url>`
+  </url>`,
     );
 
     const gameTagUrls = gameTags.map(
@@ -44,7 +44,7 @@ export async function GET() {
     <lastmod>${now}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
-  </url>`
+  </url>`,
     );
 
     const imageTagUrls = imageTags.map(
@@ -53,7 +53,7 @@ export async function GET() {
     <lastmod>${now}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
-  </url>`
+  </url>`,
     );
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -73,7 +73,7 @@ ${[...videoTagUrls, ...gameTagUrls, ...imageTagUrls].join("\n")}
       `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
       {
         headers: { "Content-Type": "application/xml" },
-      }
+      },
     );
   }
 }

@@ -34,7 +34,7 @@ export const gameRouter = router({
         gameType: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, gameType, sortBy, timeRange } = input;
@@ -126,39 +126,37 @@ export const gameRouter = router({
     }),
 
   /** 获取单个游戏详情 */
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const game = await ctx.prisma.game.findUnique({
-        where: { id: input.id },
-        include: {
-          uploader: {
-            select: { id: true, username: true, nickname: true, avatar: true },
-          },
-          tags: {
-            include: { tag: { select: { id: true, name: true, slug: true } } },
-          },
-          versions: {
-            orderBy: { sortOrder: "asc" },
-          },
-          _count: {
-            select: { likes: true, dislikes: true, favorites: true, comments: true },
-          },
+  getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const game = await ctx.prisma.game.findUnique({
+      where: { id: input.id },
+      include: {
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
         },
-      });
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+        versions: {
+          orderBy: { sortOrder: "asc" },
+        },
+        _count: {
+          select: { likes: true, dislikes: true, favorites: true, comments: true },
+        },
+      },
+    });
 
-      if (!game || (game.status !== "PUBLISHED" && game.uploaderId !== ctx.session?.user?.id)) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
-      }
+    if (!game || (game.status !== "PUBLISHED" && game.uploaderId !== ctx.session?.user?.id)) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
+    }
 
-      // 增加浏览量
-      await ctx.prisma.game.update({
-        where: { id: input.id },
-        data: { views: { increment: 1 } },
-      });
+    // 增加浏览量
+    await ctx.prisma.game.update({
+      where: { id: input.id },
+      data: { views: { increment: 1 } },
+    });
 
-      return game;
-    }),
+    return game;
+  }),
 
   /** 获取热门游戏标签 */
   getPopularTags: publicProcedure
@@ -176,7 +174,7 @@ export const gameRouter = router({
             select: { id: true, name: true, slug: true },
           });
         },
-        GAME_CACHE_TTL * 5
+        GAME_CACHE_TTL * 5,
       );
     }),
 
@@ -196,16 +194,18 @@ export const gameRouter = router({
           count: s._count.id,
         }));
       },
-      GAME_CACHE_TTL * 5
+      GAME_CACHE_TTL * 5,
     );
   }),
 
   /** 获取相关游戏推荐 */
   getRelated: publicProcedure
-    .input(z.object({
-      gameId: z.string(),
-      limit: z.number().min(1).max(20).default(6),
-    }))
+    .input(
+      z.object({
+        gameId: z.string(),
+        limit: z.number().min(1).max(20).default(6),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const game = await ctx.prisma.game.findUnique({
         where: { id: input.gameId },
@@ -255,16 +255,24 @@ export const gameRouter = router({
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
         extraInfo: z.any().optional(),
-        versions: z.array(z.object({
-          label: z.string().min(1).max(100),
-          description: z.string().max(10000).optional(),
-        })).optional(),
-        customTabs: z.array(z.object({
-          title: z.string().min(1).max(100),
-          icon: z.string().max(50).optional(),
-          content: z.string().max(50000),
-        })).optional(),
-      })
+        versions: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(100),
+              description: z.string().max(10000).optional(),
+            }),
+          )
+          .optional(),
+        customTabs: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(100),
+              icon: z.string().max(50).optional(),
+              content: z.string().max(50000),
+            }),
+          )
+          .optional(),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { tagIds, tagNames, versions, customTabs, ...data } = input;
@@ -289,12 +297,27 @@ export const gameRouter = router({
           tags: {
             create: allTagIds.map((tagId) => ({ tagId })),
           },
-          versions: versions && versions.length > 0
-            ? { create: versions.map((v, i) => ({ label: v.label, description: v.description || null, sortOrder: i })) }
-            : undefined,
-          customTabs: customTabs && customTabs.length > 0
-            ? { create: customTabs.map((t, i) => ({ title: t.title, icon: t.icon || null, content: t.content, sortOrder: i })) }
-            : undefined,
+          versions:
+            versions && versions.length > 0
+              ? {
+                  create: versions.map((v, i) => ({
+                    label: v.label,
+                    description: v.description || null,
+                    sortOrder: i,
+                  })),
+                }
+              : undefined,
+          customTabs:
+            customTabs && customTabs.length > 0
+              ? {
+                  create: customTabs.map((t, i) => ({
+                    title: t.title,
+                    icon: t.icon || null,
+                    content: t.content,
+                    sortOrder: i,
+                  })),
+                }
+              : undefined,
         },
       });
 
@@ -322,10 +345,10 @@ export const gameRouter = router({
               version: z.string().optional(),
               tagNames: z.array(z.string()).optional(),
               extraInfo: z.any().optional(),
-            })
+            }),
           )
           .min(1),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
@@ -343,9 +366,7 @@ export const gameRouter = router({
 
       for (const gameInput of input.games) {
         try {
-          const tagIds = (gameInput.tagNames ?? [])
-            .map((n) => tagNameToId.get(n))
-            .filter((id): id is string => !!id);
+          const tagIds = (gameInput.tagNames ?? []).map((n) => tagNameToId.get(n)).filter((id): id is string => !!id);
 
           const existing = await ctx.prisma.game.findFirst({
             where: { title: gameInput.title, uploaderId: ctx.session.user.id },
@@ -406,14 +427,9 @@ export const gameRouter = router({
         }
       }
 
-      scheduleTagCountRefresh(
-        [...new Set([...previousTagIds, ...tagNameToId.values()])],
-        "游戏批量导入",
-      );
+      scheduleTagCountRefresh([...new Set([...previousTagIds, ...tagNameToId.values()])], "游戏批量导入");
 
-      const successIds = results
-        .filter((r) => r.id && !r.error)
-        .map((r) => r.id!);
+      const successIds = results.filter((r) => r.id && !r.error).map((r) => r.id!);
       if (successIds.length > 0 && status === "PUBLISHED") {
         submitGamesToIndexNow(successIds).catch(() => {});
       }
@@ -430,33 +446,35 @@ export const gameRouter = router({
     }),
 
   /** 切换收藏 */
-  toggleFavorite: protectedProcedure
-    .input(z.object({ gameId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+  toggleFavorite: protectedProcedure.input(z.object({ gameId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
 
-      const existing = await ctx.prisma.gameFavorite.findUnique({
-        where: { userId_gameId: { userId, gameId: input.gameId } },
+    const existing = await ctx.prisma.gameFavorite.findUnique({
+      where: { userId_gameId: { userId, gameId: input.gameId } },
+    });
+
+    if (existing) {
+      await ctx.prisma.gameFavorite.delete({ where: { id: existing.id } });
+      return { favorited: false };
+    } else {
+      await ctx.prisma.gameFavorite.create({
+        data: { userId, gameId: input.gameId },
       });
-
-      if (existing) {
-        await ctx.prisma.gameFavorite.delete({ where: { id: existing.id } });
-        return { favorited: false };
-      } else {
-        await ctx.prisma.gameFavorite.create({
-          data: { userId, gameId: input.gameId },
-        });
-        const pointsAwarded = await awardPoints(userId, "FAVORITE_GAME", undefined, input.gameId, { firstTimeOnly: true });
-        return { favorited: true, pointsAwarded };
-      }
-    }),
+      const pointsAwarded = await awardPoints(userId, "FAVORITE_GAME", undefined, input.gameId, {
+        firstTimeOnly: true,
+      });
+      return { favorited: true, pointsAwarded };
+    }
+  }),
 
   /** 切换点赞/点踩 */
   toggleReaction: protectedProcedure
-    .input(z.object({
-      gameId: z.string(),
-      type: z.enum(["like", "dislike"]),
-    }))
+    .input(
+      z.object({
+        gameId: z.string(),
+        type: z.enum(["like", "dislike"]),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { gameId, type } = input;
@@ -498,7 +516,7 @@ export const gameRouter = router({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -545,7 +563,7 @@ export const gameRouter = router({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -602,47 +620,47 @@ export const gameRouter = router({
     }),
 
   /** 记录浏览历史 */
-  recordView: protectedProcedure
-    .input(z.object({ gameId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.gameViewHistory.findUnique({
-        where: {
-          userId_gameId: {
-            userId: ctx.session.user.id,
-            gameId: input.gameId,
-          },
-        },
-        select: { id: true },
-      });
-
-      await ctx.prisma.gameViewHistory.upsert({
-        where: {
-          userId_gameId: {
-            userId: ctx.session.user.id,
-            gameId: input.gameId,
-          },
-        },
-        update: { updatedAt: new Date() },
-        create: {
+  recordView: protectedProcedure.input(z.object({ gameId: z.string() })).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.prisma.gameViewHistory.findUnique({
+      where: {
+        userId_gameId: {
           userId: ctx.session.user.id,
           gameId: input.gameId,
         },
-      });
+      },
+      select: { id: true },
+    });
 
-      let pointsAwarded = 0;
-      if (!existing) {
-        pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_GAME", undefined, input.gameId);
-      }
-      return { success: true, pointsAwarded };
-    }),
+    await ctx.prisma.gameViewHistory.upsert({
+      where: {
+        userId_gameId: {
+          userId: ctx.session.user.id,
+          gameId: input.gameId,
+        },
+      },
+      update: { updatedAt: new Date() },
+      create: {
+        userId: ctx.session.user.id,
+        gameId: input.gameId,
+      },
+    });
+
+    let pointsAwarded = 0;
+    if (!existing) {
+      pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_GAME", undefined, input.gameId);
+    }
+    return { success: true, pointsAwarded };
+  }),
 
   /** 获取指定用户的游戏浏览记录（公开） */
   getUserHistory: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      limit: z.number().min(1).max(50).default(20),
-      page: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
       const where = {
@@ -678,25 +696,23 @@ export const gameRouter = router({
     }),
 
   /** 检查用户交互状态 */
-  getUserInteraction: protectedProcedure
-    .input(z.object({ gameId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const [liked, disliked, favorited] = await Promise.all([
-        ctx.prisma.gameLike.findUnique({
-          where: { userId_gameId: { userId, gameId: input.gameId } },
-        }),
-        ctx.prisma.gameDislike.findUnique({
-          where: { userId_gameId: { userId, gameId: input.gameId } },
-        }),
-        ctx.prisma.gameFavorite.findUnique({
-          where: { userId_gameId: { userId, gameId: input.gameId } },
-        }),
-      ]);
-      return {
-        liked: !!liked,
-        disliked: !!disliked,
-        favorited: !!favorited,
-      };
-    }),
+  getUserInteraction: protectedProcedure.input(z.object({ gameId: z.string() })).query(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const [liked, disliked, favorited] = await Promise.all([
+      ctx.prisma.gameLike.findUnique({
+        where: { userId_gameId: { userId, gameId: input.gameId } },
+      }),
+      ctx.prisma.gameDislike.findUnique({
+        where: { userId_gameId: { userId, gameId: input.gameId } },
+      }),
+      ctx.prisma.gameFavorite.findUnique({
+        where: { userId_gameId: { userId, gameId: input.gameId } },
+      }),
+    ]);
+    return {
+      liked: !!liked,
+      disliked: !!disliked,
+      favorited: !!favorited,
+    };
+  }),
 });

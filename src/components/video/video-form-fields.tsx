@@ -5,14 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { VideoPlayer } from "@/components/video/video-player";
 import { Eye, EyeOff, Image as ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,11 +48,7 @@ export function VideoFormFields({ form }: VideoFormFieldsProps) {
               <FormItem>
                 <FormLabel>简介</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder="视频简介（可选）"
-                    className="min-h-[120px] resize-none"
-                    {...field}
-                  />
+                  <Textarea placeholder="视频简介（可选）" className="min-h-[120px] resize-none" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -87,7 +76,7 @@ export function VideoFormFields({ form }: VideoFormFieldsProps) {
           <div
             className={cn(
               "relative aspect-video rounded-lg border-2 border-dashed overflow-hidden transition-colors group",
-              coverUrl ? "border-transparent" : "border-muted-foreground/25"
+              coverUrl ? "border-transparent" : "border-muted-foreground/25",
             )}
           >
             {coverUrl ? (
@@ -144,11 +133,7 @@ export function VideoFormFields({ form }: VideoFormFieldsProps) {
                 disabled={!field.value}
                 title={showPreview ? "隐藏预览" : "显示预览"}
               >
-                {showPreview ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </div>
             <FormDescription>支持 MP4, WebM, HLS (m3u8) 格式</FormDescription>
@@ -162,11 +147,7 @@ export function VideoFormFields({ form }: VideoFormFieldsProps) {
         <div className="space-y-2">
           <FormLabel>视频预览</FormLabel>
           <div className="rounded-lg overflow-hidden border">
-            <VideoPlayer
-              url={videoUrl}
-              poster={coverUrl || undefined}
-              autoStart={false}
-            />
+            <VideoPlayer url={videoUrl} poster={coverUrl || undefined} autoStart={false} />
           </div>
         </div>
       )}

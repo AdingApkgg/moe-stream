@@ -42,7 +42,6 @@ import {
   GripVertical,
   Link2,
   BarChart3,
-
   Replace,
   Download,
   Loader2,
@@ -166,7 +165,10 @@ export default function StickersPage() {
   );
 
   const autoSlug = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
 
   const totalStickers = packs?.reduce((s, p) => s + p._count.stickers, 0) ?? 0;
 
@@ -237,7 +239,9 @@ export default function StickersPage() {
       {/* Pack List */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
         </div>
       ) : !packs || packs.length === 0 ? (
         <Card>
@@ -297,7 +301,9 @@ export default function StickersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
             <Button
               onClick={() => createMut.mutate({ name: newName, slug: newSlug })}
               disabled={!newName.trim() || !newSlug.trim() || createMut.isPending}
@@ -326,10 +332,7 @@ export default function StickersPage() {
       </Dialog>
 
       {/* External URL Import Dialog */}
-      <ExternalUrlImportDialog
-        open={urlImportOpen}
-        onOpenChange={setUrlImportOpen}
-      />
+      <ExternalUrlImportDialog open={urlImportOpen} onOpenChange={setUrlImportOpen} />
 
       {/* Preset Import Dialog */}
       <PresetImportDialog
@@ -383,7 +386,14 @@ function SortablePackCard({
               <GripVertical className="h-5 w-5" />
             </button>
             {pack.coverUrl ? (
-              <Image src={pack.coverUrl} alt={pack.name} width={40} height={40} className="rounded-md object-cover" unoptimized />
+              <Image
+                src={pack.coverUrl}
+                alt={pack.name}
+                width={40}
+                height={40}
+                className="rounded-md object-cover"
+                unoptimized
+              />
             ) : (
               <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
                 <Package className="h-5 w-5 text-muted-foreground" />
@@ -399,10 +409,14 @@ function SortablePackCard({
           </div>
           <div className="flex items-center gap-2">
             <Switch checked={pack.isActive} onCheckedChange={onToggleActive} />
-            <Button variant="ghost" size="icon" onClick={onEdit}><Edit className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={onEdit}>
+              <Edit className="h-4 w-4" />
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -479,15 +493,33 @@ function EditPackForm({
           <Label>封面</Label>
           <div className="flex items-center gap-3">
             {coverUrl ? (
-              <Image src={coverUrl} alt="封面" width={64} height={64} className="rounded-md object-cover border" unoptimized />
+              <Image
+                src={coverUrl}
+                alt="封面"
+                width={64}
+                height={64}
+                className="rounded-md object-cover border"
+                unoptimized
+              />
             ) : (
               <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center border">
                 <Package className="h-6 w-6 text-muted-foreground" />
               </div>
             )}
             <div className="flex flex-col gap-1.5">
-              <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleCoverUpload(e.target.files[0])} />
-              <Button size="sm" variant="outline" onClick={() => coverInputRef.current?.click()} disabled={uploadingCover}>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleCoverUpload(e.target.files[0])}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover}
+              >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 {uploadingCover ? "上传中..." : "上传封面"}
               </Button>
@@ -516,10 +548,7 @@ function EditPackForm({
         </div>
       </div>
       <DialogFooter>
-        <Button
-          onClick={() => onSave({ name, slug, coverUrl })}
-          disabled={!name.trim() || !slug.trim() || isPending}
-        >
+        <Button onClick={() => onSave({ name, slug, coverUrl })} disabled={!name.trim() || !slug.trim() || isPending}>
           保存
         </Button>
       </DialogFooter>
@@ -559,7 +588,14 @@ function SortableStickerItem({
       className="group relative aspect-square rounded-md border bg-muted/30 flex items-center justify-center overflow-hidden"
     >
       <button className="cursor-pointer w-full h-full flex items-center justify-center p-1" onClick={onPreview}>
-        <Image src={sticker.imageUrl} alt={sticker.name} width={80} height={80} className="object-contain" unoptimized />
+        <Image
+          src={sticker.imageUrl}
+          alt={sticker.name}
+          width={80}
+          height={80}
+          className="object-contain"
+          unoptimized
+        />
       </button>
 
       {usageCount > 0 && (
@@ -593,13 +629,7 @@ function SortableStickerItem({
 
 // ==================== Sticker Grid ====================
 
-function StickerGrid({
-  packId,
-  usageMap,
-}: {
-  packId: string;
-  usageMap?: Record<string, number>;
-}) {
+function StickerGrid({ packId, usageMap }: { packId: string; usageMap?: Record<string, number> }) {
   const utils = trpc.useUtils();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<{ total: number; done: number } | null>(null);
@@ -739,7 +769,10 @@ function StickerGrid({
         className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
           isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25"
         }`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
@@ -752,13 +785,15 @@ function StickerGrid({
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={!!uploadQueue}
-            >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!!uploadQueue}>
               <Upload className="h-4 w-4 mr-1" />
               上传贴图
             </Button>
@@ -773,7 +808,9 @@ function StickerGrid({
           <div className="mt-3 space-y-1.5">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>上传进度</span>
-              <span>{uploadQueue.done}/{uploadQueue.total}</span>
+              <span>
+                {uploadQueue.done}/{uploadQueue.total}
+              </span>
             </div>
             <Progress value={(uploadQueue.done / uploadQueue.total) * 100} className="h-2" />
           </div>
@@ -783,7 +820,9 @@ function StickerGrid({
       {/* Sticker Grid with DnD */}
       {isLoading ? (
         <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
-          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="aspect-square rounded-md" />)}
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="aspect-square rounded-md" />
+          ))}
         </div>
       ) : !stickers || stickers.length === 0 ? (
         <div className="text-center py-6 text-muted-foreground text-sm">
@@ -851,16 +890,26 @@ function UrlImportDialog({
   const [text, setText] = useState("");
 
   const handleImport = () => {
-    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-    const items = lines.map((line) => {
-      const pipeIdx = line.indexOf("|");
-      if (pipeIdx > 0) {
-        return { name: line.slice(0, pipeIdx).trim(), url: line.slice(pipeIdx + 1).trim() };
-      }
-      return { url: line };
-    }).filter((item) => {
-      try { new URL(item.url); return true; } catch { return false; }
-    });
+    const lines = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const items = lines
+      .map((line) => {
+        const pipeIdx = line.indexOf("|");
+        if (pipeIdx > 0) {
+          return { name: line.slice(0, pipeIdx).trim(), url: line.slice(pipeIdx + 1).trim() };
+        }
+        return { url: line };
+      })
+      .filter((item) => {
+        try {
+          new URL(item.url);
+          return true;
+        } catch {
+          return false;
+        }
+      });
 
     if (items.length === 0) {
       toast.error("没有检测到有效的 URL");
@@ -884,7 +933,9 @@ function UrlImportDialog({
           className="font-mono text-xs"
         />
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
           <Button onClick={handleImport} disabled={!text.trim() || isPending}>
             {isPending ? "导入中..." : "导入"}
           </Button>
@@ -933,9 +984,22 @@ function EditStickerDialogInner({
     <>
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Image src={imageUrl} alt={name} width={96} height={96} className="rounded-md border object-contain bg-muted/30 p-1" unoptimized />
+          <Image
+            src={imageUrl}
+            alt={name}
+            width={96}
+            height={96}
+            className="rounded-md border object-contain bg-muted/30 p-1"
+            unoptimized
+          />
           <div className="space-y-2">
-            <input ref={replaceInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleReplace(e.target.files[0])} />
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleReplace(e.target.files[0])}
+            />
             <Button size="sm" variant="outline" onClick={() => replaceInputRef.current?.click()} disabled={uploading}>
               <Replace className="h-3.5 w-3.5 mr-1" />
               {uploading ? "上传中..." : "替换图片"}
@@ -948,7 +1012,9 @@ function EditStickerDialogInner({
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>取消</Button>
+        <Button variant="outline" onClick={onClose}>
+          取消
+        </Button>
         <Button
           onClick={() => {
             const data: { name?: string; imageUrl?: string } = {};
@@ -977,7 +1043,12 @@ function EditStickerDialog({
   isPending: boolean;
 }) {
   return (
-    <Dialog open={!!sticker} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={!!sticker}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>编辑贴图</DialogTitle>
@@ -1063,13 +1134,7 @@ function PreviewStickerDialog({
 
 // ==================== External URL Import Dialog ====================
 
-function ExternalUrlImportDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+function ExternalUrlImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const utils = trpc.useUtils();
   const [url, setUrl] = useState("");
   const [slugPrefix, setSlugPrefix] = useState("");
@@ -1129,7 +1194,9 @@ function ExternalUrlImportDialog({
             <div className="text-xs text-muted-foreground space-y-0.5">
               <p>示例：</p>
               <p className="font-mono text-[11px]">https://unpkg.com/@waline/emojis@1.2.0/bilibili</p>
-              <p className="font-mono text-[11px]">https://registry.npmmirror.com/js-asuna/latest/files/json/owo.json</p>
+              <p className="font-mono text-[11px]">
+                https://registry.npmmirror.com/js-asuna/latest/files/json/owo.json
+              </p>
             </div>
           </div>
 
@@ -1161,12 +1228,20 @@ function ExternalUrlImportDialog({
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1.5">
                 {result.packs.map((p, i) => (
-                  <div key={i} className="text-xs border-l-2 pl-2 py-0.5" style={{ borderColor: p.failed > 0 ? "var(--amber-500, #f59e0b)" : "var(--green-500, #22c55e)" }}>
+                  <div
+                    key={i}
+                    className="text-xs border-l-2 pl-2 py-0.5"
+                    style={{ borderColor: p.failed > 0 ? "var(--amber-500, #f59e0b)" : "var(--green-500, #22c55e)" }}
+                  >
                     <span className="font-medium">{p.packName}</span>
-                    <span className="text-muted-foreground ml-1.5">{p.success}/{p.total}</span>
+                    <span className="text-muted-foreground ml-1.5">
+                      {p.success}/{p.total}
+                    </span>
                     {p.errors.length > 0 && (
                       <div className="text-destructive mt-0.5">
-                        {p.errors.map((err, j) => <p key={j}>{err}</p>)}
+                        {p.errors.map((err, j) => (
+                          <p key={j}>{err}</p>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -1181,10 +1256,7 @@ function ExternalUrlImportDialog({
             {result ? "关闭" : "取消"}
           </Button>
           {!result && (
-            <Button
-              onClick={handleImport}
-              disabled={!url.trim() || importMut.isPending}
-            >
+            <Button onClick={handleImport} disabled={!url.trim() || importMut.isPending}>
               {importMut.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -1267,9 +1339,7 @@ function PresetImportDialog({
       <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>从预设导入表情包</DialogTitle>
-          <DialogDescription>
-            一键导入 Waline、Twikoo、Artalk 等评论系统的表情包
-          </DialogDescription>
+          <DialogDescription>一键导入 Waline、Twikoo、Artalk 等评论系统的表情包</DialogDescription>
         </DialogHeader>
 
         {/* Source Filter */}
@@ -1301,7 +1371,9 @@ function PresetImportDialog({
         <div className="flex-1 overflow-y-auto -mx-6 px-6">
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -1344,9 +1416,7 @@ function PresetImportDialog({
                           {preset.source}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {preset.description}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{preset.description}</p>
                       {result && (
                         <div className="flex items-center gap-1.5 mt-1">
                           {result.failed === 0 ? (
@@ -1355,7 +1425,8 @@ function PresetImportDialog({
                             <XCircle className="h-3 w-3 text-amber-500" />
                           )}
                           <span className="text-[11px] text-muted-foreground">
-                            成功 {result.success}{result.failed > 0 ? `，失败 ${result.failed}` : ""}
+                            成功 {result.success}
+                            {result.failed > 0 ? `，失败 ${result.failed}` : ""}
                           </span>
                         </div>
                       )}
@@ -1364,7 +1435,9 @@ function PresetImportDialog({
                     {/* Action */}
                     <div className="shrink-0">
                       {alreadyImported && !result ? (
-                        <Badge variant="secondary" className="text-xs">已导入</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          已导入
+                        </Badge>
                       ) : isImporting ? (
                         <Button size="sm" disabled className="h-8">
                           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />

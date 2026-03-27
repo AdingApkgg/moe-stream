@@ -9,13 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Link2,
@@ -71,21 +59,8 @@ import {
   type DateRangeValue,
 } from "@/components/ui/date-range-picker";
 import { useSiteConfig } from "@/contexts/site-config";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 const CHANNEL_OPTIONS = [
   { value: "", label: "无渠道" },
@@ -137,17 +112,23 @@ function CheckinCard() {
   if (!status?.enabled) return null;
 
   return (
-    <Card className={status.checkedInToday ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20" : ""}>
+    <Card
+      className={
+        status.checkedInToday ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20" : ""
+      }
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${status.checkedInToday ? "bg-green-100 dark:bg-green-900/50" : "bg-primary/10"}`}>
-              <CalendarCheck className={`h-5 w-5 ${status.checkedInToday ? "text-green-600 dark:text-green-400" : "text-primary"}`} />
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center ${status.checkedInToday ? "bg-green-100 dark:bg-green-900/50" : "bg-primary/10"}`}
+            >
+              <CalendarCheck
+                className={`h-5 w-5 ${status.checkedInToday ? "text-green-600 dark:text-green-400" : "text-primary"}`}
+              />
             </div>
             <div>
-              <div className="font-medium">
-                {status.checkedInToday ? "今日已签到" : "每日签到"}
-              </div>
+              <div className="font-medium">{status.checkedInToday ? "今日已签到" : "每日签到"}</div>
               <div className="text-xs text-muted-foreground">
                 {status.checkedInToday
                   ? `今日获得 ${status.todayPoints} 积分`
@@ -176,32 +157,28 @@ function CheckinCard() {
 
 function TrendBadge({ today, yesterday }: { today: number; yesterday: number }) {
   if (yesterday === 0 && today === 0) return null;
-  if (yesterday === 0) return today > 0 ? <Badge variant="secondary" className="text-[10px] text-green-600">NEW</Badge> : null;
+  if (yesterday === 0)
+    return today > 0 ? (
+      <Badge variant="secondary" className="text-[10px] text-green-600">
+        NEW
+      </Badge>
+    ) : null;
   const pct = Math.round(((today - yesterday) / yesterday) * 100);
   if (pct === 0) return null;
   return (
     <Badge variant="secondary" className={`text-[10px] ${pct > 0 ? "text-green-600" : "text-red-500"}`}>
-      {pct > 0 ? "+" : ""}{pct}%
+      {pct > 0 ? "+" : ""}
+      {pct}%
     </Badge>
   );
 }
 
-function LinkFilter({
-  selectedIds,
-  onChange,
-}: {
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-}) {
+function LinkFilter({ selectedIds, onChange }: { selectedIds: string[]; onChange: (ids: string[]) => void }) {
   const { data } = trpc.referral.getMyLinks.useQuery({ page: 1, limit: 50 });
   const links = data?.links ?? [];
 
   const toggle = (id: string) => {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((x) => x !== id)
-        : [...selectedIds, id]
-    );
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
   };
 
   const hasFilter = selectedIds.length > 0;
@@ -232,10 +209,7 @@ function LinkFilter({
                 key={link.id}
                 className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer"
               >
-                <Checkbox
-                  checked={selectedIds.includes(link.id)}
-                  onCheckedChange={() => toggle(link.id)}
-                />
+                <Checkbox checked={selectedIds.includes(link.id)} onCheckedChange={() => toggle(link.id)} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm truncate">{link.label || link.code}</div>
                   {link.channel && (
@@ -254,9 +228,7 @@ function LinkFilter({
 }
 
 function StatsCards({ linkIds, onNavigate }: { linkIds?: string[]; onNavigate?: (tab: string) => void }) {
-  const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery(
-    linkIds?.length ? { linkIds } : undefined
-  );
+  const { data: stats, isLoading } = trpc.referral.getMyStats.useQuery(linkIds?.length ? { linkIds } : undefined);
 
   if (isLoading) {
     return (
@@ -275,28 +247,39 @@ function StatsCards({ linkIds, onNavigate }: { linkIds?: string[]; onNavigate?: 
 
   const primaryItems = [
     {
-      label: "推广人数", value: stats?.totalReferrals ?? 0,
-      icon: Users, color: "text-blue-500",
-      today: stats?.todayRegisters ?? 0, yesterday: stats?.yesterdayRegisters ?? 0,
+      label: "推广人数",
+      value: stats?.totalReferrals ?? 0,
+      icon: Users,
+      color: "text-blue-500",
+      today: stats?.todayRegisters ?? 0,
+      yesterday: stats?.yesterdayRegisters ?? 0,
       sub: stats?.todayRegisters ? `今日 +${stats.todayRegisters}` : undefined,
       tab: "referrals",
     },
     {
-      label: "独立访客", value: stats?.totalUniqueClicks ?? 0,
-      icon: MousePointerClick, color: "text-purple-500",
-      today: stats?.todayUniqueClicks ?? 0, yesterday: stats?.yesterdayUniqueClicks ?? 0,
+      label: "独立访客",
+      value: stats?.totalUniqueClicks ?? 0,
+      icon: MousePointerClick,
+      color: "text-purple-500",
+      today: stats?.todayUniqueClicks ?? 0,
+      yesterday: stats?.yesterdayUniqueClicks ?? 0,
       sub: `总点击 ${stats?.totalClicks ?? 0}（含重复）`,
       tab: "analytics",
     },
     {
-      label: "转化率", value: stats?.conversionRate ?? 0,
-      icon: Target, color: "text-green-500", suffix: "%",
+      label: "转化率",
+      value: stats?.conversionRate ?? 0,
+      icon: Target,
+      color: "text-green-500",
+      suffix: "%",
       sub: `${stats?.totalRegisters ?? 0} 注册 / ${stats?.totalUniqueClicks ?? 0} 独立访客`,
       tab: "analytics",
     },
     {
-      label: "推广积分", value: stats?.earnedPoints ?? 0,
-      icon: Award, color: "text-amber-500",
+      label: "推广积分",
+      value: stats?.earnedPoints ?? 0,
+      icon: Award,
+      color: "text-amber-500",
       sub: `当前余额 ${stats?.points ?? 0}`,
       tab: "points",
     },
@@ -321,11 +304,10 @@ function StatsCards({ linkIds, onNavigate }: { linkIds?: string[]; onNavigate?: 
               )}
             </div>
             <div className="text-2xl font-bold tabular-nums">
-              {item.value.toLocaleString()}{item.suffix || ""}
+              {item.value.toLocaleString()}
+              {item.suffix || ""}
             </div>
-            {item.sub && (
-              <div className="text-xs text-muted-foreground mt-1">{item.sub}</div>
-            )}
+            {item.sub && <div className="text-xs text-muted-foreground mt-1">{item.sub}</div>}
           </CardContent>
         </Card>
       ))}
@@ -431,28 +413,51 @@ function LinksManager() {
               <Input
                 placeholder="搜索标签或推广码..."
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="pl-9 h-9 pr-8"
               />
               {searchQuery && (
-                <button onClick={() => { setSearchQuery(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
-            <Select value={filterChannel} onValueChange={(v) => { setFilterChannel(v === "_all" ? "" : v); setPage(1); }}>
+            <Select
+              value={filterChannel}
+              onValueChange={(v) => {
+                setFilterChannel(v === "_all" ? "" : v);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-[120px] h-9">
                 <SelectValue placeholder="全部渠道" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_all">全部渠道</SelectItem>
                 {CHANNEL_OPTIONS.filter((c) => c.value).map((c) => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                  </SelectItem>
                 ))}
                 <SelectItem value="_none">无渠道</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filterActive} onValueChange={(v) => { setFilterActive(v); setPage(1); }}>
+            <Select
+              value={filterActive}
+              onValueChange={(v) => {
+                setFilterActive(v);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-[100px] h-9">
                 <SelectValue placeholder="全部状态" />
               </SelectTrigger>
@@ -462,10 +467,15 @@ function LinksManager() {
                 <SelectItem value="inactive">已停用</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={`${sortBy}-${sortDir}`} onValueChange={(v) => {
-              const [field, dir] = v.split("-") as [LinkSortBy, "asc" | "desc"];
-              setSortBy(field); setSortDir(dir); setPage(1);
-            }}>
+            <Select
+              value={`${sortBy}-${sortDir}`}
+              onValueChange={(v) => {
+                const [field, dir] = v.split("-") as [LinkSortBy, "asc" | "desc"];
+                setSortBy(field);
+                setSortDir(dir);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-[130px] h-9">
                 <SelectValue />
               </SelectTrigger>
@@ -483,29 +493,55 @@ function LinksManager() {
           {/* 筛选状态提示 */}
           {hasFilters && (
             <div className="flex items-center gap-2 flex-wrap text-sm">
-              <span className="text-muted-foreground">
-                {data?.totalCount ?? 0} 条结果
-              </span>
+              <span className="text-muted-foreground">{data?.totalCount ?? 0} 条结果</span>
               <span className="text-muted-foreground/40">|</span>
               {searchQuery.trim() && (
-                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setSearchQuery(""); setPage(1); }}>
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                >
                   搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
               {filterChannel && (
-                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterChannel(""); setPage(1); }}>
-                  {filterChannel === "_none" ? "无渠道" : (CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel)}
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => {
+                    setFilterChannel("");
+                    setPage(1);
+                  }}
+                >
+                  {filterChannel === "_none"
+                    ? "无渠道"
+                    : CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
               {filterActive !== "all" && (
-                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterActive("all"); setPage(1); }}>
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => {
+                    setFilterActive("all");
+                    setPage(1);
+                  }}
+                >
                   {filterActive === "active" ? "启用中" : "已停用"}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearFilters}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={clearFilters}
+              >
                 清除全部
               </Button>
             </div>
@@ -541,14 +577,15 @@ function LinksManager() {
                 >
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">
-                        {link.label || link.code}
-                      </span>
+                      <span className="font-medium truncate">{link.label || link.code}</span>
                       {link.channel && (
                         <Badge
                           variant="secondary"
                           className="text-xs cursor-pointer hover:bg-accent"
-                          onClick={() => { setFilterChannel(filterChannel === link.channel ? "" : (link.channel ?? "")); setPage(1); }}
+                          onClick={() => {
+                            setFilterChannel(filterChannel === link.channel ? "" : (link.channel ?? ""));
+                            setPage(1);
+                          }}
                         >
                           {CHANNEL_OPTIONS.find((c) => c.value === link.channel)?.label || link.channel}
                         </Badge>
@@ -579,15 +616,9 @@ function LinksManager() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Switch
                       checked={link.isActive}
-                      onCheckedChange={(checked) =>
-                        updateMutation.mutate({ id: link.id, isActive: checked })
-                      }
+                      onCheckedChange={(checked) => updateMutation.mutate({ id: link.id, isActive: checked })}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => copyToClipboard(`${siteUrl}/r/${link.code}`)}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`${siteUrl}/r/${link.code}`)}>
                       <Copy className="h-4 w-4" />
                     </Button>
                     {link.targetUrl && (
@@ -611,16 +642,9 @@ function LinksManager() {
 
               {data.totalPages > 1 && (
                 <div className="flex items-center justify-between pt-4">
-                  <span className="text-xs text-muted-foreground">
-                    共 {data.totalCount} 条
-                  </span>
+                  <span className="text-xs text-muted-foreground">共 {data.totalCount} 条</span>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                       上一页
                     </Button>
                     <span className="text-sm text-muted-foreground flex items-center px-2">
@@ -651,11 +675,7 @@ function LinksManager() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">标签（可选）</label>
-              <Input
-                placeholder="如：B站个人简介"
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-              />
+              <Input placeholder="如：B站个人简介" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">渠道</label>
@@ -674,14 +694,8 @@ function LinksManager() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">自定义落地页（可选）</label>
-              <Input
-                placeholder="https://..."
-                value={newTargetUrl}
-                onChange={(e) => setNewTargetUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                留空则跳转到站点首页
-              </p>
+              <Input placeholder="https://..." value={newTargetUrl} onChange={(e) => setNewTargetUrl(e.target.value)} />
+              <p className="text-xs text-muted-foreground">留空则跳转到站点首页</p>
             </div>
           </div>
           <DialogFooter>
@@ -710,15 +724,11 @@ function LinksManager() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
-            <AlertDialogDescription>
-              删除后推广链接将无法访问，已有推广记录不会受影响。
-            </AlertDialogDescription>
+            <AlertDialogDescription>删除后推广链接将无法访问，已有推广记录不会受影响。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && deleteMutation.mutate({ id: deleteId })}
-            >
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate({ id: deleteId })}>
               删除
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -758,23 +768,40 @@ function ReferralsList() {
             <Input
               placeholder="搜索用户名或昵称..."
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="pl-9 h-9 pr-8"
             />
             {searchQuery && (
-              <button onClick={() => { setSearchQuery(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <Select value={filterChannel || "_all"} onValueChange={(v) => { setFilterChannel(v === "_all" ? "" : v); setPage(1); }}>
+          <Select
+            value={filterChannel || "_all"}
+            onValueChange={(v) => {
+              setFilterChannel(v === "_all" ? "" : v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[120px] h-9">
               <SelectValue placeholder="全部渠道" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">全部渠道</SelectItem>
               {CHANNEL_OPTIONS.filter((c) => c.value).map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
               ))}
               <SelectItem value="_none">无渠道</SelectItem>
             </SelectContent>
@@ -786,18 +813,43 @@ function ReferralsList() {
             <span className="text-muted-foreground">{data?.totalCount ?? 0} 条结果</span>
             <span className="text-muted-foreground/40">|</span>
             {searchQuery.trim() && (
-              <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setSearchQuery(""); setPage(1); }}>
+              <Badge
+                variant="secondary"
+                className="gap-1 text-[11px] cursor-pointer"
+                onClick={() => {
+                  setSearchQuery("");
+                  setPage(1);
+                }}
+              >
                 搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
                 <X className="h-3 w-3" />
               </Badge>
             )}
             {filterChannel && (
-              <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterChannel(""); setPage(1); }}>
-                {filterChannel === "_none" ? "无渠道" : (CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel)}
+              <Badge
+                variant="secondary"
+                className="gap-1 text-[11px] cursor-pointer"
+                onClick={() => {
+                  setFilterChannel("");
+                  setPage(1);
+                }}
+              >
+                {filterChannel === "_none"
+                  ? "无渠道"
+                  : CHANNEL_OPTIONS.find((c) => c.value === filterChannel)?.label || filterChannel}
                 <X className="h-3 w-3" />
               </Badge>
             )}
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => { setSearchQuery(""); setFilterChannel(""); setPage(1); }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              onClick={() => {
+                setSearchQuery("");
+                setFilterChannel("");
+                setPage(1);
+              }}
+            >
               清除
             </Button>
           </div>
@@ -815,7 +867,16 @@ function ReferralsList() {
             {hasFilters ? (
               <>
                 <p>没有匹配的推广用户</p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setSearchQuery(""); setFilterChannel(""); setPage(1); }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterChannel("");
+                    setPage(1);
+                  }}
+                >
                   <X className="h-4 w-4 mr-1" />
                   清除筛选
                 </Button>
@@ -827,10 +888,7 @@ function ReferralsList() {
         ) : (
           <div className="space-y-3">
             {data.records.map((record) => (
-              <div
-                key={record.id}
-                className="flex items-center gap-3 p-3 rounded-lg border"
-              >
+              <div key={record.id} className="flex items-center gap-3 p-3 rounded-lg border">
                 <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
                   {(record.referredUser.nickname || record.referredUser.username)?.[0]?.toUpperCase()}
                 </div>
@@ -847,9 +905,17 @@ function ReferralsList() {
                           <Badge
                             variant="secondary"
                             className="text-[10px] ml-1 cursor-pointer hover:bg-accent"
-                            onClick={() => { setFilterChannel(filterChannel === record.referralLink!.channel ? "" : (record.referralLink!.channel ?? "")); setPage(1); }}
+                            onClick={() => {
+                              setFilterChannel(
+                                filterChannel === record.referralLink!.channel
+                                  ? ""
+                                  : (record.referralLink!.channel ?? ""),
+                              );
+                              setPage(1);
+                            }}
                           >
-                            {CHANNEL_OPTIONS.find((c) => c.value === record.referralLink!.channel)?.label || record.referralLink!.channel}
+                            {CHANNEL_OPTIONS.find((c) => c.value === record.referralLink!.channel)?.label ||
+                              record.referralLink!.channel}
                           </Badge>
                         )}
                       </span>
@@ -858,8 +924,7 @@ function ReferralsList() {
                 </div>
                 <div className="text-right shrink-0">
                   <Badge variant="secondary" className="text-xs">
-                    <Coins className="h-3 w-3 mr-1" />
-                    +{record.pointsAwarded}
+                    <Coins className="h-3 w-3 mr-1" />+{record.pointsAwarded}
                   </Badge>
                   <div className="text-xs text-muted-foreground mt-1">
                     {new Date(record.createdAt).toLocaleDateString()}
@@ -870,16 +935,9 @@ function ReferralsList() {
 
             {data.totalPages > 1 && (
               <div className="flex items-center justify-between pt-4">
-                <span className="text-xs text-muted-foreground">
-                  共 {data.totalCount} 条
-                </span>
+                <span className="text-xs text-muted-foreground">共 {data.totalCount} 条</span>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                     上一页
                   </Button>
                   <span className="text-sm text-muted-foreground flex items-center px-2">
@@ -959,7 +1017,13 @@ function PointsHistory() {
       <CardContent className="space-y-4">
         {/* 筛选栏 */}
         <div className="flex flex-col sm:flex-row gap-2">
-          <Select value={filterType || "_all"} onValueChange={(v) => { setFilterType(v === "_all" ? "" : v); setPage(1); }}>
+          <Select
+            value={filterType || "_all"}
+            onValueChange={(v) => {
+              setFilterType(v === "_all" ? "" : v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[160px] h-9">
               <SelectValue placeholder="全部类型" />
             </SelectTrigger>
@@ -969,13 +1033,21 @@ function PointsHistory() {
                 <React.Fragment key={group.label}>
                   <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{group.label}</div>
                   {group.types.map((t) => (
-                    <SelectItem key={t} value={t}>{POINTS_TYPE_LABELS[t] || t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {POINTS_TYPE_LABELS[t] || t}
+                    </SelectItem>
                   ))}
                 </React.Fragment>
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterDir} onValueChange={(v) => { setFilterDir(v); setPage(1); }}>
+          <Select
+            value={filterDir}
+            onValueChange={(v) => {
+              setFilterDir(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[110px] h-9">
               <SelectValue />
             </SelectTrigger>
@@ -988,18 +1060,41 @@ function PointsHistory() {
           {hasFilters && (
             <div className="flex items-center gap-2">
               {filterType && (
-                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterType(""); setPage(1); }}>
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => {
+                    setFilterType("");
+                    setPage(1);
+                  }}
+                >
                   {POINTS_TYPE_LABELS[filterType] || filterType}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
               {filterDir !== "all" && (
-                <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => { setFilterDir("all"); setPage(1); }}>
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => {
+                    setFilterDir("all");
+                    setPage(1);
+                  }}
+                >
                   {filterDir === "income" ? "收入" : "支出"}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => { setFilterType(""); setFilterDir("all"); setPage(1); }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setFilterType("");
+                  setFilterDir("all");
+                  setPage(1);
+                }}
+              >
                 清除
               </Button>
               <span className="text-xs text-muted-foreground ml-1">{data?.totalCount ?? 0} 条结果</span>
@@ -1019,7 +1114,16 @@ function PointsHistory() {
             {hasFilters ? (
               <>
                 <p>没有匹配的积分记录</p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setFilterType(""); setFilterDir("all"); setPage(1); }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => {
+                    setFilterType("");
+                    setFilterDir("all");
+                    setPage(1);
+                  }}
+                >
                   <X className="h-4 w-4 mr-1" />
                   清除筛选
                 </Button>
@@ -1031,15 +1135,15 @@ function PointsHistory() {
         ) : (
           <div className="space-y-3">
             {data.transactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center gap-3 p-3 rounded-lg border"
-              >
+              <div key={tx.id} className="flex items-center gap-3 p-3 rounded-lg border">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span
                       className="font-medium text-sm cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => { setFilterType(filterType === tx.type ? "" : tx.type); setPage(1); }}
+                      onClick={() => {
+                        setFilterType(filterType === tx.type ? "" : tx.type);
+                        setPage(1);
+                      }}
                     >
                       {POINTS_TYPE_LABELS[tx.type] || tx.type}
                     </span>
@@ -1049,22 +1153,14 @@ function PointsHistory() {
                       </Badge>
                     )}
                   </div>
-                  {tx.description && (
-                    <div className="text-xs text-muted-foreground truncate">
-                      {tx.description}
-                    </div>
-                  )}
+                  {tx.description && <div className="text-xs text-muted-foreground truncate">{tx.description}</div>}
                 </div>
                 <div className="text-right shrink-0">
-                  <div
-                    className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-500"}`}
-                  >
+                  <div className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-500"}`}>
                     {tx.amount > 0 ? "+" : ""}
                     {tx.amount}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    余额 {tx.balance}
-                  </div>
+                  <div className="text-xs text-muted-foreground">余额 {tx.balance}</div>
                 </div>
                 <div className="text-xs text-muted-foreground shrink-0">
                   {new Date(tx.createdAt).toLocaleDateString()}
@@ -1074,16 +1170,9 @@ function PointsHistory() {
 
             {data.totalPages > 1 && (
               <div className="flex items-center justify-between pt-4">
-                <span className="text-xs text-muted-foreground">
-                  共 {data.totalCount} 条
-                </span>
+                <span className="text-xs text-muted-foreground">共 {data.totalCount} 条</span>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                     上一页
                   </Button>
                   <span className="text-sm text-muted-foreground flex items-center px-2">
@@ -1148,15 +1237,30 @@ function formatTooltipDate(v: unknown) {
 }
 
 function TrendSummary({ data }: { data: { uniqueClicks: number; registers: number }[] }) {
-  const total = data.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
+  const total = data.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), {
+    uv: 0,
+    reg: 0,
+  });
   const half = Math.floor(data.length / 2);
   const recent = data.slice(half);
   const earlier = data.slice(0, half);
-  const recentSum = recent.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
-  const earlierSum = earlier.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), { uv: 0, reg: 0 });
+  const recentSum = recent.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), {
+    uv: 0,
+    reg: 0,
+  });
+  const earlierSum = earlier.reduce((acc, d) => ({ uv: acc.uv + d.uniqueClicks, reg: acc.reg + d.registers }), {
+    uv: 0,
+    reg: 0,
+  });
 
-  const uvTrend = earlierSum.uv > 0 ? Math.round(((recentSum.uv - earlierSum.uv) / earlierSum.uv) * 100) : (recentSum.uv > 0 ? 100 : 0);
-  const regTrend = earlierSum.reg > 0 ? Math.round(((recentSum.reg - earlierSum.reg) / earlierSum.reg) * 100) : (recentSum.reg > 0 ? 100 : 0);
+  const uvTrend =
+    earlierSum.uv > 0 ? Math.round(((recentSum.uv - earlierSum.uv) / earlierSum.uv) * 100) : recentSum.uv > 0 ? 100 : 0;
+  const regTrend =
+    earlierSum.reg > 0
+      ? Math.round(((recentSum.reg - earlierSum.reg) / earlierSum.reg) * 100)
+      : recentSum.reg > 0
+        ? 100
+        : 0;
 
   return (
     <div className="flex items-center gap-6 text-sm flex-wrap">
@@ -1165,7 +1269,8 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
         <span className="text-muted-foreground">独立访客 {total.uv}</span>
         {uvTrend !== 0 && (
           <span className={uvTrend > 0 ? "text-green-600 text-xs" : "text-red-500 text-xs"}>
-            {uvTrend > 0 ? "+" : ""}{uvTrend}%
+            {uvTrend > 0 ? "+" : ""}
+            {uvTrend}%
           </span>
         )}
       </div>
@@ -1174,7 +1279,8 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
         <span className="text-muted-foreground">注册 {total.reg}</span>
         {regTrend !== 0 && (
           <span className={regTrend > 0 ? "text-green-600 text-xs" : "text-red-500 text-xs"}>
-            {regTrend > 0 ? "+" : ""}{regTrend}%
+            {regTrend > 0 ? "+" : ""}
+            {regTrend}%
           </span>
         )}
       </div>
@@ -1188,11 +1294,18 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
 function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
   const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(14));
   const [linkSortBy, setLinkSortBy] = useState<"uniqueClicks" | "registers" | "conversionRate">("registers");
-  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({ ...dateRangeToApi(trendRange), linkIds });
+  const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({
+    ...dateRangeToApi(trendRange),
+    linkIds,
+  });
   const { data: channelData, isLoading: channelLoading } = trpc.referral.getChannelStats.useQuery(
-    linkIds?.length ? { linkIds } : undefined
+    linkIds?.length ? { linkIds } : undefined,
   );
-  const { data: topLinks, isLoading: linksLoading } = trpc.referral.getTopLinks.useQuery({ limit: 5, sortBy: linkSortBy, linkIds });
+  const { data: topLinks, isLoading: linksLoading } = trpc.referral.getTopLinks.useQuery({
+    limit: 5,
+    sortBy: linkSortBy,
+    linkIds,
+  });
 
   return (
     <div className="space-y-6">
@@ -1206,11 +1319,7 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
             </CardTitle>
             <CardDescription>每日点击与注册变化</CardDescription>
           </div>
-          <DateRangePicker
-            value={trendRange}
-            onChange={setTrendRange}
-            presets={TREND_PRESETS}
-          />
+          <DateRangePicker value={trendRange} onChange={setTrendRange} presets={TREND_PRESETS} />
         </CardHeader>
         <CardContent className="space-y-3">
           {trendLoading ? (
@@ -1346,7 +1455,9 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
           <CardContent>
             {linksLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
               </div>
             ) : !topLinks?.length ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -1363,9 +1474,7 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">{link.label || link.code}</div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {link.channel && (
-                          <span>{CHANNEL_LABELS[link.channel] || link.channel}</span>
-                        )}
+                        {link.channel && <span>{CHANNEL_LABELS[link.channel] || link.channel}</span>}
                         <span className="flex items-center gap-1">
                           <MousePointerClick className="h-3 w-3" />
                           {link.uniqueClicks} 访客
@@ -1409,11 +1518,11 @@ function RechargeCard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-medium">USDT 充值</div>
-              <div className="text-xs text-muted-foreground">
-                使用 TRC20 USDT 快速充值积分
-              </div>
+              <div className="text-xs text-muted-foreground">使用 TRC20 USDT 快速充值积分</div>
             </div>
-            <Button size="sm" onClick={() => setOpen(true)}>充值</Button>
+            <Button size="sm" onClick={() => setOpen(true)}>
+              充值
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -1442,7 +1551,15 @@ type OrderResult = {
   description: string | null;
 };
 
-function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenChange: (v: boolean) => void; config: PaymentConfig }) {
+function RechargeDialog({
+  open,
+  onOpenChange,
+  config,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  config: PaymentConfig;
+}) {
   const [step, setStep] = useState<"select" | "paying" | "success">("select");
   const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState("");
@@ -1458,16 +1575,21 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
       setStep("paying");
       try {
         const QRCode = (await import("qrcode")).default;
-        const qr = await QRCode.toDataURL(`tron:${data.walletAddress}?amount=${data.amount}`, { width: 256, margin: 2 });
+        const qr = await QRCode.toDataURL(`tron:${data.walletAddress}?amount=${data.amount}`, {
+          width: 256,
+          margin: 2,
+        });
         setQrDataUrl(qr);
-      } catch { /* qr generation failed, user can still copy address */ }
+      } catch {
+        /* qr generation failed, user can still copy address */
+      }
     },
     onError: (err) => toast.error(err.message),
   });
 
   const { data: orderStatus } = trpc.payment.checkOrderStatus.useQuery(
     { orderId: order?.id ?? "" },
-    { enabled: step === "paying" && !!order?.id, refetchInterval: 5000 }
+    { enabled: step === "paying" && !!order?.id, refetchInterval: 5000 },
   );
 
   useEffect(() => {
@@ -1485,7 +1607,10 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
     setCustomAmount("");
     setOrder(null);
     setQrDataUrl("");
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -1497,7 +1622,10 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
       createMutation.mutate({ packageId: selectedPkgId });
     } else if (customAmount) {
       const amt = parseFloat(customAmount);
-      if (isNaN(amt) || amt <= 0) { toast.error("请输入有效金额"); return; }
+      if (isNaN(amt) || amt <= 0) {
+        toast.error("请输入有效金额");
+        return;
+      }
       createMutation.mutate({ customAmount: amt });
     }
   };
@@ -1528,7 +1656,10 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
                     <button
                       key={pkg.id}
                       type="button"
-                      onClick={() => { setSelectedPkgId(pkg.id); setCustomAmount(""); }}
+                      onClick={() => {
+                        setSelectedPkgId(pkg.id);
+                        setCustomAmount("");
+                      }}
                       className={`rounded-lg border p-3 text-left transition-all ${
                         selectedPkgId === pkg.id
                           ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -1536,12 +1667,11 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
                       }`}
                     >
                       <div className="font-bold text-lg">{pkg.amount} USDT</div>
-                      <div className="text-sm text-muted-foreground">
-                        {pkg.pointsAmount.toLocaleString()} 积分
-                      </div>
+                      <div className="text-sm text-muted-foreground">{pkg.pointsAmount.toLocaleString()} 积分</div>
                       {pkg.grantUpload && (
                         <div className="text-xs text-green-500 flex items-center gap-1 mt-1">
-                          <Upload className="h-3 w-3" />上传权限
+                          <Upload className="h-3 w-3" />
+                          上传权限
                         </div>
                       )}
                       {pkg.description && <div className="text-xs text-muted-foreground mt-1">{pkg.description}</div>}
@@ -1561,7 +1691,10 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
                   max={config.usdtMaxAmount ?? undefined}
                   placeholder={`${config.usdtMinAmount ?? 1}~${config.usdtMaxAmount ?? "不限"} USDT`}
                   value={customAmount}
-                  onChange={(e) => { setCustomAmount(e.target.value); setSelectedPkgId(null); }}
+                  onChange={(e) => {
+                    setCustomAmount(e.target.value);
+                    setSelectedPkgId(null);
+                  }}
                 />
                 <span className="text-sm text-muted-foreground shrink-0">USDT</span>
               </div>
@@ -1605,7 +1738,12 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
                 <div className="text-xs text-muted-foreground">收款地址 (TRC20)</div>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="text-xs bg-muted px-2 py-1 rounded flex-1 break-all">{order.walletAddress}</code>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(order.walletAddress)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => copyToClipboard(order.walletAddress)}
+                  >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -1615,7 +1753,12 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
                 <div className="text-xs text-muted-foreground">精确支付金额</div>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="text-lg font-bold text-primary">{order.amount.toFixed(2)} USDT</code>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(order.amount.toFixed(2))}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => copyToClipboard(order.amount.toFixed(2))}
+                  >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -1647,11 +1790,14 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
               </div>
               {order.grantUpload && (
                 <div className="text-green-500 text-sm mt-1 flex items-center justify-center gap-1">
-                  <Upload className="h-4 w-4" />已获得上传权限
+                  <Upload className="h-4 w-4" />
+                  已获得上传权限
                 </div>
               )}
             </div>
-            <Button className="w-full" onClick={() => onOpenChange(false)}>完成</Button>
+            <Button className="w-full" onClick={() => onOpenChange(false)}>
+              完成
+            </Button>
           </div>
         )}
       </DialogContent>
@@ -1660,7 +1806,9 @@ function RechargeDialog({ open, onOpenChange, config }: { open: boolean; onOpenC
 }
 
 function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
-  const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)));
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)),
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1677,7 +1825,11 @@ function CountdownTimer({ expiresAt }: { expiresAt: Date }) {
 
   if (remaining <= 0) return <span className="text-red-500">已超时</span>;
 
-  return <span>{min}:{sec.toString().padStart(2, "0")}</span>;
+  return (
+    <span>
+      {min}:{sec.toString().padStart(2, "0")}
+    </span>
+  );
 }
 
 function RedeemCodeCard() {
@@ -1723,11 +1875,7 @@ function RedeemCodeCard() {
                 onClick={() => redeemMutation.mutate({ code: code.trim() })}
                 className="shrink-0"
               >
-                {redeemMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "兑换"
-                )}
+                {redeemMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "兑换"}
               </Button>
             </div>
           </div>
@@ -1750,9 +1898,7 @@ export default function ReferralPage() {
             <TrendingUp className="h-6 w-6" />
             推广中心
           </h1>
-          <p className="text-muted-foreground mt-1">
-            创建推广链接，邀请新用户注册赚取积分
-          </p>
+          <p className="text-muted-foreground mt-1">创建推广链接，邀请新用户注册赚取积分</p>
         </div>
         <div className="flex items-center gap-2">
           <LinkFilter selectedIds={selectedLinkIds} onChange={setSelectedLinkIds} />

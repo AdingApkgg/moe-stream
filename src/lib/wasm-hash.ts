@@ -5,12 +5,7 @@
  * hash-wasm 使用 WebAssembly 实现，首次调用会加载 WASM 模块并缓存，
  * 后续调用几乎零开销。
  */
-import {
-  md5 as wasmMd5,
-  sha256 as wasmSha256,
-  createHMAC,
-  createSHA256,
-} from "hash-wasm";
+import { md5 as wasmMd5, sha256 as wasmSha256, createHMAC, createSHA256 } from "hash-wasm";
 
 export async function md5(input: string): Promise<string> {
   return wasmMd5(input);

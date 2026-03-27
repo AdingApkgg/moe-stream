@@ -21,7 +21,7 @@ export function AdCard({ ad, compact, className }: AdCardProps) {
       rel="noopener noreferrer sponsored"
       className={cn(
         "group block rounded-lg overflow-hidden border border-border/60 bg-muted/40 transition-all hover:shadow-md hover:border-primary/40",
-        className
+        className,
       )}
     >
       {/* 图片区域 */}
@@ -40,7 +40,12 @@ export function AdCard({ ad, compact, className }: AdCardProps) {
           </span>
         </div>
       ) : (
-        <div className={cn("relative w-full flex items-center justify-center bg-muted text-muted-foreground text-xs", compact ? "aspect-[2/1]" : "aspect-video")}>
+        <div
+          className={cn(
+            "relative w-full flex items-center justify-center bg-muted text-muted-foreground text-xs",
+            compact ? "aspect-[2/1]" : "aspect-video",
+          )}
+        >
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/60 text-white/90 leading-tight">
             广告
           </span>
@@ -60,9 +65,7 @@ export function AdCard({ ad, compact, className }: AdCardProps) {
             </span>
           )}
         </div>
-        {ad.description && !compact && (
-          <p className="text-xs text-muted-foreground line-clamp-1">{ad.description}</p>
-        )}
+        {ad.description && !compact && <p className="text-xs text-muted-foreground line-clamp-1">{ad.description}</p>}
       </div>
     </a>
   );

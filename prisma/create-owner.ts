@@ -18,28 +18,25 @@ const OWNER_CONFIG = {
 
 async function main() {
   const { PrismaClient } = await import("../src/generated/prisma/client.js");
-  
+
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const adapter = new PrismaPg(pool as unknown as ConstructorParameters<typeof PrismaPg>[0]);
   const prisma = new PrismaClient({ adapter });
-  
+
   console.log("Creating owner user...");
 
   try {
     // 检查是否已存在
     const existing = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: OWNER_CONFIG.email },
-          { username: OWNER_CONFIG.username },
-        ],
+        OR: [{ email: OWNER_CONFIG.email }, { username: OWNER_CONFIG.username }],
       },
     });
 
     if (existing) {
       console.log(`User already exists: ${existing.email} (${existing.username})`);
       console.log(`Current role: ${existing.role}`);
-      
+
       // 如果存在但不是 OWNER，升级为 OWNER
       if (existing.role !== "OWNER") {
         await prisma.user.update({

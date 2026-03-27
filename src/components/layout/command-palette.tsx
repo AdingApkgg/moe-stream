@@ -64,10 +64,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         setIsOpen(!isOpen);
       }
       // / 键打开搜索（非输入框时）
-      if (
-        e.key === "/" &&
-        !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)
-      ) {
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -82,7 +79,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       setIsOpen(false);
       command();
     },
-    [setIsOpen]
+    [setIsOpen],
   );
 
   const handleSearch = () => {
@@ -93,12 +90,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   };
 
   return (
-    <CommandDialog
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      title="命令面板"
-      description="快速导航和操作"
-    >
+    <CommandDialog open={isOpen} onOpenChange={setIsOpen} title="命令面板" description="快速导航和操作">
       <CommandInput
         placeholder="搜索视频、游戏或命令..."
         value={searchValue}
@@ -207,7 +199,17 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             )}
             <CommandSeparator />
             <CommandItem
-              onSelect={() => runCommand(() => authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/"; } } }))}
+              onSelect={() =>
+                runCommand(() =>
+                  authClient.signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        window.location.href = "/";
+                      },
+                    },
+                  }),
+                )
+              }
             >
               <LogOut className="mr-2 h-4 w-4" />
               退出登录

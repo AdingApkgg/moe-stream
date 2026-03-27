@@ -25,7 +25,7 @@ export const imageRouter = router({
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views"]).default("latest"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy } = input;
@@ -59,9 +59,7 @@ export const imageRouter = router({
         ];
       }
 
-      const orderBy = sortBy === "views"
-        ? { views: "desc" as const }
-        : { createdAt: "desc" as const };
+      const orderBy = sortBy === "views" ? { views: "desc" as const } : { createdAt: "desc" as const };
 
       const skip = (page - 1) * limit;
 
@@ -98,7 +96,7 @@ export const imageRouter = router({
         userId: z.string(),
         limit: z.number().min(1).max(50).default(20),
         page: z.number().min(1).default(1),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -133,32 +131,30 @@ export const imageRouter = router({
       };
     }),
 
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const post = await ctx.prisma.imagePost.findUnique({
-        where: { id: input.id },
-        include: {
-          uploader: {
-            select: { id: true, username: true, nickname: true, avatar: true },
-          },
-          tags: {
-            include: { tag: { select: { id: true, name: true, slug: true } } },
-          },
+  getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const post = await ctx.prisma.imagePost.findUnique({
+      where: { id: input.id },
+      include: {
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
         },
-      });
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+      },
+    });
 
-      if (!post || (post.status !== "PUBLISHED" && post.uploaderId !== ctx.session?.user?.id)) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
-      }
+    if (!post || (post.status !== "PUBLISHED" && post.uploaderId !== ctx.session?.user?.id)) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
+    }
 
-      await ctx.prisma.imagePost.update({
-        where: { id: input.id },
-        data: { views: { increment: 1 } },
-      });
+    await ctx.prisma.imagePost.update({
+      where: { id: input.id },
+      data: { views: { increment: 1 } },
+    });
 
-      return post;
-    }),
+    return post;
+  }),
 
   create: protectedProcedure
     .input(
@@ -168,7 +164,7 @@ export const imageRouter = router({
         images: z.array(z.string().url()).min(1, "至少上传一张图片"),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { tagIds, tagNames, ...data } = input;
@@ -204,10 +200,10 @@ export const imageRouter = router({
               description: z.string().max(5000).optional(),
               images: z.array(z.string().url()).min(1),
               tagNames: z.array(z.string()).optional(),
-            })
+            }),
           )
           .min(1),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
@@ -225,9 +221,7 @@ export const imageRouter = router({
 
       for (const postInput of input.posts) {
         try {
-          const tagIds = (postInput.tagNames ?? [])
-            .map((n) => tagNameToId.get(n))
-            .filter((id): id is string => !!id);
+          const tagIds = (postInput.tagNames ?? []).map((n) => tagNameToId.get(n)).filter((id): id is string => !!id);
 
           const existing = await ctx.prisma.imagePost.findFirst({
             where: { title: postInput.title, uploaderId: ctx.session.user.id },
@@ -272,38 +266,33 @@ export const imageRouter = router({
         }
       }
 
-      scheduleTagCountRefresh(
-        [...new Set([...previousTagIds, ...tagNameToId.values()])],
-        "图片批量导入",
-      );
+      scheduleTagCountRefresh([...new Set([...previousTagIds, ...tagNameToId.values()])], "图片批量导入");
 
       return { results };
     }),
 
-  getForEdit: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const post = await ctx.prisma.imagePost.findUnique({
-        where: { id: input.id },
-        include: {
-          tags: {
-            include: { tag: { select: { id: true, name: true, slug: true } } },
-          },
+  getForEdit: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const post = await ctx.prisma.imagePost.findUnique({
+      where: { id: input.id },
+      include: {
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
         },
-      });
+      },
+    });
 
-      if (!post) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
-      }
+    if (!post) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
+    }
 
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { role: true },
-      });
-      assertOwnership(post.uploaderId, ctx.session.user.id, user?.role ?? "USER", "无权编辑此图片帖");
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { role: true },
+    });
+    assertOwnership(post.uploaderId, ctx.session.user.id, user?.role ?? "USER", "无权编辑此图片帖");
 
-      return post;
-    }),
+    return post;
+  }),
 
   update: protectedProcedure
     .input(
@@ -314,7 +303,7 @@ export const imageRouter = router({
         images: z.array(z.string().url()).min(1).optional(),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, tagIds, tagNames, ...data } = input;
@@ -366,10 +355,12 @@ export const imageRouter = router({
   // ==================== 用户交互 ====================
 
   toggleReaction: protectedProcedure
-    .input(z.object({
-      imagePostId: z.string(),
-      type: z.enum(["like", "dislike"]),
-    }))
+    .input(
+      z.object({
+        imagePostId: z.string(),
+        type: z.enum(["like", "dislike"]),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const { imagePostId, type } = input;
@@ -404,43 +395,41 @@ export const imageRouter = router({
       }
     }),
 
-  toggleFavorite: protectedProcedure
-    .input(z.object({ imagePostId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const existing = await ctx.prisma.imagePostFavorite.findUnique({
+  toggleFavorite: protectedProcedure.input(z.object({ imagePostId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const existing = await ctx.prisma.imagePostFavorite.findUnique({
+      where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+    });
+
+    if (existing) {
+      await ctx.prisma.imagePostFavorite.delete({ where: { id: existing.id } });
+      return { favorited: false };
+    }
+
+    await ctx.prisma.imagePostFavorite.create({
+      data: { userId, imagePostId: input.imagePostId },
+    });
+    const pointsAwarded = await awardPoints(userId, "FAVORITE_IMAGE", undefined, input.imagePostId, {
+      firstTimeOnly: true,
+    });
+    return { favorited: true, pointsAwarded };
+  }),
+
+  getUserInteraction: protectedProcedure.input(z.object({ imagePostId: z.string() })).query(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const [liked, disliked, favorited] = await Promise.all([
+      ctx.prisma.imagePostLike.findUnique({
         where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
-      });
-
-      if (existing) {
-        await ctx.prisma.imagePostFavorite.delete({ where: { id: existing.id } });
-        return { favorited: false };
-      }
-
-      await ctx.prisma.imagePostFavorite.create({
-        data: { userId, imagePostId: input.imagePostId },
-      });
-      const pointsAwarded = await awardPoints(userId, "FAVORITE_IMAGE", undefined, input.imagePostId, { firstTimeOnly: true });
-      return { favorited: true, pointsAwarded };
-    }),
-
-  getUserInteraction: protectedProcedure
-    .input(z.object({ imagePostId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const [liked, disliked, favorited] = await Promise.all([
-        ctx.prisma.imagePostLike.findUnique({
-          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
-        }),
-        ctx.prisma.imagePostDislike.findUnique({
-          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
-        }),
-        ctx.prisma.imagePostFavorite.findUnique({
-          where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
-        }),
-      ]);
-      return { liked: !!liked, disliked: !!disliked, favorited: !!favorited };
-    }),
+      }),
+      ctx.prisma.imagePostDislike.findUnique({
+        where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+      }),
+      ctx.prisma.imagePostFavorite.findUnique({
+        where: { userId_imagePostId: { userId, imagePostId: input.imagePostId } },
+      }),
+    ]);
+    return { liked: !!liked, disliked: !!disliked, favorited: !!favorited };
+  }),
 
   incrementViews: publicProcedure
     .input(z.object({ id: z.string(), visitorId: z.string().optional() }))
@@ -457,48 +446,48 @@ export const imageRouter = router({
       return { success: true };
     }),
 
-  recordView: protectedProcedure
-    .input(z.object({ imagePostId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.prisma.imagePostViewHistory.findUnique({
-        where: {
-          userId_imagePostId: {
-            userId: ctx.session.user.id,
-            imagePostId: input.imagePostId,
-          },
-        },
-        select: { id: true },
-      });
-
-      await ctx.prisma.imagePostViewHistory.upsert({
-        where: {
-          userId_imagePostId: {
-            userId: ctx.session.user.id,
-            imagePostId: input.imagePostId,
-          },
-        },
-        update: { updatedAt: new Date() },
-        create: {
+  recordView: protectedProcedure.input(z.object({ imagePostId: z.string() })).mutation(async ({ ctx, input }) => {
+    const existing = await ctx.prisma.imagePostViewHistory.findUnique({
+      where: {
+        userId_imagePostId: {
           userId: ctx.session.user.id,
           imagePostId: input.imagePostId,
         },
-      });
+      },
+      select: { id: true },
+    });
 
-      let pointsAwarded = 0;
-      if (!existing) {
-        pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_IMAGE", undefined, input.imagePostId);
-      }
-      return { success: true, pointsAwarded };
-    }),
+    await ctx.prisma.imagePostViewHistory.upsert({
+      where: {
+        userId_imagePostId: {
+          userId: ctx.session.user.id,
+          imagePostId: input.imagePostId,
+        },
+      },
+      update: { updatedAt: new Date() },
+      create: {
+        userId: ctx.session.user.id,
+        imagePostId: input.imagePostId,
+      },
+    });
+
+    let pointsAwarded = 0;
+    if (!existing) {
+      pointsAwarded = await awardPoints(ctx.session.user.id, "VIEW_IMAGE", undefined, input.imagePostId);
+    }
+    return { success: true, pointsAwarded };
+  }),
 
   // ==================== 公开列表（用户主页用） ====================
 
   getUserFavorites: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      limit: z.number().min(1).max(50).default(20),
-      page: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
       const where = {
@@ -534,11 +523,13 @@ export const imageRouter = router({
     }),
 
   getUserLiked: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      limit: z.number().min(1).max(50).default(20),
-      page: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
       const where = {
@@ -574,11 +565,13 @@ export const imageRouter = router({
     }),
 
   getUserHistory: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      limit: z.number().min(1).max(50).default(20),
-      page: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        userId: z.string(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
       const where = {

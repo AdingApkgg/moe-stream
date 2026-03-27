@@ -29,13 +29,7 @@ export function Markdown({ content, className }: MarkdownProps) {
           ),
           img: ({ src, alt, ...props }) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={src}
-              alt={alt || ""}
-              className="rounded-lg max-w-full h-auto"
-              loading="lazy"
-              {...props}
-            />
+            <img src={src} alt={alt || ""} className="rounded-lg max-w-full h-auto" loading="lazy" {...props} />
           ),
         }}
       >

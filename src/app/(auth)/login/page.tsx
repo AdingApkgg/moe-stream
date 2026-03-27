@@ -79,7 +79,7 @@ function LoginForm() {
       internal_server_error: "服务器内部错误，请稍后重试",
       unable_to_create_user: "无法创建账号，请稍后重试",
       unable_to_create_session: "创建会话失败，请重试",
-      "account_not_linked": "该邮箱已注册但未绑定此第三方账号",
+      account_not_linked: "该邮箱已注册但未绑定此第三方账号",
       "email_doesn't_match": "第三方账号邮箱与当前账号不一致",
       email_not_found: "第三方账号未提供邮箱，无法登录",
       state_mismatch: "登录状态已过期，请重试",
@@ -100,16 +100,21 @@ function LoginForm() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
-    Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable()).then((available) => {
-      if (!available) return;
-      authClient.signIn.passkey({ autoFill: true }).then((res) => {
-        if (res?.data && !("twoFactorRedirect" in res.data)) {
-          toast.success("登录成功");
-          router.push(callbackUrl);
-          router.refresh();
-        }
-      }).catch(() => {});
-    }).catch(() => {});
+    Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable())
+      .then((available) => {
+        if (!available) return;
+        authClient.signIn
+          .passkey({ autoFill: true })
+          .then((res) => {
+            if (res?.data && !("twoFactorRedirect" in res.data)) {
+              toast.success("登录成功");
+              router.push(callbackUrl);
+              router.refresh();
+            }
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }, [callbackUrl, router]);
 
   const handlePasskeySignIn = useCallback(async () => {
@@ -117,7 +122,9 @@ function LoginForm() {
     try {
       const result = await authClient.signIn.passkey();
       if (result?.error) {
-        toast.error("通行密钥登录失败", { description: typeof result.error.message === "string" ? result.error.message : undefined });
+        toast.error("通行密钥登录失败", {
+          description: typeof result.error.message === "string" ? result.error.message : undefined,
+        });
       } else if (result?.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
         router.push(`/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       } else if (result?.data) {
@@ -176,13 +183,15 @@ function LoginForm() {
         router.push(`/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       } else {
         toast.success("登录成功");
-        getFingerprint().then((fp) => {
-          fetch("/api/auth/session-info", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fingerprint: fp }),
-          }).catch(() => {});
-        }).catch(() => {});
+        getFingerprint()
+          .then((fp) => {
+            fetch("/api/auth/session-info", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fingerprint: fp }),
+            }).catch(() => {});
+          })
+          .catch(() => {});
         router.push(callbackUrl);
         router.refresh();
       }
@@ -203,142 +212,142 @@ function LoginForm() {
                 {isNewAccount ? "添加账号" : prefillAccount ? "切换账号" : "登录"}
               </CardTitle>
               <CardDescription>
-                {isNewAccount 
-                  ? "登录其他账号以添加到账号列表" 
-                  : prefillAccount 
-                  ? "请输入密码以切换账号" 
-                  : "登录您的账户继续"}
+                {isNewAccount
+                  ? "登录其他账号以添加到账号列表"
+                  : prefillAccount
+                    ? "请输入密码以切换账号"
+                    : "登录您的账户继续"}
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="identifier"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>邮箱或用户名</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="邮箱或用户名"
-                        autoComplete="username webauthn"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>密码</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="******" autoComplete="current-password webauthn" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {captchaType === "math" && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="captcha"
+                  name="identifier"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>验证码</FormLabel>
+                      <FormLabel>邮箱或用户名</FormLabel>
                       <FormControl>
-                        <UnifiedCaptcha
-                          type="math"
-                          mathValue={field.value || ""}
-                          onMathChange={field.onChange}
-                          mathError={form.formState.errors.captcha?.message}
-                          refreshKey={captchaKey}
-                        />
+                        <Input type="text" placeholder="邮箱或用户名" autoComplete="username webauthn" {...field} />
                       </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
-              {captchaType === "slider" && (
-                <div className="space-y-2">
-                  <UnifiedCaptcha
-                    type="slider"
-                    onSliderVerify={(p) => setSliderValue(p)}
-                    refreshKey={captchaKey}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>密码</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="******"
+                          autoComplete="current-password webauthn"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {captchaType === "math" && (
+                  <FormField
+                    control={form.control}
+                    name="captcha"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>验证码</FormLabel>
+                        <FormControl>
+                          <UnifiedCaptcha
+                            type="math"
+                            mathValue={field.value || ""}
+                            onMathChange={field.onChange}
+                            mathError={form.formState.errors.captcha?.message}
+                            refreshKey={captchaKey}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
                   />
-                </div>
+                )}
+                {captchaType === "slider" && (
+                  <div className="space-y-2">
+                    <UnifiedCaptcha type="slider" onSliderVerify={(p) => setSliderValue(p)} refreshKey={captchaKey} />
+                  </div>
+                )}
+                {isTokenCaptcha && (
+                  <div className="space-y-2">
+                    <UnifiedCaptcha
+                      type={captchaType}
+                      turnstileSiteKey={turnstileSiteKey}
+                      recaptchaSiteKey={recaptchaSiteKey}
+                      hcaptchaSiteKey={hcaptchaSiteKey}
+                      onTurnstileVerify={handleTurnstileVerify}
+                      onTurnstileExpire={handleTurnstileExpire}
+                      refreshKey={captchaKey}
+                    />
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={
+                    isLoading ||
+                    (isTokenCaptcha && !turnstileToken) ||
+                    (captchaType === "slider" && sliderValue === null)
+                  }
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  登录
+                </Button>
+              </form>
+            </Form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">或</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={passkeyLoading}
+              onClick={handlePasskeySignIn}
+            >
+              {passkeyLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Fingerprint className="mr-2 h-4 w-4" />
               )}
-              {isTokenCaptcha && (
-                <div className="space-y-2">
-                  <UnifiedCaptcha
-                    type={captchaType}
-                    turnstileSiteKey={turnstileSiteKey}
-                    recaptchaSiteKey={recaptchaSiteKey}
-                    hcaptchaSiteKey={hcaptchaSiteKey}
-                    onTurnstileVerify={handleTurnstileVerify}
-                    onTurnstileExpire={handleTurnstileExpire}
-                    refreshKey={captchaKey}
-                  />
-                </div>
-              )}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || (isTokenCaptcha && !turnstileToken) || (captchaType === "slider" && sliderValue === null)}
-              >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                登录
-              </Button>
-            </form>
-          </Form>
+              使用通行密钥登录
+            </Button>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">或</span>
-            </div>
-          </div>
+            <SocialLoginButtons callbackURL={callbackUrl} />
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            disabled={passkeyLoading}
-            onClick={handlePasskeySignIn}
-          >
-            {passkeyLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Fingerprint className="mr-2 h-4 w-4" />
-            )}
-            使用通行密钥登录
-          </Button>
-
-          <SocialLoginButtons callbackURL={callbackUrl} />
-
-          <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
-            <div>
-              <Link href="/forgot-password" className="text-primary hover:underline">
-                忘记密码？
-              </Link>
+            <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
+              <div>
+                <Link href="/forgot-password" className="text-primary hover:underline">
+                  忘记密码？
+                </Link>
+              </div>
+              <div>
+                还没有账户？{" "}
+                <Link href="/register" className="text-primary hover:underline">
+                  立即注册
+                </Link>
+              </div>
             </div>
-            <div>
-              还没有账户？{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                立即注册
-              </Link>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

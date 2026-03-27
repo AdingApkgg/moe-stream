@@ -47,12 +47,7 @@ function renderFileIcon(mimeType: string, className: string) {
   if (mimeType.startsWith("image/")) return <ImageIcon className={className} />;
   if (mimeType.startsWith("video/")) return <VideoIcon className={className} />;
   if (mimeType.startsWith("audio/")) return <FileAudio className={className} />;
-  if (
-    mimeType.includes("zip") ||
-    mimeType.includes("rar") ||
-    mimeType.includes("7z") ||
-    mimeType.includes("tar")
-  )
+  if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("7z") || mimeType.includes("tar"))
     return <FileArchive className={className} />;
   return <FileIcon className={className} />;
 }
@@ -60,8 +55,7 @@ function renderFileIcon(mimeType: string, className: string) {
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
@@ -71,14 +65,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   imagePost: "图片帖",
 };
 
-export function FileCard({
-  file,
-  onDelete,
-  onDetach,
-  onAttach,
-  showAttachInfo = true,
-  className,
-}: FileCardProps) {
+export function FileCard({ file, onDelete, onDetach, onAttach, showAttachInfo = true, className }: FileCardProps) {
   const isImage = file.mimeType.startsWith("image/");
   const isVideo = file.mimeType.startsWith("video/");
 
@@ -87,19 +74,9 @@ export function FileCard({
       <div className="relative aspect-[4/3] bg-muted flex items-center justify-center overflow-hidden">
         {isImage ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={file.url}
-            alt={file.filename}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
+          <img src={file.url} alt={file.filename} className="h-full w-full object-cover" loading="lazy" />
         ) : isVideo ? (
-          <video
-            src={file.url}
-            className="h-full w-full object-cover"
-            muted
-            preload="metadata"
-          />
+          <video src={file.url} className="h-full w-full object-cover" muted preload="metadata" />
         ) : (
           renderFileIcon(file.mimeType, "h-12 w-12 text-muted-foreground")
         )}
@@ -137,10 +114,7 @@ export function FileCard({
                 </DropdownMenuItem>
               )}
               {onDelete && (
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => onDelete(file.id)}
-                >
+                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(file.id)}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   删除
                 </DropdownMenuItem>
@@ -157,9 +131,7 @@ export function FileCard({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{formatFileSize(file.size)}</span>
           {showAttachInfo && file.contentType && (
-            <span className="text-primary">
-              {CONTENT_TYPE_LABELS[file.contentType] || file.contentType}
-            </span>
+            <span className="text-primary">{CONTENT_TYPE_LABELS[file.contentType] || file.contentType}</span>
           )}
         </div>
       </div>

@@ -12,11 +12,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function PrivacyPage() {
-  return (
-    <LegalPage
-      field="privacyPolicy"
-      title="隐私政策"
-      icon={<Shield className="h-6 w-6 text-primary" />}
-    />
-  );
+  return <LegalPage field="privacyPolicy" title="隐私政策" icon={<Shield className="h-6 w-6 text-primary" />} />;
 }

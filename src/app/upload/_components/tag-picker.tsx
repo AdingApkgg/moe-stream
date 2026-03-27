@@ -71,7 +71,9 @@ export function TagPicker({
             <Tag className="h-4 w-4" />
             标签
           </CardTitle>
-          <span className="text-xs text-muted-foreground">{totalCount}/{maxTags}</span>
+          <span className="text-xs text-muted-foreground">
+            {totalCount}/{maxTags}
+          </span>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -112,7 +114,12 @@ export function TagPicker({
               placeholder={isFull ? "已达上限" : "搜索或创建标签..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
               disabled={isFull}
               className="pl-8 h-8 text-sm"
             />
@@ -146,9 +153,7 @@ export function TagPicker({
                 );
               })
             ) : (
-              <p className="text-xs text-muted-foreground py-2 px-1">
-                {input ? "未找到匹配的标签" : "暂无标签"}
-              </p>
+              <p className="text-xs text-muted-foreground py-2 px-1">{input ? "未找到匹配的标签" : "暂无标签"}</p>
             )}
           </div>
         </ScrollArea>

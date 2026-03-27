@@ -5,10 +5,6 @@ export const metadata: Metadata = {
   description: "查看全站最新评论与留言",
 };
 
-export default function CommentsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function CommentsLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

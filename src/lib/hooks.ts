@@ -67,14 +67,8 @@ interface UseRequireAuthReturn {
  * 认证检查 hook
  * 自动处理未登录用户的重定向
  */
-export function useRequireAuth(
-  options: UseRequireAuthOptions = {}
-): UseRequireAuthReturn {
-  const {
-    redirectTo = "/login",
-    includeCallback = true,
-    callbackUrl,
-  } = options;
+export function useRequireAuth(options: UseRequireAuthOptions = {}): UseRequireAuthReturn {
+  const { redirectTo = "/login", includeCallback = true, callbackUrl } = options;
 
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -197,10 +191,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 // ==================== useLocalStorage ====================
 // 本地存储 hook
 
-export function useLocalStorage<T>(
-  key: string,
-  initialValue: T
-): [T, (value: T | ((prev: T) => T)) => void] {
+export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === "undefined") return initialValue;
     try {
@@ -223,7 +214,7 @@ export function useLocalStorage<T>(
         console.error("Error saving to localStorage:", error);
       }
     },
-    [key, storedValue]
+    [key, storedValue],
   );
 
   return [storedValue, setValue];
@@ -252,7 +243,7 @@ export function useMediaQuery(query: string): boolean {
       mediaQuery.addEventListener("change", callback);
       return () => mediaQuery.removeEventListener("change", callback);
     },
-    [query]
+    [query],
   );
 
   const getSnapshot = useCallback(() => {

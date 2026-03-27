@@ -36,9 +36,7 @@ export async function generateMetadata({ params }: ImagePageProps): Promise<Meta
   }
 
   const uploaderName = post.uploader.nickname || post.uploader.username;
-  const description = post.description
-    ? post.description.slice(0, 160)
-    : `${uploaderName} 分享的图片`;
+  const description = post.description ? post.description.slice(0, 160) : `${uploaderName} 分享的图片`;
   const keywords = post.tags.map(({ tag }) => tag.name);
   const images = (post.images as string[]) ?? [];
 

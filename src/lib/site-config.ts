@@ -233,62 +233,73 @@ export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => 
         let config: Record<string, unknown> | null = null;
 
         try {
-          config = await prisma.siteConfig.findUnique({
+          config = (await prisma.siteConfig.findUnique({
             where: { id: "default" },
             select: selectFields,
-          }) as Record<string, unknown> | null;
+          })) as Record<string, unknown> | null;
         } catch {
           // 新字段尚未迁移时 select 可能失败，回退到全量查询
-          config = await prisma.siteConfig.findUnique({
+          config = (await prisma.siteConfig.findUnique({
             where: { id: "default" },
-          }) as Record<string, unknown> | null;
+          })) as Record<string, unknown> | null;
         }
 
         if (!config) {
           console.warn(
             "[SiteConfig] 数据库中未找到 SiteConfig 记录（id=default），将自动创建。" +
-            "如果你的后台设置丢失，请检查数据库是否被重置。"
+              "如果你的后台设置丢失，请检查数据库是否被重置。",
           );
           try {
-            config = await prisma.siteConfig.create({
+            config = (await prisma.siteConfig.create({
               data: { id: "default" },
               select: selectFields,
-            }) as Record<string, unknown> | null;
+            })) as Record<string, unknown> | null;
           } catch {
-            config = await prisma.siteConfig.create({
+            config = (await prisma.siteConfig.create({
               data: { id: "default" },
-            }) as Record<string, unknown> | null;
+            })) as Record<string, unknown> | null;
           }
         }
 
         if (!config) throw new Error("SiteConfig not available");
 
         const oauthProviderPairs = [
-          ["Google", "google"], ["Github", "github"], ["Discord", "discord"],
-          ["Apple", "apple"], ["Twitter", "twitter"], ["Facebook", "facebook"],
-          ["Microsoft", "microsoft"], ["Twitch", "twitch"], ["Spotify", "spotify"],
-          ["Linkedin", "linkedin"], ["Gitlab", "gitlab"], ["Reddit", "reddit"],
+          ["Google", "google"],
+          ["Github", "github"],
+          ["Discord", "discord"],
+          ["Apple", "apple"],
+          ["Twitter", "twitter"],
+          ["Facebook", "facebook"],
+          ["Microsoft", "microsoft"],
+          ["Twitch", "twitch"],
+          ["Spotify", "spotify"],
+          ["Linkedin", "linkedin"],
+          ["Gitlab", "gitlab"],
+          ["Reddit", "reddit"],
         ] as const;
         const oauthProviders: string[] = [];
         for (const [key, id] of oauthProviderPairs) {
-          if (config[`oauth${key}ClientId` as keyof typeof config] && config[`oauth${key}ClientSecret` as keyof typeof config]) {
+          if (
+            config[`oauth${key}ClientId` as keyof typeof config] &&
+            config[`oauth${key}ClientSecret` as keyof typeof config]
+          ) {
             oauthProviders.push(id);
           }
         }
 
         return {
           ...defaultConfig,
-          ...Object.fromEntries(
-            Object.entries(config).filter(([key]) => key in defaultConfig)
+          ...Object.fromEntries(Object.entries(config).filter(([key]) => key in defaultConfig)),
+          siteUrl: stripTrailingSlash(
+            (config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
           ),
-          siteUrl: stripTrailingSlash((config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
           socialLinks: config.socialLinks as Record<string, string> | null,
           footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
           sponsorAds: config.sponsorAds as Ad[] | null,
           oauthProviders,
         };
       },
-      300 // 5 minutes TTL
+      300, // 5 minutes TTL
     );
   } catch {
     // 数据库或 Redis 完全不可用时返回默认配置，确保页面可渲染

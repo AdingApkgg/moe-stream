@@ -101,14 +101,11 @@ function NavLink({
         className={cn(
           "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-3 transition-[background-color] duration-150 ease-out",
           "hover:bg-accent/60",
-          isActive && "bg-accent"
+          isActive && "bg-accent",
         )}
       >
         <item.icon className={cn("h-5 w-5", isActive ? "stroke-[2.5px]" : "stroke-[1.5px]")} />
-        <span className={cn(
-          "text-[10px] leading-tight",
-          isActive ? "font-semibold" : "font-normal"
-        )}>
+        <span className={cn("text-[10px] leading-tight", isActive ? "font-semibold" : "font-normal")}>
           {item.label}
         </span>
       </Link>
@@ -122,9 +119,7 @@ function NavLink({
       className={cn(
         "flex items-center gap-5 rounded-xl px-3 py-2 text-sm transition-[background-color] duration-150 ease-out",
         "hover:bg-accent/60",
-        isActive
-          ? "bg-accent font-semibold"
-          : "font-normal text-foreground"
+        isActive ? "bg-accent font-semibold" : "font-normal text-foreground",
       )}
     >
       <item.icon className={cn("h-[22px] w-[22px] shrink-0", isActive ? "stroke-[2.5px]" : "stroke-[1.5px]")} />
@@ -158,24 +153,13 @@ function NavGroup({
 
   return (
     <div className={collapsed ? "space-y-0.5" : "space-y-0.5"}>
-      {title && !collapsed && (
-        <h3 className="mb-1 px-3 pt-1 text-sm font-semibold text-foreground">
-          {title}
-        </h3>
-      )}
+      {title && !collapsed && <h3 className="mb-1 px-3 pt-1 text-sm font-semibold text-foreground">{title}</h3>}
       {filteredItems.map((item) => {
-        const isActive = item.href === "/"
-          ? pathname === "/" || pathname === "/video" || pathname === "/image" || pathname === "/game"
-          : pathname === item.href || pathname.startsWith(item.href);
-        return (
-          <NavLink
-            key={item.href}
-            item={item}
-            collapsed={collapsed}
-            isActive={isActive}
-            onClick={onItemClick}
-          />
-        );
+        const isActive =
+          item.href === "/"
+            ? pathname === "/" || pathname === "/video" || pathname === "/image" || pathname === "/game"
+            : pathname === item.href || pathname.startsWith(item.href);
+        return <NavLink key={item.href} item={item} collapsed={collapsed} isActive={isActive} onClick={onItemClick} />;
       })}
     </div>
   );
@@ -226,9 +210,7 @@ function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
               onClick={() => handleModeChange(opt.id)}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 w-full transition-colors",
-                isSelected
-                  ? "bg-accent font-semibold"
-                  : "text-muted-foreground hover:bg-accent/60"
+                isSelected ? "bg-accent font-semibold" : "text-muted-foreground hover:bg-accent/60",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -254,7 +236,7 @@ function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
               "flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-xs whitespace-nowrap transition-colors",
               isSelected
                 ? "bg-background text-foreground font-medium shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4" />
@@ -306,13 +288,7 @@ function UserProfileLink({ collapsed, session }: { collapsed: boolean; session: 
 }
 
 /** 侧栏导航内容（桌面 & 移动端共用） */
-export function SidebarContent({
-  collapsed = false,
-  onItemClick,
-}: {
-  collapsed?: boolean;
-  onItemClick?: () => void;
-}) {
+export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?: boolean; onItemClick?: () => void }) {
   const pathname = usePathname();
   const { session } = useStableSession();
 
@@ -320,7 +296,13 @@ export function SidebarContent({
     <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>
       <ContentModeSwitcher collapsed={collapsed} />
 
-      <NavGroup items={mainNavItems} collapsed={collapsed} pathname={pathname} session={session} onItemClick={onItemClick} />
+      <NavGroup
+        items={mainNavItems}
+        collapsed={collapsed}
+        pathname={pathname}
+        session={session}
+        onItemClick={onItemClick}
+      />
 
       {session && (
         <>
@@ -365,21 +347,25 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
   return (
     <>
       {/* 遮罩层 - 覆盖模式展开时显示 */}
-      <div 
+      <div
         className={cn(
           "fixed inset-0 top-14 z-30 bg-black/50 hidden md:block transition-opacity duration-300",
-          overlay && !collapsed ? "opacity-100" : "opacity-0 pointer-events-none"
+          overlay && !collapsed ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
         onClick={onToggle}
       />
-      
+
       <aside
         className={cn(
           "fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] bg-background transition-[width,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
           "hidden md:flex md:flex-col",
-          overlay 
-            ? collapsed ? "w-[240px] -translate-x-full" : "w-[240px] translate-x-0"
-            : collapsed ? "w-[72px]" : "w-[220px]"
+          overlay
+            ? collapsed
+              ? "w-[240px] -translate-x-full"
+              : "w-[240px] translate-x-0"
+            : collapsed
+              ? "w-[72px]"
+              : "w-[220px]",
         )}
       >
         <ScrollArea className="flex-1 min-h-0 py-2">

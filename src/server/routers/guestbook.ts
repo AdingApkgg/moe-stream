@@ -14,7 +14,7 @@ export const guestbookRouter = router({
       z.object({
         cursor: z.string().optional(),
         limit: z.number().min(1).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { cursor, limit } = input;
@@ -82,11 +82,10 @@ export const guestbookRouter = router({
             visitorId: z.string().nullable().optional(),
           })
           .optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { content, guestName, guestEmail, guestWebsite, deviceInfo } =
-        input;
+      const { content, guestName, guestEmail, guestWebsite, deviceInfo } = input;
       const userId = ctx.session?.user?.id;
 
       if (!userId && !guestName) {
@@ -147,8 +146,7 @@ export const guestbookRouter = router({
           ipv4Location,
           ipv6Address: ctx.ipv6Address,
           ipv6Location,
-          deviceInfo:
-            normalizedDeviceInfo as unknown as Prisma.InputJsonValue,
+          deviceInfo: normalizedDeviceInfo as unknown as Prisma.InputJsonValue,
           userAgent: ctx.userAgent,
         },
         include: {
@@ -171,39 +169,37 @@ export const guestbookRouter = router({
       return message;
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const userRole = ctx.session.user.role;
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const userRole = ctx.session.user.role;
 
-      const message = await ctx.prisma.guestbookMessage.findUnique({
-        where: { id: input.id },
-        select: { userId: true, isDeleted: true },
+    const message = await ctx.prisma.guestbookMessage.findUnique({
+      where: { id: input.id },
+      select: { userId: true, isDeleted: true },
+    });
+
+    if (!message || message.isDeleted) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "留言不存在",
       });
+    }
 
-      if (!message || message.isDeleted) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "留言不存在",
-        });
-      }
+    const isOwner = message.userId === userId;
+    const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
 
-      const isOwner = message.userId === userId;
-      const isAdmin = userRole === "ADMIN" || userRole === "OWNER";
-
-      if (!isOwner && !isAdmin) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "无权删除此留言",
-        });
-      }
-
-      await ctx.prisma.guestbookMessage.update({
-        where: { id: input.id },
-        data: { isDeleted: true },
+    if (!isOwner && !isAdmin) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "无权删除此留言",
       });
+    }
 
-      return { success: true };
-    }),
+    await ctx.prisma.guestbookMessage.update({
+      where: { id: input.id },
+      data: { isDeleted: true },
+    });
+
+    return { success: true };
+  }),
 });

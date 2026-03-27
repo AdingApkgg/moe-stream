@@ -14,15 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -63,6 +55,7 @@ import {
   ScrollText,
   BarChart3,
 } from "lucide-react";
+import type { SiteConfig } from "@/generated/prisma";
 import { toast } from "@/lib/toast-with-sound";
 import {
   AlertDialog,
@@ -84,28 +77,28 @@ const configFormSchema = z.object({
   siteLogo: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   siteFavicon: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   siteKeywords: z.string().max(500).optional().nullable(),
-  
+
   // SEO / 验证
   googleVerification: z.string().max(200).optional().nullable().or(z.literal("")),
   githubUrl: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
   securityEmail: z.string().email("请输入有效的邮箱").optional().nullable().or(z.literal("")),
-  
+
   // 公告
   announcement: z.string().max(2000).optional().nullable(),
   announcementEnabled: z.boolean(),
-  
+
   // 功能开关
   allowRegistration: z.boolean(),
   allowUpload: z.boolean(),
   allowComment: z.boolean(),
   requireLoginToComment: z.boolean(),
   requireEmailVerify: z.boolean(),
-  
+
   // 内容分区开关
   sectionVideoEnabled: z.boolean(),
   sectionImageEnabled: z.boolean(),
   sectionGameEnabled: z.boolean(),
-  
+
   // 内容设置
   videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]),
   videosPerPage: z.number().int().min(5).max(100),
@@ -113,10 +106,10 @@ const configFormSchema = z.object({
   maxUploadSize: z.number().int().min(10).max(10000),
   allowedVideoFormats: z.string().max(200),
   adminBatchLimit: z.number().int().min(100).max(100000),
-  
+
   // 联系方式
   contactEmail: z.string().email("请输入有效的邮箱").optional().nullable().or(z.literal("")),
-  
+
   // 法律与信息页面
   privacyPolicy: z.string().max(50000).optional().nullable(),
   termsOfService: z.string().max(50000).optional().nullable(),
@@ -124,7 +117,7 @@ const configFormSchema = z.object({
 
   // 页脚
   footerText: z.string().max(1000).optional().nullable(),
-  
+
   // 备案
   icpBeian: z.string().max(100).optional().nullable(),
   publicSecurityBeian: z.string().max(100).optional().nullable(),
@@ -138,15 +131,17 @@ const configFormSchema = z.object({
   adGateHours: z.number().int().min(1).max(168),
 
   // 广告列表（统一管理，广告门和页面广告位共用）
-  sponsorAds: z.array(z.object({
-    title: z.string().min(1, "标题必填").max(200),
-    platform: z.string().max(100),
-    url: z.string().url("请输入有效 URL"),
-    description: z.string().max(500),
-    imageUrl: z.string().max(2000),
-    weight: z.number().int().min(1).max(100),
-    enabled: z.boolean(),
-  })),
+  sponsorAds: z.array(
+    z.object({
+      title: z.string().min(1, "标题必填").max(200),
+      platform: z.string().max(100),
+      url: z.string().url("请输入有效 URL"),
+      description: z.string().max(500),
+      imageUrl: z.string().max(2000),
+      weight: z.number().int().min(1).max(100),
+      enabled: z.boolean(),
+    }),
+  ),
 
   // 验证码 / 人机验证
   captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("math"),
@@ -281,12 +276,7 @@ function TestEmailButton() {
               请先保存配置，然后输入收件人邮箱发送一封测试邮件来验证配置是否正确。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            type="email"
-            placeholder="收件人邮箱"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <Input type="email" placeholder="收件人邮箱" value={email} onChange={(e) => setEmail(e.target.value)} />
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
@@ -306,7 +296,13 @@ function TestEmailButton() {
   );
 }
 
-function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animations }: {
+function ThemePreviewPanel({
+  hue,
+  colorTemp,
+  borderRadius,
+  glassOpacity,
+  animations,
+}: {
   hue: number;
   colorTemp: number;
   borderRadius: number;
@@ -343,7 +339,9 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${border}` }}>
           <div className="flex items-center gap-2">
             <div className="h-5 w-5 rounded-full" style={{ background: p }} />
-            <span className="text-xs font-medium" style={{ color: `oklch(0.15 0.02 ${hue})` }}>浅色模式</span>
+            <span className="text-xs font-medium" style={{ color: `oklch(0.15 0.02 ${hue})` }}>
+              浅色模式
+            </span>
           </div>
           <div className="flex gap-1">
             <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
@@ -375,7 +373,12 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
           <div className="flex items-center gap-2">
             <div
               className="flex-1 h-7 px-2 flex items-center text-[10px]"
-              style={{ border: `1px solid ${border}`, borderRadius: rSm, color: mutedFg, background: `oklch(0.92 0.02 ${hue})` }}
+              style={{
+                border: `1px solid ${border}`,
+                borderRadius: rSm,
+                color: mutedFg,
+                background: `oklch(0.92 0.02 ${hue})`,
+              }}
             >
               输入框...
             </div>
@@ -383,14 +386,26 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
           </div>
           <div
             className="p-2.5"
-            style={{ background: `oklch(1 0 0 / ${Math.round(glassOpacity * 100)}%)`, borderRadius: rSm, border: `1px solid ${border}`, backdropFilter: "blur(8px)" }}
+            style={{
+              background: `oklch(1 0 0 / ${Math.round(glassOpacity * 100)}%)`,
+              borderRadius: rSm,
+              border: `1px solid ${border}`,
+              backdropFilter: "blur(8px)",
+            }}
           >
-            <div className="h-2 w-3/4 rounded-full mb-1.5" style={{ background: `oklch(0.15 0.02 ${hue})`, opacity: 0.7 }} />
+            <div
+              className="h-2 w-3/4 rounded-full mb-1.5"
+              style={{ background: `oklch(0.15 0.02 ${hue})`, opacity: 0.7 }}
+            />
             <div className="h-2 w-1/2 rounded-full" style={{ background: mutedFg, opacity: 0.4 }} />
           </div>
           <div className="flex gap-1.5">
             {[hue, accentHue, (hue + 85) % 360, (hue + 135) % 360].map((ch, i) => (
-              <div key={i} className="flex-1 h-6 rounded-sm" style={{ background: `oklch(0.65 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }} />
+              <div
+                key={i}
+                className="flex-1 h-6 rounded-sm"
+                style={{ background: `oklch(0.65 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }}
+              />
             ))}
           </div>
         </div>
@@ -401,10 +416,15 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
         className="overflow-hidden border shadow-sm"
         style={{ background: bgDark, borderRadius: r, borderColor: borderDark }}
       >
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${borderDark}` }}>
+        <div
+          className="px-4 py-3 flex items-center justify-between"
+          style={{ borderBottom: `1px solid ${borderDark}` }}
+        >
           <div className="flex items-center gap-2">
             <div className="h-5 w-5 rounded-full" style={{ background: pDark }} />
-            <span className="text-xs font-medium" style={{ color: `oklch(0.95 0.01 ${hue})` }}>深色模式</span>
+            <span className="text-xs font-medium" style={{ color: `oklch(0.95 0.01 ${hue})` }}>
+              深色模式
+            </span>
           </div>
           <div className="flex gap-1">
             <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
@@ -422,7 +442,11 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
             </div>
             <div
               className="px-3 py-1.5 text-[10px] font-medium"
-              style={{ background: `oklch(0.35 0.1 ${accentHue})`, borderRadius: rSm, color: `oklch(0.92 0.05 ${accentHue})` }}
+              style={{
+                background: `oklch(0.35 0.1 ${accentHue})`,
+                borderRadius: rSm,
+                color: `oklch(0.92 0.05 ${accentHue})`,
+              }}
             >
               次要按钮
             </div>
@@ -436,7 +460,12 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
           <div className="flex items-center gap-2">
             <div
               className="flex-1 h-7 px-2 flex items-center text-[10px]"
-              style={{ border: `1px solid ${borderDark}`, borderRadius: rSm, color: mutedFgDark, background: `oklch(1 0 0 / 15%)` }}
+              style={{
+                border: `1px solid ${borderDark}`,
+                borderRadius: rSm,
+                color: mutedFgDark,
+                background: `oklch(1 0 0 / 15%)`,
+              }}
             >
               输入框...
             </div>
@@ -444,22 +473,32 @@ function ThemePreviewPanel({ hue, colorTemp, borderRadius, glassOpacity, animati
           </div>
           <div
             className="p-2.5"
-            style={{ background: cardDarkAlpha(Math.round(glassOpacity * 100)), borderRadius: rSm, border: `1px solid ${borderDark}`, backdropFilter: "blur(8px)" }}
+            style={{
+              background: cardDarkAlpha(Math.round(glassOpacity * 100)),
+              borderRadius: rSm,
+              border: `1px solid ${borderDark}`,
+              backdropFilter: "blur(8px)",
+            }}
           >
-            <div className="h-2 w-3/4 rounded-full mb-1.5" style={{ background: `oklch(0.95 0.01 ${hue})`, opacity: 0.7 }} />
+            <div
+              className="h-2 w-3/4 rounded-full mb-1.5"
+              style={{ background: `oklch(0.95 0.01 ${hue})`, opacity: 0.7 }}
+            />
             <div className="h-2 w-1/2 rounded-full" style={{ background: mutedFgDark, opacity: 0.4 }} />
           </div>
           <div className="flex gap-1.5">
             {[hue, accentHue, (hue + 85) % 360, (hue + 135) % 360].map((ch, i) => (
-              <div key={i} className="flex-1 h-6 rounded-sm" style={{ background: `oklch(0.7 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }} />
+              <div
+                key={i}
+                className="flex-1 h-6 rounded-sm"
+                style={{ background: `oklch(0.7 0.2 ${ch})`, borderRadius: rSm, opacity: 0.8 }}
+              />
             ))}
           </div>
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground text-center">
-        保存后全站生效，刷新页面查看完整效果
-      </p>
+      <p className="text-[10px] text-muted-foreground text-center">保存后全站生效，刷新页面查看完整效果</p>
     </div>
   );
 }
@@ -664,18 +703,30 @@ export default function AdminSettingsPage() {
       effectOpacity: 0.8,
       effectColor: "",
       soundDefaultEnabled: true,
-      oauthGoogleClientId: "", oauthGoogleClientSecret: "",
-      oauthGithubClientId: "", oauthGithubClientSecret: "",
-      oauthDiscordClientId: "", oauthDiscordClientSecret: "",
-      oauthAppleClientId: "", oauthAppleClientSecret: "",
-      oauthTwitterClientId: "", oauthTwitterClientSecret: "",
-      oauthFacebookClientId: "", oauthFacebookClientSecret: "",
-      oauthMicrosoftClientId: "", oauthMicrosoftClientSecret: "",
-      oauthTwitchClientId: "", oauthTwitchClientSecret: "",
-      oauthSpotifyClientId: "", oauthSpotifyClientSecret: "",
-      oauthLinkedinClientId: "", oauthLinkedinClientSecret: "",
-      oauthGitlabClientId: "", oauthGitlabClientSecret: "",
-      oauthRedditClientId: "", oauthRedditClientSecret: "",
+      oauthGoogleClientId: "",
+      oauthGoogleClientSecret: "",
+      oauthGithubClientId: "",
+      oauthGithubClientSecret: "",
+      oauthDiscordClientId: "",
+      oauthDiscordClientSecret: "",
+      oauthAppleClientId: "",
+      oauthAppleClientSecret: "",
+      oauthTwitterClientId: "",
+      oauthTwitterClientSecret: "",
+      oauthFacebookClientId: "",
+      oauthFacebookClientSecret: "",
+      oauthMicrosoftClientId: "",
+      oauthMicrosoftClientSecret: "",
+      oauthTwitchClientId: "",
+      oauthTwitchClientSecret: "",
+      oauthSpotifyClientId: "",
+      oauthSpotifyClientSecret: "",
+      oauthLinkedinClientId: "",
+      oauthLinkedinClientSecret: "",
+      oauthGitlabClientId: "",
+      oauthGitlabClientSecret: "",
+      oauthRedditClientId: "",
+      oauthRedditClientSecret: "",
       usdtPaymentEnabled: false,
       usdtWalletAddress: "",
       usdtPointsPerUnit: 10000,
@@ -685,119 +736,153 @@ export default function AdminSettingsPage() {
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resetFormFromConfig = useCallback((cfg: Record<string, any>) => {
-    if (!cfg) return;
-    form.reset({
-      siteName: cfg.siteName,
-      siteUrl: (cfg.siteUrl as string) || "",
-      siteDescription: cfg.siteDescription || "",
-      siteLogo: cfg.siteLogo || "",
-      siteFavicon: cfg.siteFavicon || "",
-      siteKeywords: cfg.siteKeywords || "",
-      googleVerification: (cfg.googleVerification as string) || "",
-      githubUrl: (cfg.githubUrl as string) || "",
-      securityEmail: (cfg.securityEmail as string) || "",
-      announcement: cfg.announcement || "",
-      announcementEnabled: cfg.announcementEnabled,
-      allowRegistration: cfg.allowRegistration,
-      allowUpload: cfg.allowUpload,
-      allowComment: cfg.allowComment,
-      requireLoginToComment: cfg.requireLoginToComment ?? false,
-      requireEmailVerify: cfg.requireEmailVerify,
-      sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
-      sectionImageEnabled: cfg.sectionImageEnabled ?? true,
-      sectionGameEnabled: cfg.sectionGameEnabled ?? true,
-      videoSelectorMode: (cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled") ?? "series",
-      videosPerPage: cfg.videosPerPage,
-      commentsPerPage: cfg.commentsPerPage,
-      maxUploadSize: cfg.maxUploadSize,
-      allowedVideoFormats: cfg.allowedVideoFormats,
-      adminBatchLimit: (cfg.adminBatchLimit as number) ?? 10000,
-      contactEmail: cfg.contactEmail || "",
-      privacyPolicy: (cfg.privacyPolicy as string) || "",
-      termsOfService: (cfg.termsOfService as string) || "",
-      aboutPage: (cfg.aboutPage as string) || "",
-      footerText: cfg.footerText || "",
-      icpBeian: cfg.icpBeian || "",
-      publicSecurityBeian: cfg.publicSecurityBeian || "",
-      adsEnabled: cfg.adsEnabled ?? false,
-      adGateEnabled: cfg.adGateEnabled ?? false,
-      adGateViewsRequired: cfg.adGateViewsRequired ?? 3,
-      adGateHours: cfg.adGateHours ?? 12,
-      sponsorAds: ((cfg.sponsorAds as ConfigFormValues["sponsorAds"]) ?? []).map((item) => ({
-        title: item.title ?? "",
-        platform: item.platform ?? "",
-        url: item.url ?? "",
-        description: item.description ?? "",
-        imageUrl: item.imageUrl ?? "",
-        weight: item.weight ?? 1,
-        enabled: item.enabled !== false,
-      })),
-      captchaLogin: validEnum(cfg.captchaLogin, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "math"),
-      captchaRegister: validEnum(cfg.captchaRegister, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-      captchaComment: validEnum(cfg.captchaComment, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-      captchaForgotPassword: validEnum(cfg.captchaForgotPassword, ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const, "none"),
-      turnstileSiteKey: (cfg.turnstileSiteKey as string) || "",
-      turnstileSecretKey: (cfg.turnstileSecretKey as string) || "",
-      recaptchaSiteKey: (cfg.recaptchaSiteKey as string) || "",
-      recaptchaSecretKey: (cfg.recaptchaSecretKey as string) || "",
-      hcaptchaSiteKey: (cfg.hcaptchaSiteKey as string) || "",
-      hcaptchaSecretKey: (cfg.hcaptchaSecretKey as string) || "",
-      mailSendMode: validEnum(cfg.mailSendMode, ["smtp", "http_api"] as const, "smtp"),
-      smtpHost: (cfg.smtpHost as string) || "",
-      smtpPort: (cfg.smtpPort as number) ?? 465,
-      smtpUser: (cfg.smtpUser as string) || "",
-      smtpPassword: (cfg.smtpPassword as string) || "",
-      smtpFrom: (cfg.smtpFrom as string) || "",
-      mailApiUrl: (cfg.mailApiUrl as string) || "",
-      mailApiKey: (cfg.mailApiKey as string) || "",
-      mailApiFrom: (cfg.mailApiFrom as string) || "",
-      mailApiHeaders: (cfg.mailApiHeaders as string) || "",
-      uploadDir: (cfg.uploadDir as string) || "./uploads",
-      indexNowKey: (cfg.indexNowKey as string) || "",
-      googleServiceAccountEmail: (cfg.googleServiceAccountEmail as string) || "",
-      googlePrivateKey: (cfg.googlePrivateKey as string) || "",
-      storageProvider: validEnum(cfg.storageProvider, ["local", "s3", "r2", "minio", "oss", "cos"] as const, "local"),
-      storageEndpoint: (cfg.storageEndpoint as string) || "",
-      storageBucket: (cfg.storageBucket as string) || "",
-      storageRegion: (cfg.storageRegion as string) || "",
-      storageAccessKey: (cfg.storageAccessKey as string) || "",
-      storageSecretKey: (cfg.storageSecretKey as string) || "",
-      storageCustomDomain: (cfg.storageCustomDomain as string) || "",
-      storagePathPrefix: (cfg.storagePathPrefix as string) || "",
-      themeHue: (cfg.themeHue as number) ?? 285,
-      themeColorTemp: (cfg.themeColorTemp as number) ?? 0,
-      themeBorderRadius: (cfg.themeBorderRadius as number) ?? 0.625,
-      themeGlassOpacity: (cfg.themeGlassOpacity as number) ?? 0.7,
-      themeAnimations: (cfg.themeAnimations as boolean) ?? true,
-      effectEnabled: (cfg.effectEnabled as boolean) ?? true,
-      effectType: validEnum(cfg.effectType, ["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"] as const, "sakura"),
-      effectDensity: (cfg.effectDensity as number) ?? 50,
-      effectSpeed: (cfg.effectSpeed as number) ?? 1.0,
-      effectOpacity: (cfg.effectOpacity as number) ?? 0.8,
-      effectColor: (cfg.effectColor as string) || "",
-      soundDefaultEnabled: (cfg.soundDefaultEnabled as boolean) ?? true,
-      analyticsGoogleId: (cfg.analyticsGoogleId as string) || "",
-      analyticsGtmId: (cfg.analyticsGtmId as string) || "",
-      analyticsCfToken: (cfg.analyticsCfToken as string) || "",
-      analyticsClarityId: (cfg.analyticsClarityId as string) || "",
-      analyticsBingVerification: (cfg.analyticsBingVerification as string) || "",
-      usdtPaymentEnabled: (cfg.usdtPaymentEnabled as boolean) ?? false,
-      usdtWalletAddress: (cfg.usdtWalletAddress as string) || "",
-      usdtPointsPerUnit: (cfg.usdtPointsPerUnit as number) ?? 10000,
-      usdtOrderTimeoutMin: (cfg.usdtOrderTimeoutMin as number) ?? 30,
-      usdtMinAmount: (cfg.usdtMinAmount as number) ?? null,
-      usdtMaxAmount: (cfg.usdtMaxAmount as number) ?? null,
-      ...Object.fromEntries(
-        ["Google", "Github", "Discord", "Apple", "Twitter", "Facebook", "Microsoft", "Twitch", "Spotify", "Linkedin", "Gitlab", "Reddit"]
-          .flatMap((k) => [
+  const resetFormFromConfig = useCallback(
+    (cfg: SiteConfig) => {
+      if (!cfg) return;
+      form.reset({
+        siteName: cfg.siteName,
+        siteUrl: (cfg.siteUrl as string) || "",
+        siteDescription: cfg.siteDescription || "",
+        siteLogo: cfg.siteLogo || "",
+        siteFavicon: cfg.siteFavicon || "",
+        siteKeywords: cfg.siteKeywords || "",
+        googleVerification: (cfg.googleVerification as string) || "",
+        githubUrl: (cfg.githubUrl as string) || "",
+        securityEmail: (cfg.securityEmail as string) || "",
+        announcement: cfg.announcement || "",
+        announcementEnabled: cfg.announcementEnabled,
+        allowRegistration: cfg.allowRegistration,
+        allowUpload: cfg.allowUpload,
+        allowComment: cfg.allowComment,
+        requireLoginToComment: cfg.requireLoginToComment ?? false,
+        requireEmailVerify: cfg.requireEmailVerify,
+        sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
+        sectionImageEnabled: cfg.sectionImageEnabled ?? true,
+        sectionGameEnabled: cfg.sectionGameEnabled ?? true,
+        videoSelectorMode: (cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled") ?? "series",
+        videosPerPage: cfg.videosPerPage,
+        commentsPerPage: cfg.commentsPerPage,
+        maxUploadSize: cfg.maxUploadSize,
+        allowedVideoFormats: cfg.allowedVideoFormats,
+        adminBatchLimit: (cfg.adminBatchLimit as number) ?? 10000,
+        contactEmail: cfg.contactEmail || "",
+        privacyPolicy: (cfg.privacyPolicy as string) || "",
+        termsOfService: (cfg.termsOfService as string) || "",
+        aboutPage: (cfg.aboutPage as string) || "",
+        footerText: cfg.footerText || "",
+        icpBeian: cfg.icpBeian || "",
+        publicSecurityBeian: cfg.publicSecurityBeian || "",
+        adsEnabled: cfg.adsEnabled ?? false,
+        adGateEnabled: cfg.adGateEnabled ?? false,
+        adGateViewsRequired: cfg.adGateViewsRequired ?? 3,
+        adGateHours: cfg.adGateHours ?? 12,
+        sponsorAds: ((cfg.sponsorAds as ConfigFormValues["sponsorAds"]) ?? []).map((item) => ({
+          title: item.title ?? "",
+          platform: item.platform ?? "",
+          url: item.url ?? "",
+          description: item.description ?? "",
+          imageUrl: item.imageUrl ?? "",
+          weight: item.weight ?? 1,
+          enabled: item.enabled !== false,
+        })),
+        captchaLogin: validEnum(
+          cfg.captchaLogin,
+          ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const,
+          "math",
+        ),
+        captchaRegister: validEnum(
+          cfg.captchaRegister,
+          ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const,
+          "none",
+        ),
+        captchaComment: validEnum(
+          cfg.captchaComment,
+          ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const,
+          "none",
+        ),
+        captchaForgotPassword: validEnum(
+          cfg.captchaForgotPassword,
+          ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const,
+          "none",
+        ),
+        turnstileSiteKey: (cfg.turnstileSiteKey as string) || "",
+        turnstileSecretKey: (cfg.turnstileSecretKey as string) || "",
+        recaptchaSiteKey: (cfg.recaptchaSiteKey as string) || "",
+        recaptchaSecretKey: (cfg.recaptchaSecretKey as string) || "",
+        hcaptchaSiteKey: (cfg.hcaptchaSiteKey as string) || "",
+        hcaptchaSecretKey: (cfg.hcaptchaSecretKey as string) || "",
+        mailSendMode: validEnum(cfg.mailSendMode, ["smtp", "http_api"] as const, "smtp"),
+        smtpHost: (cfg.smtpHost as string) || "",
+        smtpPort: (cfg.smtpPort as number) ?? 465,
+        smtpUser: (cfg.smtpUser as string) || "",
+        smtpPassword: (cfg.smtpPassword as string) || "",
+        smtpFrom: (cfg.smtpFrom as string) || "",
+        mailApiUrl: (cfg.mailApiUrl as string) || "",
+        mailApiKey: (cfg.mailApiKey as string) || "",
+        mailApiFrom: (cfg.mailApiFrom as string) || "",
+        mailApiHeaders: (cfg.mailApiHeaders as string) || "",
+        uploadDir: (cfg.uploadDir as string) || "./uploads",
+        indexNowKey: (cfg.indexNowKey as string) || "",
+        googleServiceAccountEmail: (cfg.googleServiceAccountEmail as string) || "",
+        googlePrivateKey: (cfg.googlePrivateKey as string) || "",
+        storageProvider: validEnum(cfg.storageProvider, ["local", "s3", "r2", "minio", "oss", "cos"] as const, "local"),
+        storageEndpoint: (cfg.storageEndpoint as string) || "",
+        storageBucket: (cfg.storageBucket as string) || "",
+        storageRegion: (cfg.storageRegion as string) || "",
+        storageAccessKey: (cfg.storageAccessKey as string) || "",
+        storageSecretKey: (cfg.storageSecretKey as string) || "",
+        storageCustomDomain: (cfg.storageCustomDomain as string) || "",
+        storagePathPrefix: (cfg.storagePathPrefix as string) || "",
+        themeHue: (cfg.themeHue as number) ?? 285,
+        themeColorTemp: (cfg.themeColorTemp as number) ?? 0,
+        themeBorderRadius: (cfg.themeBorderRadius as number) ?? 0.625,
+        themeGlassOpacity: (cfg.themeGlassOpacity as number) ?? 0.7,
+        themeAnimations: (cfg.themeAnimations as boolean) ?? true,
+        effectEnabled: (cfg.effectEnabled as boolean) ?? true,
+        effectType: validEnum(
+          cfg.effectType,
+          ["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"] as const,
+          "sakura",
+        ),
+        effectDensity: (cfg.effectDensity as number) ?? 50,
+        effectSpeed: (cfg.effectSpeed as number) ?? 1.0,
+        effectOpacity: (cfg.effectOpacity as number) ?? 0.8,
+        effectColor: (cfg.effectColor as string) || "",
+        soundDefaultEnabled: (cfg.soundDefaultEnabled as boolean) ?? true,
+        analyticsGoogleId: (cfg.analyticsGoogleId as string) || "",
+        analyticsGtmId: (cfg.analyticsGtmId as string) || "",
+        analyticsCfToken: (cfg.analyticsCfToken as string) || "",
+        analyticsClarityId: (cfg.analyticsClarityId as string) || "",
+        analyticsBingVerification: (cfg.analyticsBingVerification as string) || "",
+        usdtPaymentEnabled: (cfg.usdtPaymentEnabled as boolean) ?? false,
+        usdtWalletAddress: (cfg.usdtWalletAddress as string) || "",
+        usdtPointsPerUnit: (cfg.usdtPointsPerUnit as number) ?? 10000,
+        usdtOrderTimeoutMin: (cfg.usdtOrderTimeoutMin as number) ?? 30,
+        usdtMinAmount: (cfg.usdtMinAmount as number) ?? null,
+        usdtMaxAmount: (cfg.usdtMaxAmount as number) ?? null,
+        ...Object.fromEntries(
+          [
+            "Google",
+            "Github",
+            "Discord",
+            "Apple",
+            "Twitter",
+            "Facebook",
+            "Microsoft",
+            "Twitch",
+            "Spotify",
+            "Linkedin",
+            "Gitlab",
+            "Reddit",
+          ].flatMap((k) => [
             [`oauth${k}ClientId`, (cfg[`oauth${k}ClientId`] as string) || ""],
             [`oauth${k}ClientSecret`, (cfg[`oauth${k}ClientSecret`] as string) || ""],
-          ])
-      ),
-    });
-  }, [form]);
+          ]),
+        ),
+      });
+    },
+    [form],
+  );
 
   // 仅在首次加载配置时初始化表单，避免 query refetch 导致未保存的修改被清除
   useEffect(() => {
@@ -806,7 +891,6 @@ export default function AdminSettingsPage() {
       resetFormFromConfig(config);
     }
   }, [config, resetFormFromConfig]);
-
 
   const handleSubmitIndex = async (type: "recent" | "all" | "site" | "sitemap") => {
     setIsSubmitting(true);
@@ -832,18 +916,14 @@ export default function AdminSettingsPage() {
 
   const onSubmit = (values: ConfigFormValues) => {
     const dirtyFields = form.formState.dirtyFields;
-    const dirtyKeys = Object.keys(dirtyFields).filter(
-      (key) => (dirtyFields as Record<string, unknown>)[key]
-    );
+    const dirtyKeys = Object.keys(dirtyFields).filter((key) => (dirtyFields as Record<string, unknown>)[key]);
 
     if (dirtyKeys.length === 0) {
       toast.info("没有修改");
       return;
     }
 
-    const dirtyValues = Object.fromEntries(
-      dirtyKeys.map((key) => [key, (values as Record<string, unknown>)[key]])
-    );
+    const dirtyValues = Object.fromEntries(dirtyKeys.map((key) => [key, (values as Record<string, unknown>)[key]]));
 
     updateConfig.mutate(dirtyValues as ConfigFormValues);
   };
@@ -856,11 +936,7 @@ export default function AdminSettingsPage() {
   };
 
   if (!permissions?.scopes.includes("settings:manage")) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有系统设置权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有系统设置权限</div>;
   }
 
   if (configLoading && !config) {
@@ -884,9 +960,7 @@ export default function AdminSettingsPage() {
             <Settings className="h-6 w-6" />
             系统设置
           </h1>
-          <p className="text-muted-foreground mt-1">
-            配置网站的系统参数
-          </p>
+          <p className="text-muted-foreground mt-1">配置网站的系统参数</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExportConfig}>
@@ -908,14 +982,10 @@ export default function AdminSettingsPage() {
               <div>
                 <p>还原将覆盖当前的所有系统配置（含友情链接），此操作不可撤销。建议先备份当前配置后再还原。</p>
                 {typeof pendingImport?._exportedAt === "string" && (
-                  <p className="mt-2 text-xs">
-                    配置备份时间：{new Date(pendingImport._exportedAt).toLocaleString()}
-                  </p>
+                  <p className="mt-2 text-xs">配置备份时间：{new Date(pendingImport._exportedAt).toLocaleString()}</p>
                 )}
                 {Array.isArray(pendingImport?._friendLinks) && (
-                  <p className="mt-1 text-xs">
-                    包含 {(pendingImport._friendLinks as unknown[]).length} 条友情链接
-                  </p>
+                  <p className="mt-1 text-xs">包含 {(pendingImport._friendLinks as unknown[]).length} 条友情链接</p>
                 )}
               </div>
             </AlertDialogDescription>
@@ -930,10 +1000,18 @@ export default function AdminSettingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="flex-col md:flex-row md:gap-6 gap-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        orientation="vertical"
+        className="flex-col md:flex-row md:gap-6 gap-4"
+      >
         {/* Desktop sidebar */}
         <aside className="hidden md:block w-48 shrink-0">
-          <TabsList variant="line" className="flex flex-col h-auto w-full items-stretch bg-transparent p-0 gap-0.5 sticky top-20">
+          <TabsList
+            variant="line"
+            className="flex flex-col h-auto w-full items-stretch bg-transparent p-0 gap-0.5 sticky top-20"
+          >
             <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 select-none">通用</span>
             <TabsTrigger value="basic" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <Info className="h-3.5 w-3.5" /> 基本信息
@@ -964,7 +1042,9 @@ export default function AdminSettingsPage() {
               <Megaphone className="h-3.5 w-3.5" /> 广告
             </TabsTrigger>
 
-            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">安全与认证</span>
+            <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">
+              安全与认证
+            </span>
             <TabsTrigger value="captcha" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <ShieldCheck className="h-3.5 w-3.5" /> 验证码
             </TabsTrigger>
@@ -1033,75 +1113,25 @@ export default function AdminSettingsPage() {
         </div>
 
         <div className="flex-1 min-w-0">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
-            {/* 基本信息 */}
-            <TabsContent value="basic" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle>基本信息</CardTitle>
-                  <CardDescription>设置网站的基本信息</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="siteName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>网站名称</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Your Site Name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="siteUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>站点 URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="https://www.example.com" />
-                        </FormControl>
-                        <FormDescription>站点的访问地址，用于生成 SEO、Sitemap、RSS 等。留空则使用 .env 中的 NEXT_PUBLIC_APP_URL</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="siteDescription"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>网站描述</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            value={field.value || ""}
-                            placeholder="一句话介绍你的网站..."
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
+              {/* 基本信息 */}
+              <TabsContent value="basic" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>基本信息</CardTitle>
+                    <CardDescription>设置网站的基本信息</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="siteLogo"
+                      name="siteName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Logo URL</FormLabel>
+                          <FormLabel>网站名称</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="https://..." />
+                            <Input {...field} placeholder="Your Site Name" />
                           </FormControl>
-                          <FormDescription>留空使用默认 Logo</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1109,80 +1139,435 @@ export default function AdminSettingsPage() {
 
                     <FormField
                       control={form.control}
-                      name="siteFavicon"
+                      name="siteUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Favicon URL</FormLabel>
+                          <FormLabel>站点 URL</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="https://..." />
+                            <Input {...field} value={field.value || ""} placeholder="https://www.example.com" />
                           </FormControl>
-                          <FormDescription>留空使用默认图标</FormDescription>
+                          <FormDescription>
+                            站点的访问地址，用于生成 SEO、Sitemap、RSS 等。留空则使用 .env 中的 NEXT_PUBLIC_APP_URL
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="siteKeywords"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SEO 关键词</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="关键词1,关键词2,关键词3" />
-                        </FormControl>
-                        <FormDescription>多个关键词用逗号分隔</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="siteDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>网站描述</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="一句话介绍你的网站..."
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="contactEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>联系邮箱</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} type="email" placeholder="admin@example.com" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="pt-4 border-t">
-                    <h4 className="font-medium mb-3">公告设置</h4>
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="announcementEnabled"
+                        name="siteLogo"
                         render={({ field }) => (
-                          <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                            <div className="space-y-0.5">
-                              <FormLabel>启用公告</FormLabel>
-                              <FormDescription>在首页顶部显示公告横幅</FormDescription>
-                            </div>
+                          <FormItem>
+                            <FormLabel>Logo URL</FormLabel>
                             <FormControl>
-                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              <Input {...field} value={field.value || ""} placeholder="https://..." />
                             </FormControl>
+                            <FormDescription>留空使用默认 Logo</FormDescription>
+                            <FormMessage />
                           </FormItem>
                         )}
                       />
 
                       <FormField
                         control={form.control}
-                        name="announcement"
+                        name="siteFavicon"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>公告内容</FormLabel>
+                            <FormLabel>Favicon URL</FormLabel>
                             <FormControl>
-                              <Textarea
-                                {...field}
-                                value={field.value || ""}
-                                placeholder="支持 Markdown 格式..."
-                                rows={4}
+                              <Input {...field} value={field.value || ""} placeholder="https://..." />
+                            </FormControl>
+                            <FormDescription>留空使用默认图标</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="siteKeywords"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SEO 关键词</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="关键词1,关键词2,关键词3" />
+                          </FormControl>
+                          <FormDescription>多个关键词用逗号分隔</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>联系邮箱</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} type="email" placeholder="admin@example.com" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="pt-4 border-t">
+                      <h4 className="font-medium mb-3">公告设置</h4>
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="announcementEnabled"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                              <div className="space-y-0.5">
+                                <FormLabel>启用公告</FormLabel>
+                                <FormDescription>在首页顶部显示公告横幅</FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="announcement"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>公告内容</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  value={field.value || ""}
+                                  placeholder="支持 Markdown 格式..."
+                                  rows={4}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 功能开关 */}
+              <TabsContent value="features" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>功能开关</CardTitle>
+                    <CardDescription>控制网站各项功能的开启/关闭</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="allowRegistration"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>允许注册</FormLabel>
+                            <FormDescription>关闭后新用户将无法注册</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="requireEmailVerify"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>注册邮箱验证</FormLabel>
+                            <FormDescription>注册时需要验证邮箱</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="allowUpload"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>允许上传</FormLabel>
+                            <FormDescription>关闭后用户将无法上传视频</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="allowComment"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>允许评论</FormLabel>
+                            <FormDescription>关闭后用户将无法发表评论</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="requireLoginToComment"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>评论需要登录</FormLabel>
+                            <FormDescription>开启后只有登录用户才能发表评论，关闭则允许匿名评论</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* 内容分区开关 */}
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>内容分区</CardTitle>
+                    <CardDescription>控制各内容分区的显示，关闭后侧边栏和页面将隐藏对应分区</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="sectionVideoEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>视频分区</FormLabel>
+                            <FormDescription>关闭后视频分区将不可见，已有视频仍会保留</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="sectionImageEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>图片分区</FormLabel>
+                            <FormDescription>关闭后图片分区将不可见，已有图片仍会保留</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="sectionGameEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>游戏分区</FormLabel>
+                            <FormDescription>关闭后游戏分区将不可见，已有游戏仍会保留</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* USDT 支付配置 */}
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>USDT 支付</CardTitle>
+                    <CardDescription>配置 TRC20 USDT 自助充值功能</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="usdtPaymentEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>启用 USDT 支付</FormLabel>
+                            <FormDescription>开启后用户可以使用 TRC20 USDT 充值积分</FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="usdtWalletAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>TRC20 收款钱包地址</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="T..." />
+                          </FormControl>
+                          <FormDescription>用于接收 USDT 支付的 Tron 钱包地址</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="usdtPointsPerUnit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>积分汇率（1 USDT）</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={field.value}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              />
+                            </FormControl>
+                            <FormDescription>自定义金额充值时 1 USDT 兑换多少积分</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="usdtOrderTimeoutMin"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>订单超时（分钟）</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={5}
+                                max={1440}
+                                value={field.value}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                              />
+                            </FormControl>
+                            <FormDescription>未支付订单自动过期的时间</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="usdtMinAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>最低充值金额（USDT）</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                                placeholder="不限"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="usdtMaxAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>最高充值金额（USDT）</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                                placeholder="不限"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1190,443 +1575,50 @@ export default function AdminSettingsPage() {
                         )}
                       />
                     </div>
-                  </div>
 
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 功能开关 */}
-            <TabsContent value="features" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle>功能开关</CardTitle>
-                  <CardDescription>控制网站各项功能的开启/关闭</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="allowRegistration"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>允许注册</FormLabel>
-                          <FormDescription>关闭后新用户将无法注册</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="requireEmailVerify"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>注册邮箱验证</FormLabel>
-                          <FormDescription>注册时需要验证邮箱</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="allowUpload"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>允许上传</FormLabel>
-                          <FormDescription>关闭后用户将无法上传视频</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="allowComment"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>允许评论</FormLabel>
-                          <FormDescription>关闭后用户将无法发表评论</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="requireLoginToComment"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>评论需要登录</FormLabel>
-                          <FormDescription>开启后只有登录用户才能发表评论，关闭则允许匿名评论</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* 内容分区开关 */}
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>内容分区</CardTitle>
-                  <CardDescription>控制各内容分区的显示，关闭后侧边栏和页面将隐藏对应分区</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="sectionVideoEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>视频分区</FormLabel>
-                          <FormDescription>关闭后视频分区将不可见，已有视频仍会保留</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="sectionImageEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>图片分区</FormLabel>
-                          <FormDescription>关闭后图片分区将不可见，已有图片仍会保留</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="sectionGameEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>游戏分区</FormLabel>
-                          <FormDescription>关闭后游戏分区将不可见，已有游戏仍会保留</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* USDT 支付配置 */}
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>USDT 支付</CardTitle>
-                  <CardDescription>配置 TRC20 USDT 自助充值功能</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="usdtPaymentEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>启用 USDT 支付</FormLabel>
-                          <FormDescription>开启后用户可以使用 TRC20 USDT 充值积分</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="usdtWalletAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>TRC20 收款钱包地址</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ""}
-                            placeholder="T..."
-                          />
-                        </FormControl>
-                        <FormDescription>用于接收 USDT 支付的 Tron 钱包地址</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="usdtPointsPerUnit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>积分汇率（1 USDT）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              value={field.value}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                            />
-                          </FormControl>
-                          <FormDescription>自定义金额充值时 1 USDT 兑换多少积分</FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
                       )}
-                    />
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                    <FormField
-                      control={form.control}
-                      name="usdtOrderTimeoutMin"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>订单超时（分钟）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={5}
-                              max={1440}
-                              value={field.value}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
-                            />
-                          </FormControl>
-                          <FormDescription>未支付订单自动过期的时间</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="usdtMinAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>最低充值金额（USDT）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              value={field.value ?? ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
-                              placeholder="不限"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="usdtMaxAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>最高充值金额（USDT）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.01}
-                              value={field.value ?? ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
-                              placeholder="不限"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 个性化样式 */}
-            <TabsContent value="theme" forceMount className="data-[state=inactive]:hidden">
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                {/* 左侧：设置控件 */}
-                <div className="xl:col-span-2 space-y-4">
-                  {/* 主题色 */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-base">主题色</CardTitle>
-                      <CardDescription>选择全站主色调，影响按钮、链接、高亮等所有主色元素</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="themeHue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="h-6 w-6 rounded-full border shadow-sm"
-                                  style={{ background: `oklch(0.6 0.24 ${field.value})` }}
-                                />
-                                <span className="text-sm font-medium">{field.value}°</span>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => field.onChange(285)}
-                              >
-                                重置
-                              </Button>
-                            </div>
-                            <FormControl>
-                              <div
-                                className="relative h-3 rounded-full cursor-pointer"
-                                style={{
-                                  background: "linear-gradient(to right, oklch(0.6 0.24 0), oklch(0.6 0.24 30), oklch(0.6 0.24 60), oklch(0.6 0.24 90), oklch(0.6 0.24 120), oklch(0.6 0.24 150), oklch(0.6 0.24 180), oklch(0.6 0.24 210), oklch(0.6 0.24 240), oklch(0.6 0.24 270), oklch(0.6 0.24 300), oklch(0.6 0.24 330), oklch(0.6 0.24 360))",
-                                }}
-                              >
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={360}
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(Number(e.target.value))}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <div
-                                  className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md pointer-events-none"
-                                  style={{
-                                    left: `calc(${(field.value / 360) * 100}% - 10px)`,
-                                    background: `oklch(0.6 0.24 ${field.value})`,
-                                  }}
-                                />
-                              </div>
-                            </FormControl>
-                            <div className="flex flex-wrap gap-1.5 pt-3">
-                              {([
-                                { hue: 0, label: "红", emoji: "🔴" },
-                                { hue: 25, label: "橙", emoji: "🟠" },
-                                { hue: 60, label: "黄", emoji: "🟡" },
-                                { hue: 145, label: "绿", emoji: "🟢" },
-                                { hue: 200, label: "蓝", emoji: "🔵" },
-                                { hue: 270, label: "紫", emoji: "🟣" },
-                                { hue: 285, label: "默认", emoji: "💜" },
-                                { hue: 330, label: "粉", emoji: "🩷" },
-                              ] as const).map(({ hue, label }) => (
-                                <button
-                                  key={hue}
-                                  type="button"
-                                  onClick={() => field.onChange(hue)}
-                                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border transition-all ${
-                                    field.value === hue
-                                      ? "border-foreground/30 bg-foreground/5 font-medium"
-                                      : "border-transparent hover:border-border hover:bg-muted/50"
-                                  }`}
-                                >
-                                  <span
-                                    className="h-3 w-3 rounded-full shrink-0"
-                                    style={{ background: `oklch(0.6 0.24 ${hue})` }}
-                                  />
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {/* 色温 & 圆角 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 个性化样式 */}
+              <TabsContent value="theme" forceMount className="data-[state=inactive]:hidden">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  {/* 左侧：设置控件 */}
+                  <div className="xl:col-span-2 space-y-4">
+                    {/* 主题色 */}
                     <Card>
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-base">色温</CardTitle>
-                        <CardDescription>调节背景和中性面的冷暖色调</CardDescription>
+                        <CardTitle className="text-base">主题色</CardTitle>
+                        <CardDescription>选择全站主色调，影响按钮、链接、高亮等所有主色元素</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-4">
                         <FormField
                           control={form.control}
-                          name="themeColorTemp"
+                          name="themeHue"
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">
-                                  {field.value === 0 ? "中性" : field.value > 0 ? `偏暖 +${field.value}` : `偏冷 ${field.value}`}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="h-6 w-6 rounded-full border shadow-sm"
+                                    style={{ background: `oklch(0.6 0.24 ${field.value})` }}
+                                  />
+                                  <span className="text-sm font-medium">{field.value}°</span>
+                                </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 text-xs"
-                                  onClick={() => field.onChange(0)}
+                                  onClick={() => field.onChange(285)}
                                 >
                                   重置
                                 </Button>
@@ -1635,89 +1627,54 @@ export default function AdminSettingsPage() {
                                 <div
                                   className="relative h-3 rounded-full cursor-pointer"
                                   style={{
-                                    background: "linear-gradient(to right, oklch(0.7 0.12 220), oklch(0.92 0.005 0), oklch(0.75 0.12 50))",
+                                    background:
+                                      "linear-gradient(to right, oklch(0.6 0.24 0), oklch(0.6 0.24 30), oklch(0.6 0.24 60), oklch(0.6 0.24 90), oklch(0.6 0.24 120), oklch(0.6 0.24 150), oklch(0.6 0.24 180), oklch(0.6 0.24 210), oklch(0.6 0.24 240), oklch(0.6 0.24 270), oklch(0.6 0.24 300), oklch(0.6 0.24 330), oklch(0.6 0.24 360))",
                                   }}
                                 >
                                   <input
                                     type="range"
-                                    min={-100}
-                                    max={100}
+                                    min={0}
+                                    max={360}
                                     value={field.value}
                                     onChange={(e) => field.onChange(Number(e.target.value))}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                   />
                                   <div
-                                    className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md bg-background pointer-events-none"
+                                    className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md pointer-events-none"
                                     style={{
-                                      left: `calc(${((field.value + 100) / 200) * 100}% - 10px)`,
+                                      left: `calc(${(field.value / 360) * 100}% - 10px)`,
+                                      background: `oklch(0.6 0.24 ${field.value})`,
                                     }}
                                   />
                                 </div>
                               </FormControl>
-                              <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
-                                <span>冷色调</span>
-                                <span>中性</span>
-                                <span>暖色调</span>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-base">圆角</CardTitle>
-                        <CardDescription>控制按钮、卡片等组件圆角大小</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <FormField
-                          control={form.control}
-                          name="themeBorderRadius"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">{field.value.toFixed(2)} rem</span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => field.onChange(0.625)}
-                                >
-                                  重置
-                                </Button>
-                              </div>
-                              <FormControl>
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={2}
-                                  step={0.05}
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(Number(e.target.value))}
-                                  className="w-full accent-primary h-1.5"
-                                />
-                              </FormControl>
-                              <div className="flex items-center gap-2 pt-3">
-                                {([
-                                  { v: 0, label: "直角" },
-                                  { v: 0.375, label: "小" },
-                                  { v: 0.625, label: "默认" },
-                                  { v: 1.0, label: "大" },
-                                  { v: 1.5, label: "超大" },
-                                ] as const).map(({ v, label }) => (
+                              <div className="flex flex-wrap gap-1.5 pt-3">
+                                {(
+                                  [
+                                    { hue: 0, label: "红", emoji: "🔴" },
+                                    { hue: 25, label: "橙", emoji: "🟠" },
+                                    { hue: 60, label: "黄", emoji: "🟡" },
+                                    { hue: 145, label: "绿", emoji: "🟢" },
+                                    { hue: 200, label: "蓝", emoji: "🔵" },
+                                    { hue: 270, label: "紫", emoji: "🟣" },
+                                    { hue: 285, label: "默认", emoji: "💜" },
+                                    { hue: 330, label: "粉", emoji: "🩷" },
+                                  ] as const
+                                ).map(({ hue, label }) => (
                                   <button
-                                    key={v}
+                                    key={hue}
                                     type="button"
-                                    onClick={() => field.onChange(v)}
-                                    className={`flex-1 h-8 border text-[10px] transition-all ${
-                                      Math.abs(field.value - v) < 0.01
-                                        ? "border-primary bg-primary/10 text-primary font-medium"
-                                        : "border-border hover:border-primary/50"
+                                    onClick={() => field.onChange(hue)}
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border transition-all ${
+                                      field.value === hue
+                                        ? "border-foreground/30 bg-foreground/5 font-medium"
+                                        : "border-transparent hover:border-border hover:bg-muted/50"
                                     }`}
-                                    style={{ borderRadius: `${v}rem` }}
                                   >
+                                    <span
+                                      className="h-3 w-3 rounded-full shrink-0"
+                                      style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                                    />
                                     {label}
                                   </button>
                                 ))}
@@ -1727,155 +1684,632 @@ export default function AdminSettingsPage() {
                         />
                       </CardContent>
                     </Card>
-                  </div>
 
-                  {/* 透明度 & 动画 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-base">玻璃态透明度</CardTitle>
-                        <CardDescription>毛玻璃效果背景的通透程度</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <FormField
-                          control={form.control}
-                          name="themeGlassOpacity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">{Math.round(field.value * 100)}%</span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => field.onChange(0.7)}
-                                >
-                                  重置
-                                </Button>
-                              </div>
-                              <FormControl>
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={1}
-                                  step={0.05}
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(Number(e.target.value))}
-                                  className="w-full accent-primary h-1.5"
-                                />
-                              </FormControl>
-                              <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
-                                <span>全透明</span>
-                                <span>半透明</span>
-                                <span>不透明</span>
-                              </div>
-                              {/* 玻璃态预览 */}
-                              <div
-                                className="mt-3 relative overflow-hidden rounded-lg h-16"
-                                style={{
-                                  background: "linear-gradient(135deg, oklch(0.6 0.24 285), oklch(0.5 0.2 330))",
-                                }}
-                              >
-                                <div
-                                  className="absolute inset-2 rounded-md flex items-center justify-center text-xs text-foreground"
-                                  style={{
-                                    background: `oklch(1 0 0 / ${Math.round(field.value * 100)}%)`,
-                                    backdropFilter: "blur(12px)",
-                                    WebkitBackdropFilter: "blur(12px)",
-                                  }}
-                                >
-                                  玻璃态预览
-                                </div>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-base">动画</CardTitle>
-                        <CardDescription>控制全站界面过渡与关键帧动画</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <FormField
-                          control={form.control}
-                          name="themeAnimations"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between rounded-lg border p-3">
-                                <div className="space-y-0.5">
-                                  <FormLabel className="text-sm">启用界面动画</FormLabel>
-                                  <FormDescription className="text-xs">关闭后禁用所有过渡和关键帧动画</FormDescription>
+                    {/* 色温 & 圆角 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle className="text-base">色温</CardTitle>
+                          <CardDescription>调节背景和中性面的冷暖色调</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <FormField
+                            control={form.control}
+                            name="themeColorTemp"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">
+                                    {field.value === 0
+                                      ? "中性"
+                                      : field.value > 0
+                                        ? `偏暖 +${field.value}`
+                                        : `偏冷 ${field.value}`}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => field.onChange(0)}
+                                  >
+                                    重置
+                                  </Button>
                                 </div>
                                 <FormControl>
-                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                  <div
+                                    className="relative h-3 rounded-full cursor-pointer"
+                                    style={{
+                                      background:
+                                        "linear-gradient(to right, oklch(0.7 0.12 220), oklch(0.92 0.005 0), oklch(0.75 0.12 50))",
+                                    }}
+                                  >
+                                    <input
+                                      type="range"
+                                      min={-100}
+                                      max={100}
+                                      value={field.value}
+                                      onChange={(e) => field.onChange(Number(e.target.value))}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                    <div
+                                      className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full border-2 border-white shadow-md bg-background pointer-events-none"
+                                      style={{
+                                        left: `calc(${((field.value + 100) / 200) * 100}% - 10px)`,
+                                      }}
+                                    />
+                                  </div>
                                 </FormControl>
+                                <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
+                                  <span>冷色调</span>
+                                  <span>中性</span>
+                                  <span>暖色调</span>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle className="text-base">圆角</CardTitle>
+                          <CardDescription>控制按钮、卡片等组件圆角大小</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <FormField
+                            control={form.control}
+                            name="themeBorderRadius"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">{field.value.toFixed(2)} rem</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => field.onChange(0.625)}
+                                  >
+                                    重置
+                                  </Button>
+                                </div>
+                                <FormControl>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={2}
+                                    step={0.05}
+                                    value={field.value}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                    className="w-full accent-primary h-1.5"
+                                  />
+                                </FormControl>
+                                <div className="flex items-center gap-2 pt-3">
+                                  {(
+                                    [
+                                      { v: 0, label: "直角" },
+                                      { v: 0.375, label: "小" },
+                                      { v: 0.625, label: "默认" },
+                                      { v: 1.0, label: "大" },
+                                      { v: 1.5, label: "超大" },
+                                    ] as const
+                                  ).map(({ v, label }) => (
+                                    <button
+                                      key={v}
+                                      type="button"
+                                      onClick={() => field.onChange(v)}
+                                      className={`flex-1 h-8 border text-[10px] transition-all ${
+                                        Math.abs(field.value - v) < 0.01
+                                          ? "border-primary bg-primary/10 text-primary font-medium"
+                                          : "border-border hover:border-primary/50"
+                                      }`}
+                                      style={{ borderRadius: `${v}rem` }}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 透明度 & 动画 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle className="text-base">玻璃态透明度</CardTitle>
+                          <CardDescription>毛玻璃效果背景的通透程度</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <FormField
+                            control={form.control}
+                            name="themeGlassOpacity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">{Math.round(field.value * 100)}%</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => field.onChange(0.7)}
+                                  >
+                                    重置
+                                  </Button>
+                                </div>
+                                <FormControl>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={1}
+                                    step={0.05}
+                                    value={field.value}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                    className="w-full accent-primary h-1.5"
+                                  />
+                                </FormControl>
+                                <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
+                                  <span>全透明</span>
+                                  <span>半透明</span>
+                                  <span>不透明</span>
+                                </div>
+                                {/* 玻璃态预览 */}
+                                <div
+                                  className="mt-3 relative overflow-hidden rounded-lg h-16"
+                                  style={{
+                                    background: "linear-gradient(135deg, oklch(0.6 0.24 285), oklch(0.5 0.2 330))",
+                                  }}
+                                >
+                                  <div
+                                    className="absolute inset-2 rounded-md flex items-center justify-center text-xs text-foreground"
+                                    style={{
+                                      background: `oklch(1 0 0 / ${Math.round(field.value * 100)}%)`,
+                                      backdropFilter: "blur(12px)",
+                                      WebkitBackdropFilter: "blur(12px)",
+                                    }}
+                                  >
+                                    玻璃态预览
+                                  </div>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle className="text-base">动画</CardTitle>
+                          <CardDescription>控制全站界面过渡与关键帧动画</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <FormField
+                            control={form.control}
+                            name="themeAnimations"
+                            render={({ field }) => (
+                              <FormItem>
+                                <div className="flex items-center justify-between rounded-lg border p-3">
+                                  <div className="space-y-0.5">
+                                    <FormLabel className="text-sm">启用界面动画</FormLabel>
+                                    <FormDescription className="text-xs">
+                                      关闭后禁用所有过渡和关键帧动画
+                                    </FormDescription>
+                                  </div>
+                                  <FormControl>
+                                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                  </FormControl>
+                                </div>
+                                <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                                  <div
+                                    className={`h-3 w-3 rounded-full bg-primary ${field.value ? "animate-pulse" : ""}`}
+                                  />
+                                  <span>
+                                    {field.value
+                                      ? "动画已启用 — 界面元素将展示过渡效果"
+                                      : "动画已禁用 — 所有过渡和动画将被移除"}
+                                  </span>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* 预设主题 */}
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-base">预设主题</CardTitle>
+                        <CardDescription>一键应用预设的配色方案</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {(
+                            [
+                              { label: "默认紫", hue: 285, temp: 0, radius: 0.625, desc: "经典 ACGN 紫" },
+                              { label: "海洋蓝", hue: 210, temp: -30, radius: 0.75, desc: "冷色调科技感" },
+                              { label: "樱花粉", hue: 340, temp: 20, radius: 1.0, desc: "温暖少女风" },
+                              { label: "森林绿", hue: 145, temp: 15, radius: 0.5, desc: "自然清新感" },
+                              { label: "极光紫", hue: 270, temp: -15, radius: 0.875, desc: "梦幻冷紫" },
+                              { label: "琥珀橙", hue: 30, temp: 50, radius: 0.625, desc: "活力暖色调" },
+                              { label: "赛博青", hue: 185, temp: -40, radius: 0.25, desc: "赛博朋克风" },
+                              { label: "薰衣草", hue: 295, temp: 10, radius: 1.25, desc: "优雅柔和紫" },
+                            ] as const
+                          ).map(({ label, hue, temp, radius, desc }) => (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => {
+                                form.setValue("themeHue", hue, { shouldDirty: true });
+                                form.setValue("themeColorTemp", temp, { shouldDirty: true });
+                                form.setValue("themeBorderRadius", radius, { shouldDirty: true });
+                              }}
+                              className={`group relative overflow-hidden rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
+                                form.watch("themeHue") === hue && form.watch("themeColorTemp") === temp
+                                  ? "border-primary ring-1 ring-primary/30"
+                                  : "border-border hover:border-primary/40"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div
+                                  className="h-4 w-4 rounded-full shrink-0"
+                                  style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                                />
+                                <span className="text-sm font-medium">{label}</span>
                               </div>
-                              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-                                <div className={`h-3 w-3 rounded-full bg-primary ${field.value ? "animate-pulse" : ""}`} />
-                                <span>{field.value ? "动画已启用 — 界面元素将展示过渡效果" : "动画已禁用 — 所有过渡和动画将被移除"}</span>
-                              </div>
+                              <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
+                              <div
+                                className="absolute top-0 right-0 h-full w-1"
+                                style={{ background: `oklch(0.6 0.24 ${hue})` }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="flex items-center gap-3">
+                      <Button type="submit" disabled={updateConfig.isPending}>
+                        {updateConfig.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        保存设置
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          form.setValue("themeHue", 285, { shouldDirty: true });
+                          form.setValue("themeColorTemp", 0, { shouldDirty: true });
+                          form.setValue("themeBorderRadius", 0.625, { shouldDirty: true });
+                          form.setValue("themeGlassOpacity", 0.7, { shouldDirty: true });
+                          form.setValue("themeAnimations", true, { shouldDirty: true });
+                        }}
+                      >
+                        全部重置为默认
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 右侧：实时预览 */}
+                  <div className="xl:col-span-1">
+                    <ThemePreviewPanel
+                      hue={form.watch("themeHue")}
+                      colorTemp={form.watch("themeColorTemp")}
+                      borderRadius={form.watch("themeBorderRadius")}
+                      glassOpacity={form.watch("themeGlassOpacity")}
+                      animations={form.watch("themeAnimations")}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* 验证码设置 */}
+              <TabsContent value="captcha" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShieldCheck className="h-5 w-5" />
+                      验证码 / 人机验证
+                    </CardTitle>
+                    <CardDescription>
+                      为不同场景配置验证码方式。支持本地验证（数学、滑块）和第三方平台（Turnstile、reCAPTCHA、hCaptcha）。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* 快速统一设置 */}
+                    <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+                      <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">统一设置所有场景</span>
+                      <Select
+                        onValueChange={(v) => {
+                          const val = v as "none" | "math" | "slider" | "turnstile" | "recaptcha" | "hcaptcha";
+                          form.setValue("captchaLogin", val, { shouldDirty: true });
+                          form.setValue("captchaRegister", val, { shouldDirty: true });
+                          form.setValue("captchaComment", val, { shouldDirty: true });
+                          form.setValue("captchaForgotPassword", val, { shouldDirty: true });
+                        }}
+                      >
+                        <SelectTrigger className="w-52">
+                          <SelectValue placeholder="选择类型..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">全部关闭</SelectItem>
+                          <SelectItem value="math">全部数学验证码</SelectItem>
+                          <SelectItem value="slider">全部滑块验证</SelectItem>
+                          <SelectItem value="turnstile">全部 Turnstile</SelectItem>
+                          <SelectItem value="recaptcha">全部 reCAPTCHA</SelectItem>
+                          <SelectItem value="hcaptcha">全部 hCaptcha</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 第三方密钥缺失警告 */}
+                    {(() => {
+                      const vals = [
+                        form.watch("captchaLogin"),
+                        form.watch("captchaRegister"),
+                        form.watch("captchaComment"),
+                        form.watch("captchaForgotPassword"),
+                      ];
+                      const warnings: string[] = [];
+                      if (
+                        vals.includes("turnstile") &&
+                        (!form.watch("turnstileSiteKey")?.trim() || !form.watch("turnstileSecretKey")?.trim())
+                      ) {
+                        warnings.push("Turnstile 密钥未配置");
+                      }
+                      if (
+                        vals.includes("recaptcha") &&
+                        (!form.watch("recaptchaSiteKey")?.trim() || !form.watch("recaptchaSecretKey")?.trim())
+                      ) {
+                        warnings.push("reCAPTCHA 密钥未配置");
+                      }
+                      if (
+                        vals.includes("hcaptcha") &&
+                        (!form.watch("hcaptchaSiteKey")?.trim() || !form.watch("hcaptchaSecretKey")?.trim())
+                      ) {
+                        warnings.push("hCaptcha 密钥未配置");
+                      }
+                      if (warnings.length === 0) return null;
+                      return (
+                        <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
+                          <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                          <span>{warnings.join("、")}。未配置密钥时前端将自动跳过验证，请在下方填写对应平台密钥。</span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 各场景验证码选择器 */}
+                    <div className="space-y-4">
+                      {[
+                        { name: "captchaLogin" as const, label: "登录", desc: "用户登录时需要完成的验证" },
+                        {
+                          name: "captchaRegister" as const,
+                          label: "注册",
+                          desc: "用户注册时需要完成的验证（邮箱验证码独立于此设置）",
+                        },
+                        { name: "captchaComment" as const, label: "评论", desc: "用户发表评论时需要完成的验证" },
+                        {
+                          name: "captchaForgotPassword" as const,
+                          label: "忘记密码",
+                          desc: "用户重置密码时需要完成的验证",
+                        },
+                      ].map(({ name, label, desc }) => {
+                        const captchaLabels: Record<string, string> = {
+                          none: "关闭",
+                          math: "数学",
+                          slider: "滑块",
+                          turnstile: "Turnstile",
+                          recaptcha: "reCAPTCHA",
+                          hcaptcha: "hCaptcha",
+                        };
+                        return (
+                          <FormField
+                            key={name}
+                            control={form.control}
+                            name={name}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-2">
+                                  {label}
+                                  <Badge
+                                    variant={field.value === "none" ? "outline" : "default"}
+                                    className="text-[10px] px-1.5 py-0 font-normal"
+                                  >
+                                    {captchaLabels[field.value] ?? field.value}
+                                  </Badge>
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="选择验证码类型" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="none">无验证</SelectItem>
+                                    <SelectItem value="math">数学验证码</SelectItem>
+                                    <SelectItem value="slider">滑块验证</SelectItem>
+                                    <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
+                                    <SelectItem value="recaptcha">Google reCAPTCHA v2</SelectItem>
+                                    <SelectItem value="hcaptcha">hCaptcha</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription>{desc}</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Cloudflare Turnstile */}
+                    <div className="border-t pt-6 space-y-4">
+                      <h4 className="font-medium">Cloudflare Turnstile 配置</h4>
+                      <FormDescription className="mt-0">
+                        在{" "}
+                        <a
+                          href="https://dash.cloudflare.com/?to=/:account/turnstile"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Cloudflare Dashboard
+                        </a>{" "}
+                        创建 Turnstile 站点后获取密钥。
+                      </FormDescription>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="turnstileSiteKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Site Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="0x..." />
+                              </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* 预设主题 */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-base">预设主题</CardTitle>
-                      <CardDescription>一键应用预设的配色方案</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {([
-                          { label: "默认紫", hue: 285, temp: 0, radius: 0.625, desc: "经典 ACGN 紫" },
-                          { label: "海洋蓝", hue: 210, temp: -30, radius: 0.75, desc: "冷色调科技感" },
-                          { label: "樱花粉", hue: 340, temp: 20, radius: 1.0, desc: "温暖少女风" },
-                          { label: "森林绿", hue: 145, temp: 15, radius: 0.5, desc: "自然清新感" },
-                          { label: "极光紫", hue: 270, temp: -15, radius: 0.875, desc: "梦幻冷紫" },
-                          { label: "琥珀橙", hue: 30, temp: 50, radius: 0.625, desc: "活力暖色调" },
-                          { label: "赛博青", hue: 185, temp: -40, radius: 0.25, desc: "赛博朋克风" },
-                          { label: "薰衣草", hue: 295, temp: 10, radius: 1.25, desc: "优雅柔和紫" },
-                        ] as const).map(({ label, hue, temp, radius, desc }) => (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => {
-                              form.setValue("themeHue", hue, { shouldDirty: true });
-                              form.setValue("themeColorTemp", temp, { shouldDirty: true });
-                              form.setValue("themeBorderRadius", radius, { shouldDirty: true });
-                            }}
-                            className={`group relative overflow-hidden rounded-lg border p-3 text-left transition-all hover:shadow-sm ${
-                              form.watch("themeHue") === hue && form.watch("themeColorTemp") === temp
-                                ? "border-primary ring-1 ring-primary/30"
-                                : "border-border hover:border-primary/40"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <div
-                                className="h-4 w-4 rounded-full shrink-0"
-                                style={{ background: `oklch(0.6 0.24 ${hue})` }}
-                              />
-                              <span className="text-sm font-medium">{label}</span>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground leading-tight">{desc}</p>
-                            <div
-                              className="absolute top-0 right-0 h-full w-1"
-                              style={{ background: `oklch(0.6 0.24 ${hue})` }}
-                            />
-                          </button>
-                        ))}
+                        <FormField
+                          control={form.control}
+                          name="turnstileSecretKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Secret Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="0x..." />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
 
-                  <div className="flex items-center gap-3">
+                    {/* Google reCAPTCHA */}
+                    <div className="border-t pt-6 space-y-4">
+                      <h4 className="font-medium">Google reCAPTCHA v2 配置</h4>
+                      <FormDescription className="mt-0">
+                        在{" "}
+                        <a
+                          href="https://www.google.com/recaptcha/admin"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Google reCAPTCHA 管理后台
+                        </a>{" "}
+                        创建 v2 (Checkbox) 类型站点后获取密钥。
+                      </FormDescription>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="recaptchaSiteKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Site Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="6Le..." />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="recaptchaSecretKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Secret Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="6Le..." />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {/* hCaptcha */}
+                    <div className="border-t pt-6 space-y-4">
+                      <h4 className="font-medium">hCaptcha 配置</h4>
+                      <FormDescription className="mt-0">
+                        在{" "}
+                        <a
+                          href="https://dashboard.hcaptcha.com/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          hCaptcha Dashboard
+                        </a>{" "}
+                        创建站点后获取密钥。hCaptcha 注重隐私保护，是 reCAPTCHA 的替代方案。
+                      </FormDescription>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="hcaptchaSiteKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Site Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="站点密钥" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="hcaptchaSecretKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Secret Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} type="password" placeholder="密钥" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-medium mb-1">验证码类型说明</p>
+                      <ul className="list-disc list-inside text-xs space-y-0.5">
+                        <li>
+                          <strong>无验证</strong>：不需要任何额外验证
+                        </li>
+                        <li>
+                          <strong>数学验证码</strong>：本地生成，答案通过 HMAC 签名验证，无需外部服务
+                        </li>
+                        <li>
+                          <strong>滑块验证</strong>：本地拖拽交互验证，无需外部服务，体验友好
+                        </li>
+                        <li>
+                          <strong>Cloudflare Turnstile</strong>：无感人机验证，需配置 Cloudflare 密钥
+                        </li>
+                        <li>
+                          <strong>Google reCAPTCHA v2</strong>：复选框人机验证，需配置 Google 密钥
+                        </li>
+                        <li>
+                          <strong>hCaptcha</strong>：注重隐私的人机验证，需配置 hCaptcha 密钥
+                        </li>
+                      </ul>
+                    </div>
+
                     <Button type="submit" disabled={updateConfig.isPending}>
                       {updateConfig.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1884,426 +2318,26 @@ export default function AdminSettingsPage() {
                       )}
                       保存设置
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        form.setValue("themeHue", 285, { shouldDirty: true });
-                        form.setValue("themeColorTemp", 0, { shouldDirty: true });
-                        form.setValue("themeBorderRadius", 0.625, { shouldDirty: true });
-                        form.setValue("themeGlassOpacity", 0.7, { shouldDirty: true });
-                        form.setValue("themeAnimations", true, { shouldDirty: true });
-                      }}
-                    >
-                      全部重置为默认
-                    </Button>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                {/* 右侧：实时预览 */}
-                <div className="xl:col-span-1">
-                  <ThemePreviewPanel
-                    hue={form.watch("themeHue")}
-                    colorTemp={form.watch("themeColorTemp")}
-                    borderRadius={form.watch("themeBorderRadius")}
-                    glassOpacity={form.watch("themeGlassOpacity")}
-                    animations={form.watch("themeAnimations")}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* 验证码设置 */}
-            <TabsContent value="captcha" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5" />
-                    验证码 / 人机验证
-                  </CardTitle>
-                  <CardDescription>
-                    为不同场景配置验证码方式。支持本地验证（数学、滑块）和第三方平台（Turnstile、reCAPTCHA、hCaptcha）。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* 快速统一设置 */}
-                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                    <Copy className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">统一设置所有场景</span>
-                    <Select onValueChange={(v) => {
-                      const val = v as "none" | "math" | "slider" | "turnstile" | "recaptcha" | "hcaptcha";
-                      form.setValue("captchaLogin", val, { shouldDirty: true });
-                      form.setValue("captchaRegister", val, { shouldDirty: true });
-                      form.setValue("captchaComment", val, { shouldDirty: true });
-                      form.setValue("captchaForgotPassword", val, { shouldDirty: true });
-                    }}>
-                      <SelectTrigger className="w-52">
-                        <SelectValue placeholder="选择类型..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">全部关闭</SelectItem>
-                        <SelectItem value="math">全部数学验证码</SelectItem>
-                        <SelectItem value="slider">全部滑块验证</SelectItem>
-                        <SelectItem value="turnstile">全部 Turnstile</SelectItem>
-                        <SelectItem value="recaptcha">全部 reCAPTCHA</SelectItem>
-                        <SelectItem value="hcaptcha">全部 hCaptcha</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* 第三方密钥缺失警告 */}
-                  {(() => {
-                    const vals = [form.watch("captchaLogin"), form.watch("captchaRegister"), form.watch("captchaComment"), form.watch("captchaForgotPassword")];
-                    const warnings: string[] = [];
-                    if (vals.includes("turnstile") && (!form.watch("turnstileSiteKey")?.trim() || !form.watch("turnstileSecretKey")?.trim())) {
-                      warnings.push("Turnstile 密钥未配置");
-                    }
-                    if (vals.includes("recaptcha") && (!form.watch("recaptchaSiteKey")?.trim() || !form.watch("recaptchaSecretKey")?.trim())) {
-                      warnings.push("reCAPTCHA 密钥未配置");
-                    }
-                    if (vals.includes("hcaptcha") && (!form.watch("hcaptchaSiteKey")?.trim() || !form.watch("hcaptchaSecretKey")?.trim())) {
-                      warnings.push("hCaptcha 密钥未配置");
-                    }
-                    if (warnings.length === 0) return null;
-                    return (
-                      <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
-                        <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>{warnings.join("、")}。未配置密钥时前端将自动跳过验证，请在下方填写对应平台密钥。</span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* 各场景验证码选择器 */}
-                  <div className="space-y-4">
-                    {([
-                      { name: "captchaLogin" as const, label: "登录", desc: "用户登录时需要完成的验证" },
-                      { name: "captchaRegister" as const, label: "注册", desc: "用户注册时需要完成的验证（邮箱验证码独立于此设置）" },
-                      { name: "captchaComment" as const, label: "评论", desc: "用户发表评论时需要完成的验证" },
-                      { name: "captchaForgotPassword" as const, label: "忘记密码", desc: "用户重置密码时需要完成的验证" },
-                    ]).map(({ name, label, desc }) => {
-                      const captchaLabels: Record<string, string> = { none: "关闭", math: "数学", slider: "滑块", turnstile: "Turnstile", recaptcha: "reCAPTCHA", hcaptcha: "hCaptcha" };
-                      return (
-                        <FormField
-                          key={name}
-                          control={form.control}
-                          name={name}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-2">
-                                {label}
-                                <Badge variant={field.value === "none" ? "outline" : "default"} className="text-[10px] px-1.5 py-0 font-normal">
-                                  {captchaLabels[field.value] ?? field.value}
-                                </Badge>
-                              </FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="选择验证码类型" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="none">无验证</SelectItem>
-                                  <SelectItem value="math">数学验证码</SelectItem>
-                                  <SelectItem value="slider">滑块验证</SelectItem>
-                                  <SelectItem value="turnstile">Cloudflare Turnstile</SelectItem>
-                                  <SelectItem value="recaptcha">Google reCAPTCHA v2</SelectItem>
-                                  <SelectItem value="hcaptcha">hCaptcha</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormDescription>{desc}</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Cloudflare Turnstile */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h4 className="font-medium">Cloudflare Turnstile 配置</h4>
-                    <FormDescription className="mt-0">
-                      在 <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Cloudflare Dashboard</a> 创建 Turnstile 站点后获取密钥。
-                    </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="turnstileSiteKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Site Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="0x..." />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="turnstileSecretKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secret Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} type="password" placeholder="0x..." />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Google reCAPTCHA */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h4 className="font-medium">Google reCAPTCHA v2 配置</h4>
-                    <FormDescription className="mt-0">
-                      在 <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA 管理后台</a> 创建 v2 (Checkbox) 类型站点后获取密钥。
-                    </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="recaptchaSiteKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Site Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="6Le..." />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="recaptchaSecretKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secret Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} type="password" placeholder="6Le..." />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* hCaptcha */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h4 className="font-medium">hCaptcha 配置</h4>
-                    <FormDescription className="mt-0">
-                      在 <a href="https://dashboard.hcaptcha.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">hCaptcha Dashboard</a> 创建站点后获取密钥。hCaptcha 注重隐私保护，是 reCAPTCHA 的替代方案。
-                    </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="hcaptchaSiteKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Site Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="站点密钥" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="hcaptchaSecretKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secret Key</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} type="password" placeholder="密钥" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-medium mb-1">验证码类型说明</p>
-                    <ul className="list-disc list-inside text-xs space-y-0.5">
-                      <li><strong>无验证</strong>：不需要任何额外验证</li>
-                      <li><strong>数学验证码</strong>：本地生成，答案通过 HMAC 签名验证，无需外部服务</li>
-                      <li><strong>滑块验证</strong>：本地拖拽交互验证，无需外部服务，体验友好</li>
-                      <li><strong>Cloudflare Turnstile</strong>：无感人机验证，需配置 Cloudflare 密钥</li>
-                      <li><strong>Google reCAPTCHA v2</strong>：复选框人机验证，需配置 Google 密钥</li>
-                      <li><strong>hCaptcha</strong>：注重隐私的人机验证，需配置 hCaptcha 密钥</li>
-                    </ul>
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 视觉效果 */}
-            <TabsContent value="effects" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle>视觉效果</CardTitle>
-                  <CardDescription>配置全站粒子动画和音效默认设置</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="effectEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>启用粒子效果</FormLabel>
-                          <FormDescription>全站显示粒子动画背景</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="effectType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>效果类型</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择粒子效果" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="sakura">🌸 樱花飘落</SelectItem>
-                            <SelectItem value="firefly">✨ 萤火虫</SelectItem>
-                            <SelectItem value="snow">❄️ 雪花飘落</SelectItem>
-                            <SelectItem value="stars">⭐ 星空闪烁</SelectItem>
-                            <SelectItem value="aurora">🌌 极光</SelectItem>
-                            <SelectItem value="cyber">💠 赛博雨</SelectItem>
-                            <SelectItem value="none">关闭</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="effectDensity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between">
-                          <FormLabel>粒子密度</FormLabel>
-                          <span className="text-sm text-muted-foreground">{field.value}</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min={1}
-                            max={100}
-                            value={field.value}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="w-full accent-primary"
-                          />
-                        </FormControl>
-                        <FormDescription>数值越大粒子越多（移动端自动减半）</FormDescription>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="effectSpeed"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between">
-                          <FormLabel>速度倍率</FormLabel>
-                          <span className="text-sm text-muted-foreground">{field.value.toFixed(1)}x</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min={0.1}
-                            max={3.0}
-                            step={0.1}
-                            value={field.value}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="w-full accent-primary"
-                          />
-                        </FormControl>
-                        <FormDescription>控制粒子运动速度</FormDescription>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="effectOpacity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between">
-                          <FormLabel>透明度</FormLabel>
-                          <span className="text-sm text-muted-foreground">{Math.round(field.value * 100)}%</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            value={field.value}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            className="w-full accent-primary"
-                          />
-                        </FormControl>
-                        <FormDescription>粒子的整体透明度</FormDescription>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="effectColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>自定义颜色</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value ?? ""} placeholder="留空使用预设颜色，如 #ff69b4" />
-                        </FormControl>
-                        <FormDescription>输入十六进制颜色值覆盖默认配色</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="border-t pt-6">
-                    <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-                      <Volume2 className="h-4 w-4" />
-                      音效设置
-                    </h3>
+              {/* 视觉效果 */}
+              <TabsContent value="effects" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>视觉效果</CardTitle>
+                    <CardDescription>配置全站粒子动画和音效默认设置</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
                     <FormField
                       control={form.control}
-                      name="soundDefaultEnabled"
+                      name="effectEnabled"
                       render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                           <div className="space-y-0.5">
-                            <FormLabel>新用户默认开启音效</FormLabel>
-                            <FormDescription>首次访问的用户是否自动启用 UI 音效</FormDescription>
+                            <FormLabel>启用粒子效果</FormLabel>
+                            <FormDescription>全站显示粒子动画背景</FormDescription>
                           </div>
                           <FormControl>
                             <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -2311,377 +2345,145 @@ export default function AdminSettingsPage() {
                         </FormItem>
                       )}
                     />
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 内容设置 */}
-            <TabsContent value="content" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle>内容设置</CardTitle>
-                  <CardDescription>配置内容相关的参数</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="videoSelectorMode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>播放页选集器模式</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="w-full md:w-64">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="series">合集</SelectItem>
-                            <SelectItem value="author">原作者</SelectItem>
-                            <SelectItem value="uploader">上传者</SelectItem>
-                            <SelectItem value="disabled">关闭</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>控制播放页右侧选集器按什么维度聚合视频：合集（Series 剧集）、原作者（extraInfo 中的 author 字段）、上传者（UP 主）、或关闭</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="videosPerPage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>每页视频数</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={5}
-                              max={100}
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
-                            />
-                          </FormControl>
-                          <FormDescription>首页每页显示的视频数量</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
 
                     <FormField
                       control={form.control}
-                      name="commentsPerPage"
+                      name="effectType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>每页评论数</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={5}
-                              max={100}
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
-                            />
-                          </FormControl>
-                          <FormDescription>每页显示的评论数量</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="maxUploadSize"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>最大上传大小 (MB)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={10}
-                              max={10000}
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 500)}
-                            />
-                          </FormControl>
-                          <FormDescription>单个文件最大上传大小</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="allowedVideoFormats"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>允许的视频格式</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="mp4,webm,m3u8" />
-                          </FormControl>
-                          <FormDescription>逗号分隔</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="adminBatchLimit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>后台批量操作上限</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 10000)}
-                            />
-                          </FormControl>
-                          <FormDescription>批量转移、删除等操作的最大数量</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 邮件配置 */}
-            <TabsContent value="email" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    邮件配置
-                  </CardTitle>
-                  <CardDescription>
-                    支持 SMTP 与 HTTP API 两种发送方式，用于验证码、通知等邮件发送。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="mailSendMode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>发送方式</FormLabel>
-                        <FormControl>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择邮件发送方式" />
-                            </SelectTrigger>
+                          <FormLabel>效果类型</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择粒子效果" />
+                              </SelectTrigger>
+                            </FormControl>
                             <SelectContent>
-                              <SelectItem value="smtp">SMTP</SelectItem>
-                              <SelectItem value="http_api">HTTP API</SelectItem>
+                              <SelectItem value="sakura">🌸 樱花飘落</SelectItem>
+                              <SelectItem value="firefly">✨ 萤火虫</SelectItem>
+                              <SelectItem value="snow">❄️ 雪花飘落</SelectItem>
+                              <SelectItem value="stars">⭐ 星空闪烁</SelectItem>
+                              <SelectItem value="aurora">🌌 极光</SelectItem>
+                              <SelectItem value="cyber">💠 赛博雨</SelectItem>
+                              <SelectItem value="none">关闭</SelectItem>
                             </SelectContent>
                           </Select>
-                        </FormControl>
-                        <FormDescription>
-                          选择 SMTP 直连邮箱服务，或通过 HTTP API 网关发送邮件。
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("mailSendMode") === "smtp" ? (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="smtpHost"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SMTP 主机</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="smtp.example.com" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="smtpPort"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SMTP 端口</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={65535}
-                                  value={field.value ?? 465}
-                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
-                                />
-                              </FormControl>
-                              <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="smtpUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SMTP 用户名</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="user@example.com" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="smtpPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SMTP 密码</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="smtpFrom"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>发件人地址</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
-                            </FormControl>
-                            <FormDescription>发件人邮箱地址</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="mailApiUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>HTTP API 地址</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="https://api.example.com/send-email" />
-                            </FormControl>
-                            <FormDescription>将以 POST JSON 方式调用该接口发送邮件</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="mailApiFrom"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>发件人地址</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
-                              </FormControl>
-                              <FormDescription>用于构造 From 字段</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="mailApiKey"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>API Key（可选）</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} type="password" placeholder="sk-xxxxxx" />
-                              </FormControl>
-                              <FormDescription>未配置 Authorization 时将自动使用 Bearer</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="mailApiHeaders"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>自定义请求头（JSON，可选）</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                value={field.value || ""}
-                                rows={4}
-                                placeholder={'{"X-API-KEY":"your-key","Authorization":"Bearer xxx"}'}
-                              />
-                            </FormControl>
-                            <FormDescription>仅支持 JSON 对象，值需为字符串</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-
-                  <div className="pt-4 border-t">
-                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                      <FolderOpen className="h-4 w-4" />
-                      上传设置
-                    </h4>
-                    <FormField
-                      control={form.control}
-                      name="uploadDir"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>上传目录</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || "./uploads"} placeholder="./uploads" />
-                          </FormControl>
-                          <FormDescription>本地文件上传的存储路径，相对于项目根目录</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  <div className="flex items-center gap-2">
+                    <FormField
+                      control={form.control}
+                      name="effectDensity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>粒子密度</FormLabel>
+                            <span className="text-sm text-muted-foreground">{field.value}</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min={1}
+                              max={100}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              className="w-full accent-primary"
+                            />
+                          </FormControl>
+                          <FormDescription>数值越大粒子越多（移动端自动减半）</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="effectSpeed"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>速度倍率</FormLabel>
+                            <span className="text-sm text-muted-foreground">{field.value.toFixed(1)}x</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min={0.1}
+                              max={3.0}
+                              step={0.1}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              className="w-full accent-primary"
+                            />
+                          </FormControl>
+                          <FormDescription>控制粒子运动速度</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="effectOpacity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>透明度</FormLabel>
+                            <span className="text-sm text-muted-foreground">{Math.round(field.value * 100)}%</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              className="w-full accent-primary"
+                            />
+                          </FormControl>
+                          <FormDescription>粒子的整体透明度</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="effectColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>自定义颜色</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="留空使用预设颜色，如 #ff69b4" />
+                          </FormControl>
+                          <FormDescription>输入十六进制颜色值覆盖默认配色</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="border-t pt-6">
+                      <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                        <Volume2 className="h-4 w-4" />
+                        音效设置
+                      </h3>
+                      <FormField
+                        control={form.control}
+                        name="soundDefaultEnabled"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                              <FormLabel>新用户默认开启音效</FormLabel>
+                              <FormDescription>首次访问的用户是否自动启用 UI 音效</FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <Button type="submit" disabled={updateConfig.isPending}>
                       {updateConfig.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -2690,905 +2492,1420 @@ export default function AdminSettingsPage() {
                       )}
                       保存设置
                     </Button>
-                    <TestEmailButton />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            {/* 对象存储 */}
-            <TabsContent value="storage" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5" />
-                    对象存储
-                  </CardTitle>
-                  <CardDescription>
-                    配置 S3 兼容的对象存储服务，用于存放图片、视频封面等静态资源。切换为对象存储后，新上传的文件将保存至远程存储桶。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-                    对象存储功能尚在开发中，当前仅支持配置保存，实际上传仍使用本地存储。
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="storageProvider"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>存储提供商</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择存储提供商" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="local">本地存储</SelectItem>
-                            <SelectItem value="s3">Amazon S3</SelectItem>
-                            <SelectItem value="r2">Cloudflare R2</SelectItem>
-                            <SelectItem value="minio">MinIO</SelectItem>
-                            <SelectItem value="oss">阿里云 OSS</SelectItem>
-                            <SelectItem value="cos">腾讯云 COS</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>选择「本地存储」时下方配置无需填写</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {form.watch("storageProvider") !== "local" && (
-                    <div className="space-y-4 pt-2">
-                      <FormField
-                        control={form.control}
-                        name="storageEndpoint"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Endpoint</FormLabel>
+              {/* 内容设置 */}
+              <TabsContent value="content" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>内容设置</CardTitle>
+                    <CardDescription>配置内容相关的参数</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="videoSelectorMode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>播放页选集器模式</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="https://s3.amazonaws.com" />
+                              <SelectTrigger className="w-full md:w-64">
+                                <SelectValue />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormDescription>S3 兼容的端点地址，如 https://s3.us-east-1.amazonaws.com</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="storageBucket"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>存储桶名称</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="my-bucket" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="storageRegion"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>区域</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="us-east-1" />
-                              </FormControl>
-                              <FormDescription>部分服务商可留空</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="storageAccessKey"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Access Key</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} placeholder="AKIA..." />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="storageSecretKey"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Secret Key</FormLabel>
-                              <FormControl>
-                                <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="storageCustomDomain"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>自定义域名</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="https://cdn.example.com" />
-                            </FormControl>
-                            <FormDescription>用于替换默认的存储桶域名，设置后文件公开链接将使用此域名</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="storagePathPrefix"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>路径前缀</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="uploads/" />
-                            </FormControl>
-                            <FormDescription>文件在存储桶中的路径前缀，如 uploads/</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 页面内容 */}
-            <TabsContent value="pages" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    页面内容管理
-                  </CardTitle>
-                  <CardDescription>编辑隐私政策、服务条款、关于我们等页面内容，支持 MDX 格式（Markdown + JSX）。配置后将自动在页脚显示对应链接。</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="privacyPolicy"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>隐私政策</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            value={field.value || ""}
-                            placeholder={"# 隐私政策\n\n本网站非常重视用户的隐私保护...\n\n## 信息收集\n\n支持 MDX 格式（Markdown + JSX）"}
-                            rows={12}
-                            className="font-mono text-sm"
-                          />
-                        </FormControl>
-                        <FormDescription>留空则不显示隐私政策页面。访问路径：/privacy</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="termsOfService"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>服务条款</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            value={field.value || ""}
-                            placeholder={"# 服务条款\n\n欢迎使用本网站提供的服务...\n\n## 使用规则\n\n支持 MDX 格式（Markdown + JSX）"}
-                            rows={12}
-                            className="font-mono text-sm"
-                          />
-                        </FormControl>
-                        <FormDescription>留空则不显示服务条款页面。访问路径：/terms</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="aboutPage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>关于我们</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            value={field.value || ""}
-                            placeholder={"# 关于我们\n\n本站是一个 ACGN 内容分享平台...\n\n## 联系方式\n\n支持 MDX 格式（Markdown + JSX）"}
-                            rows={12}
-                            className="font-mono text-sm"
-                          />
-                        </FormControl>
-                        <FormDescription>留空则不显示关于页面。访问路径：/about</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 页脚备案 */}
-            <TabsContent value="footer" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    页脚与备案
-                  </CardTitle>
-                  <CardDescription>配置页脚信息和备案号</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="githubUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>GitHub 链接</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="https://github.com/your-org/your-repo" />
-                        </FormControl>
-                        <FormDescription>页脚显示的 GitHub 仓库链接，留空则不显示</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="footerText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>页脚文本</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            value={field.value || ""}
-                            placeholder="自定义页脚文本，支持简单 HTML..."
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="icpBeian"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>ICP 备案号</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="京ICP备XXXXXXXX号" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="publicSecurityBeian"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>公安备案号</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="京公网安备XXXXXXXXXXXXXX号" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 广告 */}
-            <TabsContent value="ads" forceMount className="data-[state=inactive]:hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Megaphone className="h-5 w-5" />
-                    广告设置
-                  </CardTitle>
-                  <CardDescription>
-                    广告管理已升级为独立页面，支持广告位投放、投放时间管理和实时预览。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="adsEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>启用广告</FormLabel>
-                          <FormDescription>开启后，广告将展示在首页、侧栏等位置（可在「用户管理」中单独关闭某用户的广告）</FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
-                    <Megaphone className="h-8 w-8 mx-auto text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">广告列表和广告门已迁移至独立管理页面</p>
-                      <p className="text-xs text-muted-foreground mt-1">支持广告位投放、投放时间、实时预览等更多功能</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.location.href = "/dashboard/ads"}
-                    >
-                      <Megaphone className="h-4 w-4 mr-2" />
-                      前往广告管理
-                    </Button>
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </form>
-        </Form>
-
-        {/* OAuth 社交登录 */}
-        <TabsContent value="oauth" forceMount className="data-[state=inactive]:hidden">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <KeyRound className="h-5 w-5" />
-                    社交登录（OAuth）
-                  </CardTitle>
-                  <CardDescription>
-                    配置第三方 OAuth 提供商，允许用户使用社交账号登录。填入 Client ID 和 Client Secret 即可启用，清空则禁用。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {([
-                    { key: "Google", label: "Google", callbackId: "google", url: "https://console.cloud.google.com/apis/credentials", urlLabel: "Google Cloud Console" },
-                    { key: "Github", label: "GitHub", callbackId: "github", url: "https://github.com/settings/developers", urlLabel: "GitHub Developer Settings" },
-                    { key: "Discord", label: "Discord", callbackId: "discord", url: "https://discord.com/developers/applications", urlLabel: "Discord Developer Portal" },
-                    { key: "Apple", label: "Apple", callbackId: "apple", url: "https://developer.apple.com/account/resources/identifiers/list/serviceId", urlLabel: "Apple Developer" },
-                    { key: "Twitter", label: "X (Twitter)", callbackId: "twitter", url: "https://developer.x.com/en/portal/dashboard", urlLabel: "X Developer Portal" },
-                    { key: "Facebook", label: "Facebook", callbackId: "facebook", url: "https://developers.facebook.com/apps", urlLabel: "Meta for Developers" },
-                    { key: "Microsoft", label: "Microsoft", callbackId: "microsoft", url: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps", urlLabel: "Azure Portal" },
-                    { key: "Twitch", label: "Twitch", callbackId: "twitch", url: "https://dev.twitch.tv/console/apps", urlLabel: "Twitch Developer Console" },
-                    { key: "Spotify", label: "Spotify", callbackId: "spotify", url: "https://developer.spotify.com/dashboard", urlLabel: "Spotify Developer Dashboard" },
-                    { key: "Linkedin", label: "LinkedIn", callbackId: "linkedin", url: "https://www.linkedin.com/developers/apps", urlLabel: "LinkedIn Developer Portal" },
-                    { key: "Gitlab", label: "GitLab", callbackId: "gitlab", url: "https://gitlab.com/-/user_settings/applications", urlLabel: "GitLab Applications" },
-                    { key: "Reddit", label: "Reddit", callbackId: "reddit", url: "https://www.reddit.com/prefs/apps", urlLabel: "Reddit App Preferences" },
-                  ] as const).map(({ key, label, callbackId, url, urlLabel }, idx) => {
-                    const idField = `oauth${key}ClientId` as keyof ConfigFormValues;
-                    const secretField = `oauth${key}ClientSecret` as keyof ConfigFormValues;
-                    const hasId = form.watch(idField);
-                    const hasSecret = form.watch(secretField);
-                    return (
-                      <div key={key}>
-                        {idx > 0 && <div className="border-t mb-4" />}
-                        <div className="space-y-3">
-                          <h4 className="font-medium flex items-center gap-2">
-                            {label}
-                            {hasId && hasSecret && <Badge variant="default" className="text-xs">已启用</Badge>}
-                          </h4>
+                            <SelectContent>
+                              <SelectItem value="series">合集</SelectItem>
+                              <SelectItem value="author">原作者</SelectItem>
+                              <SelectItem value="uploader">上传者</SelectItem>
+                              <SelectItem value="disabled">关闭</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormDescription>
-                            在 <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{urlLabel}</a> 创建应用。回调 URL：<code className="text-xs bg-muted px-1 py-0.5 rounded">{`{站点URL}/api/auth/callback/${callbackId}`}</code>
+                            控制播放页右侧选集器按什么维度聚合视频：合集（Series 剧集）、原作者（extraInfo 中的 author
+                            字段）、上传者（UP 主）、或关闭
                           </FormDescription>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FormField
-                              control={form.control}
-                              name={idField}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Client ID</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} value={(field.value as string) || ""} placeholder="Client ID" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={secretField}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Client Secret</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} value={(field.value as string) || ""} type="password" placeholder="••••••••" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-medium mb-1">账号关联说明</p>
-                    <ul className="list-disc list-inside text-xs space-y-0.5">
-                      <li>已启用的提供商将在登录和注册页面显示对应按钮</li>
-                      <li>如果 OAuth 登录的邮箱与已有账号一致，将自动关联</li>
-                      <li>首次使用 OAuth 登录且邮箱无匹配时将自动创建新账号</li>
-                      <li>保存后立即生效，无需重启服务</li>
-                    </ul>
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </form>
-          </Form>
-        </TabsContent>
-
-        {/* SEO 搜索引擎 */}
-        <TabsContent value="seo" forceMount className="data-[state=inactive]:hidden">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
-              <Card className="mb-4">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Search className="h-5 w-5" />
-                    SEO 设置
-                  </CardTitle>
-                  <CardDescription>
-                    搜索引擎验证和安全联系配置
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="googleVerification"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Google 验证码</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder="Google Search Console 验证码" />
-                        </FormControl>
-                        <FormDescription>Google Search Console 的网站验证码，会自动添加到页面 meta 标签中</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="securityEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>安全联系邮箱</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} type="email" placeholder="security@example.com" />
-                        </FormControl>
-                        <FormDescription>用于 security.txt 中的安全联系方式，留空则不显示</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="pt-4 border-t">
-                    <h4 className="font-medium mb-3">搜索引擎推送配置</h4>
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="indexNowKey"
+                        name="videosPerPage"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>IndexNow Key</FormLabel>
+                            <FormLabel>每页视频数</FormLabel>
                             <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="your-indexnow-key" />
-                            </FormControl>
-                            <FormDescription>IndexNow 密钥，用于向 Bing/Yandex 等搜索引擎推送更新</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="googleServiceAccountEmail"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Google Service Account Email</FormLabel>
-                            <FormControl>
-                              <Input {...field} value={field.value || ""} placeholder="xxx@xxx.iam.gserviceaccount.com" />
-                            </FormControl>
-                            <FormDescription>Google Search Console 服务账号邮箱</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="googlePrivateKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Google Private Key</FormLabel>
-                            <FormControl>
-                              <Textarea
+                              <Input
+                                type="number"
+                                min={5}
+                                max={100}
                                 {...field}
-                                value={field.value || ""}
-                                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
-                                rows={4}
-                                className="font-mono text-xs"
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
                               />
                             </FormControl>
-                            <FormDescription>Google 服务账号私钥（PEM 格式）</FormDescription>
+                            <FormDescription>首页每页显示的视频数量</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="commentsPerPage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>每页评论数</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={5}
+                                max={100}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
+                              />
+                            </FormControl>
+                            <FormDescription>每页显示的评论数量</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                  </div>
 
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="maxUploadSize"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>最大上传大小 (MB)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={10}
+                                max={10000}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 500)}
+                              />
+                            </FormControl>
+                            <FormDescription>单个文件最大上传大小</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="allowedVideoFormats"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>允许的视频格式</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="mp4,webm,m3u8" />
+                            </FormControl>
+                            <FormDescription>逗号分隔</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="adminBatchLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>后台批量操作上限</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 10000)}
+                              />
+                            </FormControl>
+                            <FormDescription>批量转移、删除等操作的最大数量</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 邮件配置 */}
+              <TabsContent value="email" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5" />
+                      邮件配置
+                    </CardTitle>
+                    <CardDescription>支持 SMTP 与 HTTP API 两种发送方式，用于验证码、通知等邮件发送。</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="mailSendMode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>发送方式</FormLabel>
+                          <FormControl>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择邮件发送方式" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="smtp">SMTP</SelectItem>
+                                <SelectItem value="http_api">HTTP API</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormDescription>选择 SMTP 直连邮箱服务，或通过 HTTP API 网关发送邮件。</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch("mailSendMode") === "smtp" ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="smtpHost"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>SMTP 主机</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="smtp.example.com" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="smtpPort"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>SMTP 端口</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={65535}
+                                    value={field.value ?? 465}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
+                                  />
+                                </FormControl>
+                                <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="smtpUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>SMTP 用户名</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="user@example.com" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="smtpPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>SMTP 密码</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="smtpFrom"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>发件人地址</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                              </FormControl>
+                              <FormDescription>发件人邮箱地址</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
                     ) : (
-                      <Save className="h-4 w-4 mr-2" />
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="mailApiUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>HTTP API 地址</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value || ""}
+                                  placeholder="https://api.example.com/send-email"
+                                />
+                              </FormControl>
+                              <FormDescription>将以 POST JSON 方式调用该接口发送邮件</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="mailApiFrom"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>发件人地址</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="noreply@example.com" />
+                                </FormControl>
+                                <FormDescription>用于构造 From 字段</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="mailApiKey"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>API Key（可选）</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} type="password" placeholder="sk-xxxxxx" />
+                                </FormControl>
+                                <FormDescription>未配置 Authorization 时将自动使用 Bearer</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={form.control}
+                          name="mailApiHeaders"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>自定义请求头（JSON，可选）</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  value={field.value || ""}
+                                  rows={4}
+                                  placeholder={'{"X-API-KEY":"your-key","Authorization":"Bearer xxx"}'}
+                                />
+                              </FormControl>
+                              <FormDescription>仅支持 JSON 对象，值需为字符串</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
                     )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
+
+                    <div className="pt-4 border-t">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4" />
+                        上传设置
+                      </h4>
+                      <FormField
+                        control={form.control}
+                        name="uploadDir"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>上传目录</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || "./uploads"} placeholder="./uploads" />
+                            </FormControl>
+                            <FormDescription>本地文件上传的存储路径，相对于项目根目录</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button type="submit" disabled={updateConfig.isPending}>
+                        {updateConfig.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        保存设置
+                      </Button>
+                      <TestEmailButton />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 对象存储 */}
+              <TabsContent value="storage" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <HardDrive className="h-5 w-5" />
+                      对象存储
+                    </CardTitle>
+                    <CardDescription>
+                      配置 S3
+                      兼容的对象存储服务，用于存放图片、视频封面等静态资源。切换为对象存储后，新上传的文件将保存至远程存储桶。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                      对象存储功能尚在开发中，当前仅支持配置保存，实际上传仍使用本地存储。
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="storageProvider"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>存储提供商</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="选择存储提供商" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="local">本地存储</SelectItem>
+                              <SelectItem value="s3">Amazon S3</SelectItem>
+                              <SelectItem value="r2">Cloudflare R2</SelectItem>
+                              <SelectItem value="minio">MinIO</SelectItem>
+                              <SelectItem value="oss">阿里云 OSS</SelectItem>
+                              <SelectItem value="cos">腾讯云 COS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>选择「本地存储」时下方配置无需填写</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch("storageProvider") !== "local" && (
+                      <div className="space-y-4 pt-2">
+                        <FormField
+                          control={form.control}
+                          name="storageEndpoint"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Endpoint</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="https://s3.amazonaws.com" />
+                              </FormControl>
+                              <FormDescription>
+                                S3 兼容的端点地址，如 https://s3.us-east-1.amazonaws.com
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="storageBucket"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>存储桶名称</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="my-bucket" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="storageRegion"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>区域</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="us-east-1" />
+                                </FormControl>
+                                <FormDescription>部分服务商可留空</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="storageAccessKey"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Access Key</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} placeholder="AKIA..." />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="storageSecretKey"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Secret Key</FormLabel>
+                                <FormControl>
+                                  <Input {...field} value={field.value || ""} type="password" placeholder="••••••••" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="storageCustomDomain"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>自定义域名</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="https://cdn.example.com" />
+                              </FormControl>
+                              <FormDescription>
+                                用于替换默认的存储桶域名，设置后文件公开链接将使用此域名
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="storagePathPrefix"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>路径前缀</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="uploads/" />
+                              </FormControl>
+                              <FormDescription>文件在存储桶中的路径前缀，如 uploads/</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 页面内容 */}
+              <TabsContent value="pages" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      页面内容管理
+                    </CardTitle>
+                    <CardDescription>
+                      编辑隐私政策、服务条款、关于我们等页面内容，支持 MDX 格式（Markdown +
+                      JSX）。配置后将自动在页脚显示对应链接。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="privacyPolicy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>隐私政策</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder={
+                                "# 隐私政策\n\n本网站非常重视用户的隐私保护...\n\n## 信息收集\n\n支持 MDX 格式（Markdown + JSX）"
+                              }
+                              rows={12}
+                              className="font-mono text-sm"
+                            />
+                          </FormControl>
+                          <FormDescription>留空则不显示隐私政策页面。访问路径：/privacy</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="termsOfService"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>服务条款</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder={
+                                "# 服务条款\n\n欢迎使用本网站提供的服务...\n\n## 使用规则\n\n支持 MDX 格式（Markdown + JSX）"
+                              }
+                              rows={12}
+                              className="font-mono text-sm"
+                            />
+                          </FormControl>
+                          <FormDescription>留空则不显示服务条款页面。访问路径：/terms</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="aboutPage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>关于我们</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder={
+                                "# 关于我们\n\n本站是一个 ACGN 内容分享平台...\n\n## 联系方式\n\n支持 MDX 格式（Markdown + JSX）"
+                              }
+                              rows={12}
+                              className="font-mono text-sm"
+                            />
+                          </FormControl>
+                          <FormDescription>留空则不显示关于页面。访问路径：/about</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 页脚备案 */}
+              <TabsContent value="footer" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5" />
+                      页脚与备案
+                    </CardTitle>
+                    <CardDescription>配置页脚信息和备案号</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="githubUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GitHub 链接</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="https://github.com/your-org/your-repo"
+                            />
+                          </FormControl>
+                          <FormDescription>页脚显示的 GitHub 仓库链接，留空则不显示</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="footerText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>页脚文本</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder="自定义页脚文本，支持简单 HTML..."
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="icpBeian"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ICP 备案号</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="京ICP备XXXXXXXX号" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="publicSecurityBeian"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>公安备案号</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="京公网安备XXXXXXXXXXXXXX号" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 广告 */}
+              <TabsContent value="ads" forceMount className="data-[state=inactive]:hidden">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Megaphone className="h-5 w-5" />
+                      广告设置
+                    </CardTitle>
+                    <CardDescription>
+                      广告管理已升级为独立页面，支持广告位投放、投放时间管理和实时预览。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="adsEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>启用广告</FormLabel>
+                            <FormDescription>
+                              开启后，广告将展示在首页、侧栏等位置（可在「用户管理」中单独关闭某用户的广告）
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+                      <Megaphone className="h-8 w-8 mx-auto text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-sm">广告列表和广告门已迁移至独立管理页面</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          支持广告位投放、投放时间、实时预览等更多功能
+                        </p>
+                      </div>
+                      <Button type="button" variant="outline" onClick={() => (window.location.href = "/dashboard/ads")}>
+                        <Megaphone className="h-4 w-4 mr-2" />
+                        前往广告管理
+                      </Button>
+                    </div>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </form>
           </Form>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                搜索引擎推送
-              </CardTitle>
-              <CardDescription>
-                主动通知搜索引擎索引新内容，加快收录速度
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 配置状态 */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">配置状态</p>
-                {engineStatus === null ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">IndexNow:</span>
-                      {engineStatus.indexnow.configured ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          已配置
-                        </Badge>
+          {/* OAuth 社交登录 */}
+          <TabsContent value="oauth" forceMount className="data-[state=inactive]:hidden">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <KeyRound className="h-5 w-5" />
+                      社交登录（OAuth）
+                    </CardTitle>
+                    <CardDescription>
+                      配置第三方 OAuth 提供商，允许用户使用社交账号登录。填入 Client ID 和 Client Secret
+                      即可启用，清空则禁用。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {(
+                      [
+                        {
+                          key: "Google",
+                          label: "Google",
+                          callbackId: "google",
+                          url: "https://console.cloud.google.com/apis/credentials",
+                          urlLabel: "Google Cloud Console",
+                        },
+                        {
+                          key: "Github",
+                          label: "GitHub",
+                          callbackId: "github",
+                          url: "https://github.com/settings/developers",
+                          urlLabel: "GitHub Developer Settings",
+                        },
+                        {
+                          key: "Discord",
+                          label: "Discord",
+                          callbackId: "discord",
+                          url: "https://discord.com/developers/applications",
+                          urlLabel: "Discord Developer Portal",
+                        },
+                        {
+                          key: "Apple",
+                          label: "Apple",
+                          callbackId: "apple",
+                          url: "https://developer.apple.com/account/resources/identifiers/list/serviceId",
+                          urlLabel: "Apple Developer",
+                        },
+                        {
+                          key: "Twitter",
+                          label: "X (Twitter)",
+                          callbackId: "twitter",
+                          url: "https://developer.x.com/en/portal/dashboard",
+                          urlLabel: "X Developer Portal",
+                        },
+                        {
+                          key: "Facebook",
+                          label: "Facebook",
+                          callbackId: "facebook",
+                          url: "https://developers.facebook.com/apps",
+                          urlLabel: "Meta for Developers",
+                        },
+                        {
+                          key: "Microsoft",
+                          label: "Microsoft",
+                          callbackId: "microsoft",
+                          url: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps",
+                          urlLabel: "Azure Portal",
+                        },
+                        {
+                          key: "Twitch",
+                          label: "Twitch",
+                          callbackId: "twitch",
+                          url: "https://dev.twitch.tv/console/apps",
+                          urlLabel: "Twitch Developer Console",
+                        },
+                        {
+                          key: "Spotify",
+                          label: "Spotify",
+                          callbackId: "spotify",
+                          url: "https://developer.spotify.com/dashboard",
+                          urlLabel: "Spotify Developer Dashboard",
+                        },
+                        {
+                          key: "Linkedin",
+                          label: "LinkedIn",
+                          callbackId: "linkedin",
+                          url: "https://www.linkedin.com/developers/apps",
+                          urlLabel: "LinkedIn Developer Portal",
+                        },
+                        {
+                          key: "Gitlab",
+                          label: "GitLab",
+                          callbackId: "gitlab",
+                          url: "https://gitlab.com/-/user_settings/applications",
+                          urlLabel: "GitLab Applications",
+                        },
+                        {
+                          key: "Reddit",
+                          label: "Reddit",
+                          callbackId: "reddit",
+                          url: "https://www.reddit.com/prefs/apps",
+                          urlLabel: "Reddit App Preferences",
+                        },
+                      ] as const
+                    ).map(({ key, label, callbackId, url, urlLabel }, idx) => {
+                      const idField = `oauth${key}ClientId` as keyof ConfigFormValues;
+                      const secretField = `oauth${key}ClientSecret` as keyof ConfigFormValues;
+                      const hasId = form.watch(idField);
+                      const hasSecret = form.watch(secretField);
+                      return (
+                        <div key={key}>
+                          {idx > 0 && <div className="border-t mb-4" />}
+                          <div className="space-y-3">
+                            <h4 className="font-medium flex items-center gap-2">
+                              {label}
+                              {hasId && hasSecret && (
+                                <Badge variant="default" className="text-xs">
+                                  已启用
+                                </Badge>
+                              )}
+                            </h4>
+                            <FormDescription>
+                              在{" "}
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                {urlLabel}
+                              </a>{" "}
+                              创建应用。回调 URL：
+                              <code className="text-xs bg-muted px-1 py-0.5 rounded">{`{站点URL}/api/auth/callback/${callbackId}`}</code>
+                            </FormDescription>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <FormField
+                                control={form.control}
+                                name={idField}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Client ID</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} value={(field.value as string) || ""} placeholder="Client ID" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={secretField}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Client Secret</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        value={(field.value as string) || ""}
+                                        type="password"
+                                        placeholder="••••••••"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-medium mb-1">账号关联说明</p>
+                      <ul className="list-disc list-inside text-xs space-y-0.5">
+                        <li>已启用的提供商将在登录和注册页面显示对应按钮</li>
+                        <li>如果 OAuth 登录的邮箱与已有账号一致，将自动关联</li>
+                        <li>首次使用 OAuth 登录且邮箱无匹配时将自动创建新账号</li>
+                        <li>保存后立即生效，无需重启服务</li>
+                      </ul>
+                    </div>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        <Badge variant="secondary" className="gap-1">
-                          <XCircle className="h-3 w-3" />
-                          未配置
-                        </Badge>
+                        <Save className="h-4 w-4 mr-2" />
                       )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
+            </Form>
+          </TabsContent>
+
+          {/* SEO 搜索引擎 */}
+          <TabsContent value="seo" forceMount className="data-[state=inactive]:hidden">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
+                <Card className="mb-4">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Search className="h-5 w-5" />
+                      SEO 设置
+                    </CardTitle>
+                    <CardDescription>搜索引擎验证和安全联系配置</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="googleVerification"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Google 验证码</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="Google Search Console 验证码" />
+                          </FormControl>
+                          <FormDescription>
+                            Google Search Console 的网站验证码，会自动添加到页面 meta 标签中
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="securityEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>安全联系邮箱</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              type="email"
+                              placeholder="security@example.com"
+                            />
+                          </FormControl>
+                          <FormDescription>用于 security.txt 中的安全联系方式，留空则不显示</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="pt-4 border-t">
+                      <h4 className="font-medium mb-3">搜索引擎推送配置</h4>
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="indexNowKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>IndexNow Key</FormLabel>
+                              <FormControl>
+                                <Input {...field} value={field.value || ""} placeholder="your-indexnow-key" />
+                              </FormControl>
+                              <FormDescription>IndexNow 密钥，用于向 Bing/Yandex 等搜索引擎推送更新</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="googleServiceAccountEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Google Service Account Email</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value || ""}
+                                  placeholder="xxx@xxx.iam.gserviceaccount.com"
+                                />
+                              </FormControl>
+                              <FormDescription>Google Search Console 服务账号邮箱</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="googlePrivateKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Google Private Key</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  value={field.value || ""}
+                                  placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                                  rows={4}
+                                  className="font-mono text-xs"
+                                />
+                              </FormControl>
+                              <FormDescription>Google 服务账号私钥（PEM 格式）</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Google:</span>
-                      {engineStatus.google.configured ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          已配置
-                        </Badge>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        <Badge variant="secondary" className="gap-1">
-                          <XCircle className="h-3 w-3" />
-                          未配置
-                        </Badge>
+                        <Save className="h-4 w-4 mr-2" />
                       )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-                <p className="font-medium mb-1">自动触发场景：</p>
-                <ul className="list-disc list-inside space-y-0.5 text-xs">
-                  <li>视频发布成功后</li>
-                  <li>视频信息更新后</li>
-                  <li>管理员审核通过后</li>
-                </ul>
-              </div>
-
-              {(engineStatus?.indexnow.configured || engineStatus?.google.configured) && (
-                <div className="space-y-3 pt-2 border-t">
-                  <p className="text-sm font-medium">手动提交</p>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSubmitIndex("site")}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Globe className="h-4 w-4 mr-1" />}
-                      提交站点页面
+                      保存设置
                     </Button>
+                  </CardContent>
+                </Card>
+              </form>
+            </Form>
 
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSubmitIndex("recent")}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-                        最近
-                      </Button>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={365}
-                        value={recentDays}
-                        onChange={(e) => setRecentDays(parseInt(e.target.value) || 7)}
-                        className="w-16 h-8 text-center"
-                      />
-                      <span className="text-sm text-muted-foreground">天</span>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  搜索引擎推送
+                </CardTitle>
+                <CardDescription>主动通知搜索引擎索引新内容，加快收录速度</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 配置状态 */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">配置状态</p>
+                  {engineStatus === null ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">IndexNow:</span>
+                        {engineStatus.indexnow.configured ? (
+                          <Badge variant="default" className="gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            已配置
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1">
+                            <XCircle className="h-3 w-3" />
+                            未配置
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Google:</span>
+                        {engineStatus.google.configured ? (
+                          <Badge variant="default" className="gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            已配置
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="gap-1">
+                            <XCircle className="h-3 w-3" />
+                            未配置
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSubmitIndex("all")}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-                      提交全部视频
-                    </Button>
-
-                    {engineStatus?.google.configured && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSubmitIndex("sitemap")}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Globe className="h-4 w-4 mr-1" />}
-                        通知 Google 更新 Sitemap
-                      </Button>
-                    )}
-                  </div>
-
-                  {lastResult && (
-                    <p className="text-xs text-muted-foreground">
-                      上次提交: {lastResult.message} ({lastResult.time.toLocaleTimeString()})
-                    </p>
                   )}
                 </div>
-              )}
 
-              {!engineStatus?.indexnow.configured && !engineStatus?.google.configured && (
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>请在上方「SEO 设置」卡片中配置搜索引擎推送密钥：</p>
-                  <ul className="list-disc list-inside text-xs">
-                    <li>IndexNow: 填写 IndexNow Key</li>
-                    <li>Google: 填写 Service Account Email + Private Key</li>
+                <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+                  <p className="font-medium mb-1">自动触发场景：</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-xs">
+                    <li>视频发布成功后</li>
+                    <li>视频信息更新后</li>
+                    <li>管理员审核通过后</li>
                   </ul>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* 统计分析 */}
-        <TabsContent value="analytics" forceMount className="data-[state=inactive]:hidden">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    统计分析
-                  </CardTitle>
-                  <CardDescription>
-                    接入各大分析统计平台，追踪网站流量和用户行为。填入对应平台的 ID/Token 即可启用，留空则不加载。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Globe className="h-4 w-4" />
-                      Google Analytics 4
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="analyticsGoogleId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Measurement ID</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="G-XXXXXXXXXX" />
-                          </FormControl>
-                          <FormDescription>
-                            Google Analytics 4 的衡量 ID，可在 GA4 管理面板 &gt; 数据流中找到
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                {(engineStatus?.indexnow.configured || engineStatus?.google.configured) && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <p className="text-sm font-medium">手动提交</p>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSubmitIndex("site")}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Globe className="h-4 w-4 mr-1" />
+                        )}
+                        提交站点页面
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSubmitIndex("recent")}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <Send className="h-4 w-4 mr-1" />
+                          )}
+                          最近
+                        </Button>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={recentDays}
+                          onChange={(e) => setRecentDays(parseInt(e.target.value) || 7)}
+                          className="w-16 h-8 text-center"
+                        />
+                        <span className="text-sm text-muted-foreground">天</span>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSubmitIndex("all")}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-1" />
+                        )}
+                        提交全部视频
+                      </Button>
+
+                      {engineStatus?.google.configured && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSubmitIndex("sitemap")}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <Globe className="h-4 w-4 mr-1" />
+                          )}
+                          通知 Google 更新 Sitemap
+                        </Button>
                       )}
-                    />
-                  </div>
-
-                  <div className="border-t pt-4 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Globe className="h-4 w-4" />
-                      Google Tag Manager
                     </div>
-                    <FormField
-                      control={form.control}
-                      name="analyticsGtmId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Container ID</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="GTM-XXXXXXX" />
-                          </FormControl>
-                          <FormDescription>
-                            Google Tag Manager 的容器 ID，可在 GTM 控制台 &gt; 管理 &gt; 容器设置中找到
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
 
-                  <div className="border-t pt-4 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Shield className="h-4 w-4" />
-                      Cloudflare Web Analytics
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="analyticsCfToken"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Beacon Token</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-                          </FormControl>
-                          <FormDescription>
-                            Cloudflare Web Analytics 的 beacon token，可在 Cloudflare 控制台 &gt; Web Analytics 中获取
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="border-t pt-4 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Search className="h-4 w-4" />
-                      Microsoft Clarity
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="analyticsClarityId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project ID</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="xxxxxxxxxx" />
-                          </FormControl>
-                          <FormDescription>
-                            Microsoft Clarity 的项目 ID，可在 Clarity 控制台 &gt; 设置 &gt; 项目信息中找到
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="border-t pt-4 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Globe className="h-4 w-4" />
-                      Bing Webmaster Tools
-                    </div>
-                    <FormField
-                      control={form.control}
-                      name="analyticsBingVerification"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>验证码</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" />
-                          </FormControl>
-                          <FormDescription>
-                            Bing Webmaster Tools 验证码，会自动生成 meta 标签用于站点验证
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" disabled={updateConfig.isPending}>
-                    {updateConfig.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
+                    {lastResult && (
+                      <p className="text-xs text-muted-foreground">
+                        上次提交: {lastResult.message} ({lastResult.time.toLocaleTimeString()})
+                      </p>
                     )}
-                    保存设置
-                  </Button>
-                </CardContent>
-              </Card>
-            </form>
-          </Form>
-        </TabsContent>
+                  </div>
+                )}
+
+                {!engineStatus?.indexnow.configured && !engineStatus?.google.configured && (
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>请在上方「SEO 设置」卡片中配置搜索引擎推送密钥：</p>
+                    <ul className="list-disc list-inside text-xs">
+                      <li>IndexNow: 填写 IndexNow Key</li>
+                      <li>Google: 填写 Service Account Email + Private Key</li>
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 统计分析 */}
+          <TabsContent value="analytics" forceMount className="data-[state=inactive]:hidden">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      统计分析
+                    </CardTitle>
+                    <CardDescription>
+                      接入各大分析统计平台，追踪网站流量和用户行为。填入对应平台的 ID/Token 即可启用，留空则不加载。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Globe className="h-4 w-4" />
+                        Google Analytics 4
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="analyticsGoogleId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Measurement ID</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="G-XXXXXXXXXX" />
+                            </FormControl>
+                            <FormDescription>
+                              Google Analytics 4 的衡量 ID，可在 GA4 管理面板 &gt; 数据流中找到
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Globe className="h-4 w-4" />
+                        Google Tag Manager
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="analyticsGtmId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Container ID</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="GTM-XXXXXXX" />
+                            </FormControl>
+                            <FormDescription>
+                              Google Tag Manager 的容器 ID，可在 GTM 控制台 &gt; 管理 &gt; 容器设置中找到
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Shield className="h-4 w-4" />
+                        Cloudflare Web Analytics
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="analyticsCfToken"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Beacon Token</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Cloudflare Web Analytics 的 beacon token，可在 Cloudflare 控制台 &gt; Web Analytics 中获取
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Search className="h-4 w-4" />
+                        Microsoft Clarity
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="analyticsClarityId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Project ID</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="xxxxxxxxxx" />
+                            </FormControl>
+                            <FormDescription>
+                              Microsoft Clarity 的项目 ID，可在 Clarity 控制台 &gt; 设置 &gt; 项目信息中找到
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="border-t pt-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Globe className="h-4 w-4" />
+                        Bing Webmaster Tools
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="analyticsBingVerification"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>验证码</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value || ""}
+                                placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Bing Webmaster Tools 验证码，会自动生成 meta 标签用于站点验证
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
+            </Form>
+          </TabsContent>
         </div>
       </Tabs>
     </div>

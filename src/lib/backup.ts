@@ -3,13 +3,7 @@ import { promisify } from "util";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { prisma } from "@/lib/prisma";
-import {
-  getStorageConfig,
-  uploadToS3,
-  deleteFromS3,
-  downloadFromS3,
-  type StorageConfig,
-} from "@/lib/s3-client";
+import { getStorageConfig, uploadToS3, deleteFromS3, downloadFromS3, type StorageConfig } from "@/lib/s3-client";
 import type { BackupType } from "@/generated/prisma/client";
 import { getServerConfig } from "@/lib/server-config";
 
@@ -59,9 +53,7 @@ async function findPgBin(name: string): Promise<string> {
       // continue
     }
   }
-  throw new Error(
-    `未找到 ${name}，请安装 PostgreSQL 客户端工具或将其加入 PATH`,
-  );
+  throw new Error(`未找到 ${name}，请安装 PostgreSQL 客户端工具或将其加入 PATH`);
 }
 
 function parseDatabaseUrl(url: string) {
@@ -108,10 +100,9 @@ async function packUploads(outputPath: string): Promise<void> {
     log("uploads 目录不存在，跳过");
     return;
   }
-  await execAsync(
-    `tar -czf "${outputPath}" -C "${path.dirname(uploadsDir)}" "${path.basename(uploadsDir)}"`,
-    { timeout: 600_000 },
-  );
+  await execAsync(`tar -czf "${outputPath}" -C "${path.dirname(uploadsDir)}" "${path.basename(uploadsDir)}"`, {
+    timeout: 600_000,
+  });
 }
 
 async function packConfig(outputPath: string): Promise<void> {
@@ -136,10 +127,7 @@ async function packConfig(outputPath: string): Promise<void> {
   });
 }
 
-async function mergeArchives(
-  files: string[],
-  outputPath: string,
-): Promise<void> {
+async function mergeArchives(files: string[], outputPath: string): Promise<void> {
   const existing = [];
   for (const f of files) {
     try {
@@ -160,10 +148,7 @@ async function mergeArchives(
   }
 
   const fileArgs = existing.map((f) => `"${path.basename(f)}"`).join(" ");
-  await execAsync(
-    `tar -czf "${outputPath}" -C "${TEMP_DIR}" ${fileArgs}`,
-    { timeout: 600_000 },
-  );
+  await execAsync(`tar -czf "${outputPath}" -C "${TEMP_DIR}" ${fileArgs}`, { timeout: 600_000 });
 }
 
 export interface CreateBackupOptions {
@@ -173,15 +158,8 @@ export interface CreateBackupOptions {
   includeConfig?: boolean;
 }
 
-export async function createBackup(
-  options: CreateBackupOptions,
-): Promise<string> {
-  const {
-    type,
-    includeDatabase = true,
-    includeUploads = true,
-    includeConfig = true,
-  } = options;
+export async function createBackup(options: CreateBackupOptions): Promise<string> {
+  const { type, includeDatabase = true, includeUploads = true, includeConfig = true } = options;
 
   const storageConfig = await getStorageConfig();
   if (storageConfig.provider === "local") {
@@ -406,9 +384,7 @@ export async function restoreBackupById(id: string): Promise<RestoreResult> {
     }
 
     if (includes.database) {
-      const dbPath = hasMultipleParts
-        ? path.join(TEMP_DIR, "database.dump")
-        : archivePath;
+      const dbPath = hasMultipleParts ? path.join(TEMP_DIR, "database.dump") : archivePath;
       try {
         await fs.access(dbPath);
         log("正在恢复数据库...");
@@ -423,9 +399,7 @@ export async function restoreBackupById(id: string): Promise<RestoreResult> {
     }
 
     if (includes.uploads) {
-      const uploadsArchive = hasMultipleParts
-        ? path.join(TEMP_DIR, "uploads.tar.gz")
-        : archivePath;
+      const uploadsArchive = hasMultipleParts ? path.join(TEMP_DIR, "uploads.tar.gz") : archivePath;
       try {
         await fs.access(uploadsArchive);
         log("正在恢复 uploads 目录...");
@@ -440,9 +414,7 @@ export async function restoreBackupById(id: string): Promise<RestoreResult> {
     }
 
     if (includes.config) {
-      const configArchive = hasMultipleParts
-        ? path.join(TEMP_DIR, "config.tar.gz")
-        : archivePath;
+      const configArchive = hasMultipleParts ? path.join(TEMP_DIR, "config.tar.gz") : archivePath;
       try {
         await fs.access(configArchive);
         log("正在恢复配置文件...");

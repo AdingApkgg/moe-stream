@@ -28,17 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  Link2,
-  Plus,
-  Edit2,
-  Trash2,
-  Eye,
-  EyeOff,
-  Loader2,
-  ExternalLink,
-  Globe,
-} from "lucide-react";
+import { Link2, Plus, Edit2, Trash2, Eye, EyeOff, Loader2, ExternalLink, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FriendLinkItem {
@@ -71,10 +61,9 @@ export default function AdminLinksPage() {
   const utils = trpc.useUtils();
 
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
-  const { data: links, isLoading } = trpc.admin.listFriendLinks.useQuery(
-    undefined,
-    { enabled: permissions?.scopes.includes("settings:manage") }
-  );
+  const { data: links, isLoading } = trpc.admin.listFriendLinks.useQuery(undefined, {
+    enabled: permissions?.scopes.includes("settings:manage"),
+  });
 
   const createMutation = trpc.admin.createFriendLink.useMutation({
     onSuccess: () => {
@@ -189,11 +178,7 @@ export default function AdminLinksPage() {
   };
 
   if (!permissions?.scopes.includes("settings:manage")) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有设置管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有设置管理权限</div>;
   }
 
   return (
@@ -224,13 +209,7 @@ export default function AdminLinksPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {links.map((link) => (
-            <Card
-              key={link.id}
-              className={cn(
-                "transition-colors hover:bg-muted/50",
-                !link.visible && "opacity-70"
-              )}
-            >
+            <Card key={link.id} className={cn("transition-colors hover:bg-muted/50", !link.visible && "opacity-70")}>
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
@@ -250,9 +229,7 @@ export default function AdminLinksPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <span className="font-medium block truncate">
-                          {link.name}
-                        </span>
+                        <span className="font-medium block truncate">{link.name}</span>
                         <a
                           href={link.url}
                           target="_blank"
@@ -262,22 +239,15 @@ export default function AdminLinksPage() {
                           {link.url}
                         </a>
                       </div>
-                      <Badge
-                        variant={link.visible ? "default" : "secondary"}
-                        className="shrink-0"
-                      >
+                      <Badge variant={link.visible ? "default" : "secondary"} className="shrink-0">
                         {link.visible ? "显示" : "隐藏"}
                       </Badge>
                     </div>
                     {link.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {link.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{link.description}</p>
                     )}
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-muted-foreground">
-                        排序: {link.sort}
-                      </span>
+                      <span className="text-xs text-muted-foreground">排序: {link.sort}</span>
                       <div className="flex gap-1 ml-auto">
                         <Button
                           variant="ghost"
@@ -287,33 +257,14 @@ export default function AdminLinksPage() {
                           disabled={toggleVisibleMutation.isPending}
                           title={link.visible ? "隐藏" : "显示"}
                         >
-                          {link.visible ? (
-                            <Eye className="h-3 w-3" />
-                          ) : (
-                            <EyeOff className="h-3 w-3" />
-                          )}
+                          {link.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          asChild
-                        >
-                          <a
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="在新标签页打开"
-                          >
+                        <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                          <a href={link.url} target="_blank" rel="noopener noreferrer" title="在新标签页打开">
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => openEdit(link)}
-                        >
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(link)}>
                           <Edit2 className="h-3 w-3" />
                         </Button>
                         <Button
@@ -346,14 +297,8 @@ export default function AdminLinksPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingLink ? "编辑友情链接" : "添加友情链接"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingLink
-                ? "修改友情链接信息"
-                : "添加一个新的友情链接"}
-            </DialogDescription>
+            <DialogTitle>{editingLink ? "编辑友情链接" : "添加友情链接"}</DialogTitle>
+            <DialogDescription>{editingLink ? "修改友情链接信息" : "添加一个新的友情链接"}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -384,9 +329,7 @@ export default function AdminLinksPage() {
               <label className="text-sm font-medium">描述</label>
               <Input
                 value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="站点简介（可选）"
               />
             </div>
@@ -406,12 +349,7 @@ export default function AdminLinksPage() {
             </div>
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">显示</label>
-              <Switch
-                checked={form.visible}
-                onCheckedChange={(v) =>
-                  setForm((f) => ({ ...f, visible: v }))
-                }
-              />
+              <Switch checked={form.visible} onCheckedChange={(v) => setForm((f) => ({ ...f, visible: v }))} />
             </div>
           </div>
           <DialogFooter>
@@ -426,10 +364,7 @@ export default function AdminLinksPage() {
             </Button>
             <Button
               onClick={editingLink ? handleUpdate : handleCreate}
-              disabled={
-                createMutation.isPending ||
-                updateMutation.isPending
-              }
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -445,21 +380,15 @@ export default function AdminLinksPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定要删除这个友情链接吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，链接将被永久删除。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作不可撤销，链接将被永久删除。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() =>
-                deletingId && deleteMutation.mutate({ id: deletingId })
-              }
+              onClick={() => deletingId && deleteMutation.mutate({ id: deletingId })}
             >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               确认删除
             </AlertDialogAction>
           </AlertDialogFooter>

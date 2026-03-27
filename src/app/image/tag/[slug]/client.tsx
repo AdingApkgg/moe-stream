@@ -14,10 +14,7 @@ interface ImageTagPageClientProps {
   initialTag: SerializedImageTag | null;
 }
 
-export function ImageTagPageClient({
-  slug,
-  initialTag,
-}: ImageTagPageClientProps) {
+export function ImageTagPageClient({ slug, initialTag }: ImageTagPageClientProps) {
   const [page, setPage] = usePageParam();
 
   const { data: tag, isLoading: tagLoading } = trpc.tag.getBySlug.useQuery(
@@ -25,7 +22,7 @@ export function ImageTagPageClient({
     {
       staleTime: initialTag ? 60000 : 0,
       refetchOnMount: !initialTag,
-    }
+    },
   );
 
   const displayTag = tag || initialTag;
@@ -35,7 +32,7 @@ export function ImageTagPageClient({
     {
       enabled: !!displayTag?.id,
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   const posts = data?.posts ?? [];
@@ -45,9 +42,7 @@ export function ImageTagPageClient({
     return (
       <div className="container py-12 text-center">
         <h1 className="text-2xl font-bold">标签不存在</h1>
-        <p className="text-muted-foreground mt-2">
-          找不到标签 &ldquo;{slug}&rdquo;
-        </p>
+        <p className="text-muted-foreground mt-2">找不到标签 &ldquo;{slug}&rdquo;</p>
         <Button asChild className="mt-4">
           <Link href="/image">浏览全部图片</Link>
         </Button>
@@ -68,17 +63,13 @@ export function ImageTagPageClient({
               <Images className="h-5 w-5 text-muted-foreground" />
             </h1>
             <p className="text-sm text-muted-foreground">
-              共{" "}
-              {displayTag?.imagePostCount ??
-                initialTag?.imagePostCount ??
-                0}{" "}
-              组图片
+              共 {displayTag?.imagePostCount ?? initialTag?.imagePostCount ?? 0} 组图片
             </p>
           </div>
         </div>
       </div>
 
-      {(isLoading || (!initialTag && tagLoading)) ? (
+      {isLoading || (!initialTag && tagLoading) ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
@@ -92,12 +83,7 @@ export function ImageTagPageClient({
         </div>
       )}
 
-      <Pagination
-        currentPage={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        className="mt-8"
-      />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
 
       {!isLoading && posts.length === 0 && displayTag && (
         <div className="text-center py-12">

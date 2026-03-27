@@ -46,7 +46,10 @@ function parseArgs() {
     headless: false,
   };
   for (const arg of args) {
-    if (arg === "--headless") { config.headless = true; continue; }
+    if (arg === "--headless") {
+      config.headless = true;
+      continue;
+    }
     const [key, ...rest] = arg.split("=");
     const val = rest.join("=");
     if (key === "--username") config.username = val;
@@ -76,9 +79,7 @@ interface ImagePostInfo {
 let globalCookieStr = "";
 
 function setCookiesFromPuppeteer(puppeteerCookies: Cookie[]) {
-  globalCookieStr = puppeteerCookies
-    .map((c) => `${c.name}=${c.value}`)
-    .join("; ");
+  globalCookieStr = puppeteerCookies.map((c) => `${c.name}=${c.value}`).join("; ");
 }
 
 // ─── 带 cookie 的 fetch ──────────────────────────────────
@@ -127,28 +128,18 @@ async function poolAll<T>(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, tasks.length) }, () => run()),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, () => run()));
   return results;
 }
 
 // ─── Puppeteer 登录（处理滑块验证码） ───────────────────
 
-async function loginWithBrowser(
-  username: string,
-  password: string,
-  headless: boolean,
-): Promise<Cookie[]> {
+async function loginWithBrowser(username: string, password: string, headless: boolean): Promise<Cookie[]> {
   console.log("启动浏览器...");
   const browser = await puppeteer.launch({
     executablePath: CHROME_PATH,
     headless,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-blink-features=AutomationControlled",
-    ],
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
     defaultViewport: { width: 1280, height: 800 },
   });
 
@@ -197,7 +188,10 @@ async function loginWithBrowser(
         const actionInput = form.querySelector('input[name="action"]') as HTMLInputElement;
         if (actionInput?.value === "user_signin") {
           const btn = form.querySelector('button, input[type="submit"], .but') as HTMLElement;
-          if (btn) { btn.click(); return; }
+          if (btn) {
+            btn.click();
+            return;
+          }
         }
       }
     });
@@ -221,9 +215,7 @@ async function loginWithBrowser(
       waited += pollInterval;
 
       const currentCookies = await page.cookies();
-      const hasLoggedInCookie = currentCookies.some((c) =>
-        c.name.startsWith("wordpress_logged_in"),
-      );
+      const hasLoggedInCookie = currentCookies.some((c) => c.name.startsWith("wordpress_logged_in"));
 
       if (hasLoggedInCookie) {
         loginSuccess = true;
@@ -263,9 +255,7 @@ async function loginWithBrowser(
     }
 
     const finalCookies = await page.cookies();
-    const wpCount = finalCookies.filter(
-      (c) => c.name.startsWith("wordpress_") || c.name.startsWith("wp-"),
-    ).length;
+    const wpCount = finalCookies.filter((c) => c.name.startsWith("wordpress_") || c.name.startsWith("wp-")).length;
 
     console.log(`  获取到 ${finalCookies.length} 个 cookies（WP 相关: ${wpCount}）`);
 
@@ -275,7 +265,9 @@ async function loginWithBrowser(
     console.error("  浏览器登录错误:", e);
     try {
       await page.screenshot({ path: "login-error.png" });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     await browser.close();
     throw e;
   }
@@ -285,18 +277,12 @@ async function loginWithBrowser(
 
 const FORUM_URL = `${BASE_URL}/forum/489.html`;
 
-async function discoverImagePosts(
-  maxPages: number,
-  startPage: number,
-  timeout: number,
-): Promise<string[]> {
+async function discoverImagePosts(maxPages: number, startPage: number, timeout: number): Promise<string[]> {
   const postUrls: string[] = [];
   const seen = new Set<string>();
 
   for (let page = startPage; page <= maxPages; page++) {
-    const pageUrl = page === 1
-      ? FORUM_URL
-      : `${FORUM_URL}/page/${page}`;
+    const pageUrl = page === 1 ? FORUM_URL : `${FORUM_URL}/page/${page}`;
 
     try {
       console.log(`  抓取列表页 ${page}: ${pageUrl}`);
@@ -337,10 +323,7 @@ async function discoverImagePosts(
 
 // ─── 从详情页提取图片合集 ────────────────────────────────
 
-async function extractImagePost(
-  pageUrl: string,
-  timeout: number,
-): Promise<ImagePostInfo> {
+async function extractImagePost(pageUrl: string, timeout: number): Promise<ImagePostInfo> {
   const base: ImagePostInfo = {
     title: "",
     description: "",
@@ -365,7 +348,10 @@ async function extractImagePost(
       $("h1.post-title").text().trim() ||
       $("h1").first().text().trim() ||
       $('meta[property="og:title"]').attr("content")?.trim() ||
-      $("title").text().trim().replace(/\s*[-|–].+$/, "") ||
+      $("title")
+        .text()
+        .trim()
+        .replace(/\s*[-|–].+$/, "") ||
       "";
 
     const title = rawTitle.replace(/\s*[-|–]\s*MiRoacg.*$/, "").trim();
@@ -410,9 +396,18 @@ async function extractImagePost(
       if (!url.startsWith("http")) return;
       // 过滤非内容图
       const ignorePatterns = [
-        "avatar", "icon", "logo", "emoji", "smilies", "gravatar",
-        "wp-includes", "wp-content/themes", "thumbnail-null",
-        "user-level", "vip-", ".svg",
+        "avatar",
+        "icon",
+        "logo",
+        "emoji",
+        "smilies",
+        "gravatar",
+        "wp-includes",
+        "wp-content/themes",
+        "thumbnail-null",
+        "user-level",
+        "vip-",
+        ".svg",
       ];
       if (ignorePatterns.some((p) => url.includes(p))) return;
       seenUrls.add(url);
@@ -420,13 +415,7 @@ async function extractImagePost(
     };
 
     // 从文章内容区域提取
-    const contentAreas = [
-      ".wp-posts-content",
-      ".entry-content",
-      ".post-content",
-      ".article-content",
-      "article",
-    ];
+    const contentAreas = [".wp-posts-content", ".entry-content", ".post-content", ".article-content", "article"];
 
     for (const selector of contentAreas) {
       const $content = $(selector);
@@ -478,10 +467,7 @@ async function extractImagePost(
 
 function exportToJson(posts: ImagePostInfo[]): string {
   const valid = posts.filter((p) => p.title && !p.error && p.images.length > 0);
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[T:]/g, "_")
-    .slice(0, 19);
+  const timestamp = new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19);
   const outputFile = `legacy_images_${timestamp}.json`;
 
   const output = valid.map((post) => ({
@@ -513,17 +499,11 @@ async function main() {
   console.log("步骤 1: 浏览器登录（处理滑块验证码）");
   console.log("═".repeat(50));
 
-  const allCookies = await loginWithBrowser(
-    config.username,
-    config.password,
-    config.headless,
-  );
+  const allCookies = await loginWithBrowser(config.username, config.password, config.headless);
 
   setCookiesFromPuppeteer(allCookies);
 
-  const hasLoggedIn = allCookies.some((c) =>
-    c.name.startsWith("wordpress_logged_in"),
-  );
+  const hasLoggedIn = allCookies.some((c) => c.name.startsWith("wordpress_logged_in"));
 
   if (!hasLoggedIn) {
     console.log("\n⚠ 未检测到 wordpress_logged_in cookie");
@@ -534,13 +514,8 @@ async function main() {
 
   // 验证：抓取一个详情页确认能看到内容
   console.log("\n验证登录状态...");
-  const testHtml = await fetchHtml(
-    `${BASE_URL}/forum-post/815.html`,
-    config.timeout,
-  );
-  const testHidden =
-    testHtml.includes("该版块内容已隐藏") ||
-    testHtml.includes("请登录后查看");
+  const testHtml = await fetchHtml(`${BASE_URL}/forum-post/815.html`, config.timeout);
+  const testHidden = testHtml.includes("该版块内容已隐藏") || testHtml.includes("请登录后查看");
 
   if (testHidden) {
     console.log("✗ 登录验证失败，cookie 可能无效");
@@ -570,11 +545,7 @@ async function main() {
   console.log("步骤 2: 发现图片合集");
   console.log("═".repeat(50));
 
-  const postUrls = await discoverImagePosts(
-    config.maxPages,
-    config.startPage,
-    config.timeout,
-  );
+  const postUrls = await discoverImagePosts(config.maxPages, config.startPage, config.timeout);
   console.log(`\n共发现 ${postUrls.length} 篇文章`);
 
   if (postUrls.length === 0) {
@@ -587,35 +558,25 @@ async function main() {
   console.log("步骤 3: 抓取图片详情");
   console.log("═".repeat(50));
 
-  const tasks = postUrls.map(
-    (url) => () => extractImagePost(url, config.timeout),
-  );
+  const tasks = postUrls.map((url) => () => extractImagePost(url, config.timeout));
 
-  const posts = await poolAll(
-    tasks,
-    config.concurrency,
-    (result, done, total) => {
-      const status = result.error
-        ? `✗ ${result.error}`
-        : result.images.length > 0
-          ? `✓ ${result.images.length} 张图片`
-          : "✗ 无图片";
-      const name = result.title ? result.title.slice(0, 40) : "未知";
-      console.log(`[${done}/${total}] ${name} ${status}`);
-    },
-  );
+  const posts = await poolAll(tasks, config.concurrency, (result, done, total) => {
+    const status = result.error
+      ? `✗ ${result.error}`
+      : result.images.length > 0
+        ? `✓ ${result.images.length} 张图片`
+        : "✗ 无图片";
+    const name = result.title ? result.title.slice(0, 40) : "未知";
+    console.log(`[${done}/${total}] ${name} ${status}`);
+  });
 
   // ── 4) 统计 & 导出 ──
   console.log("\n" + "═".repeat(50));
   console.log("结果");
   console.log("═".repeat(50));
 
-  const validPosts = posts.filter(
-    (p) => p.title && !p.error && p.images.length > 0,
-  );
-  const noImagePosts = posts.filter(
-    (p) => p.title && !p.error && p.images.length === 0,
-  );
+  const validPosts = posts.filter((p) => p.title && !p.error && p.images.length > 0);
+  const noImagePosts = posts.filter((p) => p.title && !p.error && p.images.length === 0);
   const errorPosts = posts.filter((p) => p.error);
   const totalImages = validPosts.reduce((sum, p) => sum + p.images.length, 0);
   const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);

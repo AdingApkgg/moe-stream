@@ -14,12 +14,6 @@ export function OnlineBadge({ userId, className }: OnlineBadgeProps) {
   if (!isOnline) return null;
 
   return (
-    <span
-      className={cn(
-        "h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background",
-        className,
-      )}
-      title="在线"
-    />
+    <span className={cn("h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background", className)} title="在线" />
   );
 }

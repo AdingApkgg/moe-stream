@@ -104,7 +104,10 @@ function SearchSuggestionsList({
                 {onClearHistory && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onClearHistory(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClearHistory();
+                    }}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     清空
@@ -126,7 +129,7 @@ function SearchSuggestionsList({
               onClick={() => onSelect(item)}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
-                activeIndex === i ? "bg-accent" : "hover:bg-accent/50"
+                activeIndex === i ? "bg-accent" : "hover:bg-accent/50",
               )}
             >
               {/* 图标 */}
@@ -136,24 +139,27 @@ function SearchSuggestionsList({
               )}
               {item.type === "game" && <Gamepad2 className="h-4 w-4 text-muted-foreground shrink-0" />}
               {item.type === "hot" && (
-                <span className={cn(
-                  "w-5 text-center text-xs font-bold shrink-0",
-                  (item.index ?? 0) < 3 ? "text-primary" : "text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "w-5 text-center text-xs font-bold shrink-0",
+                    (item.index ?? 0) < 3 ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
                   {(item.index ?? 0) + 1}
                 </span>
               )}
 
               {/* 文本 */}
-              <span className="flex-1 truncate">
-                {item.type === "tag" ? `#${item.label}` : item.label}
-              </span>
+              <span className="flex-1 truncate">{item.type === "tag" ? `#${item.label}` : item.label}</span>
 
               {/* 右侧操作 */}
               {item.type === "history" && onRemoveHistory && (
                 <X
                   className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground shrink-0 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); onRemoveHistory(item.value); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveHistory(item.value);
+                  }}
                 />
               )}
               {item.type === "hot" && item.isHot && (
@@ -186,11 +192,7 @@ function SoundToggleButton() {
       }}
       aria-label={soundEnabled ? "关闭音效" : "开启音效"}
     >
-      {soundEnabled ? (
-        <Volume2 className="h-4 w-4" />
-      ) : (
-        <VolumeX className="h-4 w-4 text-muted-foreground" />
-      )}
+      {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
     </Button>
   );
 }
@@ -277,14 +279,11 @@ export function Header({ onMenuClick }: HeaderProps) {
     {
       enabled: debouncedQuery.length >= 2,
       staleTime: 60000,
-    }
+    },
   );
 
   // 获取热搜
-  const { data: hotSearches } = trpc.video.getHotSearches.useQuery(
-    { limit: 8 },
-    { staleTime: 300000 }
-  );
+  const { data: hotSearches } = trpc.video.getHotSearches.useQuery({ limit: 8 }, { staleTime: 300000 });
 
   // 点击外部关闭建议
   useEffect(() => {
@@ -316,18 +315,21 @@ export function Header({ onMenuClick }: HeaderProps) {
   // 记录搜索到服务器
   const recordSearchMutation = trpc.video.recordSearch.useMutation();
 
-  const handleSearch = useCallback((query: string) => {
-    if (query.trim()) {
-      const trimmed = query.trim();
-      addSearch(trimmed);
-      recordSearchMutation.mutate({ keyword: trimmed });
-      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-      setShowMobileSearch(false);
-      setShowSuggestions(false);
-      setSearchQuery("");
-      setActiveIndex(-1);
-    }
-  }, [router, recordSearchMutation, addSearch]);
+  const handleSearch = useCallback(
+    (query: string) => {
+      if (query.trim()) {
+        const trimmed = query.trim();
+        addSearch(trimmed);
+        recordSearchMutation.mutate({ keyword: trimmed });
+        router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        setShowMobileSearch(false);
+        setShowSuggestions(false);
+        setSearchQuery("");
+        setActiveIndex(-1);
+      }
+    },
+    [router, recordSearchMutation, addSearch],
+  );
 
   const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
@@ -344,35 +346,41 @@ export function Header({ onMenuClick }: HeaderProps) {
     handleSearch(searchQuery);
   };
 
-  const handleSuggestionSelect = useCallback((item: SuggestionItem) => {
-    setShowSuggestions(false);
-    setShowMobileSearch(false);
-    setActiveIndex(-1);
+  const handleSuggestionSelect = useCallback(
+    (item: SuggestionItem) => {
+      setShowSuggestions(false);
+      setShowMobileSearch(false);
+      setActiveIndex(-1);
 
-    switch (item.type) {
-      case "search":
-      case "history":
-      case "hot":
-        handleSearch(item.value);
-        break;
-      case "tag":
-        setSearchQuery("");
-        router.push(`/tag/${item.value}`);
-        break;
-      case "video":
-        setSearchQuery("");
-        router.push(`/video/${item.value}`);
-        break;
-      case "game":
-        setSearchQuery("");
-        router.push(`/game/${item.value}`);
-        break;
-    }
-  }, [handleSearch, router]);
+      switch (item.type) {
+        case "search":
+        case "history":
+        case "hot":
+          handleSearch(item.value);
+          break;
+        case "tag":
+          setSearchQuery("");
+          router.push(`/tag/${item.value}`);
+          break;
+        case "video":
+          setSearchQuery("");
+          router.push(`/video/${item.value}`);
+          break;
+        case "game":
+          setSearchQuery("");
+          router.push(`/game/${item.value}`);
+          break;
+      }
+    },
+    [handleSearch, router],
+  );
 
-  const handleRemoveHistory = useCallback((query: string) => {
-    removeSearch(query);
-  }, [removeSearch]);
+  const handleRemoveHistory = useCallback(
+    (query: string) => {
+      removeSearch(query);
+    },
+    [removeSearch],
+  );
 
   const handleClearHistory = useCallback(() => {
     clearHistory();
@@ -434,20 +442,23 @@ export function Header({ onMenuClick }: HeaderProps) {
   const hasHotItems = suggestionItems.some((i) => i.type === "hot");
 
   // 键盘导航
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!hasSuggestionItems) return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!hasSuggestionItems) return;
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev + 1) % suggestionItems.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev <= 0 ? suggestionItems.length - 1 : prev - 1));
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-      setActiveIndex(-1);
-    }
-  }, [hasSuggestionItems, suggestionItems.length]);
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((prev) => (prev + 1) % suggestionItems.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((prev) => (prev <= 0 ? suggestionItems.length - 1 : prev - 1));
+      } else if (e.key === "Escape") {
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+      }
+    },
+    [hasSuggestionItems, suggestionItems.length],
+  );
 
   // activeIndex 在搜索输入变化时通过 handleSearchChange 重置
 
@@ -462,7 +473,10 @@ export function Header({ onMenuClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="hidden md:inline-flex h-10 w-10 rounded-full shrink-0"
-              onClick={() => { onMenuClick?.(); play("swoosh"); }}
+              onClick={() => {
+                onMenuClick?.();
+                play("swoosh");
+              }}
               aria-label="切换侧边栏"
             >
               <Menu className="h-5 w-5" />
@@ -478,8 +492,8 @@ export function Header({ onMenuClick }: HeaderProps) {
               <SheetContent side="left" className="w-72 p-0 flex flex-col">
                 <SheetHeader className="shrink-0 border-b px-4 py-4">
                   <SheetTitle>
-                    <Link 
-                      href="/" 
+                    <Link
+                      href="/"
                       className="flex items-center font-bold text-xl"
                       onClick={() => setMobileMenuOpen(false)}
                     >
@@ -524,21 +538,24 @@ export function Header({ onMenuClick }: HeaderProps) {
                       placeholder="搜索"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      onFocus={() => { setShowSuggestions(true); play("click"); }}
+                      onFocus={() => {
+                        setShowSuggestions(true);
+                        play("click");
+                      }}
                       onKeyDown={handleKeyDown}
                       className="h-10 rounded-l-full rounded-r-none border border-r-0 pl-4 pr-3 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                       autoComplete="off"
                     />
                   </div>
-                  <Button 
-                    type="submit" 
-                    variant="secondary" 
+                  <Button
+                    type="submit"
+                    variant="secondary"
                     className="h-10 rounded-l-none rounded-r-full border border-l-0 border-input px-5 bg-muted/60 hover:bg-muted"
                   >
                     <Search className="h-5 w-5" />
                   </Button>
                 </div>
-                
+
                 {/* 搜索建议下拉 */}
                 {showSuggestions && hasSuggestionItems && (
                   <div
@@ -567,7 +584,10 @@ export function Header({ onMenuClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="md:hidden h-10 w-10 rounded-full"
-              onClick={() => { setShowMobileSearch(true); play("click"); }}
+              onClick={() => {
+                setShowMobileSearch(true);
+                play("click");
+              }}
               aria-label="搜索"
             >
               <Search className="h-5 w-5" />
@@ -575,21 +595,26 @@ export function Header({ onMenuClick }: HeaderProps) {
 
             {/* 主题三选：跟随系统 / 浅色 / 深色 */}
             <div className="hidden sm:flex items-center h-8 rounded-full bg-muted/60 p-0.5 gap-0.5">
-              {([
-                { value: "system", icon: Monitor, label: "跟随系统" },
-                { value: "light", icon: Sun, label: "浅色" },
-                { value: "dark", icon: Moon, label: "深色" },
-              ] as const).map(({ value, icon: Icon, label }) => (
+              {(
+                [
+                  { value: "system", icon: Monitor, label: "跟随系统" },
+                  { value: "light", icon: Sun, label: "浅色" },
+                  { value: "dark", icon: Moon, label: "深色" },
+                ] as const
+              ).map(({ value, icon: Icon, label }) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => { setTheme(value); play("toggle"); }}
+                  onClick={() => {
+                    setTheme(value);
+                    play("toggle");
+                  }}
                   aria-label={label}
                   className={cn(
                     "flex items-center justify-center h-7 w-7 rounded-full transition-colors",
                     mounted && theme === value
                       ? "bg-background shadow-sm text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -626,14 +651,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             ) : session?.user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    className="relative h-8 w-8 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ml-1"
-                  >
+                  <button className="relative h-8 w-8 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ml-1">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={session.user.image || undefined}
-                        alt={session.user.name || ""}
-                      />
+                      <AvatarImage src={session.user.image || undefined} alt={session.user.name || ""} />
                       <AvatarFallback className="text-xs">
                         {session.user.name?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
@@ -645,15 +665,11 @@ export function Header({ onMenuClick }: HeaderProps) {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={session.user.image || undefined} />
-                        <AvatarFallback>
-                          {session.user.name?.charAt(0).toUpperCase() || "U"}
-                        </AvatarFallback>
+                        <AvatarFallback>{session.user.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col space-y-0.5 leading-none min-w-0">
                         <p className="font-medium truncate">{session.user.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {session.user.email}
-                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
                       </div>
                     </div>
                     {meData?.points !== undefined && (
@@ -747,7 +763,11 @@ export function Header({ onMenuClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="shrink-0"
-              onClick={() => { setShowMobileSearch(false); setSearchQuery(""); setActiveIndex(-1); }}
+              onClick={() => {
+                setShowMobileSearch(false);
+                setSearchQuery("");
+                setActiveIndex(-1);
+              }}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>

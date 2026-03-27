@@ -91,30 +91,28 @@ export const importRouter = router({
     }),
 
   /** Parse a URL to detect provider and extract file info */
-  parseUrl: protectedProcedure
-    .input(z.object({ url: z.string().url() }))
-    .mutation(async ({ input }) => {
-      for (const providerType of CLOUD_PROVIDERS) {
-        try {
-          const provider = await getProvider(providerType as CloudProviderType);
-          const info = await provider.parseShareUrl(input.url);
-          if (info) {
-            return {
-              provider: providerType,
-              providerName: provider.name,
-              fileId: info.fileId ?? null,
-              name: info.name,
-              size: info.size ?? null,
-              mimeType: info.mimeType ?? null,
-            };
-          }
-        } catch {
-          continue;
+  parseUrl: protectedProcedure.input(z.object({ url: z.string().url() })).mutation(async ({ input }) => {
+    for (const providerType of CLOUD_PROVIDERS) {
+      try {
+        const provider = await getProvider(providerType as CloudProviderType);
+        const info = await provider.parseShareUrl(input.url);
+        if (info) {
+          return {
+            provider: providerType,
+            providerName: provider.name,
+            fileId: info.fileId ?? null,
+            name: info.name,
+            size: info.size ?? null,
+            mimeType: info.mimeType ?? null,
+          };
         }
+      } catch {
+        continue;
       }
+    }
 
-      return null;
-    }),
+    return null;
+  }),
 
   /** List import tasks for the current user */
   listTasks: protectedProcedure
@@ -155,27 +153,25 @@ export const importRouter = router({
     }),
 
   /** Cancel a pending/downloading import task */
-  cancelTask: protectedProcedure
-    .input(z.object({ taskId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const task = await ctx.prisma.importTask.findUnique({
-        where: { id: input.taskId },
-      });
-      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "任务不存在" });
-      if (task.userId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权操作" });
-      }
-      if (task.status === "COMPLETED" || task.status === "CANCELLED") {
-        return { success: true };
-      }
-
-      await ctx.prisma.importTask.update({
-        where: { id: input.taskId },
-        data: { status: "CANCELLED" },
-      });
-
+  cancelTask: protectedProcedure.input(z.object({ taskId: z.string() })).mutation(async ({ ctx, input }) => {
+    const task = await ctx.prisma.importTask.findUnique({
+      where: { id: input.taskId },
+    });
+    if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "任务不存在" });
+    if (task.userId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权操作" });
+    }
+    if (task.status === "COMPLETED" || task.status === "CANCELLED") {
       return { success: true };
-    }),
+    }
+
+    await ctx.prisma.importTask.update({
+      where: { id: input.taskId },
+      data: { status: "CANCELLED" },
+    });
+
+    return { success: true };
+  }),
 
   /** Get OAuth authorization URL for a cloud provider */
   getOAuthUrl: protectedProcedure
@@ -227,13 +223,11 @@ export const importRouter = router({
     }),
 
   /** Check if user has a valid cloud token */
-  hasToken: protectedProcedure
-    .input(z.object({ provider: z.enum(CLOUD_PROVIDERS) }))
-    .query(async ({ ctx, input }) => {
-      if (input.provider === "url" || input.provider === "dropbox") {
-        return { hasToken: true };
-      }
-      const token = await redis.get(`cloud:token:${ctx.session.user.id}:${input.provider}`);
-      return { hasToken: !!token };
-    }),
+  hasToken: protectedProcedure.input(z.object({ provider: z.enum(CLOUD_PROVIDERS) })).query(async ({ ctx, input }) => {
+    if (input.provider === "url" || input.provider === "dropbox") {
+      return { hasToken: true };
+    }
+    const token = await redis.get(`cloud:token:${ctx.session.user.id}:${input.provider}`);
+    return { hasToken: !!token };
+  }),
 });

@@ -7,16 +7,14 @@ const AMOUNT_KEY_PREFIX = "usdt:amt:";
  * Generate a unique USDT amount by appending a random fractional offset.
  * Uses Redis to ensure no two pending orders share the same amount.
  */
-export async function generateUniqueAmount(
-  baseAmount: number,
-  timeoutSec: number
-): Promise<number> {
+export async function generateUniqueAmount(baseAmount: number, timeoutSec: number): Promise<number> {
   const maxRetries = 100;
 
   for (let i = 0; i < maxRetries; i++) {
-    const offset = i === 0
-      ? Math.floor(Math.random() * 99) + 1 // 1–99
-      : (i % 99) + 1;
+    const offset =
+      i === 0
+        ? Math.floor(Math.random() * 99) + 1 // 1–99
+        : (i % 99) + 1;
 
     const candidate = Math.round((baseAmount + offset / 100) * 100) / 100;
     const key = `${AMOUNT_KEY_PREFIX}${candidate.toFixed(2)}`;

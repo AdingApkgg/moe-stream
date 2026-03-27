@@ -315,7 +315,7 @@ function SubTabs<T extends string>({
               "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
               activeTab === tab.key
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30",
             )}
           >
             <Icon className="h-4 w-4" />
@@ -355,7 +355,12 @@ function OverviewSection({
             </Badge>
           )}
         </h2>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-1 h-8" onClick={onViewAll}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-primary gap-1 h-8"
+          onClick={onViewAll}
+        >
           查看全部
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>
@@ -399,7 +404,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: user, isLoading: userLoading } = trpc.user.getProfile.useQuery(
     { id },
-    { staleTime: initialUser ? 60000 : 0, refetchOnMount: !initialUser }
+    { staleTime: initialUser ? 60000 : 0, refetchOnMount: !initialUser },
   );
 
   const displayUser = user || initialUser;
@@ -409,15 +414,15 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: overviewVideos, isLoading: overviewVideosLoading } = trpc.user.getVideos.useQuery(
     { userId: id, limit: 4, page: 1 },
-    { enabled: isOverview }
+    { enabled: isOverview },
   );
   const { data: overviewImages, isLoading: overviewImagesLoading } = trpc.image.getUserPosts.useQuery(
     { userId: id, limit: 4, page: 1 },
-    { enabled: isOverview }
+    { enabled: isOverview },
   );
   const { data: overviewGames, isLoading: overviewGamesLoading } = trpc.user.getGames.useQuery(
     { userId: id, limit: 4, page: 1 },
-    { enabled: isOverview }
+    { enabled: isOverview },
   );
 
   // ===== 视频数据 =====
@@ -425,19 +430,19 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: uploadedVideos, isLoading: uploadedLoading } = trpc.user.getVideos.useQuery(
     { userId: id, limit: 20, page: videoUploadsPage },
-    { enabled: isVideoZone && videoSubTab === "uploads" }
+    { enabled: isVideoZone && videoSubTab === "uploads" },
   );
   const { data: historyData, isLoading: historyLoading } = trpc.video.getUserHistory.useQuery(
     { userId: id, limit: 20, page: historyPage },
-    { enabled: isVideoZone && videoSubTab === "history" }
+    { enabled: isVideoZone && videoSubTab === "history" },
   );
   const { data: favData, isLoading: favLoading } = trpc.video.getUserFavorites.useQuery(
     { userId: id, limit: 20, page: favPage },
-    { enabled: isVideoZone && videoSubTab === "favorites" }
+    { enabled: isVideoZone && videoSubTab === "favorites" },
   );
   const { data: likedData, isLoading: likedLoading } = trpc.video.getUserLiked.useQuery(
     { userId: id, limit: 20, page: likedPage },
-    { enabled: isVideoZone && videoSubTab === "liked" }
+    { enabled: isVideoZone && videoSubTab === "liked" },
   );
 
   // ===== 游戏数据 =====
@@ -445,19 +450,19 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: uploadedGames, isLoading: uploadedGamesLoading } = trpc.user.getGames.useQuery(
     { userId: id, limit: 20, page: gameUploadsPage },
-    { enabled: isGameZone && gameSubTab === "uploads" }
+    { enabled: isGameZone && gameSubTab === "uploads" },
   );
   const { data: gameHistoryData, isLoading: gameHistoryLoading } = trpc.game.getUserHistory.useQuery(
     { userId: id, limit: 20, page: gameHistoryPage },
-    { enabled: isGameZone && gameSubTab === "history" }
+    { enabled: isGameZone && gameSubTab === "history" },
   );
   const { data: gameFavData, isLoading: gameFavLoading } = trpc.game.getUserFavorites.useQuery(
     { userId: id, limit: 20, page: gameFavPage },
-    { enabled: isGameZone && gameSubTab === "favorites" }
+    { enabled: isGameZone && gameSubTab === "favorites" },
   );
   const { data: gameLikedData, isLoading: gameLikedLoading } = trpc.game.getUserLiked.useQuery(
     { userId: id, limit: 20, page: gameLikedPage },
-    { enabled: isGameZone && gameSubTab === "liked" }
+    { enabled: isGameZone && gameSubTab === "liked" },
   );
 
   // ===== 图片数据 =====
@@ -465,19 +470,19 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
   const { data: imageData, isLoading: imageLoading } = trpc.image.getUserPosts.useQuery(
     { userId: id, limit: 20, page: imagePage },
-    { enabled: isImageZone && imageSubTab === "posts" }
+    { enabled: isImageZone && imageSubTab === "posts" },
   );
   const { data: imageHistoryData, isLoading: imageHistoryLoading } = trpc.image.getUserHistory.useQuery(
     { userId: id, limit: 20, page: imageHistoryPage },
-    { enabled: isImageZone && imageSubTab === "history" }
+    { enabled: isImageZone && imageSubTab === "history" },
   );
   const { data: imageFavData, isLoading: imageFavLoading } = trpc.image.getUserFavorites.useQuery(
     { userId: id, limit: 20, page: imageFavPage },
-    { enabled: isImageZone && imageSubTab === "favorites" }
+    { enabled: isImageZone && imageSubTab === "favorites" },
   );
   const { data: imageLikedData, isLoading: imageLikedLoading } = trpc.image.getUserLiked.useQuery(
     { userId: id, limit: 20, page: imageLikedPage },
-    { enabled: isImageZone && imageSubTab === "liked" }
+    { enabled: isImageZone && imageSubTab === "liked" },
   );
 
   // 用户不存在
@@ -516,7 +521,8 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
   }
 
   const totalLikes = displayUser._count.likes + displayUser._count.gameLikes + displayUser._count.imagePostLikes;
-  const totalFavorites = displayUser._count.favorites + displayUser._count.gameFavorites + displayUser._count.imagePostFavorites;
+  const totalFavorites =
+    displayUser._count.favorites + displayUser._count.gameFavorites + displayUser._count.imagePostFavorites;
 
   const zones: { key: ContentZone; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { key: "all", label: "综合", icon: LayoutGrid },
@@ -525,21 +531,36 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     { key: "game", label: "游戏", icon: Gamepad2 },
   ];
 
-  const videoTabs: { key: VideoSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+  const videoTabs: {
+    key: VideoSubTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count?: number;
+  }[] = [
     { key: "uploads", label: "作品", icon: Video, count: displayUser._count.videos },
     { key: "history", label: "观看记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.favorites },
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.likes },
   ];
 
-  const gameTabs: { key: GameSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+  const gameTabs: {
+    key: GameSubTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count?: number;
+  }[] = [
     { key: "uploads", label: "作品", icon: Gamepad2, count: displayUser._count.games },
     { key: "history", label: "浏览记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.gameFavorites },
     { key: "liked", label: "喜欢", icon: ThumbsUp, count: displayUser._count.gameLikes },
   ];
 
-  const imageTabs: { key: ImageSubTab; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
+  const imageTabs: {
+    key: ImageSubTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count?: number;
+  }[] = [
     { key: "posts", label: "作品", icon: Images, count: displayUser._count.imagePosts },
     { key: "history", label: "浏览记录", icon: Clock },
     { key: "favorites", label: "收藏", icon: Star, count: displayUser._count.imagePostFavorites },
@@ -638,54 +659,74 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     <>
       <SubTabs tabs={videoTabs} activeTab={videoSubTab} onTabChange={setVideoSubTab} play={play} />
       <div key={videoSubTab} className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both">
-          {videoSubTab === "uploads" && (
-            <>
-              <VideoGrid
-                videos={uploadedVideos?.videos ?? []}
-                isLoading={uploadedLoading}
-                emptyIcon={Video}
-                emptyTitle="暂无视频作品"
-                emptyDescription={isOwnProfile ? "你还没有上传过视频" : "该用户还没有上传过视频"}
-              />
-              <Pagination currentPage={videoUploadsPage} totalPages={uploadedVideos?.totalPages ?? 1} onPageChange={setVideoUploadsPage} className="mt-6" />
-            </>
-          )}
-          {videoSubTab === "history" && (
-            <>
-              <VideoGrid
-                videos={historyData?.history ?? []}
-                isLoading={historyLoading}
-                emptyIcon={Clock}
-                emptyTitle="暂无观看记录"
-                emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
-              />
-              <Pagination currentPage={historyPage} totalPages={historyData?.totalPages ?? 1} onPageChange={setHistoryPage} className="mt-6" />
-            </>
-          )}
-          {videoSubTab === "favorites" && (
-            <>
-              <VideoGrid
-                videos={favData?.favorites ?? []}
-                isLoading={favLoading}
-                emptyIcon={Star}
-                emptyTitle="暂无收藏"
-                emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
-              />
-              <Pagination currentPage={favPage} totalPages={favData?.totalPages ?? 1} onPageChange={setFavPage} className="mt-6" />
-            </>
-          )}
-          {videoSubTab === "liked" && (
-            <>
-              <VideoGrid
-                videos={likedData?.videos ?? []}
-                isLoading={likedLoading}
-                emptyIcon={ThumbsUp}
-                emptyTitle="暂无喜欢"
-                emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
-              />
-              <Pagination currentPage={likedPage} totalPages={likedData?.totalPages ?? 1} onPageChange={setLikedPage} className="mt-6" />
-            </>
-          )}
+        {videoSubTab === "uploads" && (
+          <>
+            <VideoGrid
+              videos={uploadedVideos?.videos ?? []}
+              isLoading={uploadedLoading}
+              emptyIcon={Video}
+              emptyTitle="暂无视频作品"
+              emptyDescription={isOwnProfile ? "你还没有上传过视频" : "该用户还没有上传过视频"}
+            />
+            <Pagination
+              currentPage={videoUploadsPage}
+              totalPages={uploadedVideos?.totalPages ?? 1}
+              onPageChange={setVideoUploadsPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {videoSubTab === "history" && (
+          <>
+            <VideoGrid
+              videos={historyData?.history ?? []}
+              isLoading={historyLoading}
+              emptyIcon={Clock}
+              emptyTitle="暂无观看记录"
+              emptyDescription={isOwnProfile ? "你还没有观看过任何视频" : "该用户还没有观看过任何视频"}
+            />
+            <Pagination
+              currentPage={historyPage}
+              totalPages={historyData?.totalPages ?? 1}
+              onPageChange={setHistoryPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {videoSubTab === "favorites" && (
+          <>
+            <VideoGrid
+              videos={favData?.favorites ?? []}
+              isLoading={favLoading}
+              emptyIcon={Star}
+              emptyTitle="暂无收藏"
+              emptyDescription={isOwnProfile ? "你还没有收藏过任何视频" : "该用户还没有收藏过任何视频"}
+            />
+            <Pagination
+              currentPage={favPage}
+              totalPages={favData?.totalPages ?? 1}
+              onPageChange={setFavPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {videoSubTab === "liked" && (
+          <>
+            <VideoGrid
+              videos={likedData?.videos ?? []}
+              isLoading={likedLoading}
+              emptyIcon={ThumbsUp}
+              emptyTitle="暂无喜欢"
+              emptyDescription={isOwnProfile ? "你还没有点赞过任何视频" : "该用户还没有点赞过任何视频"}
+            />
+            <Pagination
+              currentPage={likedPage}
+              totalPages={likedData?.totalPages ?? 1}
+              onPageChange={setLikedPage}
+              className="mt-6"
+            />
+          </>
+        )}
       </div>
     </>
   );
@@ -695,50 +736,70 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     <>
       <SubTabs tabs={imageTabs} activeTab={imageSubTab} onTabChange={setImageSubTab} play={play} />
       <div key={imageSubTab} className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both">
-          {imageSubTab === "posts" && (
-            <>
-              <ImagePostGrid
-                posts={imageData?.posts ?? []}
-                isLoading={imageLoading}
-                emptyTitle="暂无作品"
-                emptyDescription={isOwnProfile ? "你还没有发布过图片" : "该用户还没有发布过图片"}
-              />
-              <Pagination currentPage={imagePage} totalPages={imageData?.totalPages ?? 1} onPageChange={setImagePage} className="mt-6" />
-            </>
-          )}
-          {imageSubTab === "history" && (
-            <>
-              <ImagePostGrid
-                posts={imageHistoryData?.posts ?? []}
-                isLoading={imageHistoryLoading}
-                emptyTitle="暂无浏览记录"
-                emptyDescription={isOwnProfile ? "你还没有浏览过任何图片" : "该用户还没有浏览过任何图片"}
-              />
-              <Pagination currentPage={imageHistoryPage} totalPages={imageHistoryData?.totalPages ?? 1} onPageChange={setImageHistoryPage} className="mt-6" />
-            </>
-          )}
-          {imageSubTab === "favorites" && (
-            <>
-              <ImagePostGrid
-                posts={imageFavData?.posts ?? []}
-                isLoading={imageFavLoading}
-                emptyTitle="暂无收藏"
-                emptyDescription={isOwnProfile ? "你还没有收藏过任何图片" : "该用户还没有收藏过任何图片"}
-              />
-              <Pagination currentPage={imageFavPage} totalPages={imageFavData?.totalPages ?? 1} onPageChange={setImageFavPage} className="mt-6" />
-            </>
-          )}
-          {imageSubTab === "liked" && (
-            <>
-              <ImagePostGrid
-                posts={imageLikedData?.posts ?? []}
-                isLoading={imageLikedLoading}
-                emptyTitle="暂无喜欢"
-                emptyDescription={isOwnProfile ? "你还没有点赞过任何图片" : "该用户还没有点赞过任何图片"}
-              />
-              <Pagination currentPage={imageLikedPage} totalPages={imageLikedData?.totalPages ?? 1} onPageChange={setImageLikedPage} className="mt-6" />
-            </>
-          )}
+        {imageSubTab === "posts" && (
+          <>
+            <ImagePostGrid
+              posts={imageData?.posts ?? []}
+              isLoading={imageLoading}
+              emptyTitle="暂无作品"
+              emptyDescription={isOwnProfile ? "你还没有发布过图片" : "该用户还没有发布过图片"}
+            />
+            <Pagination
+              currentPage={imagePage}
+              totalPages={imageData?.totalPages ?? 1}
+              onPageChange={setImagePage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {imageSubTab === "history" && (
+          <>
+            <ImagePostGrid
+              posts={imageHistoryData?.posts ?? []}
+              isLoading={imageHistoryLoading}
+              emptyTitle="暂无浏览记录"
+              emptyDescription={isOwnProfile ? "你还没有浏览过任何图片" : "该用户还没有浏览过任何图片"}
+            />
+            <Pagination
+              currentPage={imageHistoryPage}
+              totalPages={imageHistoryData?.totalPages ?? 1}
+              onPageChange={setImageHistoryPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {imageSubTab === "favorites" && (
+          <>
+            <ImagePostGrid
+              posts={imageFavData?.posts ?? []}
+              isLoading={imageFavLoading}
+              emptyTitle="暂无收藏"
+              emptyDescription={isOwnProfile ? "你还没有收藏过任何图片" : "该用户还没有收藏过任何图片"}
+            />
+            <Pagination
+              currentPage={imageFavPage}
+              totalPages={imageFavData?.totalPages ?? 1}
+              onPageChange={setImageFavPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {imageSubTab === "liked" && (
+          <>
+            <ImagePostGrid
+              posts={imageLikedData?.posts ?? []}
+              isLoading={imageLikedLoading}
+              emptyTitle="暂无喜欢"
+              emptyDescription={isOwnProfile ? "你还没有点赞过任何图片" : "该用户还没有点赞过任何图片"}
+            />
+            <Pagination
+              currentPage={imageLikedPage}
+              totalPages={imageLikedData?.totalPages ?? 1}
+              onPageChange={setImageLikedPage}
+              className="mt-6"
+            />
+          </>
+        )}
       </div>
     </>
   );
@@ -748,50 +809,70 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
     <>
       <SubTabs tabs={gameTabs} activeTab={gameSubTab} onTabChange={setGameSubTab} play={play} />
       <div key={gameSubTab} className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both">
-          {gameSubTab === "uploads" && (
-            <>
-              <GameGrid
-                games={(uploadedGames?.games ?? []) as GameCardData[]}
-                isLoading={uploadedGamesLoading}
-                emptyTitle="暂无游戏作品"
-                emptyDescription={isOwnProfile ? "你还没有上传过游戏" : "该用户还没有上传过游戏"}
-              />
-              <Pagination currentPage={gameUploadsPage} totalPages={uploadedGames?.totalPages ?? 1} onPageChange={setGameUploadsPage} className="mt-6" />
-            </>
-          )}
-          {gameSubTab === "history" && (
-            <>
-              <GameGrid
-                games={(gameHistoryData?.games ?? []) as GameCardData[]}
-                isLoading={gameHistoryLoading}
-                emptyTitle="暂无浏览记录"
-                emptyDescription={isOwnProfile ? "你还没有浏览过任何游戏" : "该用户还没有浏览过任何游戏"}
-              />
-              <Pagination currentPage={gameHistoryPage} totalPages={gameHistoryData?.totalPages ?? 1} onPageChange={setGameHistoryPage} className="mt-6" />
-            </>
-          )}
-          {gameSubTab === "favorites" && (
-            <>
-              <GameGrid
-                games={(gameFavData?.games ?? []) as GameCardData[]}
-                isLoading={gameFavLoading}
-                emptyTitle="暂无收藏"
-                emptyDescription={isOwnProfile ? "你还没有收藏过任何游戏" : "该用户还没有收藏过任何游戏"}
-              />
-              <Pagination currentPage={gameFavPage} totalPages={gameFavData?.totalPages ?? 1} onPageChange={setGameFavPage} className="mt-6" />
-            </>
-          )}
-          {gameSubTab === "liked" && (
-            <>
-              <GameGrid
-                games={(gameLikedData?.games ?? []) as GameCardData[]}
-                isLoading={gameLikedLoading}
-                emptyTitle="暂无喜欢"
-                emptyDescription={isOwnProfile ? "你还没有点赞过任何游戏" : "该用户还没有点赞过任何游戏"}
-              />
-              <Pagination currentPage={gameLikedPage} totalPages={gameLikedData?.totalPages ?? 1} onPageChange={setGameLikedPage} className="mt-6" />
-            </>
-          )}
+        {gameSubTab === "uploads" && (
+          <>
+            <GameGrid
+              games={(uploadedGames?.games ?? []) as GameCardData[]}
+              isLoading={uploadedGamesLoading}
+              emptyTitle="暂无游戏作品"
+              emptyDescription={isOwnProfile ? "你还没有上传过游戏" : "该用户还没有上传过游戏"}
+            />
+            <Pagination
+              currentPage={gameUploadsPage}
+              totalPages={uploadedGames?.totalPages ?? 1}
+              onPageChange={setGameUploadsPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {gameSubTab === "history" && (
+          <>
+            <GameGrid
+              games={(gameHistoryData?.games ?? []) as GameCardData[]}
+              isLoading={gameHistoryLoading}
+              emptyTitle="暂无浏览记录"
+              emptyDescription={isOwnProfile ? "你还没有浏览过任何游戏" : "该用户还没有浏览过任何游戏"}
+            />
+            <Pagination
+              currentPage={gameHistoryPage}
+              totalPages={gameHistoryData?.totalPages ?? 1}
+              onPageChange={setGameHistoryPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {gameSubTab === "favorites" && (
+          <>
+            <GameGrid
+              games={(gameFavData?.games ?? []) as GameCardData[]}
+              isLoading={gameFavLoading}
+              emptyTitle="暂无收藏"
+              emptyDescription={isOwnProfile ? "你还没有收藏过任何游戏" : "该用户还没有收藏过任何游戏"}
+            />
+            <Pagination
+              currentPage={gameFavPage}
+              totalPages={gameFavData?.totalPages ?? 1}
+              onPageChange={setGameFavPage}
+              className="mt-6"
+            />
+          </>
+        )}
+        {gameSubTab === "liked" && (
+          <>
+            <GameGrid
+              games={(gameLikedData?.games ?? []) as GameCardData[]}
+              isLoading={gameLikedLoading}
+              emptyTitle="暂无喜欢"
+              emptyDescription={isOwnProfile ? "你还没有点赞过任何游戏" : "该用户还没有点赞过任何游戏"}
+            />
+            <Pagination
+              currentPage={gameLikedPage}
+              totalPages={gameLikedData?.totalPages ?? 1}
+              onPageChange={setGameLikedPage}
+              className="mt-6"
+            />
+          </>
+        )}
       </div>
     </>
   );
@@ -869,13 +950,19 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
                 )}
                 {displayUser.website && (
                   <a
-                    href={displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`}
+                    href={
+                      displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-primary hover:underline"
                   >
                     <Globe className="h-3.5 w-3.5" />
-                    {new URL(displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`).hostname}
+                    {
+                      new URL(
+                        displayUser.website.startsWith("http") ? displayUser.website : `https://${displayUser.website}`,
+                      ).hostname
+                    }
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
@@ -918,7 +1005,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
                   "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-[color,background-color,box-shadow] duration-200 ease-out whitespace-nowrap",
                   activeZone === zone.key
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -931,7 +1018,11 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
 
       {/* ===== 分区内容 ===== */}
       <FadeIn delay={0.1}>
-        <div key={activeZone} className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both" style={{ animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}>
+        <div
+          key={activeZone}
+          className="animate-in fade-in slide-in-from-bottom-1 duration-200 fill-mode-both"
+          style={{ animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
+        >
           {activeZone === "all" && renderOverview()}
           {activeZone === "video" && renderVideoContent()}
           {activeZone === "image" && renderImageContent()}
@@ -946,10 +1037,7 @@ function FollowButton({ userId }: { userId: string }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
 
-  const { data: isFollowing, isLoading } = trpc.follow.isFollowing.useQuery(
-    { userId },
-    { enabled: !!session?.user },
-  );
+  const { data: isFollowing, isLoading } = trpc.follow.isFollowing.useQuery({ userId }, { enabled: !!session?.user });
 
   const followMutation = trpc.follow.follow.useMutation({
     onSuccess: () => {
@@ -991,12 +1079,7 @@ function FollowButton({ userId }: { userId: string }) {
           <UserMinus className="h-3.5 w-3.5" />
           已关注
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          asChild
-        >
+        <Button variant="outline" size="sm" className="gap-1.5" asChild>
           <Link href={`/messages?user=${userId}`}>
             <MessageSquare className="h-3.5 w-3.5" />
             私信

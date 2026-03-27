@@ -33,11 +33,14 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
     setTranslate({ x: 0, y: 0 });
   }, []);
 
-  const goTo = useCallback((index: number) => {
-    if (index < 0 || index >= images.length) return;
-    setCurrentIndex(index);
-    resetTransform();
-  }, [images.length, resetTransform]);
+  const goTo = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= images.length) return;
+      setCurrentIndex(index);
+      resetTransform();
+    },
+    [images.length, resetTransform],
+  );
 
   const zoomIn = useCallback(() => setScale((s) => Math.min(s * 1.3, 5)), []);
   const zoomOut = useCallback(() => setScale((s) => Math.max(s / 1.3, 0.3)), []);
@@ -89,29 +92,38 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
     setScale((s) => Math.min(Math.max(s * delta, 0.3), 5));
   }, []);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (scale <= 1) return;
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [scale, translate]);
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (scale <= 1) return;
+      setIsDragging(true);
+      dragStart.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [scale, translate],
+  );
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    setTranslate({ x: dragStart.current.tx + dx, y: dragStart.current.ty + dy });
-  }, [isDragging]);
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setTranslate({ x: dragStart.current.tx + dx, y: dragStart.current.ty + dy });
+    },
+    [isDragging],
+  );
 
   const handlePointerUp = useCallback(() => {
     setIsDragging(false);
   }, []);
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === containerRef.current) {
-      onClose();
-    }
-  }, [onClose]);
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === containerRef.current) {
+        onClose();
+      }
+    },
+    [onClose],
+  );
 
   const handleDownload = useCallback(() => {
     const url = getImageProxyUrl(images[currentIndex]);
@@ -167,10 +179,10 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
         <img
           src={getImageProxyUrl(images[currentIndex])}
           alt={`Image ${currentIndex + 1}`}
-            className={cn(
-                "max-w-[90vw] max-h-[85vh] object-contain transition-transform will-change-transform",
-                isDragging ? "duration-0 cursor-grabbing" : "duration-200 ease-out cursor-grab"
-              )}
+          className={cn(
+            "max-w-[90vw] max-h-[85vh] object-contain transition-transform will-change-transform",
+            isDragging ? "duration-0 cursor-grabbing" : "duration-200 ease-out cursor-grab",
+          )}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale}) rotate(${rotation}deg)`,
           }}
@@ -215,7 +227,7 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
                   "shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-md overflow-hidden border-2 transition-[border-color,opacity,transform] duration-200 ease-out",
                   i === currentIndex
                     ? "border-white scale-105 shadow-lg"
-                    : "border-transparent opacity-60 hover:opacity-90"
+                    : "border-transparent opacity-60 hover:opacity-90",
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

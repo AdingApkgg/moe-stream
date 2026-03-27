@@ -37,7 +37,9 @@ function createRedis(): Redis {
     enableReadyCheck: true,
     retryStrategy(times) {
       if (times > MAX_RECONNECT_ATTEMPTS) {
-        console.warn(`[Redis] 已达最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连。缓存功能将降级为直接查询数据库。`);
+        console.warn(
+          `[Redis] 已达最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连。缓存功能将降级为直接查询数据库。`,
+        );
         return null;
       }
       return Math.min(times * 500, 10000);
@@ -92,11 +94,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
 /**
  * 设置缓存，Redis 故障时静默跳过
  */
-export async function setCache<T>(
-  key: string,
-  value: T,
-  ttlSeconds: number = 3600
-): Promise<void> {
+export async function setCache<T>(key: string, value: T, ttlSeconds: number = 3600): Promise<void> {
   try {
     await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   } catch (err) {
@@ -111,11 +109,7 @@ export async function setCache<T>(
  */
 const inflightRequests = new Map<string, Promise<unknown>>();
 
-export async function getOrSet<T>(
-  key: string,
-  fetcher: () => Promise<T>,
-  ttlSeconds: number = 3600
-): Promise<T> {
+export async function getOrSet<T>(key: string, fetcher: () => Promise<T>, ttlSeconds: number = 3600): Promise<T> {
   const cached = await getCache<T>(key);
   if (cached !== null) return cached;
 
@@ -124,12 +118,16 @@ export async function getOrSet<T>(
 
   const promise = (async () => {
     let genBefore: string | null = null;
-    try { genBefore = await redis.get(`${key}:gen`); } catch {}
+    try {
+      genBefore = await redis.get(`${key}:gen`);
+    } catch {}
 
     const result = await fetcher();
 
     let genAfter: string | null = null;
-    try { genAfter = await redis.get(`${key}:gen`); } catch {}
+    try {
+      genAfter = await redis.get(`${key}:gen`);
+    } catch {}
     if (genBefore === genAfter) {
       await setCache(key, result, ttlSeconds);
     }
@@ -224,9 +222,7 @@ export async function deleteCachePattern(pattern: string): Promise<number> {
 /**
  * 批量设置缓存（使用 pipeline 提高性能）
  */
-export async function setCacheMultiple<T>(
-  items: Array<{ key: string; value: T; ttl?: number }>
-): Promise<void> {
+export async function setCacheMultiple<T>(items: Array<{ key: string; value: T; ttl?: number }>): Promise<void> {
   if (items.length === 0) return;
   try {
     const pipeline = redis.pipeline();

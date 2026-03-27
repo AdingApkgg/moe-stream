@@ -11,30 +11,30 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
-  
+
   if (!connectionString) {
     throw new Error("DATABASE_URL is not defined");
   }
 
-  const pool = globalForPrisma.pool ?? new Pool({
-    connectionString,
-    ...(isServerless && {
-      max: 5,
-      idleTimeoutMillis: 20_000,
-      connectionTimeoutMillis: 10_000,
-    }),
-  });
+  const pool =
+    globalForPrisma.pool ??
+    new Pool({
+      connectionString,
+      ...(isServerless && {
+        max: 5,
+        idleTimeoutMillis: 20_000,
+        connectionTimeoutMillis: 10_000,
+      }),
+    });
   if (!globalForPrisma.pool) {
     globalForPrisma.pool = pool;
   }
-  
+
   const adapter = new PrismaPg(pool as unknown as ConstructorParameters<typeof PrismaPg>[0]);
-  
+
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" 
-      ? ["query", "error", "warn"] 
-      : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 }
 

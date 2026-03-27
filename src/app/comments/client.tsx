@@ -10,13 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageCircle,
@@ -50,9 +44,7 @@ function VideoCommentsTab({ page, onPageChange }: { page: number; onPageChange: 
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground px-1">
-        {totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}
-      </p>
+      <p className="text-xs text-muted-foreground px-1">{totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}</p>
       {isLoading ? (
         <CommentsSkeleton />
       ) : comments.length === 0 ? (
@@ -83,9 +75,7 @@ function GameCommentsTab({ page, onPageChange }: { page: number; onPageChange: (
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground px-1">
-        {totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}
-      </p>
+      <p className="text-xs text-muted-foreground px-1">{totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}</p>
       {isLoading ? (
         <CommentsSkeleton />
       ) : comments.length === 0 ? (
@@ -116,9 +106,7 @@ function ImageCommentsTab({ page, onPageChange }: { page: number; onPageChange: 
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground px-1">
-        {totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}
-      </p>
+      <p className="text-xs text-muted-foreground px-1">{totalCount > 0 ? `共 ${totalCount} 条评论` : "暂无评论"}</p>
       {isLoading ? (
         <CommentsSkeleton />
       ) : comments.length === 0 ? (
@@ -169,12 +157,13 @@ function CommentCard({
 }) {
   const isGuest = !comment.user;
   const displayName = isGuest
-    ? ((comment as unknown as { guestName?: string }).guestName || "访客")
-    : (comment.user!.nickname || comment.user!.username);
+    ? (comment as unknown as { guestName?: string }).guestName || "访客"
+    : comment.user!.nickname || comment.user!.username;
   const guestEmail = (comment as unknown as { guestEmail?: string }).guestEmail;
-  const avatarUrl = isGuest && guestEmail
-    ? `https://www.gravatar.com/avatar/${encodeURIComponent(guestEmail.toLowerCase().trim())}?d=identicon&s=80`
-    : (comment.user?.avatar || undefined);
+  const avatarUrl =
+    isGuest && guestEmail
+      ? `https://www.gravatar.com/avatar/${encodeURIComponent(guestEmail.toLowerCase().trim())}?d=identicon&s=80`
+      : comment.user?.avatar || undefined;
 
   const config = TYPE_CONFIG[type];
   const TypeIcon = config.icon;
@@ -266,15 +255,9 @@ function GuestbookSection() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const utils = trpc.useUtils();
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-  } = trpc.guestbook.list.useInfiniteQuery(
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = trpc.guestbook.list.useInfiniteQuery(
     { limit: 15 },
-    { getNextPageParam: (lastPage) => lastPage.nextCursor }
+    { getNextPageParam: (lastPage) => lastPage.nextCursor },
   );
 
   const allMessages = data?.pages.flatMap((p) => p.messages) ?? [];
@@ -324,9 +307,7 @@ function GuestbookSection() {
       guestName: session ? undefined : guestName.trim() || undefined,
       guestEmail: session ? undefined : guestEmail.trim() || undefined,
       guestWebsite: session ? undefined : guestWebsite.trim() || undefined,
-      deviceInfo: currentDeviceInfo
-        ? { ...currentDeviceInfo, visitorId: visitorId ?? null }
-        : undefined,
+      deviceInfo: currentDeviceInfo ? { ...currentDeviceInfo, visitorId: visitorId ?? null } : undefined,
     });
   }, [content, isSubmitting, session, guestName, guestEmail, guestWebsite, getVisitorId, createMutation]);
 
@@ -337,9 +318,7 @@ function GuestbookSection() {
           <BookOpen className="h-4 w-4" />
           留言板
         </CardTitle>
-        <CardDescription>
-          有什么想说的？在这里留下你的足迹吧
-        </CardDescription>
+        <CardDescription>有什么想说的？在这里留下你的足迹吧</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 留言表单 */}
@@ -397,20 +376,9 @@ function GuestbookSection() {
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {content.length}/500
-            </span>
-            <Button
-              size="sm"
-              onClick={handleSubmit}
-              disabled={!content.trim() || isSubmitting}
-              className="gap-1.5"
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
+            <span className="text-xs text-muted-foreground">{content.length}/500</span>
+            <Button size="sm" onClick={handleSubmit} disabled={!content.trim() || isSubmitting} className="gap-1.5">
+              {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               发送留言
             </Button>
           </div>
@@ -436,19 +404,15 @@ function GuestbookSection() {
             <>
               {allMessages.map((msg) => {
                 const isGuest = !msg.user;
-                const displayName = isGuest
-                  ? (msg.guestName || "访客")
-                  : (msg.user!.nickname || msg.user!.username);
+                const displayName = isGuest ? msg.guestName || "访客" : msg.user!.nickname || msg.user!.username;
                 const gEmail = msg.guestEmail;
-                const avatarUrl = isGuest && gEmail
-                  ? `https://www.gravatar.com/avatar/${encodeURIComponent(gEmail.toLowerCase().trim())}?d=identicon&s=80`
-                  : (msg.user?.avatar || undefined);
+                const avatarUrl =
+                  isGuest && gEmail
+                    ? `https://www.gravatar.com/avatar/${encodeURIComponent(gEmail.toLowerCase().trim())}?d=identicon&s=80`
+                    : msg.user?.avatar || undefined;
 
                 return (
-                  <div
-                    key={msg.id}
-                    className="flex gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors"
-                  >
+                  <div key={msg.id} className="flex gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors">
                     <Avatar className="h-9 w-9 shrink-0 ring-2 ring-background">
                       <AvatarImage src={avatarUrl} />
                       <AvatarFallback className="text-xs">
@@ -479,13 +443,9 @@ function GuestbookSection() {
                             <Globe className="h-3 w-3" />
                           </a>
                         )}
-                        <span className="ml-auto shrink-0">
-                          {formatRelativeTime(msg.createdAt)}
-                        </span>
+                        <span className="ml-auto shrink-0">{formatRelativeTime(msg.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-foreground/80 whitespace-pre-wrap break-words">
-                        {msg.content}
-                      </p>
+                      <p className="text-sm text-foreground/80 whitespace-pre-wrap break-words">{msg.content}</p>
                     </div>
                   </div>
                 );
@@ -500,9 +460,7 @@ function GuestbookSection() {
                     disabled={isFetchingNextPage}
                     className="text-muted-foreground"
                   >
-                    {isFetchingNextPage ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : null}
+                    {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                     加载更多留言
                   </Button>
                 </div>
@@ -525,28 +483,35 @@ export default function CommentsClient({ page, tab }: { page: number; tab?: stri
   const imageEnabled = siteConfig?.sectionImageEnabled !== false;
   const gameEnabled = siteConfig?.sectionGameEnabled !== false;
 
-  const tabs = useMemo(() =>
-    [
-      videoEnabled && { id: "video", label: "视频评论", icon: Play },
-      gameEnabled && { id: "game", label: "游戏评论", icon: Gamepad2 },
-      imageEnabled && { id: "image", label: "图片评论", icon: ImageIcon },
-    ].filter(Boolean) as { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[],
-    [videoEnabled, gameEnabled, imageEnabled]
+  const tabs = useMemo(
+    () =>
+      [
+        videoEnabled && { id: "video", label: "视频评论", icon: Play },
+        gameEnabled && { id: "game", label: "游戏评论", icon: Gamepad2 },
+        imageEnabled && { id: "image", label: "图片评论", icon: ImageIcon },
+      ].filter(Boolean) as { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[],
+    [videoEnabled, gameEnabled, imageEnabled],
   );
 
   const defaultTab = tabs[0]?.id ?? "video";
-  const activeTab = (tab && tabs.some((t) => t.id === tab)) ? tab : defaultTab;
+  const activeTab = tab && tabs.some((t) => t.id === tab) ? tab : defaultTab;
 
-  const handleTabChange = useCallback((newTab: string) => {
-    const tabParam = newTab !== defaultTab ? `?tab=${newTab}` : "";
-    router.push(`/comments${tabParam}`);
-  }, [defaultTab, router]);
+  const handleTabChange = useCallback(
+    (newTab: string) => {
+      const tabParam = newTab !== defaultTab ? `?tab=${newTab}` : "";
+      router.push(`/comments${tabParam}`);
+    },
+    [defaultTab, router],
+  );
 
-  const handlePageChange = useCallback((newPage: number) => {
-    const tabParam = activeTab !== defaultTab ? `?tab=${activeTab}` : "";
-    const base = newPage === 1 ? "/comments" : `/comments/page/${newPage}`;
-    router.push(`${base}${tabParam}`);
-  }, [activeTab, defaultTab, router]);
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      const tabParam = activeTab !== defaultTab ? `?tab=${activeTab}` : "";
+      const base = newPage === 1 ? "/comments" : `/comments/page/${newPage}`;
+      router.push(`${base}${tabParam}`);
+    },
+    [activeTab, defaultTab, router],
+  );
 
   return (
     <div className="container py-6 max-w-3xl">

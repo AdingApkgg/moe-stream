@@ -4,12 +4,7 @@ import superjson from "superjson";
 import type { Context } from "../trpc";
 import { isPrivileged } from "@/lib/permissions";
 import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
-import {
-  createMockContext,
-  createAuthedContext,
-  createAdminContext,
-  createOwnerContext,
-} from "./helpers";
+import { createMockContext, createAuthedContext, createAdminContext, createOwnerContext } from "./helpers";
 
 const t = initTRPC.context<Context>().create({ transformer: superjson });
 
@@ -30,10 +25,7 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
   if (!isPrivileged(role)) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
-  const scopes =
-    role === "OWNER"
-      ? Object.keys(ADMIN_SCOPES)
-      : (([] as string[]));
+  const scopes = role === "OWNER" ? Object.keys(ADMIN_SCOPES) : ([] as string[]);
   return next({
     ctx: {
       session: { ...ctx.session, user: ctx.session.user },
@@ -45,9 +37,7 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
 
 function requireScope(scope: AdminScope) {
   return t.middleware(async ({ ctx, next }) => {
-    const scopes = (ctx as Record<string, unknown>).adminScopes as
-      | string[]
-      | undefined;
+    const scopes = (ctx as Record<string, unknown>).adminScopes as string[] | undefined;
     if (!scopes?.includes(scope)) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -70,9 +60,7 @@ const testRouter = t.router({
   adminGreet: adminProcedure.query(({ ctx }) => {
     return `admin ${(ctx as { adminRole: string }).adminRole}`;
   }),
-  adminWithScope: adminProcedure
-    .use(requireScope("video:manage"))
-    .query(() => "scoped"),
+  adminWithScope: adminProcedure.use(requireScope("video:manage")).query(() => "scoped"),
 });
 
 const caller = t.createCallerFactory(testRouter);

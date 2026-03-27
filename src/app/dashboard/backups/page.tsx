@@ -11,15 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -208,14 +200,10 @@ export default function BackupsPage() {
 
   const restoreBackup = trpc.admin.restoreBackup.useMutation({
     onSuccess: (result) => {
-      const restored = [
-        result.database && "数据库",
-        result.uploads && "uploads",
-        result.config && "配置文件",
-      ].filter(Boolean);
-      const msg = restored.length > 0
-        ? `已恢复: ${restored.join("、")}`
-        : "恢复完成";
+      const restored = [result.database && "数据库", result.uploads && "uploads", result.config && "配置文件"].filter(
+        Boolean,
+      );
+      const msg = restored.length > 0 ? `已恢复: ${restored.join("、")}` : "恢复完成";
       if (result.errors.length > 0) {
         toast.error(`${msg}（部分失败: ${result.errors.join("; ")}）`);
       } else {
@@ -266,11 +254,7 @@ export default function BackupsPage() {
   };
 
   if (!permissions?.scopes.includes("settings:manage")) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有系统设置权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有系统设置权限</div>;
   }
 
   if (configLoading && !config) {
@@ -293,9 +277,7 @@ export default function BackupsPage() {
           <DatabaseBackup className="h-6 w-6" />
           数据备份
         </h1>
-        <p className="text-muted-foreground mt-1">
-          自动或手动备份数据库和文件到对象存储
-        </p>
+        <p className="text-muted-foreground mt-1">自动或手动备份数据库和文件到对象存储</p>
       </div>
 
       {!isStorageConfigured && (
@@ -330,11 +312,7 @@ export default function BackupsPage() {
                       <FormDescription>按设定的间隔自动执行备份</FormDescription>
                     </div>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={!isStorageConfigured}
-                      />
+                      <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!isStorageConfigured} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -443,11 +421,13 @@ export default function BackupsPage() {
               <CardDescription className="mt-1">共 {total} 条备份记录</CardDescription>
             </div>
             <Button
-              onClick={() => triggerBackup.mutate({
-                includeDatabase: true,
-                includeUploads: form.getValues("backupIncludeUploads"),
-                includeConfig: form.getValues("backupIncludeConfig"),
-              })}
+              onClick={() =>
+                triggerBackup.mutate({
+                  includeDatabase: true,
+                  includeUploads: form.getValues("backupIncludeUploads"),
+                  includeConfig: form.getValues("backupIncludeConfig"),
+                })
+              }
               disabled={!isStorageConfigured || triggerBackup.isPending || hasRunning}
             >
               {triggerBackup.isPending ? (
@@ -465,9 +445,7 @@ export default function BackupsPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : records.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无备份记录
-            </div>
+            <div className="text-center py-12 text-muted-foreground">暂无备份记录</div>
           ) : (
             <div className="space-y-3">
               {records.map((record) => (
@@ -483,36 +461,22 @@ export default function BackupsPage() {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                       <span>{formatDate(record.createdAt)}</span>
-                      {record.status === "COMPLETED" && record.size !== "0" && (
-                        <span>{formatBytes(record.size)}</span>
-                      )}
+                      {record.status === "COMPLETED" && record.size !== "0" && <span>{formatBytes(record.size)}</span>}
                       <IncludesBadges includes={record.includes as IncludesInfo | null} />
                     </div>
                     {record.status === "FAILED" && record.errorMessage && (
-                      <p className="text-xs text-destructive mt-1 truncate max-w-md">
-                        {record.errorMessage}
-                      </p>
+                      <p className="text-xs text-destructive mt-1 truncate max-w-md">{record.errorMessage}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {record.status === "COMPLETED" && (
                       <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownload(record.id)}
-                          title="下载"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDownload(record.id)} title="下载">
                           <Download className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={restoreBackup.isPending}
-                              title="恢复"
-                            >
+                            <Button variant="ghost" size="sm" disabled={restoreBackup.isPending} title="恢复">
                               {restoreBackup.isPending && restoreBackup.variables?.id === record.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
@@ -529,18 +493,18 @@ export default function BackupsPage() {
                               <AlertDialogDescription asChild>
                                 <div className="space-y-2">
                                   <p>
-                                    即将从备份 <span className="font-mono text-foreground">{record.filename}</span> 恢复数据，此操作将：
+                                    即将从备份 <span className="font-mono text-foreground">{record.filename}</span>{" "}
+                                    恢复数据，此操作将：
                                   </p>
                                   <ul className="list-disc list-inside text-sm space-y-1">
                                     {(record.includes as IncludesInfo)?.database && (
-                                      <li><span className="font-medium text-destructive">覆盖当前数据库</span>（所有表数据将被替换）</li>
+                                      <li>
+                                        <span className="font-medium text-destructive">覆盖当前数据库</span>
+                                        （所有表数据将被替换）
+                                      </li>
                                     )}
-                                    {(record.includes as IncludesInfo)?.uploads && (
-                                      <li>覆盖 uploads 目录中的文件</li>
-                                    )}
-                                    {(record.includes as IncludesInfo)?.config && (
-                                      <li>覆盖 .env 配置文件</li>
-                                    )}
+                                    {(record.includes as IncludesInfo)?.uploads && <li>覆盖 uploads 目录中的文件</li>}
+                                    {(record.includes as IncludesInfo)?.config && <li>覆盖 .env 配置文件</li>}
                                   </ul>
                                   <p className="text-destructive font-medium pt-1">
                                     此操作不可撤销，建议先手动备份当前数据。
@@ -563,12 +527,7 @@ export default function BackupsPage() {
                     )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={record.status === "RUNNING"}
-                          title="删除"
-                        >
+                        <Button variant="ghost" size="sm" disabled={record.status === "RUNNING"} title="删除">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </AlertDialogTrigger>
@@ -581,9 +540,7 @@ export default function BackupsPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>取消</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteBackup.mutate({ id: record.id })}
-                          >
+                          <AlertDialogAction onClick={() => deleteBackup.mutate({ id: record.id })}>
                             删除
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -595,12 +552,7 @@ export default function BackupsPage() {
 
               {totalPages > 1 && (
                 <div className="flex justify-center gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                     上一页
                   </Button>
                   <span className="text-sm text-muted-foreground flex items-center">

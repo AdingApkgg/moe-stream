@@ -5,18 +5,8 @@ import type { PublicSiteConfig } from "@/lib/site-config";
 
 const SiteConfigContext = createContext<PublicSiteConfig | null>(null);
 
-export function SiteConfigProvider({
-  value,
-  children,
-}: {
-  value: PublicSiteConfig;
-  children: React.ReactNode;
-}) {
-  return (
-    <SiteConfigContext.Provider value={value}>
-      {children}
-    </SiteConfigContext.Provider>
-  );
+export function SiteConfigProvider({ value, children }: { value: PublicSiteConfig; children: React.ReactNode }) {
+  return <SiteConfigContext.Provider value={value}>{children}</SiteConfigContext.Provider>;
 }
 
 /**

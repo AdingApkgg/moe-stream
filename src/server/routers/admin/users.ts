@@ -31,7 +31,7 @@ export const adminUsersRouter = router({
         search: z.string().optional(),
         role: z.enum(["ALL", "USER", "ADMIN", "OWNER"]).default("ALL"),
         banned: z.enum(["ALL", "BANNED", "ACTIVE"]).default("ALL"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, page } = input;
@@ -152,7 +152,7 @@ export const adminUsersRouter = router({
       z.object({
         userId: z.string(),
         role: z.enum(["USER", "ADMIN"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       if (input.userId === ctx.session.user.id) {
@@ -191,7 +191,7 @@ export const adminUsersRouter = router({
       z.object({
         userId: z.string(),
         scopes: z.array(z.string()),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const targetUser = await ctx.prisma.user.findUnique({
@@ -226,7 +226,7 @@ export const adminUsersRouter = router({
       z.object({
         userId: z.string(),
         adsEnabled: z.boolean(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const targetUser = await ctx.prisma.user.findUnique({
@@ -249,5 +249,4 @@ export const adminUsersRouter = router({
 
       return { success: true };
     }),
-
 });

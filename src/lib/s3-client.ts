@@ -96,10 +96,7 @@ export async function uploadToS3(
   client.destroy();
 }
 
-export async function deleteFromS3(
-  config: StorageConfig,
-  key: string,
-): Promise<void> {
+export async function deleteFromS3(config: StorageConfig, key: string): Promise<void> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 
@@ -112,11 +109,7 @@ export async function deleteFromS3(
   client.destroy();
 }
 
-export async function getPresignedDownloadUrl(
-  config: StorageConfig,
-  key: string,
-  expiresIn = 3600,
-): Promise<string> {
+export async function getPresignedDownloadUrl(config: StorageConfig, key: string, expiresIn = 3600): Promise<string> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 
@@ -141,10 +134,7 @@ export async function getPresignedDownloadUrl(
   return url;
 }
 
-export async function downloadFromS3(
-  config: StorageConfig,
-  key: string,
-): Promise<Buffer> {
+export async function downloadFromS3(config: StorageConfig, key: string): Promise<Buffer> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 
@@ -171,10 +161,7 @@ export async function downloadFromS3(
   }
 }
 
-export async function headObject(
-  config: StorageConfig,
-  key: string,
-): Promise<{ size: number } | null> {
+export async function headObject(config: StorageConfig, key: string): Promise<{ size: number } | null> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 
@@ -215,11 +202,7 @@ export async function getPresignedUploadUrl(
   return url;
 }
 
-export async function createMultipartUpload(
-  config: StorageConfig,
-  key: string,
-  contentType: string,
-): Promise<string> {
+export async function createMultipartUpload(config: StorageConfig, key: string, contentType: string): Promise<string> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 
@@ -290,11 +273,7 @@ export async function completeMultipartUpload(
   client.destroy();
 }
 
-export async function abortMultipartUpload(
-  config: StorageConfig,
-  key: string,
-  uploadId: string,
-): Promise<void> {
+export async function abortMultipartUpload(config: StorageConfig, key: string, uploadId: string): Promise<void> {
   const client = createS3Client(config);
   const fullKey = resolveKey(config, key);
 

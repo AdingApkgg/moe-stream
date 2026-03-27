@@ -32,13 +32,7 @@ export function getMDXComponents(overrides: MDXComponents = {}): MDXComponents {
     ),
     img: ({ src, alt, ...props }) => (
       // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt || ""}
-        className="rounded-lg max-w-full h-auto"
-        loading="lazy"
-        {...props}
-      />
+      <img src={src} alt={alt || ""} className="rounded-lg max-w-full h-auto" loading="lazy" {...props} />
     ),
     // 未来自定义组件在此注册
     ...overrides,

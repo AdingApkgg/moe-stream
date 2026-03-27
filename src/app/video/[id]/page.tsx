@@ -60,9 +60,7 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
   }
 
   const uploaderName = video.uploader.nickname || video.uploader.username;
-  const description = video.description 
-    ? video.description.slice(0, 160) 
-    : `由 ${uploaderName} 上传的视频`;
+  const description = video.description ? video.description.slice(0, 160) : `由 ${uploaderName} 上传的视频`;
   const keywords = video.tags.map(({ tag }) => tag.name);
 
   const siteConfig = await getPublicSiteConfig();

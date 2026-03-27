@@ -16,12 +16,8 @@ export function useSocket(userId: string | undefined): void {
 
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
-    socket.on("presence:online", (data: { userId: string }) =>
-      addOnlineUser(data.userId),
-    );
-    socket.on("presence:offline", (data: { userId: string }) =>
-      removeOnlineUser(data.userId),
-    );
+    socket.on("presence:online", (data: { userId: string }) => addOnlineUser(data.userId));
+    socket.on("presence:offline", (data: { userId: string }) => removeOnlineUser(data.userId));
 
     socket.connect();
 

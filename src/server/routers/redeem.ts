@@ -14,7 +14,7 @@ export const redeemRouter = router({
         batchId: z.string().optional(),
         status: z.enum(["ALL", "ACTIVE", "INACTIVE", "EXPIRED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, batchId, status, search } = input;
@@ -69,7 +69,7 @@ export const redeemRouter = router({
         grantUpload: z.boolean().default(false),
         maxUses: z.number().int().min(0).max(1000000).default(1),
         expiresAt: z.string().datetime().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.prisma.redeemCode.findUnique({
@@ -102,7 +102,7 @@ export const redeemRouter = router({
         grantUpload: z.boolean().default(false),
         maxUses: z.number().int().min(0).max(1000000).default(1),
         expiresAt: z.string().datetime().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const batchId = nanoid(12);
@@ -157,7 +157,7 @@ export const redeemRouter = router({
         grantUpload: z.boolean().optional(),
         maxUses: z.number().int().min(0).max(1000000).optional(),
         expiresAt: z.string().datetime().nullable().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, expiresAt, ...rest } = input;
@@ -168,87 +168,83 @@ export const redeemRouter = router({
       return ctx.prisma.redeemCode.update({ where: { id }, data });
     }),
 
-  adminDelete: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.redeemCode.delete({ where: { id: input.id } });
-      return { success: true };
-    }),
+  adminDelete: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await ctx.prisma.redeemCode.delete({ where: { id: input.id } });
+    return { success: true };
+  }),
 
   // ========== 用户端 ==========
 
-  redeem: protectedProcedure
-    .input(z.object({ code: z.string().min(1).max(50) }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const code = input.code.trim();
+  redeem: protectedProcedure.input(z.object({ code: z.string().min(1).max(50) })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const code = input.code.trim();
 
-      const result = await ctx.prisma.$transaction(async (tx) => {
-        const redeemCode = await tx.redeemCode.findUnique({
-          where: { code },
-        });
-
-        if (!redeemCode) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "兑换码不存在" });
-        }
-        if (!redeemCode.isActive) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已停用" });
-        }
-        if (redeemCode.expiresAt && redeemCode.expiresAt < new Date()) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已过期" });
-        }
-        if (redeemCode.maxUses > 0 && redeemCode.usedCount >= redeemCode.maxUses) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已达到使用上限" });
-        }
-
-        const existingRedemption = await tx.redeemCodeRedemption.findUnique({
-          where: { codeId_userId: { codeId: redeemCode.id, userId } },
-        });
-        if (existingRedemption) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "你已经使用过该兑换码" });
-        }
-
-        await tx.redeemCode.update({
-          where: { id: redeemCode.id },
-          data: { usedCount: { increment: 1 } },
-        });
-
-        await tx.redeemCodeRedemption.create({
-          data: { codeId: redeemCode.id, userId },
-        });
-
-        const rewards: string[] = [];
-
-        if (redeemCode.pointsAmount > 0) {
-          const updated = await tx.user.update({
-            where: { id: userId },
-            data: { points: { increment: redeemCode.pointsAmount } },
-            select: { points: true },
-          });
-          await tx.pointsTransaction.create({
-            data: {
-              userId,
-              amount: redeemCode.pointsAmount,
-              balance: updated.points,
-              type: "REDEEM_CODE",
-              description: `兑换码: ${redeemCode.code}`,
-              relatedId: redeemCode.id,
-            },
-          });
-          rewards.push(`${redeemCode.pointsAmount} 积分`);
-        }
-
-        if (redeemCode.grantUpload) {
-          await tx.user.update({
-            where: { id: userId },
-            data: { canUpload: true },
-          });
-          rewards.push("投稿权限");
-        }
-
-        return { rewards };
+    const result = await ctx.prisma.$transaction(async (tx) => {
+      const redeemCode = await tx.redeemCode.findUnique({
+        where: { code },
       });
 
-      return result;
-    }),
+      if (!redeemCode) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "兑换码不存在" });
+      }
+      if (!redeemCode.isActive) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已停用" });
+      }
+      if (redeemCode.expiresAt && redeemCode.expiresAt < new Date()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已过期" });
+      }
+      if (redeemCode.maxUses > 0 && redeemCode.usedCount >= redeemCode.maxUses) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "该兑换码已达到使用上限" });
+      }
+
+      const existingRedemption = await tx.redeemCodeRedemption.findUnique({
+        where: { codeId_userId: { codeId: redeemCode.id, userId } },
+      });
+      if (existingRedemption) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "你已经使用过该兑换码" });
+      }
+
+      await tx.redeemCode.update({
+        where: { id: redeemCode.id },
+        data: { usedCount: { increment: 1 } },
+      });
+
+      await tx.redeemCodeRedemption.create({
+        data: { codeId: redeemCode.id, userId },
+      });
+
+      const rewards: string[] = [];
+
+      if (redeemCode.pointsAmount > 0) {
+        const updated = await tx.user.update({
+          where: { id: userId },
+          data: { points: { increment: redeemCode.pointsAmount } },
+          select: { points: true },
+        });
+        await tx.pointsTransaction.create({
+          data: {
+            userId,
+            amount: redeemCode.pointsAmount,
+            balance: updated.points,
+            type: "REDEEM_CODE",
+            description: `兑换码: ${redeemCode.code}`,
+            relatedId: redeemCode.id,
+          },
+        });
+        rewards.push(`${redeemCode.pointsAmount} 积分`);
+      }
+
+      if (redeemCode.grantUpload) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { canUpload: true },
+        });
+        rewards.push("投稿权限");
+      }
+
+      return { rewards };
+    });
+
+    return result;
+  }),
 });

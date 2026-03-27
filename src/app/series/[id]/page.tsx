@@ -23,10 +23,7 @@ export default function SeriesPage() {
   const params = useParams();
   const seriesId = params.id as string;
 
-  const { data: series, isLoading, error } = trpc.series.getById.useQuery(
-    { id: seriesId },
-    { enabled: !!seriesId }
-  );
+  const { data: series, isLoading, error } = trpc.series.getById.useQuery({ id: seriesId }, { enabled: !!seriesId });
 
   if (isLoading) {
     return (
@@ -62,7 +59,7 @@ export default function SeriesPage() {
     );
   }
 
-  const publishedEpisodes = series.episodes.filter(ep => ep.video.status === "PUBLISHED");
+  const publishedEpisodes = series.episodes.filter((ep) => ep.video.status === "PUBLISHED");
   const totalViews = publishedEpisodes.reduce((sum, ep) => sum + ep.video.views, 0);
 
   return (
@@ -82,18 +79,16 @@ export default function SeriesPage() {
         <FadeIn delay={0.05}>
           <div className="mb-6">
             <h1 className="text-2xl font-bold mb-2">{series.title}</h1>
-            {series.description && (
-              <p className="text-muted-foreground mb-3">{series.description}</p>
-            )}
+            {series.description && <p className="text-muted-foreground mb-3">{series.description}</p>}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <Link 
+              <Link
                 href={`/user/${series.creator.id}`}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors"
               >
                 {series.creator.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img 
-                    src={series.creator.avatar} 
+                  <img
+                    src={series.creator.avatar}
                     alt={series.creator.nickname || series.creator.username}
                     className="w-5 h-5 rounded-full"
                   />
@@ -114,9 +109,7 @@ export default function SeriesPage() {
                 {series.downloadNote && (
                   <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
                     <AlertCircle className="h-4 w-4 text-amber-500" />
-                    <AlertDescription className="text-sm whitespace-pre-wrap">
-                      {series.downloadNote}
-                    </AlertDescription>
+                    <AlertDescription className="text-sm whitespace-pre-wrap">{series.downloadNote}</AlertDescription>
                   </Alert>
                 )}
                 <Button asChild className="w-full sm:w-auto">
@@ -144,11 +137,9 @@ export default function SeriesPage() {
                       alt={episode.video.title}
                       className="w-full h-full object-cover"
                     />
-                    
+
                     {/* 集数徽章 */}
-                    <Badge 
-                      className="absolute top-2 left-2 bg-primary hover:bg-primary"
-                    >
+                    <Badge className="absolute top-2 left-2 bg-primary hover:bg-primary">
                       第 {episode.episodeNum} 集
                     </Badge>
 

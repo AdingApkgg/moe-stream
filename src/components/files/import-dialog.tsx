@@ -5,25 +5,10 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  Cloud,
-  Link2,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  XCircle,
-  Download,
-  ExternalLink,
-} from "lucide-react";
+import { Cloud, Link2, Loader2, CheckCircle2, AlertCircle, XCircle, Download, ExternalLink } from "lucide-react";
 
 interface ImportDialogProps {
   open: boolean;
@@ -147,9 +132,7 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
             <Download className="h-5 w-5" />
             从网盘导入
           </DialogTitle>
-          <DialogDescription>
-            从网盘或 URL 导入文件到您的存储空间
-          </DialogDescription>
+          <DialogDescription>从网盘或 URL 导入文件到您的存储空间</DialogDescription>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab}>
@@ -175,9 +158,7 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
                 {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              支持直接下载链接、Google Drive、OneDrive、Dropbox 分享链接
-            </p>
+            <p className="text-xs text-muted-foreground">支持直接下载链接、Google Drive、OneDrive、Dropbox 分享链接</p>
           </TabsContent>
 
           {/* Google Drive */}
@@ -193,9 +174,7 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
                 {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              公开分享的文件可直接导入。私有文件需先授权：
-            </p>
+            <p className="text-xs text-muted-foreground">公开分享的文件可直接导入。私有文件需先授权：</p>
             <Button
               variant="ghost"
               size="sm"
@@ -221,9 +200,7 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
                 {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              公开分享的文件可直接导入。私有文件需先授权：
-            </p>
+            <p className="text-xs text-muted-foreground">公开分享的文件可直接导入。私有文件需先授权：</p>
             <Button
               variant="ghost"
               size="sm"
@@ -249,9 +226,7 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
                 {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : "导入"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Dropbox 分享链接无需授权即可导入
-            </p>
+            <p className="text-xs text-muted-foreground">Dropbox 分享链接无需授权即可导入</p>
           </TabsContent>
         </Tabs>
 
@@ -260,21 +235,14 @@ export function ImportDialog({ open, onOpenChange, onImportComplete }: ImportDia
           <div className="mt-4 space-y-2">
             <h4 className="text-sm font-medium">导入任务</h4>
             {tasks.items.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center gap-3 rounded-lg border p-2.5 text-sm"
-              >
+              <div key={task.id} className="flex items-center gap-3 rounded-lg border p-2.5 text-sm">
                 <div className="shrink-0">{statusIcon(task.status)}</div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium text-xs">{task.sourceName}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{statusLabel(task.status)}</span>
-                    {task.sourceSize && (
-                      <span>{formatBytes(task.sourceSize)}</span>
-                    )}
-                    {task.error && (
-                      <span className="text-destructive truncate">{task.error}</span>
-                    )}
+                    {task.sourceSize && <span>{formatBytes(task.sourceSize)}</span>}
+                    {task.error && <span className="text-destructive truncate">{task.error}</span>}
                   </div>
                   {(task.status === "DOWNLOADING" || task.status === "PROCESSING") && (
                     <Progress value={task.progress} className="mt-1 h-1" />

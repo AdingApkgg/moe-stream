@@ -12,7 +12,7 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  
+
   let video: {
     title: string;
     coverUrl: string | null;
@@ -34,82 +34,76 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   if (!video) {
     return new ImageResponse(
-      (
-        <div
-          style={{
-            fontSize: 48,
-            background: "linear-gradient(to bottom right, #1a1a2e, #16213e)",
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-          }}
-        >
-          ACGN
-        </div>
-      ),
-      { ...size }
-    );
-  }
-
-  return new ImageResponse(
-    (
       <div
         style={{
-          fontSize: 32,
+          fontSize: 48,
           background: "linear-gradient(to bottom right, #1a1a2e, #16213e)",
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          padding: 60,
+          alignItems: "center",
+          justifyContent: "center",
           color: "white",
         }}
       >
-        <img
-          src={getCoverFullUrl(id, video.coverUrl)}
-          alt=""
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: 0.3,
-          }}
-        />
+        ACGN
+      </div>,
+      { ...size },
+    );
+  }
+
+  return new ImageResponse(
+    <div
+      style={{
+        fontSize: 32,
+        background: "linear-gradient(to bottom right, #1a1a2e, #16213e)",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        padding: 60,
+        color: "white",
+      }}
+    >
+      <img
+        src={getCoverFullUrl(id, video.coverUrl)}
+        alt=""
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          opacity: 0.3,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          flex: 1,
+          zIndex: 1,
+        }}
+      >
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-end",
-            flex: 1,
-            zIndex: 1,
+            fontSize: 48,
+            fontWeight: "bold",
+            marginBottom: 20,
+            lineHeight: 1.2,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              fontSize: 48,
-              fontWeight: "bold",
-              marginBottom: 20,
-              lineHeight: 1.2,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {video.title}
-          </div>
-          <div style={{ fontSize: 24, opacity: 0.8 }}>
-            {video.uploader.nickname || video.uploader.username}
-          </div>
+          {video.title}
         </div>
+        <div style={{ fontSize: 24, opacity: 0.8 }}>{video.uploader.nickname || video.uploader.username}</div>
       </div>
-    ),
-    { ...size }
+    </div>,
+    { ...size },
   );
 }

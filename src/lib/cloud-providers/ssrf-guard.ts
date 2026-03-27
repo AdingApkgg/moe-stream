@@ -11,20 +11,20 @@ export function isUrlSafe(parsed: URL): boolean {
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
     const parts = hostname.split(".").map(Number);
     const [a, b] = parts;
-    if (a === 10) return false;                           // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return false;    // 172.16.0.0/12
-    if (a === 192 && b === 168) return false;              // 192.168.0.0/16
-    if (a === 127) return false;                           // 127.0.0.0/8
-    if (a === 169 && b === 254) return false;              // 169.254.0.0/16 (link-local / cloud metadata)
-    if (a === 0) return false;                             // 0.0.0.0/8
-    if (a >= 224) return false;                            // multicast + reserved
+    if (a === 10) return false; // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
+    if (a === 192 && b === 168) return false; // 192.168.0.0/16
+    if (a === 127) return false; // 127.0.0.0/8
+    if (a === 169 && b === 254) return false; // 169.254.0.0/16 (link-local / cloud metadata)
+    if (a === 0) return false; // 0.0.0.0/8
+    if (a >= 224) return false; // multicast + reserved
   }
 
   // IPv6 private
   if (hostname.startsWith("[")) {
     const inner = hostname.slice(1, -1).toLowerCase();
     if (inner === "::1") return false;
-    if (inner.startsWith("fe80:")) return false;           // link-local
+    if (inner.startsWith("fe80:")) return false; // link-local
     if (inner.startsWith("fc") || inner.startsWith("fd")) return false; // unique-local
   }
 
@@ -41,10 +41,7 @@ const MAX_REDIRECTS = 10;
  * SSRF-safe fetch that validates every redirect target before following it.
  * Uses `redirect: "manual"` and re-checks each Location header with isUrlSafe.
  */
-export async function safeFetch(
-  url: string,
-  init?: RequestInit,
-): Promise<Response> {
+export async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   let currentUrl = url;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
     const parsed = new URL(currentUrl);

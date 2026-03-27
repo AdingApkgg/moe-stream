@@ -90,11 +90,16 @@ function AnimatedShape({
 
   const geometry = useMemo(() => {
     switch (geometryType) {
-      case "icosahedron": return new THREE.IcosahedronGeometry(...(geometryArgs as [number, number]));
-      case "torus": return new THREE.TorusGeometry(...(geometryArgs as [number, number, number, number]));
-      case "octahedron": return new THREE.OctahedronGeometry(...(geometryArgs as [number]));
-      case "dodecahedron": return new THREE.DodecahedronGeometry(...(geometryArgs as [number]));
-      case "tetrahedron": return new THREE.TetrahedronGeometry(...(geometryArgs as [number]));
+      case "icosahedron":
+        return new THREE.IcosahedronGeometry(...(geometryArgs as [number, number]));
+      case "torus":
+        return new THREE.TorusGeometry(...(geometryArgs as [number, number, number, number]));
+      case "octahedron":
+        return new THREE.OctahedronGeometry(...(geometryArgs as [number]));
+      case "dodecahedron":
+        return new THREE.DodecahedronGeometry(...(geometryArgs as [number]));
+      case "tetrahedron":
+        return new THREE.TetrahedronGeometry(...(geometryArgs as [number]));
     }
   }, [geometryType, geometryArgs]);
 
@@ -236,14 +241,7 @@ function Scene({ hoveredMode, mouse }: LandingSceneProps) {
       />
 
       {/* Ambient sparkles */}
-      <Sparkles
-        count={80}
-        size={2.5}
-        scale={[16, 12, 10]}
-        speed={0.3}
-        opacity={0.35}
-        color="#c084fc"
-      />
+      <Sparkles count={80} size={2.5} scale={[16, 12, 10]} speed={0.3} opacity={0.35} color="#c084fc" />
     </>
   );
 }

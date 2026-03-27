@@ -3,11 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Paperclip, ImagePlus, Loader2, X } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ChatFileUploadProps {
   onUpload: (file: { url: string; name: string; size: number; type: string }) => void;
@@ -78,19 +74,8 @@ export function ChatFileUpload({ onUpload }: ChatFileUploadProps) {
 
   return (
     <>
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageChange}
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
 
       {uploading && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10 rounded-2xl">
@@ -114,12 +99,7 @@ export function ChatFileUpload({ onUpload }: ChatFileUploadProps) {
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full shrink-0"
-            disabled={uploading}
-          >
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0" disabled={uploading}>
             <Paperclip className="h-5 w-5 text-muted-foreground" />
           </Button>
         </PopoverTrigger>

@@ -10,15 +10,28 @@ import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
-  ADV: "ADV", SLG: "SLG", RPG: "RPG", ACT: "ACT",
-  STG: "STG", PZL: "PZL", AVG: "AVG", FTG: "FTG",
-  TAB: "TAB", OTHER: "其他",
+  ADV: "ADV",
+  SLG: "SLG",
+  RPG: "RPG",
+  ACT: "ACT",
+  STG: "STG",
+  PZL: "PZL",
+  AVG: "AVG",
+  FTG: "FTG",
+  TAB: "TAB",
+  OTHER: "其他",
 };
 
 const GAME_TYPE_COLORS: Record<string, string> = {
-  ADV: "bg-blue-500/80", SLG: "bg-purple-500/80", RPG: "bg-green-500/80",
-  ACT: "bg-red-500/80", STG: "bg-orange-500/80", PZL: "bg-cyan-500/80",
-  AVG: "bg-indigo-500/80", FTG: "bg-rose-500/80", TAB: "bg-amber-500/80",
+  ADV: "bg-blue-500/80",
+  SLG: "bg-purple-500/80",
+  RPG: "bg-green-500/80",
+  ACT: "bg-red-500/80",
+  STG: "bg-orange-500/80",
+  PZL: "bg-cyan-500/80",
+  AVG: "bg-indigo-500/80",
+  FTG: "bg-rose-500/80",
+  TAB: "bg-amber-500/80",
   OTHER: "bg-gray-500/80",
 };
 
@@ -89,9 +102,8 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
     glareMaxOpacity: 0.12,
   });
 
-  const extra = game.extraInfo && typeof game.extraInfo === "object" && !Array.isArray(game.extraInfo)
-    ? game.extraInfo
-    : null;
+  const extra =
+    game.extraInfo && typeof game.extraInfo === "object" && !Array.isArray(game.extraInfo) ? game.extraInfo : null;
   const authorName = extra?.originalAuthor || game.uploader.nickname || game.uploader.username;
   const hasDownloads = extra?.downloads && Array.isArray(extra.downloads) && extra.downloads.length > 0;
 
@@ -121,7 +133,9 @@ function GameCardComponent({ game, index = 0 }: GameCardProps) {
 
           {/* Game type badge */}
           {game.gameType && (
-            <div className={`absolute top-1.5 left-1.5 ${GAME_TYPE_COLORS[game.gameType] || GAME_TYPE_COLORS.OTHER} backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold`}>
+            <div
+              className={`absolute top-1.5 left-1.5 ${GAME_TYPE_COLORS[game.gameType] || GAME_TYPE_COLORS.OTHER} backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold`}
+            >
               {GAME_TYPE_LABELS[game.gameType] || game.gameType}
             </div>
           )}

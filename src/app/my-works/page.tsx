@@ -11,13 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,23 +119,19 @@ function MyVideosContent() {
   const userId = session?.user?.id;
   const limit = 50;
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-  } = trpc.video.getMyVideos.useQuery(
+  const { data, isLoading, isFetching } = trpc.video.getMyVideos.useQuery(
     { page, limit, status: statusFilter, search: searchQuery || undefined, sortBy },
-    { enabled: !!session && activeTab === "video" }
+    { enabled: !!session && activeTab === "video" },
   );
 
   const { data: gameData, isLoading: gameLoading } = trpc.user.getGames.useQuery(
     { userId: userId!, limit: 20, page: gamePage },
-    { enabled: !!userId && activeTab === "game" }
+    { enabled: !!userId && activeTab === "game" },
   );
 
   const { data: imageData, isLoading: imageLoading } = trpc.image.getUserPosts.useQuery(
     { userId: userId!, limit: 20, page: imagePage },
-    { enabled: !!userId && activeTab === "image" }
+    { enabled: !!userId && activeTab === "image" },
   );
 
   const deleteMutation = trpc.video.delete.useMutation({
@@ -169,17 +159,20 @@ function MyVideosContent() {
     },
   });
 
-  const updateUrl = useCallback((params: { page?: number; status?: string; q?: string; sort?: string }) => {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      if (value && value !== "1" && value !== "ALL" && value !== "latest" && value !== "") {
-        url.searchParams.set(key, String(value));
-      } else {
-        url.searchParams.delete(key);
-      }
-    });
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const updateUrl = useCallback(
+    (params: { page?: number; status?: string; q?: string; sort?: string }) => {
+      const url = new URL(window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && value !== "1" && value !== "ALL" && value !== "latest" && value !== "") {
+          url.searchParams.set(key, String(value));
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -228,16 +221,16 @@ function MyVideosContent() {
 
   const togglePageSelect = () => {
     if (!data?.videos) return;
-    const pageIds = new Set(data.videos.map(v => v.id));
-    const allPageSelected = data.videos.every(v => selectedIds.has(v.id));
+    const pageIds = new Set(data.videos.map((v) => v.id));
+    const allPageSelected = data.videos.every((v) => selectedIds.has(v.id));
 
     if (allPageSelected) {
       const newSet = new Set(selectedIds);
-      pageIds.forEach(id => newSet.delete(id));
+      pageIds.forEach((id) => newSet.delete(id));
       setSelectedIds(newSet);
     } else {
       const newSet = new Set(selectedIds);
-      pageIds.forEach(id => newSet.add(id));
+      pageIds.forEach((id) => newSet.add(id));
       setSelectedIds(newSet);
     }
   };
@@ -265,7 +258,7 @@ function MyVideosContent() {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
     updateUrl({ page: newPage, status: statusFilter, q: searchQuery, sort: sortBy });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleStatusChange = (value: StatusFilter) => {
@@ -301,7 +294,7 @@ function MyVideosContent() {
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.currentPage ?? 1;
-  const isPageAllSelected = videos.length > 0 && videos.every(v => selectedIds.has(v.id));
+  const isPageAllSelected = videos.length > 0 && videos.every((v) => selectedIds.has(v.id));
 
   return (
     <div className="px-4 md:px-6 py-6">
@@ -332,7 +325,7 @@ function MyVideosContent() {
                 "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
                 activeTab === tab.key
                   ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -384,12 +377,7 @@ function MyVideosContent() {
               {selectMode ? (
                 <>
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={togglePageSelect}
-                      title="选择/取消本页"
-                    >
+                    <Button variant="outline" size="sm" onClick={togglePageSelect} title="选择/取消本页">
                       {isPageAllSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                       本页
                     </Button>
@@ -498,7 +486,13 @@ function MyVideosContent() {
             <div className="text-center py-12 text-muted-foreground">
               <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>没有找到匹配的视频</p>
-              <Button variant="link" onClick={() => { setSearchInput(""); setSearchQuery(""); }}>
+              <Button
+                variant="link"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearchQuery("");
+                }}
+              >
                 清除搜索
               </Button>
             </div>
@@ -509,7 +503,7 @@ function MyVideosContent() {
                   <div
                     key={video.id}
                     className={`flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group ${
-                      selectedIds.has(video.id) ? 'bg-primary/5 border-primary/30' : ''
+                      selectedIds.has(video.id) ? "bg-primary/5 border-primary/30" : ""
                     }`}
                   >
                     {selectMode && (
@@ -541,10 +535,7 @@ function MyVideosContent() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/video/${video.id}`}
-                            className="font-medium hover:text-primary line-clamp-2"
-                          >
+                          <Link href={`/video/${video.id}`} className="font-medium hover:text-primary line-clamp-2">
                             {video.title}
                           </Link>
                           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -608,10 +599,7 @@ function MyVideosContent() {
                               <DropdownMenuSeparator />
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onSelect={(e) => e.preventDefault()}
-                                  >
+                                  <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     删除视频
                                   </DropdownMenuItem>
@@ -630,9 +618,7 @@ function MyVideosContent() {
                                       disabled={deletingId === video.id}
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
-                                      {deletingId === video.id && (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      )}
+                                      {deletingId === video.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                                       删除
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
@@ -795,7 +781,11 @@ function MyVideosContent() {
                 {(imageData?.posts ?? [])
                   .filter((p): p is NonNullable<typeof p> => p?.id != null)
                   .map((post, index) => (
-                    <ImagePostCard key={post.id} post={post as Parameters<typeof ImagePostCard>[0]["post"]} index={index} />
+                    <ImagePostCard
+                      key={post.id}
+                      post={post as Parameters<typeof ImagePostCard>[0]["post"]}
+                      index={index}
+                    />
                   ))}
               </div>
               <Pagination
@@ -821,11 +811,13 @@ function MyVideosContent() {
 
 export default function MyVideosPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
       <MyVideosContent />
     </Suspense>
   );

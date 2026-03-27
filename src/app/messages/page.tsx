@@ -10,13 +10,7 @@ import { MessageInput } from "@/components/messages/message-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowLeft, MessageSquare, Plus, Search, Loader2, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/lib/hooks";
@@ -92,35 +86,19 @@ export default function MessagesPage() {
               </Dialog>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <ConversationList
-                activeId={activeConversation || undefined}
-                onSelect={setActiveConversation}
-              />
+              <ConversationList activeId={activeConversation || undefined} onSelect={setActiveConversation} />
             </div>
           </div>
 
           {/* Right: Message thread */}
-          <div
-            className={cn(
-              "flex-1 flex flex-col min-w-0",
-              !activeConversation ? "hidden md:flex" : "flex",
-            )}
-          >
+          <div className={cn("flex-1 flex flex-col min-w-0", !activeConversation ? "hidden md:flex" : "flex")}>
             {activeConversation ? (
-              <ActiveChat
-                conversationId={activeConversation}
-                onBack={() => setActiveConversation(null)}
-              />
+              <ActiveChat conversationId={activeConversation} onBack={() => setActiveConversation(null)} />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
                 <p className="text-sm">选择一个对话开始聊天</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setShowNewDialog(true)}
-                >
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowNewDialog(true)}>
                   <Plus className="h-4 w-4 mr-1.5" />
                   发起新对话
                 </Button>
@@ -175,57 +153,33 @@ function UserSearchList({ onSelect }: { onSelect: (userId: string) => void }) {
           >
             <Avatar className="h-9 w-9">
               <AvatarImage src={user.avatar || undefined} />
-              <AvatarFallback className="text-xs">
-                {(user.nickname || user.username || "?")[0]}
-              </AvatarFallback>
+              <AvatarFallback className="text-xs">{(user.nickname || user.username || "?")[0]}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 text-left">
               <p className="text-sm font-medium truncate">{user.nickname || user.username}</p>
-              {user.email && (
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-              )}
+              {user.email && <p className="text-xs text-muted-foreground truncate">{user.email}</p>}
             </div>
           </button>
         ))}
-        {!debouncedQuery && (
-          <div className="text-center py-6 text-sm text-muted-foreground">
-            输入用户名开始搜索
-          </div>
-        )}
+        {!debouncedQuery && <div className="text-center py-6 text-sm text-muted-foreground">输入用户名开始搜索</div>}
       </div>
     </div>
   );
 }
 
-function ActiveChat({
-  conversationId,
-  onBack,
-}: {
-  conversationId: string;
-  onBack: () => void;
-}) {
-  const { data: convInfo } = trpc.message.conversationInfo.useQuery(
-    { conversationId },
-    { staleTime: 60_000 },
-  );
+function ActiveChat({ conversationId, onBack }: { conversationId: string; onBack: () => void }) {
+  const { data: convInfo } = trpc.message.conversationInfo.useQuery({ conversationId }, { staleTime: 60_000 });
   const otherUser = convInfo?.otherUser;
 
   return (
     <>
       <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden h-8 w-8 shrink-0"
-          onClick={onBack}
-        >
+        <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 shrink-0" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <Avatar className="h-8 w-8">
           <AvatarImage src={otherUser?.avatar || undefined} />
-          <AvatarFallback className="text-xs">
-            {(otherUser?.nickname || otherUser?.username || "?")[0]}
-          </AvatarFallback>
+          <AvatarFallback className="text-xs">{(otherUser?.nickname || otherUser?.username || "?")[0]}</AvatarFallback>
         </Avatar>
         <span className="font-medium text-sm truncate">
           {otherUser?.nickname || otherUser?.username || "加载中..."}

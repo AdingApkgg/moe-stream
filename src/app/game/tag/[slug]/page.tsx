@@ -36,9 +36,7 @@ export async function generateStaticParams() {
   }
 }
 
-export async function generateMetadata({
-  params,
-}: GameTagPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: GameTagPageProps): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);

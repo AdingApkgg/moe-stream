@@ -25,9 +25,12 @@ export const siteRouter = router({
       z.object({
         name: z.string().min(1, "请填写站点名称").max(100),
         url: z.string().refine((v) => urlRegex.test(v), { message: "请输入有效的网址（以 http:// 或 https:// 开头）" }),
-        logo: z.string().refine((v) => !v || urlRegex.test(v), { message: "Logo 地址格式不正确" }).optional(),
+        logo: z
+          .string()
+          .refine((v) => !v || urlRegex.test(v), { message: "Logo 地址格式不正确" })
+          .optional(),
         description: z.string().max(200).optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       // 检查是否已存在相同 URL 的友链

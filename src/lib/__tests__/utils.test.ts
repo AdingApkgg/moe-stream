@@ -19,9 +19,7 @@ describe("cn", () => {
   it("应支持条件类名", () => {
     const active = true;
     const disabled = false;
-    expect(cn("btn", active && "btn-active", disabled && "btn-disabled")).toBe(
-      "btn btn-active",
-    );
+    expect(cn("btn", active && "btn-active", disabled && "btn-disabled")).toBe("btn btn-active");
   });
 
   it("应支持数组和对象语法（clsx）", () => {

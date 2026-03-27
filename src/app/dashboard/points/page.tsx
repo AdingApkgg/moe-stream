@@ -13,22 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,11 +50,14 @@ const pointsConfigSchema = z.object({
   referralPointsPerUser: z.number().int().min(1).max(100000),
   referralMaxLinksPerUser: z.number().int().min(1).max(100),
 
-  pointsRules: z.record(z.string(), z.object({
-    enabled: z.boolean(),
-    points: z.number().int().min(0).max(10000),
-    dailyLimit: z.number().int().min(0).max(1000),
-  })),
+  pointsRules: z.record(
+    z.string(),
+    z.object({
+      enabled: z.boolean(),
+      points: z.number().int().min(0).max(10000),
+      dailyLimit: z.number().int().min(0).max(1000),
+    }),
+  ),
 
   checkinEnabled: z.boolean(),
   checkinPointsMin: z.number().int().min(1).max(100000),
@@ -80,35 +69,35 @@ type PointsConfigValues = z.infer<typeof pointsConfigSchema>;
 // ========== Constants ==========
 
 const POINTS_ACTION_LABELS: Record<string, { label: string; group: string }> = {
-  DAILY_LOGIN:    { label: "每日登录", group: "通用" },
-  WATCH_VIDEO:    { label: "观看视频", group: "视频" },
-  LIKE_VIDEO:     { label: "点赞视频", group: "视频" },
+  DAILY_LOGIN: { label: "每日登录", group: "通用" },
+  WATCH_VIDEO: { label: "观看视频", group: "视频" },
+  LIKE_VIDEO: { label: "点赞视频", group: "视频" },
   FAVORITE_VIDEO: { label: "收藏视频", group: "视频" },
-  COMMENT_VIDEO:  { label: "评论视频", group: "视频" },
-  VIEW_GAME:      { label: "浏览游戏", group: "游戏" },
-  LIKE_GAME:      { label: "点赞游戏", group: "游戏" },
-  FAVORITE_GAME:  { label: "收藏游戏", group: "游戏" },
-  COMMENT_GAME:   { label: "评论游戏", group: "游戏" },
-  VIEW_IMAGE:     { label: "浏览图片", group: "图片" },
-  LIKE_IMAGE:     { label: "点赞图片", group: "图片" },
+  COMMENT_VIDEO: { label: "评论视频", group: "视频" },
+  VIEW_GAME: { label: "浏览游戏", group: "游戏" },
+  LIKE_GAME: { label: "点赞游戏", group: "游戏" },
+  FAVORITE_GAME: { label: "收藏游戏", group: "游戏" },
+  COMMENT_GAME: { label: "评论游戏", group: "游戏" },
+  VIEW_IMAGE: { label: "浏览图片", group: "图片" },
+  LIKE_IMAGE: { label: "点赞图片", group: "图片" },
   FAVORITE_IMAGE: { label: "收藏图片", group: "图片" },
-  COMMENT_IMAGE:  { label: "评论图片", group: "图片" },
+  COMMENT_IMAGE: { label: "评论图片", group: "图片" },
 };
 
 const DEFAULT_POINTS_RULES: PointsConfigValues["pointsRules"] = {
-  DAILY_LOGIN:    { enabled: false, points: 10,  dailyLimit: 1 },
-  WATCH_VIDEO:    { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_VIDEO:     { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_VIDEO: { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_VIDEO:  { enabled: false, points: 3,   dailyLimit: 5 },
-  VIEW_GAME:      { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_GAME:      { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_GAME:  { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_GAME:   { enabled: false, points: 3,   dailyLimit: 5 },
-  VIEW_IMAGE:     { enabled: false, points: 1,   dailyLimit: 20 },
-  LIKE_IMAGE:     { enabled: false, points: 1,   dailyLimit: 10 },
-  FAVORITE_IMAGE: { enabled: false, points: 2,   dailyLimit: 10 },
-  COMMENT_IMAGE:  { enabled: false, points: 3,   dailyLimit: 5 },
+  DAILY_LOGIN: { enabled: false, points: 10, dailyLimit: 1 },
+  WATCH_VIDEO: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_VIDEO: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_VIDEO: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_VIDEO: { enabled: false, points: 3, dailyLimit: 5 },
+  VIEW_GAME: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_GAME: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_GAME: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_GAME: { enabled: false, points: 3, dailyLimit: 5 },
+  VIEW_IMAGE: { enabled: false, points: 1, dailyLimit: 20 },
+  LIKE_IMAGE: { enabled: false, points: 1, dailyLimit: 10 },
+  FAVORITE_IMAGE: { enabled: false, points: 2, dailyLimit: 10 },
+  COMMENT_IMAGE: { enabled: false, points: 3, dailyLimit: 5 },
 };
 
 // ========== Components ==========
@@ -120,7 +109,7 @@ function PointsRulesEditor({ control }: { control: Control<PointsConfigValues> }
       (acc[group] ??= []).push(key);
       return acc;
     },
-    {}
+    {},
   );
 
   return (
@@ -241,7 +230,9 @@ function AdminOverview() {
         <CardContent>
           {topLoading ? (
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
           ) : !topReferrers?.length ? (
             <p className="text-sm text-muted-foreground text-center py-4">暂无推广数据</p>
@@ -249,9 +240,7 @@ function AdminOverview() {
             <div className="space-y-2">
               {topReferrers.map((item, idx) => (
                 <div key={item.user.id} className="flex items-center gap-3 py-2">
-                  <span className="text-sm font-bold text-muted-foreground w-5 text-center">
-                    {idx + 1}
-                  </span>
+                  <span className="text-sm font-bold text-muted-foreground w-5 text-center">{idx + 1}</span>
                   <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
                     {(item.user.nickname || item.user.username)?.[0]?.toUpperCase()}
                   </div>
@@ -327,7 +316,9 @@ function PointsSettingsForm() {
       <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -486,9 +477,7 @@ function PointsSettingsForm() {
               <Award className="h-4 w-4" />
               积分规则
             </CardTitle>
-            <CardDescription>
-              为各类用户行为配置积分奖励。每日限额为 0 时表示不限次数。
-            </CardDescription>
+            <CardDescription>为各类用户行为配置积分奖励。每日限额为 0 时表示不限次数。</CardDescription>
           </CardHeader>
           <CardContent>
             <PointsRulesEditor control={form.control} />
@@ -561,13 +550,18 @@ function RedeemCodesManager() {
           <Input
             placeholder="搜索兑换码或描述..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="max-w-sm"
           />
 
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
           ) : !data?.codes.length ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -580,17 +574,30 @@ function RedeemCodesManager() {
                 const isExpired = code.expiresAt && new Date(code.expiresAt) < new Date();
                 const isFull = code.maxUses > 0 && code.usedCount >= code.maxUses;
                 return (
-                  <div key={code.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-lg border">
+                  <div
+                    key={code.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-lg border"
+                  >
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <code className="font-mono text-sm font-medium">{code.code}</code>
-                        {!code.isActive && <Badge variant="outline" className="text-xs">已停用</Badge>}
-                        {isExpired && <Badge variant="destructive" className="text-xs">已过期</Badge>}
-                        {isFull && <Badge variant="secondary" className="text-xs">已用完</Badge>}
+                        {!code.isActive && (
+                          <Badge variant="outline" className="text-xs">
+                            已停用
+                          </Badge>
+                        )}
+                        {isExpired && (
+                          <Badge variant="destructive" className="text-xs">
+                            已过期
+                          </Badge>
+                        )}
+                        {isFull && (
+                          <Badge variant="secondary" className="text-xs">
+                            已用完
+                          </Badge>
+                        )}
                       </div>
-                      {code.description && (
-                        <div className="text-xs text-muted-foreground">{code.description}</div>
-                      )}
+                      {code.description && <div className="text-xs text-muted-foreground">{code.description}</div>}
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         {code.pointsAmount > 0 && (
                           <span className="flex items-center gap-1">
@@ -607,11 +614,7 @@ function RedeemCodesManager() {
                         <span>
                           已用 {code.usedCount}/{code.maxUses === 0 ? "∞" : code.maxUses}
                         </span>
-                        {code.expiresAt && (
-                          <span>
-                            过期: {new Date(code.expiresAt).toLocaleDateString()}
-                          </span>
-                        )}
+                        {code.expiresAt && <span>过期: {new Date(code.expiresAt).toLocaleDateString()}</span>}
                         {code.batchId && (
                           <Badge variant="outline" className="text-[10px] px-1">
                             批次 {code.batchId.slice(0, 6)}
@@ -622,9 +625,7 @@ function RedeemCodesManager() {
                     <div className="flex items-center gap-2 shrink-0">
                       <Switch
                         checked={code.isActive}
-                        onCheckedChange={(checked) =>
-                          updateMutation.mutate({ id: code.id, isActive: checked })
-                        }
+                        onCheckedChange={(checked) => updateMutation.mutate({ id: code.id, isActive: checked })}
                       />
                       <Button
                         variant="ghost"
@@ -657,7 +658,12 @@ function RedeemCodesManager() {
                   <span className="text-sm text-muted-foreground flex items-center px-2">
                     {page} / {data.totalPages}
                   </span>
-                  <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= data.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
                     下一页
                   </Button>
                 </div>
@@ -718,7 +724,13 @@ function CreateRedeemDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) resetForm();
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>创建兑换码</DialogTitle>
@@ -726,11 +738,7 @@ function CreateRedeemDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">兑换码 *</label>
-            <Input
-              placeholder="如 WELCOME2026"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-            />
+            <Input placeholder="如 WELCOME2026" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
             <p className="text-xs text-muted-foreground">只能包含字母、数字、下划线和横杠</p>
           </div>
           <div className="space-y-2">
@@ -740,11 +748,21 @@ function CreateRedeemDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">奖励积分</label>
-              <Input type="number" min={0} value={pointsAmount} onChange={(e) => setPointsAmount(parseInt(e.target.value, 10) || 0)} />
+              <Input
+                type="number"
+                min={0}
+                value={pointsAmount}
+                onChange={(e) => setPointsAmount(parseInt(e.target.value, 10) || 0)}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">最大使用次数</label>
-              <Input type="number" min={0} value={maxUses} onChange={(e) => setMaxUses(parseInt(e.target.value, 10) || 0)} />
+              <Input
+                type="number"
+                min={0}
+                value={maxUses}
+                onChange={(e) => setMaxUses(parseInt(e.target.value, 10) || 0)}
+              />
               <p className="text-xs text-muted-foreground">0 = 不限次数</p>
             </div>
           </div>
@@ -761,7 +779,9 @@ function CreateRedeemDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
           <Button
             disabled={!code || createMutation.isPending}
             onClick={() =>
@@ -823,7 +843,13 @@ function BatchCreateRedeemDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">数量 *</label>
-              <Input type="number" min={1} max={500} value={count} onChange={(e) => setCount(parseInt(e.target.value, 10) || 1)} />
+              <Input
+                type="number"
+                min={1}
+                max={500}
+                value={count}
+                onChange={(e) => setCount(parseInt(e.target.value, 10) || 1)}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">前缀</label>
@@ -831,7 +857,13 @@ function BatchCreateRedeemDialog({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">随机部分长度</label>
-              <Input type="number" min={6} max={20} value={codeLength} onChange={(e) => setCodeLength(parseInt(e.target.value, 10) || 8)} />
+              <Input
+                type="number"
+                min={6}
+                max={20}
+                value={codeLength}
+                onChange={(e) => setCodeLength(parseInt(e.target.value, 10) || 8)}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -841,11 +873,21 @@ function BatchCreateRedeemDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">奖励积分</label>
-              <Input type="number" min={0} value={pointsAmount} onChange={(e) => setPointsAmount(parseInt(e.target.value, 10) || 0)} />
+              <Input
+                type="number"
+                min={0}
+                value={pointsAmount}
+                onChange={(e) => setPointsAmount(parseInt(e.target.value, 10) || 0)}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">每码最大使用次数</label>
-              <Input type="number" min={0} value={maxUses} onChange={(e) => setMaxUses(parseInt(e.target.value, 10) || 0)} />
+              <Input
+                type="number"
+                min={0}
+                value={maxUses}
+                onChange={(e) => setMaxUses(parseInt(e.target.value, 10) || 0)}
+              />
               <p className="text-xs text-muted-foreground">0 = 不限</p>
             </div>
           </div>
@@ -862,7 +904,9 @@ function BatchCreateRedeemDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
           <Button
             disabled={batchMutation.isPending}
             onClick={() =>
@@ -942,9 +986,7 @@ export default function PointsManagementPage() {
           <Coins className="h-6 w-6" />
           积分管理
         </h1>
-        <p className="text-muted-foreground mt-1">
-          管理推广系统、签到奖励和积分规则
-        </p>
+        <p className="text-muted-foreground mt-1">管理推广系统、签到奖励和积分规则</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -56,7 +56,7 @@ export function TransferOwnerDialog({
 
   const { data: searchedUsers } = trpc.admin.searchUsersForTransfer.useQuery(
     { search: searchValue },
-    { enabled: searchValue.length >= 1 && open }
+    { enabled: searchValue.length >= 1 && open },
   );
 
   const transferMutation = trpc.admin.transferWorkItems.useMutation({
@@ -77,7 +77,12 @@ export function TransferOwnerDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) handleClose();
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -102,7 +107,9 @@ export function TransferOwnerDialog({
                   </Avatar>
                   <div className="flex-1">
                     <div className="font-medium">{selectedUser.nickname || selectedUser.username}</div>
-                    <div className="text-xs text-muted-foreground">@{selectedUser.username} · ID: {selectedUser.id}</div>
+                    <div className="text-xs text-muted-foreground">
+                      @{selectedUser.username} · ID: {selectedUser.id}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
@@ -137,9 +144,7 @@ export function TransferOwnerDialog({
                         >
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={u.avatar || undefined} />
-                            <AvatarFallback>
-                              {(u.nickname || u.username).charAt(0).toUpperCase()}
-                            </AvatarFallback>
+                            <AvatarFallback>{(u.nickname || u.username).charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="text-sm font-medium">{u.nickname || u.username}</div>
@@ -150,9 +155,7 @@ export function TransferOwnerDialog({
                     </div>
                   )}
                   {searchedUsers && searchedUsers.length === 0 && searchValue.length >= 1 && (
-                    <div className="text-sm text-muted-foreground text-center py-3">
-                      未找到匹配用户
-                    </div>
+                    <div className="text-sm text-muted-foreground text-center py-3">未找到匹配用户</div>
                   )}
                 </div>
               )}
@@ -163,10 +166,7 @@ export function TransferOwnerDialog({
             <Button variant="outline" onClick={handleClose}>
               取消
             </Button>
-            <Button
-              disabled={!selectedUser || transferMutation.isPending}
-              onClick={() => setConfirmOpen(true)}
-            >
+            <Button disabled={!selectedUser || transferMutation.isPending} onClick={() => setConfirmOpen(true)}>
               确认转移
             </Button>
           </DialogFooter>
@@ -178,7 +178,8 @@ export function TransferOwnerDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>确认转移所有权</AlertDialogTitle>
             <AlertDialogDescription>
-              即将把 {selectedCount} 个{contentLabel}转移给 {selectedUser?.nickname || selectedUser?.username}。此操作不可撤销，请确认。
+              即将把 {selectedCount} 个{contentLabel}转移给 {selectedUser?.nickname || selectedUser?.username}
+              。此操作不可撤销，请确认。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

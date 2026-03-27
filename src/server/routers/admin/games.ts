@@ -56,7 +56,7 @@ export const adminGamesRouter = router({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
         gameType: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, status, search, gameType } = input;
@@ -111,7 +111,7 @@ export const adminGamesRouter = router({
       z.object({
         gameId: z.string(),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.game.update({
@@ -150,7 +150,7 @@ export const adminGamesRouter = router({
         extraInfo: z.any().optional(),
         tagNames: z.array(z.string()).default([]),
         status: z.enum(["PENDING", "PUBLISHED"]).default("PUBLISHED"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // 生成游戏 ID
@@ -224,18 +224,26 @@ export const adminGamesRouter = router({
         version: z.string().optional(),
         extraInfo: z.any().optional(),
         tagNames: z.array(z.string()).optional(),
-        versions: z.array(z.object({
-          id: z.string().optional(),
-          label: z.string().min(1).max(100),
-          description: z.string().max(10000).optional(),
-        })).optional(),
-        customTabs: z.array(z.object({
-          id: z.string().optional(),
-          title: z.string().min(1).max(100),
-          icon: z.string().max(50).optional(),
-          content: z.string().max(50000),
-        })).optional(),
-      })
+        versions: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              label: z.string().min(1).max(100),
+              description: z.string().max(10000).optional(),
+            }),
+          )
+          .optional(),
+        customTabs: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              title: z.string().min(1).max(100),
+              icon: z.string().max(50).optional(),
+              content: z.string().max(50000),
+            }),
+          )
+          .optional(),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { gameId, tagNames, versions, customTabs, ...updateData } = input;
@@ -307,7 +315,7 @@ export const adminGamesRouter = router({
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { status, search } = input;
@@ -335,7 +343,7 @@ export const adminGamesRouter = router({
       z.object({
         gameIds: z.array(z.string()).min(1).max(1000),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.prisma.game.updateMany({
@@ -375,15 +383,24 @@ export const adminGamesRouter = router({
       z.object({
         gameIds: z.array(z.string()).min(1).max(500),
         field: z.enum([
-          "title", "description", "coverUrl", "gameType", "version",
-          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
-          "extraInfo.screenshots", "extraInfo.videos",
-          "extraInfo.originalName", "extraInfo.authorUrl", "extraInfo.characterIntro",
+          "title",
+          "description",
+          "coverUrl",
+          "gameType",
+          "version",
+          "extraInfo.downloads.url",
+          "extraInfo.downloads.name",
+          "extraInfo.downloads.password",
+          "extraInfo.screenshots",
+          "extraInfo.videos",
+          "extraInfo.originalName",
+          "extraInfo.authorUrl",
+          "extraInfo.characterIntro",
         ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -395,7 +412,15 @@ export const adminGamesRouter = router({
 
       const games = await ctx.prisma.game.findMany({
         where: { id: { in: input.gameIds } },
-        select: { id: true, title: true, description: true, coverUrl: true, gameType: true, version: true, extraInfo: true },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          coverUrl: true,
+          gameType: true,
+          version: true,
+          extraInfo: true,
+        },
       });
 
       const previews: { id: string; title: string; before: string; after: string; changed: boolean }[] = [];
@@ -427,7 +452,13 @@ export const adminGamesRouter = router({
               }
             }
             if (beforeLines.length > 0) {
-              previews.push({ id: game.id, title: game.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+              previews.push({
+                id: game.id,
+                title: game.title,
+                before: beforeLines.join("\n"),
+                after: afterLines.join("\n"),
+                changed: true,
+              });
             }
           } else if (subField === "screenshots" || subField === "videos") {
             const arr = (extra[subField] ?? []) as string[];
@@ -442,7 +473,13 @@ export const adminGamesRouter = router({
               }
             }
             if (beforeLines.length > 0) {
-              previews.push({ id: game.id, title: game.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+              previews.push({
+                id: game.id,
+                title: game.title,
+                before: beforeLines.join("\n"),
+                after: afterLines.join("\n"),
+                changed: true,
+              });
             }
           } else {
             const original = (extra[subField] ?? "") as string;
@@ -464,15 +501,24 @@ export const adminGamesRouter = router({
       z.object({
         gameIds: z.array(z.string()).min(1).max(500),
         field: z.enum([
-          "title", "description", "coverUrl", "gameType", "version",
-          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
-          "extraInfo.screenshots", "extraInfo.videos",
-          "extraInfo.originalName", "extraInfo.authorUrl", "extraInfo.characterIntro",
+          "title",
+          "description",
+          "coverUrl",
+          "gameType",
+          "version",
+          "extraInfo.downloads.url",
+          "extraInfo.downloads.name",
+          "extraInfo.downloads.password",
+          "extraInfo.screenshots",
+          "extraInfo.videos",
+          "extraInfo.originalName",
+          "extraInfo.authorUrl",
+          "extraInfo.characterIntro",
         ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -484,7 +530,15 @@ export const adminGamesRouter = router({
 
       const games = await ctx.prisma.game.findMany({
         where: { id: { in: input.gameIds } },
-        select: { id: true, title: true, description: true, coverUrl: true, gameType: true, version: true, extraInfo: true },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          coverUrl: true,
+          gameType: true,
+          version: true,
+          extraInfo: true,
+        },
       });
 
       let updatedCount = 0;
@@ -551,5 +605,4 @@ export const adminGamesRouter = router({
 
       return { success: true, count: updatedCount };
     }),
-
 });

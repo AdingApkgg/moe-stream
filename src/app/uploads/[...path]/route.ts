@@ -13,13 +13,10 @@ const MIME_TYPES: Record<string, string> = {
   avif: "image/avif",
 };
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path: pathSegments } = await params;
-    
+
     // 安全检查：防止路径遍历攻击
     for (const segment of pathSegments) {
       if (segment === ".." || segment.includes("..")) {

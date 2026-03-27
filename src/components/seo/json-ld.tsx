@@ -58,11 +58,7 @@ export function VideoJsonLd({ video }: VideoJsonLdProps) {
   };
 
   return (
-    <Script
-      id="video-jsonld"
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
+    <Script id="video-jsonld" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
   );
 }
 
@@ -72,11 +68,7 @@ interface WebsiteJsonLdProps {
   description?: string;
 }
 
-export function WebsiteJsonLd({
-  siteName,
-  siteUrl,
-  description,
-}: WebsiteJsonLdProps) {
+export function WebsiteJsonLd({ siteName, siteUrl, description }: WebsiteJsonLdProps) {
   const config = useSiteConfig();
   siteName = siteName || config?.siteName || "ACGN Site";
   siteUrl = siteUrl || config?.siteUrl || "http://localhost:3000";
@@ -140,11 +132,7 @@ interface OrganizationJsonLdProps {
   logo?: string;
 }
 
-export function OrganizationJsonLd({
-  name,
-  url,
-  logo,
-}: OrganizationJsonLdProps) {
+export function OrganizationJsonLd({ name, url, logo }: OrganizationJsonLdProps) {
   const config = useSiteConfig();
   name = name || config?.siteName || "ACGN Site";
   url = url || config?.siteUrl || "http://localhost:3000";
@@ -259,11 +247,7 @@ export function FAQJsonLd({ items }: FAQJsonLdProps) {
   };
 
   return (
-    <Script
-      id="faq-jsonld"
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
+    <Script id="faq-jsonld" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
   );
 }
 
@@ -277,12 +261,7 @@ interface CollectionPageJsonLdProps {
 /**
  * 集合页面结构化数据 - 用于标签页等列表页面
  */
-export function CollectionPageJsonLd({
-  name,
-  description,
-  url,
-  numberOfItems,
-}: CollectionPageJsonLdProps) {
+export function CollectionPageJsonLd({ name, description, url, numberOfItems }: CollectionPageJsonLdProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -311,12 +290,7 @@ interface ProfilePageJsonLdProps {
 /**
  * 用户主页结构化数据
  */
-export function ProfilePageJsonLd({
-  name,
-  url,
-  image,
-  description,
-}: ProfilePageJsonLdProps) {
+export function ProfilePageJsonLd({ name, url, image, description }: ProfilePageJsonLdProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ProfilePage",

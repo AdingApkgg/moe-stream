@@ -42,11 +42,7 @@ import {
   Languages,
   Clock,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
@@ -99,13 +95,7 @@ interface CommentItemProps {
   onReplyToComment?: (user: CommentUser) => void; // 回调：回复此评论
 }
 
-export function CommentItem({ 
-  comment, 
-  videoId, 
-  parentId,
-  isReply = false,
-  onReplyToComment,
-}: CommentItemProps) {
+export function CommentItem({ comment, videoId, parentId, isReply = false, onReplyToComment }: CommentItemProps) {
   const { data: session } = useSession();
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -118,29 +108,32 @@ export function CommentItem({
   const [replyToUser, setReplyToUser] = useState<CommentUser | null>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const insertAtReplyCursor = useCallback((text: string) => {
-    const el = replyTextareaRef.current;
-    if (!el) {
-      setReplyContent((prev) => prev + text);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const before = replyContent.slice(0, start);
-    const after = replyContent.slice(end);
-    setReplyContent(before + text + after);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + text.length;
-      el.setSelectionRange(pos, pos);
-    });
-  }, [replyContent]);
+  const insertAtReplyCursor = useCallback(
+    (text: string) => {
+      const el = replyTextareaRef.current;
+      if (!el) {
+        setReplyContent((prev) => prev + text);
+        return;
+      }
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const before = replyContent.slice(0, start);
+      const after = replyContent.slice(end);
+      setReplyContent(before + text + after);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + text.length;
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [replyContent],
+  );
 
   const utils = trpc.useUtils();
   const isOwner = comment.userId && session?.user?.id === comment.userId;
   const isAdmin = isPrivileged(session?.user?.role ?? "");
   const replyCount = comment._count?.replies ?? 0;
-  
+
   // 实际的顶级评论 ID
   const topLevelParentId = parentId || comment.id;
 
@@ -155,7 +148,7 @@ export function CommentItem({
     {
       enabled: showReplies && !isReply,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    },
   );
 
   const replies = repliesData?.pages.flatMap((page) => page.replies) ?? [];
@@ -166,7 +159,7 @@ export function CommentItem({
       // 乐观更新
       const prevReaction = localReaction;
       setLocalReaction(isLike);
-      
+
       if (isLike === null) {
         // 取消反应
         if (prevReaction === true) setLocalLikes((l) => l - 1);
@@ -258,7 +251,7 @@ export function CommentItem({
       const newReaction = localReaction === isLike ? null : isLike;
       reactMutation.mutate({ commentId: comment.id, isLike: newReaction });
     },
-    [session, localReaction, reactMutation, comment.id]
+    [session, localReaction, reactMutation, comment.id],
   );
 
   const handleReply = useCallback(() => {
@@ -274,20 +267,23 @@ export function CommentItem({
   }, [replyContent, createReplyMutation, videoId, topLevelParentId, replyToUser, comment.user?.id]);
 
   // 开始回复（顶级评论或回复的回复）- 仅登录用户可以回复
-  const startReply = useCallback((targetUser?: CommentUser) => {
-    if (!session) {
-      toast.error("登录后才能回复评论");
-      return;
-    }
-    if (isReply && onReplyToComment && comment.user) {
-      // 如果是回复登录用户的评论，通知父组件处理
-      onReplyToComment(comment.user);
-    } else {
-      // 顶级评论或访客评论，在当前组件处理
-      setReplyToUser(targetUser || null);
-      setIsReplying(true);
-    }
-  }, [session, isReply, onReplyToComment, comment.user]);
+  const startReply = useCallback(
+    (targetUser?: CommentUser) => {
+      if (!session) {
+        toast.error("登录后才能回复评论");
+        return;
+      }
+      if (isReply && onReplyToComment && comment.user) {
+        // 如果是回复登录用户的评论，通知父组件处理
+        onReplyToComment(comment.user);
+      } else {
+        // 顶级评论或访客评论，在当前组件处理
+        setReplyToUser(targetUser || null);
+        setIsReplying(true);
+      }
+    },
+    [session, isReply, onReplyToComment, comment.user],
+  );
 
   const handleEdit = useCallback(() => {
     if (!editContent.trim()) return;
@@ -296,12 +292,12 @@ export function CommentItem({
 
   // 判断是否是访客评论
   const isGuest = !comment.user;
-  const displayName = isGuest 
-    ? (comment.guestName || "访客") 
-    : (comment.user?.nickname || comment.user?.username || "用户");
+  const displayName = isGuest
+    ? comment.guestName || "访客"
+    : comment.user?.nickname || comment.user?.username || "用户";
   // 头像 fallback 固定单字符，避免服务端/客户端不一致导致 hydration 报错
   const avatarFallbackChar = ((displayName || "用").trim() || "用").charAt(0).toUpperCase();
-  
+
   // 访客头像（支持 QQ 邮箱和 WeAvatar）
   const guestAvatarUrl = useAvatarUrl(comment.guestEmail);
   const normalizedDeviceInfo = (() => {
@@ -326,9 +322,12 @@ export function CommentItem({
   const DeviceIcon = (() => {
     if (!normalizedDeviceInfo?.deviceType) return Monitor;
     switch (normalizedDeviceInfo.deviceType.toLowerCase()) {
-      case "mobile": return Smartphone;
-      case "tablet": return Tablet;
-      default: return Monitor;
+      case "mobile":
+        return Smartphone;
+      case "tablet":
+        return Tablet;
+      default:
+        return Monitor;
     }
   })();
 
@@ -403,10 +402,7 @@ export function CommentItem({
             )
           ) : (
             // 登录用户名称
-            <Link
-              href={`/user/${comment.user!.id}`}
-              className="font-medium text-sm hover:underline"
-            >
+            <Link href={`/user/${comment.user!.id}`} className="font-medium text-sm hover:underline">
               {displayName}
             </Link>
           )}
@@ -422,16 +418,10 @@ export function CommentItem({
             </span>
           )}
           {comment.isPinned && (
-            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-              置顶
-            </span>
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">置顶</span>
           )}
-          <span className="text-xs text-muted-foreground">
-            {formatRelativeTime(comment.createdAt)}
-          </span>
-          {comment.isEdited && (
-            <span className="text-xs text-muted-foreground italic">(已编辑)</span>
-          )}
+          <span className="text-xs text-muted-foreground">{formatRelativeTime(comment.createdAt)}</span>
+          {comment.isEdited && <span className="text-xs text-muted-foreground italic">(已编辑)</span>}
         </div>
 
         {/* 位置和设备信息 - 单独一行，分离显示各项 */}
@@ -489,7 +479,9 @@ export function CommentItem({
             )}
 
             {/* 分隔符 */}
-            {(osInfo || browserInfo || languageInfo) && timezoneInfo && <span className="text-muted-foreground/50">·</span>}
+            {(osInfo || browserInfo || languageInfo) && timezoneInfo && (
+              <span className="text-muted-foreground/50">·</span>
+            )}
 
             {/* 时区 */}
             {timezoneInfo && (
@@ -507,7 +499,9 @@ export function CommentItem({
             )}
 
             {/* 分隔符 */}
-            {(osInfo || browserInfo || languageInfo || timezoneInfo) && locationInfo && <span className="text-muted-foreground/50">·</span>}
+            {(osInfo || browserInfo || languageInfo || timezoneInfo) && locationInfo && (
+              <span className="text-muted-foreground/50">·</span>
+            )}
 
             {/* IP 定位 */}
             {locationInfo && (
@@ -546,11 +540,7 @@ export function CommentItem({
               >
                 取消
               </Button>
-              <Button
-                size="sm"
-                onClick={handleEdit}
-                disabled={!editContent.trim() || updateMutation.isPending}
-              >
+              <Button size="sm" onClick={handleEdit} disabled={!editContent.trim() || updateMutation.isPending}>
                 保存
               </Button>
             </div>
@@ -558,10 +548,7 @@ export function CommentItem({
         ) : (
           <p className="mt-1 text-sm whitespace-pre-wrap break-words">
             {comment.replyToUser && (
-              <Link
-                href={`/user/${comment.replyToUser.id}`}
-                className="text-primary hover:underline mr-1"
-              >
+              <Link href={`/user/${comment.replyToUser.id}`} className="text-primary hover:underline mr-1">
                 @{comment.replyToUser.nickname || comment.replyToUser.username}
               </Link>
             )}
@@ -574,10 +561,7 @@ export function CommentItem({
           <Button
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-8 px-2",
-              localReaction === true && "text-primary"
-            )}
+            className={cn("h-8 px-2", localReaction === true && "text-primary")}
             onClick={() => handleReact(true)}
           >
             <ThumbsUp className="h-4 w-4 mr-1" />
@@ -586,24 +570,14 @@ export function CommentItem({
           <Button
             variant="ghost"
             size="sm"
-            className={cn(
-              "h-8 px-2",
-              localReaction === false && "text-destructive"
-            )}
+            className={cn("h-8 px-2", localReaction === false && "text-destructive")}
             onClick={() => handleReact(false)}
           >
             <ThumbsDown className="h-4 w-4 mr-1" />
-            {localDislikes > 0 && (
-              <span className="text-xs">{localDislikes}</span>
-            )}
+            {localDislikes > 0 && <span className="text-xs">{localDislikes}</span>}
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => startReply()}
-          >
+          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => startReply()}>
             <MessageSquare className="h-4 w-4 mr-1" />
             回复
           </Button>
@@ -638,10 +612,7 @@ export function CommentItem({
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onSelect={(e) => e.preventDefault()}
-                    >
+                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       删除
                     </DropdownMenuItem>
@@ -649,15 +620,11 @@ export function CommentItem({
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>确定删除这条评论吗？</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        此操作无法撤销。
-                      </AlertDialogDescription>
+                      <AlertDialogDescription>此操作无法撤销。</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteMutation.mutate({ id: comment.id })}
-                      >
+                      <AlertDialogAction onClick={() => deleteMutation.mutate({ id: comment.id })}>
                         删除
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -673,31 +640,22 @@ export function CommentItem({
           <div className="mt-3 flex gap-3">
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={session?.user?.image || undefined} />
-              <AvatarFallback>
-                {(session?.user?.name?.trim() ?? "").charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
+              <AvatarFallback>{(session?.user?.name?.trim() ?? "").charAt(0).toUpperCase() || "U"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
               {/* 显示回复目标 */}
               {replyToUser && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>回复</span>
-                  <span className="text-primary">
-                    @{replyToUser.nickname || replyToUser.username}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 px-1 text-xs"
-                    onClick={() => setReplyToUser(null)}
-                  >
+                  <span className="text-primary">@{replyToUser.nickname || replyToUser.username}</span>
+                  <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => setReplyToUser(null)}>
                     ×
                   </Button>
                 </div>
               )}
               <Textarea
                 ref={replyTextareaRef}
-                placeholder={`回复 @${replyToUser ? (replyToUser.nickname || replyToUser.username) : displayName}...`}
+                placeholder={`回复 @${replyToUser ? replyToUser.nickname || replyToUser.username : displayName}...`}
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 className="min-h-[60px] resize-none"

@@ -4,9 +4,7 @@ import { useMemo } from "react";
 import { useRandomAds } from "@/hooks/use-ads";
 import type { Ad } from "@/lib/ads";
 
-export type GridItem<T> =
-  | { type: "content"; data: T }
-  | { type: "ad"; adIndex: number };
+export type GridItem<T> = { type: "content"; data: T } | { type: "ad"; adIndex: number };
 
 interface UseInlineAdsOptions<T> {
   items: T[];

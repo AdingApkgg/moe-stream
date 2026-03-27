@@ -52,7 +52,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
         return null;
       });
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toPercent = (px: number) => Math.round((px / MAX_DRAG) * 100);
@@ -64,7 +64,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
       setFailed(false);
       startXRef.current = clientX - dragX;
     },
-    [verified, verifying, dragX]
+    [verified, verifying, dragX],
   );
 
   const handleMove = useCallback(
@@ -73,7 +73,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
       const newX = Math.max(0, Math.min(MAX_DRAG, clientX - startXRef.current));
       setDragX(newX);
     },
-    [dragging]
+    [dragging],
   );
 
   const handleEnd = useCallback(async () => {
@@ -134,11 +134,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
 
   return (
     <div className="space-y-2">
-      <div
-        ref={trackRef}
-        className="relative select-none touch-none"
-        style={{ width: TRACK_WIDTH, height: KNOB_SIZE }}
-      >
+      <div ref={trackRef} className="relative select-none touch-none" style={{ width: TRACK_WIDTH, height: KNOB_SIZE }}>
         {/* track background with SVG challenge image */}
         <div
           className={cn(
@@ -147,17 +143,12 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
               ? "border-green-500/50 bg-green-500/10"
               : failed
                 ? "border-destructive/50 bg-destructive/10"
-                : "border-border bg-muted/50"
+                : "border-border bg-muted/50",
           )}
         >
           {svgUrl && !verified && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={svgUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              draggable={false}
-            />
+            <img src={svgUrl} alt="" className="absolute inset-0 w-full h-full pointer-events-none" draggable={false} />
           )}
         </div>
 
@@ -165,7 +156,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
         <div
           className={cn(
             "absolute inset-y-0 left-0 rounded-full transition-colors",
-            verified ? "bg-green-500/20" : "bg-primary/10"
+            verified ? "bg-green-500/20" : "bg-primary/10",
           )}
           style={{ width: dragX + KNOB_SIZE / 2 }}
         />
@@ -194,7 +185,7 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
                 ? "border-destructive bg-destructive text-destructive-foreground"
                 : verifying
                   ? "border-muted-foreground bg-muted cursor-wait"
-                  : "border-primary bg-background text-primary hover:bg-primary/5"
+                  : "border-primary bg-background text-primary hover:bg-primary/5",
           )}
           style={{
             width: KNOB_SIZE,
@@ -216,16 +207,20 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="opacity-60">
-              <path d="M7 4l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M7 4l5 5-5 5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           )}
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        {(error || failed) && (
-          <p className="text-xs text-destructive">{error || "验证失败，请重试"}</p>
-        )}
+        {(error || failed) && <p className="text-xs text-destructive">{error || "验证失败，请重试"}</p>}
         {verified && <p className="text-xs text-green-600">验证成功</p>}
         {verifying && <p className="text-xs text-muted-foreground">验证中...</p>}
         <button

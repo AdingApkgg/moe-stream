@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { valid: false, message: parsed.error.issues[0]?.message || "参数错误" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,9 +28,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Verify code API error:", error);
-    return NextResponse.json(
-      { valid: false, message: "服务器错误" },
-      { status: 500 }
-    );
+    return NextResponse.json({ valid: false, message: "服务器错误" }, { status: 500 });
   }
 }

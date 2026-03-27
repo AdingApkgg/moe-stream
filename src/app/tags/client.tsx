@@ -6,15 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Search,
-  X,
-  Tags,
-  FileVideo,
-  Gamepad2,
-  Images,
-  FolderOpen,
-} from "lucide-react";
+import { Search, X, Tags, FileVideo, Gamepad2, Images, FolderOpen } from "lucide-react";
 
 interface TagData {
   id: string;
@@ -51,13 +43,16 @@ export function TagsPageClient({
   const clearSearch = useCallback(() => setSearchQuery(""), []);
   const isSearching = searchQuery.length > 0;
 
-  const filterGroups = useCallback(<T extends TagData>(groups: CategoryGroup<T>[]) => {
-    if (!searchQuery) return groups;
-    const q = searchQuery.toLowerCase();
-    return groups
-      .map((g) => ({ ...g, tags: g.tags.filter((t) => t.name.toLowerCase().includes(q)) }))
-      .filter((g) => g.tags.length > 0);
-  }, [searchQuery]);
+  const filterGroups = useCallback(
+    <T extends TagData>(groups: CategoryGroup<T>[]) => {
+      if (!searchQuery) return groups;
+      const q = searchQuery.toLowerCase();
+      return groups
+        .map((g) => ({ ...g, tags: g.tags.filter((t) => t.name.toLowerCase().includes(q)) }))
+        .filter((g) => g.tags.length > 0);
+    },
+    [searchQuery],
+  );
 
   const filteredVideoGroups = useMemo(() => filterGroups(videoGroups), [filterGroups, videoGroups]);
   const filteredGameGroups = useMemo(() => filterGroups(gameGroups), [filterGroups, gameGroups]);
@@ -102,17 +97,23 @@ export function TagsPageClient({
           <TabsTrigger value="video" className="gap-1.5">
             <FileVideo className="h-4 w-4" />
             视频标签
-            <Badge variant="secondary" className="ml-1 text-xs">{filteredVideoCount}</Badge>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {filteredVideoCount}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="game" className="gap-1.5">
             <Gamepad2 className="h-4 w-4" />
             游戏标签
-            <Badge variant="secondary" className="ml-1 text-xs">{filteredGameCount}</Badge>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {filteredGameCount}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="image" className="gap-1.5">
             <Images className="h-4 w-4" />
             图片标签
-            <Badge variant="secondary" className="ml-1 text-xs">{filteredImageCount}</Badge>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {filteredImageCount}
+            </Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -186,10 +187,7 @@ function CategorySection<T extends TagData>({
       <div className="flex items-center gap-2 mb-4">
         {category ? (
           <>
-            <div
-              className="w-4 h-4 rounded-md"
-              style={{ backgroundColor: category.color }}
-            />
+            <div className="w-4 h-4 rounded-md" style={{ backgroundColor: category.color }} />
             <h2 className="text-lg font-semibold">{category.name}</h2>
           </>
         ) : (
@@ -214,11 +212,7 @@ function CategorySection<T extends TagData>({
               <Badge
                 variant="outline"
                 className="text-sm py-1.5 px-3 cursor-pointer hover:bg-accent transition-colors"
-                style={
-                  category
-                    ? { borderColor: `${category.color}40`, color: category.color }
-                    : undefined
-                }
+                style={category ? { borderColor: `${category.color}40`, color: category.color } : undefined}
               >
                 {tag.name}
                 <span className="ml-1 opacity-60">({count})</span>
@@ -231,19 +225,11 @@ function CategorySection<T extends TagData>({
   );
 }
 
-function EmptyState({
-  isSearching,
-  searchQuery,
-}: {
-  isSearching: boolean;
-  searchQuery: string;
-}) {
+function EmptyState({ isSearching, searchQuery }: { isSearching: boolean; searchQuery: string }) {
   return (
     <div className="text-center py-12">
       <Tags className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-      <p className="text-muted-foreground">
-        {isSearching ? `没有找到包含 "${searchQuery}" 的标签` : "暂无标签"}
-      </p>
+      <p className="text-muted-foreground">{isSearching ? `没有找到包含 "${searchQuery}" 的标签` : "暂无标签"}</p>
     </div>
   );
 }

@@ -1,11 +1,7 @@
 import { redis } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import { getProvider, type CloudProviderType } from "@/lib/cloud-providers";
-import {
-  resolvePolicy,
-  generateStorageKey,
-  policyToStorageConfig,
-} from "@/lib/storage-policy";
+import { resolvePolicy, generateStorageKey, policyToStorageConfig } from "@/lib/storage-policy";
 import { getPublicUrl } from "@/lib/s3-client";
 import type { StoragePolicy } from "@/generated/prisma/client";
 
@@ -19,9 +15,12 @@ function log(msg: string) {
   const ts = new Date().toISOString();
   const full = `[${ts}][ImportQueue] ${msg}`;
   console.log(full);
-  redis.lpush(LOG_KEY, full).then(() => {
-    redis.ltrim(LOG_KEY, 0, LOG_MAX - 1).catch(() => {});
-  }).catch(() => {});
+  redis
+    .lpush(LOG_KEY, full)
+    .then(() => {
+      redis.ltrim(LOG_KEY, 0, LOG_MAX - 1).catch(() => {});
+    })
+    .catch(() => {});
 }
 
 export async function enqueueImport(taskId: string): Promise<void> {
@@ -53,7 +52,7 @@ async function processTask(taskId: string): Promise<boolean> {
     // If not available, providers will fallback to public share link download.
     let accessToken: string | undefined;
     if (task.provider !== "url" && task.provider !== "dropbox") {
-      accessToken = await redis.get(`cloud:token:${task.userId}:${task.provider}`) ?? undefined;
+      accessToken = (await redis.get(`cloud:token:${task.userId}:${task.provider}`)) ?? undefined;
     }
 
     const fileInfo = {
@@ -90,14 +89,7 @@ async function processTask(taskId: string): Promise<boolean> {
       });
       userFileId = userFile.id;
 
-      const downloadedBytes = await streamToStorage(
-        download.stream,
-        policy,
-        storageKey,
-        mimeType,
-        taskId,
-        totalSize,
-      );
+      const downloadedBytes = await streamToStorage(download.stream, policy, storageKey, mimeType, taskId, totalSize);
 
       if (downloadedBytes < 0) {
         // Cancelled during download — clean up
@@ -167,10 +159,12 @@ async function processTask(taskId: string): Promise<boolean> {
     } catch (err) {
       // Inner catch: clean up the UserFile if it was already created (Bug 3 fix)
       if (userFileId) {
-        await prisma.userFile.update({
-          where: { id: userFileId },
-          data: { status: "FAILED" },
-        }).catch(() => {});
+        await prisma.userFile
+          .update({
+            where: { id: userFileId },
+            data: { status: "FAILED" },
+          })
+          .catch(() => {});
       }
       throw err; // Re-throw for outer catch
     }
@@ -224,7 +218,11 @@ async function streamToStorage(
         const now = Date.now();
         if (now - lastProgressUpdate > 500) {
           const cancelled = await checkCancellation(taskId);
-          if (cancelled) { reader.cancel(); ws.end(); return -1; }
+          if (cancelled) {
+            reader.cancel();
+            ws.end();
+            return -1;
+          }
 
           const progress = totalSize > 0 ? Math.min(95, Math.round((downloadedBytes / totalSize) * 100)) : 0;
           await prisma.importTask.update({
@@ -268,7 +266,10 @@ async function streamToStorage(
         const now = Date.now();
         if (now - lastProgressUpdate > 500) {
           const cancelled = await checkCancellation(taskId);
-          if (cancelled) { reader.cancel(); return -1; }
+          if (cancelled) {
+            reader.cancel();
+            return -1;
+          }
 
           const progress = totalSize > 0 ? Math.min(95, Math.round((downloadedBytes / totalSize) * 100)) : 0;
           await prisma.importTask.update({
@@ -291,7 +292,9 @@ async function streamToStorage(
       try {
         const { abortMultipartUpload } = await import("@/lib/s3-client");
         await abortMultipartUpload(config, storageKey, uploadId);
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
       throw err;
     }
   }
@@ -318,7 +321,9 @@ async function cleanupStoredFile(policy: StoragePolicy, storageKey: string): Pro
       const { deleteFromS3 } = await import("@/lib/s3-client");
       await deleteFromS3(policyToStorageConfig(policy), storageKey);
     }
-  } catch { /* best-effort cleanup */ }
+  } catch {
+    /* best-effort cleanup */
+  }
 }
 
 function sleep(ms: number) {
@@ -354,9 +359,7 @@ export async function processImportQueue(
     }
   };
 
-  await Promise.all(
-    Array.from({ length: MAX_CONCURRENT }, (_, i) => worker(i)),
-  );
+  await Promise.all(Array.from({ length: MAX_CONCURRENT }, (_, i) => worker(i)));
 
   return { processed, errors };
 }

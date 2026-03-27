@@ -6,8 +6,35 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const baseUrl = config.siteUrl;
 
   // AI 爬虫允许访问的路径
-  const aiAllowPaths = ["/", "/video/", "/video/tag/", "/game/", "/game/tag/", "/image/", "/user/", "/tags", "/search", "/links", "/llms.txt", "/llms-full.txt", "/feed.xml"];
-  const aiDisallowPaths = ["/api/", "/settings", "/profile", "/upload", "/my-works", "/favorites", "/history", "/comments", "/video/edit/", "/game/edit/", "/image/edit/", "/dashboard/"];
+  const aiAllowPaths = [
+    "/",
+    "/video/",
+    "/video/tag/",
+    "/game/",
+    "/game/tag/",
+    "/image/",
+    "/user/",
+    "/tags",
+    "/search",
+    "/links",
+    "/llms.txt",
+    "/llms-full.txt",
+    "/feed.xml",
+  ];
+  const aiDisallowPaths = [
+    "/api/",
+    "/settings",
+    "/profile",
+    "/upload",
+    "/my-works",
+    "/favorites",
+    "/history",
+    "/comments",
+    "/video/edit/",
+    "/game/edit/",
+    "/image/edit/",
+    "/dashboard/",
+  ];
 
   return {
     rules: [

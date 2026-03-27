@@ -64,9 +64,7 @@ export async function generateMetadata({ params }: GamePageProps): Promise<Metad
   }
 
   const uploaderName = game.uploader.nickname || game.uploader.username;
-  const description = game.description
-    ? game.description.slice(0, 160)
-    : `${uploaderName} 分享的游戏`;
+  const description = game.description ? game.description.slice(0, 160) : `${uploaderName} 分享的游戏`;
   const keywords = game.tags.map(({ tag }) => tag.name);
 
   const siteConfig = await getPublicSiteConfig();
@@ -164,12 +162,8 @@ export default async function GamePage({ params }: GamePageProps) {
   const serializedGame = serializeGame(game);
   const extra = game.extraInfo as GameExtraInfo | null;
 
-  const descriptionContent = game.description
-    ? <MdxContent source={game.description} />
-    : null;
-  const characterIntroContent = extra?.characterIntro
-    ? <MdxContent source={extra.characterIntro} />
-    : null;
+  const descriptionContent = game.description ? <MdxContent source={game.description} /> : null;
+  const characterIntroContent = extra?.characterIntro ? <MdxContent source={extra.characterIntro} /> : null;
 
   const versionContents = await Promise.all(
     game.versions
@@ -177,7 +171,7 @@ export default async function GamePage({ params }: GamePageProps) {
       .map(async (v) => ({
         id: v.id,
         content: <MdxContent source={v.description!} />,
-      }))
+      })),
   );
   const versionContentMap: Record<string, React.ReactNode> = {};
   for (const vc of versionContents) {
@@ -190,7 +184,7 @@ export default async function GamePage({ params }: GamePageProps) {
       .map(async (t) => ({
         id: t.id,
         content: <MdxContent source={t.content} />,
-      }))
+      })),
   );
   const customTabContentMap: Record<string, React.ReactNode> = {};
   for (const ct of customTabRendered) {

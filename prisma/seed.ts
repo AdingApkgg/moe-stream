@@ -3,10 +3,7 @@ import { Pool } from "pg";
 import { config } from "dotenv";
 import path from "node:path";
 
-const envFile =
-  process.env.NODE_ENV === "production"
-    ? ".env.production"
-    : ".env.development";
+const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
 config({ path: path.join(__dirname, "..", envFile) });
 
 // ---------------------------------------------------------------------------
@@ -218,40 +215,165 @@ interface VideoSeed {
 
 const VIDEOS: VideoSeed[] = [
   // StarryMomoko 原神系列
-  { title: "【柏妮思的特调饮品】StarryMomoko", creator: "starrymomoko", tags: ["genshin", "starrymomoko", "3d"], duration: [120, 360] },
-  { title: "【流萤 让我进去】StarryMomoko", creator: "starrymomoko", tags: ["honkai-star-rail", "starrymomoko", "3d"], duration: [180, 480] },
-  { title: "【宵宫教你一课】StarryMomoko", creator: "starrymomoko", tags: ["genshin", "starrymomoko", "3d"], duration: [120, 300] },
-  { title: "【绮良良的远方盛宴】StarryMomoko", creator: "starrymomoko", tags: ["genshin", "starrymomoko", "3d"], duration: [150, 420] },
-  { title: "【甘雨的秘密】StarryMomoko", creator: "starrymomoko", tags: ["genshin", "starrymomoko", "3d"], duration: [120, 360] },
-  { title: "【妮露的星期五之夜】StarryMomoko", creator: "starrymomoko", tags: ["genshin", "starrymomoko", "3d"], duration: [180, 480] },
+  {
+    title: "【柏妮思的特调饮品】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["genshin", "starrymomoko", "3d"],
+    duration: [120, 360],
+  },
+  {
+    title: "【流萤 让我进去】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["honkai-star-rail", "starrymomoko", "3d"],
+    duration: [180, 480],
+  },
+  {
+    title: "【宵宫教你一课】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["genshin", "starrymomoko", "3d"],
+    duration: [120, 300],
+  },
+  {
+    title: "【绮良良的远方盛宴】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["genshin", "starrymomoko", "3d"],
+    duration: [150, 420],
+  },
+  {
+    title: "【甘雨的秘密】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["genshin", "starrymomoko", "3d"],
+    duration: [120, 360],
+  },
+  {
+    title: "【妮露的星期五之夜】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["genshin", "starrymomoko", "3d"],
+    duration: [180, 480],
+  },
   // PastaPaprika 原神系列
-  { title: "【卡齐娜与空】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [90, 300] },
-  { title: "【爱诺】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [60, 240] },
-  { title: "【茜特菈莉】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [90, 300] },
-  { title: "【知更鸟x花火】PastaPaprika", creator: "pastapaprika", tags: ["honkai-star-rail", "pastapaprika", "3d"], duration: [120, 360] },
-  { title: "【原神秋沙钱汤】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [60, 180] },
-  { title: "【优菈后宫】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d", "compilation"], duration: [300, 600] },
-  { title: "【法厄同的宠物】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [90, 240] },
-  { title: "【芙宁娜x空】PastaPaprika", creator: "pastapaprika", tags: ["genshin", "pastapaprika", "3d"], duration: [120, 300] },
+  {
+    title: "【卡齐娜与空】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [90, 300],
+  },
+  {
+    title: "【爱诺】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [60, 240],
+  },
+  {
+    title: "【茜特菈莉】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [90, 300],
+  },
+  {
+    title: "【知更鸟x花火】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["honkai-star-rail", "pastapaprika", "3d"],
+    duration: [120, 360],
+  },
+  {
+    title: "【原神秋沙钱汤】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [60, 180],
+  },
+  {
+    title: "【优菈后宫】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d", "compilation"],
+    duration: [300, 600],
+  },
+  {
+    title: "【法厄同的宠物】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [90, 240],
+  },
+  {
+    title: "【芙宁娜x空】PastaPaprika",
+    creator: "pastapaprika",
+    tags: ["genshin", "pastapaprika", "3d"],
+    duration: [120, 300],
+  },
   // ViciNeko
-  { title: "【D.Va 特别训练】ViciNeko", creator: "vicineko", tags: ["overwatch", "vicineko", "3d"], duration: [180, 600] },
+  {
+    title: "【D.Va 特别训练】ViciNeko",
+    creator: "vicineko",
+    tags: ["overwatch", "vicineko", "3d"],
+    duration: [180, 600],
+  },
   { title: "【2B 工厂回忆录】ViciNeko", creator: "vicineko", tags: ["nier", "vicineko", "3d"], duration: [300, 720] },
-  { title: "【刻晴的雷元素反应】ViciNeko", creator: "vicineko", tags: ["genshin", "vicineko", "3d"], duration: [180, 480] },
+  {
+    title: "【刻晴的雷元素反应】ViciNeko",
+    creator: "vicineko",
+    tags: ["genshin", "vicineko", "3d"],
+    duration: [180, 480],
+  },
   // Seneto 2D系列
   { title: "【放学后的秘密】Seneto", creator: "seneto", tags: ["seneto", "2d", "story"], duration: [120, 360] },
   { title: "【游泳课上的往事】Seneto", creator: "seneto", tags: ["seneto", "2d", "story"], duration: [120, 300] },
   { title: "【圆香与内向男生】Seneto", creator: "seneto", tags: ["idolmaster", "seneto", "2d"], duration: [90, 240] },
   // 其他创作者
-  { title: "【蔚蓝档案 白子特训】Nagoonimation", creator: "vicineko", tags: ["blue-archive", "nagoonimation", "3d"], duration: [180, 480] },
-  { title: "【崩铁 黑天鹅】Croove", creator: "starrymomoko", tags: ["honkai-star-rail", "croove", "3d"], duration: [240, 600] },
-  { title: "【守望先锋 猎空合集】RedRain", creator: "vicineko", tags: ["overwatch", "redrain", "3d", "compilation"], duration: [600, 1200] },
+  {
+    title: "【蔚蓝档案 白子特训】Nagoonimation",
+    creator: "vicineko",
+    tags: ["blue-archive", "nagoonimation", "3d"],
+    duration: [180, 480],
+  },
+  {
+    title: "【崩铁 黑天鹅】Croove",
+    creator: "starrymomoko",
+    tags: ["honkai-star-rail", "croove", "3d"],
+    duration: [240, 600],
+  },
+  {
+    title: "【守望先锋 猎空合集】RedRain",
+    creator: "vicineko",
+    tags: ["overwatch", "redrain", "3d", "compilation"],
+    duration: [600, 1200],
+  },
   { title: "【绝区零 妮可】Mantis-X", creator: "pastapaprika", tags: ["zzz", "mantis-x", "3d"], duration: [120, 360] },
-  { title: "【碧蓝航线 大凤】3Dimm", creator: "starrymomoko", tags: ["azur-lane", "3dimm", "3d"], duration: [180, 480] },
-  { title: "【鸣潮 今汐的月下冥想】Yuluer", creator: "pastapaprika", tags: ["wuthering-waves", "yuluer", "3d"], duration: [120, 300] },
-  { title: "【FGO 玛修合集】Marrubi", creator: "vicineko", tags: ["fgo", "marrubi", "3d", "compilation"], duration: [480, 900] },
-  { title: "【原神 雷电将军 4K】Kreon3D", creator: "starrymomoko", tags: ["genshin", "kreon3d", "3d"], duration: [180, 420] },
-  { title: "【星铁 卡芙卡的午后】StarryMomoko", creator: "starrymomoko", tags: ["honkai-star-rail", "starrymomoko", "3d"], duration: [150, 360] },
-  { title: "【最终幻想 蒂法 重制】ViciNeko", creator: "vicineko", tags: ["final-fantasy", "vicineko", "3d"], duration: [240, 600] },
+  {
+    title: "【碧蓝航线 大凤】3Dimm",
+    creator: "starrymomoko",
+    tags: ["azur-lane", "3dimm", "3d"],
+    duration: [180, 480],
+  },
+  {
+    title: "【鸣潮 今汐的月下冥想】Yuluer",
+    creator: "pastapaprika",
+    tags: ["wuthering-waves", "yuluer", "3d"],
+    duration: [120, 300],
+  },
+  {
+    title: "【FGO 玛修合集】Marrubi",
+    creator: "vicineko",
+    tags: ["fgo", "marrubi", "3d", "compilation"],
+    duration: [480, 900],
+  },
+  {
+    title: "【原神 雷电将军 4K】Kreon3D",
+    creator: "starrymomoko",
+    tags: ["genshin", "kreon3d", "3d"],
+    duration: [180, 420],
+  },
+  {
+    title: "【星铁 卡芙卡的午后】StarryMomoko",
+    creator: "starrymomoko",
+    tags: ["honkai-star-rail", "starrymomoko", "3d"],
+    duration: [150, 360],
+  },
+  {
+    title: "【最终幻想 蒂法 重制】ViciNeko",
+    creator: "vicineko",
+    tags: ["final-fantasy", "vicineko", "3d"],
+    duration: [240, 600],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -269,27 +391,114 @@ interface GameSeed {
 
 const GAMES: GameSeed[] = [
   // SLG（占比最大）
-  { title: "【SLG/双端】魔法战士莉莉安", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ver1.0" },
-  { title: "【SLG/双端】服从的魔法少女", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ver1.2" },
+  {
+    title: "【SLG/双端】魔法战士莉莉安",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver1.0",
+  },
+  {
+    title: "【SLG/双端】服从的魔法少女",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver1.2",
+  },
   { title: "【SLG/免费】凤凰计划 V16", gameType: "SLG", platform: "PC", isFree: true, tags: ["slg"], version: "V16" },
-  { title: "【SLG/双端】恶魔少女", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ver2.0" },
+  {
+    title: "【SLG/双端】恶魔少女",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver2.0",
+  },
   { title: "【SLG/电脑】丧尸房客", gameType: "SLG", platform: "PC", isFree: true, tags: ["slg", "ntr"] },
   { title: "【SLG/双端】厕所的地缚灵", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"] },
-  { title: "【SLG/双端】导师生活 [重制]", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ver0.3" },
-  { title: "【SLG/双端】星陨纪元", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ch2V0.4" },
-  { title: "【SLG/双端】彩色", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"], version: "Ver1.1" },
+  {
+    title: "【SLG/双端】导师生活 [重制]",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver0.3",
+  },
+  {
+    title: "【SLG/双端】星陨纪元",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ch2V0.4",
+  },
+  {
+    title: "【SLG/双端】彩色",
+    gameType: "SLG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver1.1",
+  },
   { title: "【SLG/电脑】欲望之旅", gameType: "SLG", platform: "PC", isFree: true, tags: ["slg", "ntr"] },
   { title: "【SLG/双端】妮娜的涩涩日常", gameType: "SLG", platform: "PC,Android", isFree: true, tags: ["slg"] },
-  { title: "【SLG/免费】扶她生活 扶她阴角的后宫模拟", gameType: "SLG", platform: "PC", isFree: true, tags: ["slg"], version: "Ver1.3.0" },
+  {
+    title: "【SLG/免费】扶她生活 扶她阴角的后宫模拟",
+    gameType: "SLG",
+    platform: "PC",
+    isFree: true,
+    tags: ["slg"],
+    version: "Ver1.3.0",
+  },
   // ADV
-  { title: "【ADV/免费】哥哥，还没准备好接吻吗？[全CG存档]", gameType: "ADV", platform: "PC", isFree: true, tags: ["adv"] },
-  { title: "【ADV/双端】魔女之夏 ～少女们的回忆～", gameType: "ADV", platform: "PC,Android", isFree: true, tags: ["adv"] },
+  {
+    title: "【ADV/免费】哥哥，还没准备好接吻吗？[全CG存档]",
+    gameType: "ADV",
+    platform: "PC",
+    isFree: true,
+    tags: ["adv"],
+  },
+  {
+    title: "【ADV/双端】魔女之夏 ～少女们的回忆～",
+    gameType: "ADV",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["adv"],
+  },
   { title: "【ADV/电脑】樱花学院恋爱物语", gameType: "ADV", platform: "PC", isFree: false, tags: ["adv"] },
-  { title: "【ADV/免费】黄昏时分的告白 [完整版]", gameType: "ADV", platform: "PC", isFree: true, tags: ["adv", "story"] },
+  {
+    title: "【ADV/免费】黄昏时分的告白 [完整版]",
+    gameType: "ADV",
+    platform: "PC",
+    isFree: true,
+    tags: ["adv", "story"],
+  },
   // RPG
-  { title: "【RPG/双端】堕落的圣骑士 ～誓约的终焉～", gameType: "RPG", platform: "PC,Android", isFree: true, tags: ["rpg", "pixel"] },
-  { title: "【RPG/电脑】异世界迷宫探索者 Ver2.1", gameType: "RPG", platform: "PC", isFree: false, tags: ["rpg", "pixel"], version: "Ver2.1" },
-  { title: "【RPG/免费】魔王城的陷落", gameType: "RPG", platform: "PC", isFree: true, tags: ["rpg"], version: "Ver1.0" },
+  {
+    title: "【RPG/双端】堕落的圣骑士 ～誓约的终焉～",
+    gameType: "RPG",
+    platform: "PC,Android",
+    isFree: true,
+    tags: ["rpg", "pixel"],
+  },
+  {
+    title: "【RPG/电脑】异世界迷宫探索者 Ver2.1",
+    gameType: "RPG",
+    platform: "PC",
+    isFree: false,
+    tags: ["rpg", "pixel"],
+    version: "Ver2.1",
+  },
+  {
+    title: "【RPG/免费】魔王城的陷落",
+    gameType: "RPG",
+    platform: "PC",
+    isFree: true,
+    tags: ["rpg"],
+    version: "Ver1.0",
+  },
   // ACT
   { title: "【ACT/电脑】暗影猎手 ～月下的追猎～", gameType: "ACT", platform: "PC", isFree: false, tags: ["act"] },
   { title: "【ACT/双端】像素女武神", gameType: "ACT", platform: "PC,Android", isFree: true, tags: ["act", "pixel"] },
@@ -391,9 +600,7 @@ async function main() {
   const { PrismaClient } = await import("../src/generated/prisma/client.js");
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const adapter = new PrismaPg(
-    pool as unknown as ConstructorParameters<typeof PrismaPg>[0],
-  );
+  const adapter = new PrismaPg(pool as unknown as ConstructorParameters<typeof PrismaPg>[0]);
   const prisma = new PrismaClient({ adapter });
 
   console.log("🌱 Seeding database...\n");
@@ -482,7 +689,9 @@ async function main() {
       uploaderMap[u.username] = u.id;
     }
     const allUserIds = userRecords.map((u) => u.id);
-    const uploaderIds = userRecords.filter((u) => USERS_DATA.find((d) => d.username === u.username)?.canUpload).map((u) => u.id);
+    const uploaderIds = userRecords
+      .filter((u) => USERS_DATA.find((d) => d.username === u.username)?.canUpload)
+      .map((u) => u.id);
 
     // ============================== 站点配置 ==============================
     console.log("⚙️  初始化站点配置...");
@@ -513,7 +722,9 @@ async function main() {
 
     for (const v of VIDEOS) {
       let vid: string;
-      do { vid = randomId6(); } while (usedIds.has(vid));
+      do {
+        vid = randomId6();
+      } while (usedIds.has(vid));
       usedIds.add(vid);
 
       const uploaderId = uploaderMap[v.creator] || pick(uploaderIds);
@@ -551,11 +762,17 @@ async function main() {
     console.log("📚 创建合集...");
     const seriesCreator = uploaderMap["starrymomoko"] || uploaderIds[0];
     const series1 = await prisma.series.create({
-      data: { title: "StarryMomoko 原神合集", description: "StarryMomoko 创作的原神系列 3D 动画", creatorId: seriesCreator },
+      data: {
+        title: "StarryMomoko 原神合集",
+        description: "StarryMomoko 创作的原神系列 3D 动画",
+        creatorId: seriesCreator,
+      },
     });
     const smVideos = videoRecords.filter((_, i) => VIDEOS[i]?.creator === "starrymomoko").slice(0, 6);
     for (let i = 0; i < smVideos.length; i++) {
-      await prisma.seriesEpisode.create({ data: { seriesId: series1.id, videoId: smVideos[i].id, episodeNum: i + 1 } }).catch(() => {});
+      await prisma.seriesEpisode
+        .create({ data: { seriesId: series1.id, videoId: smVideos[i].id, episodeNum: i + 1 } })
+        .catch(() => {});
     }
 
     const ppCreator = uploaderMap["pastapaprika"] || uploaderIds[0];
@@ -564,7 +781,9 @@ async function main() {
     });
     const ppVideos = videoRecords.filter((_, i) => VIDEOS[i]?.creator === "pastapaprika").slice(0, 6);
     for (let i = 0; i < ppVideos.length; i++) {
-      await prisma.seriesEpisode.create({ data: { seriesId: series2.id, videoId: ppVideos[i].id, episodeNum: i + 1 } }).catch(() => {});
+      await prisma.seriesEpisode
+        .create({ data: { seriesId: series2.id, videoId: ppVideos[i].id, episodeNum: i + 1 } })
+        .catch(() => {});
     }
     console.log("   ✓ 创建 2 个合集");
 
@@ -574,12 +793,14 @@ async function main() {
 
     for (const g of GAMES) {
       let gid: string;
-      do { gid = randomId6(); } while (usedIds.has(gid));
+      do {
+        gid = randomId6();
+      } while (usedIds.has(gid));
       usedIds.add(gid);
 
       const uploaderId = g.platform.includes("Android")
-        ? (uploaderMap["playmeow"] || pick(uploaderIds))
-        : (uploaderMap["ntrman"] || pick(uploaderIds));
+        ? uploaderMap["playmeow"] || pick(uploaderIds)
+        : uploaderMap["ntrman"] || pick(uploaderIds);
       const createdAt = daysAgo(randomInt(1, 60));
       const platforms = g.platform.split(",");
 
@@ -618,12 +839,17 @@ async function main() {
 
     for (const p of IMAGE_POSTS) {
       let iid: string;
-      do { iid = randomId6(); } while (usedIds.has(iid));
+      do {
+        iid = randomId6();
+      } while (usedIds.has(iid));
       usedIds.add(iid);
 
       const uploaderId = pick(uploaderIds);
       const imageCount = randomInt(2, 8);
-      const images = Array.from({ length: imageCount }, (_, idx) => `https://picsum.photos/seed/${iid}-${idx}/800/1200`);
+      const images = Array.from(
+        { length: imageCount },
+        (_, idx) => `https://picsum.photos/seed/${iid}-${idx}/800/1200`,
+      );
       const createdAt = daysAgo(randomInt(1, 45));
 
       const post = await prisma.imagePost.upsert({
@@ -713,25 +939,41 @@ async function main() {
     console.log("❤️  创建互动数据...");
     for (const userId of allUserIds) {
       for (const v of pickN(videoRecords, randomInt(5, 15))) {
-        await prisma.like.create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});
+        await prisma.like
+          .create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } })
+          .catch(() => {});
       }
       for (const v of pickN(videoRecords, randomInt(2, 8))) {
-        await prisma.favorite.create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});
+        await prisma.favorite
+          .create({ data: { userId, videoId: v.id, createdAt: daysAgo(randomInt(0, 45)) } })
+          .catch(() => {});
       }
       for (const v of pickN(videoRecords, randomInt(5, 20))) {
-        await prisma.watchHistory.create({ data: { userId, videoId: v.id, progress: randomInt(0, 600), createdAt: daysAgo(randomInt(0, 30)) } }).catch(() => {});
+        await prisma.watchHistory
+          .create({
+            data: { userId, videoId: v.id, progress: randomInt(0, 600), createdAt: daysAgo(randomInt(0, 30)) },
+          })
+          .catch(() => {});
       }
       for (const g of pickN(gameRecords, randomInt(2, 6))) {
-        await prisma.gameLike.create({ data: { userId, gameId: g.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});
+        await prisma.gameLike
+          .create({ data: { userId, gameId: g.id, createdAt: daysAgo(randomInt(0, 45)) } })
+          .catch(() => {});
       }
       for (const g of pickN(gameRecords, randomInt(1, 4))) {
-        await prisma.gameFavorite.create({ data: { userId, gameId: g.id, createdAt: daysAgo(randomInt(0, 45)) } }).catch(() => {});
+        await prisma.gameFavorite
+          .create({ data: { userId, gameId: g.id, createdAt: daysAgo(randomInt(0, 45)) } })
+          .catch(() => {});
       }
       for (const p of pickN(imageRecords, randomInt(1, 5))) {
-        await prisma.imagePostLike.create({ data: { userId, imagePostId: p.id, createdAt: daysAgo(randomInt(0, 30)) } }).catch(() => {});
+        await prisma.imagePostLike
+          .create({ data: { userId, imagePostId: p.id, createdAt: daysAgo(randomInt(0, 30)) } })
+          .catch(() => {});
       }
       for (const p of pickN(imageRecords, randomInt(0, 3))) {
-        await prisma.imagePostFavorite.create({ data: { userId, imagePostId: p.id, createdAt: daysAgo(randomInt(0, 30)) } }).catch(() => {});
+        await prisma.imagePostFavorite
+          .create({ data: { userId, imagePostId: p.id, createdAt: daysAgo(randomInt(0, 30)) } })
+          .catch(() => {});
       }
     }
     console.log(`   ✓ 创建互动数据（点赞、收藏、观看记录）`);
@@ -744,7 +986,9 @@ async function main() {
     });
     const genshinVideos = videoRecords.filter((_, i) => VIDEOS[i]?.tags.includes("genshin"));
     for (let i = 0; i < genshinVideos.length; i++) {
-      await prisma.playlistItem.create({ data: { playlistId: playlist.id, videoId: genshinVideos[i].id, sortOrder: i } }).catch(() => {});
+      await prisma.playlistItem
+        .create({ data: { playlistId: playlist.id, videoId: genshinVideos[i].id, sortOrder: i } })
+        .catch(() => {});
     }
     console.log("   ✓ 创建 1 个播放列表");
 
@@ -752,7 +996,10 @@ async function main() {
     console.log("🤝 创建关注关系...");
     let followCount = 0;
     for (const user of userRecords) {
-      for (const target of pickN(userRecords.filter((u) => u.id !== user.id), randomInt(1, 4))) {
+      for (const target of pickN(
+        userRecords.filter((u) => u.id !== user.id),
+        randomInt(1, 4),
+      )) {
         await prisma.follow.create({ data: { followerId: user.id, followingId: target.id } }).catch(() => {});
         followCount++;
       }
@@ -763,10 +1010,23 @@ async function main() {
     console.log("🔔 创建通知...");
     for (const user of userRecords.slice(0, 6)) {
       await prisma.notification.create({
-        data: { userId: user.id, type: "SYSTEM", title: "欢迎加入！", content: "感谢注册，快去探索精彩内容吧", createdAt: daysAgo(randomInt(10, 30)) },
+        data: {
+          userId: user.id,
+          type: "SYSTEM",
+          title: "欢迎加入！",
+          content: "感谢注册，快去探索精彩内容吧",
+          createdAt: daysAgo(randomInt(10, 30)),
+        },
       });
       await prisma.notification.create({
-        data: { userId: user.id, type: "LIKE", title: "有人给你的作品点赞了", content: "你的投稿获得了新的点赞！", data: { videoId: pick(videoRecords).id }, createdAt: daysAgo(randomInt(0, 10)) },
+        data: {
+          userId: user.id,
+          type: "LIKE",
+          title: "有人给你的作品点赞了",
+          content: "你的投稿获得了新的点赞！",
+          data: { videoId: pick(videoRecords).id },
+          createdAt: daysAgo(randomInt(0, 10)),
+        },
       });
     }
     console.log("   ✓ 创建通知消息");
@@ -798,10 +1058,26 @@ async function main() {
 
     // ============================== 搜索记录 ==============================
     console.log("🔍 创建搜索记录...");
-    const searchKeywords = ["原神", "星穹铁道", "绝区零", "守望先锋", "SLG", "ViciNeko", "蔚蓝档案", "3D", "RPG", "StarryMomoko"];
+    const searchKeywords = [
+      "原神",
+      "星穹铁道",
+      "绝区零",
+      "守望先锋",
+      "SLG",
+      "ViciNeko",
+      "蔚蓝档案",
+      "3D",
+      "RPG",
+      "StarryMomoko",
+    ];
     for (const keyword of searchKeywords) {
       await prisma.searchRecord.create({
-        data: { keyword, userId: pick(allUserIds), resultCount: randomInt(3, 80), createdAt: daysAgo(randomInt(0, 14)) },
+        data: {
+          keyword,
+          userId: pick(allUserIds),
+          resultCount: randomInt(3, 80),
+          createdAt: daysAgo(randomInt(0, 14)),
+        },
       });
     }
     console.log(`   ✓ 创建 ${searchKeywords.length} 条搜索记录`);

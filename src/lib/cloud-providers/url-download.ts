@@ -48,9 +48,7 @@ export class UrlDownloadProvider implements CloudProvider {
     if (!resp.body) throw new Error("响应体为空");
 
     const contentDisposition = resp.headers.get("content-disposition");
-    const filename = contentDisposition
-      ? decodeFilenameFromHeader(contentDisposition)
-      : fileInfo.name;
+    const filename = contentDisposition ? decodeFilenameFromHeader(contentDisposition) : fileInfo.name;
 
     return {
       stream: resp.body,

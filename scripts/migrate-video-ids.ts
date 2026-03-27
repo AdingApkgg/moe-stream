@@ -1,6 +1,6 @@
 /**
  * 迁移视频 ID 到 6 位数字格式
- * 
+ *
  * 运行方式: npx tsx scripts/migrate-video-ids.ts
  */
 
@@ -73,14 +73,14 @@ async function migrateVideoIds() {
 
   // 使用直接 SQL 更新，需要临时禁用外键约束
   const client = await pool.connect();
-  
+
   try {
     // 开始事务
     await client.query("BEGIN");
-    
+
     // 禁用触发器（临时禁用外键检查）
     await client.query("SET session_replication_role = replica");
-    
+
     let successCount = 0;
     let errorCount = 0;
 
@@ -99,11 +99,11 @@ async function migrateVideoIds() {
         await client.query(`UPDATE "Confused" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
         await client.query(`UPDATE "PlaylistItem" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
         await client.query(`UPDATE "Comment" SET "videoId" = $1 WHERE "videoId" = $2`, [newId, oldId]);
-        
+
         // 更新视频表本身
         await client.query(`UPDATE "Video" SET "id" = $1 WHERE "id" = $2`, [newId, oldId]);
 
-        console.log(`✓ ${oldId} → ${newId} (${video.title.substring(0, 40)}${video.title.length > 40 ? '...' : ''})`);
+        console.log(`✓ ${oldId} → ${newId} (${video.title.substring(0, 40)}${video.title.length > 40 ? "..." : ""})`);
         successCount++;
       } catch (error) {
         console.error(`✗ ${oldId} 迁移失败:`, error);
@@ -114,7 +114,7 @@ async function migrateVideoIds() {
 
     // 恢复外键检查
     await client.query("SET session_replication_role = DEFAULT");
-    
+
     // 提交事务
     await client.query("COMMIT");
 

@@ -4,14 +4,7 @@
   "description": "允许远程 URL 的基本窗口操作",
   "windows": ["*"],
   "remote": {
-    "urls": [
-      "https://mikiacg.vip/*",
-      "https://*.mikiacg.vip/*",
-      "https://aiacg.vip/*",
-      "https://*.aiacg.vip/*"
-    ]
+    "urls": ["https://mikiacg.vip/*", "https://*.mikiacg.vip/*", "https://aiacg.vip/*", "https://*.aiacg.vip/*"]
   },
-  "permissions": [
-    "core:default"
-  ]
+  "permissions": ["core:default"]
 }

@@ -46,10 +46,7 @@ export async function POST(request: NextRequest) {
     const maxFileSize = Number(record.storagePolicy.maxFileSize);
     if (actualSize > maxFileSize) {
       const maxMB = (maxFileSize / (1024 * 1024)).toFixed(0);
-      return NextResponse.json(
-        { error: `文件大小超过限制 (最大 ${maxMB} MB)` },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: `文件大小超过限制 (最大 ${maxMB} MB)` }, { status: 400 });
     }
 
     const uploadDir = record.storagePolicy.uploadDir || "./uploads";

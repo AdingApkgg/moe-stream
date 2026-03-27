@@ -27,10 +27,7 @@ export class GoogleDriveProvider implements CloudProvider {
     };
   }
 
-  async downloadStream(
-    fileInfo: CloudFileInfo,
-    accessToken?: string,
-  ): Promise<DownloadResult> {
+  async downloadStream(fileInfo: CloudFileInfo, accessToken?: string): Promise<DownloadResult> {
     if (!fileInfo.fileId) throw new Error("缺少文件 ID");
 
     // With OAuth token: use official API for full access
@@ -43,10 +40,9 @@ export class GoogleDriveProvider implements CloudProvider {
   }
 
   private async downloadWithApi(fileId: string, token: string): Promise<DownloadResult> {
-    const metaResp = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,size,mimeType`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const metaResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,size,mimeType`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!metaResp.ok) throw new Error(`获取文件信息失败: ${metaResp.status}`);
 
     const meta = (await metaResp.json()) as {
@@ -55,10 +51,9 @@ export class GoogleDriveProvider implements CloudProvider {
       mimeType: string;
     };
 
-    const downloadResp = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const downloadResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!downloadResp.ok) throw new Error(`下载失败: ${downloadResp.status}`);
     if (!downloadResp.body) throw new Error("响应体为空");
 
@@ -98,7 +93,9 @@ export class GoogleDriveProvider implements CloudProvider {
           const confirmUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t&uuid=${uuidMatch[1]}`;
           resp = await fetch(confirmUrl, { redirect: "follow" });
         } else {
-          throw new Error("该 Google Drive 文件可能未设置为公开分享，无法直接下载。请设置文件为「知道链接的任何人」可访问，或在上方授权 Google 账号后重试。");
+          throw new Error(
+            "该 Google Drive 文件可能未设置为公开分享，无法直接下载。请设置文件为「知道链接的任何人」可访问，或在上方授权 Google 账号后重试。",
+          );
         }
       }
     }
@@ -109,9 +106,7 @@ export class GoogleDriveProvider implements CloudProvider {
     if (!resp.body) throw new Error("响应体为空");
 
     const contentDisposition = resp.headers.get("content-disposition");
-    const filename = contentDisposition
-      ? decodeFilenameFromHeader(contentDisposition)
-      : `google-drive-${fileId}`;
+    const filename = contentDisposition ? decodeFilenameFromHeader(contentDisposition) : `google-drive-${fileId}`;
 
     return {
       stream: resp.body,

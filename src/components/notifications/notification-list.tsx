@@ -16,13 +16,7 @@ interface NotificationListProps {
 export function NotificationList({ compact, onNavigate, typeFilter }: NotificationListProps) {
   const setUnread = useSocketStore((s) => s.setUnreadNotifications);
 
-  const {
-    data,
-    isLoading,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = trpc.notification.list.useInfiniteQuery(
+  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = trpc.notification.list.useInfiniteQuery(
     { limit: compact ? 8 : 20, type: typeFilter },
     { getNextPageParam: (last) => last.nextCursor },
   );
@@ -92,20 +86,17 @@ export function NotificationList({ compact, onNavigate, typeFilter }: Notificati
       )}
       <div className="divide-y">
         {notifications.map((n) => (
-          <NotificationItem key={n.id} notification={n as Parameters<typeof NotificationItem>[0]["notification"]} onNavigate={onNavigate} />
+          <NotificationItem
+            key={n.id}
+            notification={n as Parameters<typeof NotificationItem>[0]["notification"]}
+            onNavigate={onNavigate}
+          />
         ))}
       </div>
       {!compact && hasNextPage && (
         <div className="p-4 text-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+          <Button variant="outline" size="sm" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+            {isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             加载更多
           </Button>
         </div>

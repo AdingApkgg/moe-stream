@@ -18,10 +18,7 @@
           "protocol": "tcp"
         }
       ],
-      "environment": [
-        { "name": "NODE_ENV", "value": "production" },
-        { "name": "SOCKET_PORT", "value": "3001" }
-      ],
+      "environment": [{ "name": "NODE_ENV", "value": "production" }, { "name": "SOCKET_PORT", "value": "3001" }],
       "secrets": [
         {
           "name": "DATABASE_URL",
@@ -37,7 +34,10 @@
         }
       ],
       "healthCheck": {
-        "command": ["CMD-SHELL", "node -e \"const n=require('net');const c=n.connect(3001,'localhost',()=>{c.end();process.exit(0)});c.on('error',()=>process.exit(1))\""],
+        "command": [
+          "CMD-SHELL",
+          "node -e \"const n=require('net');const c=n.connect(3001,'localhost',()=>{c.end();process.exit(0)});c.on('error',()=>process.exit(1))\""
+        ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,

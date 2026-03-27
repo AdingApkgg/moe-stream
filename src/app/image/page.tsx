@@ -58,10 +58,5 @@ export default async function ImageListPage() {
   const { tags, posts } = await getInitialData();
   const serializedPosts = serializePosts(posts);
 
-  return (
-    <ImageListClient
-      initialTags={tags}
-      initialPosts={serializedPosts}
-    />
-  );
+  return <ImageListClient initialTags={tags} initialPosts={serializedPosts} />;
 }

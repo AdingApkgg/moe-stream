@@ -16,7 +16,7 @@ interface VideoCoverProps {
 
 function CoverPlaceholder({ className = "" }: { className?: string }) {
   return (
-    <div 
+    <div
       className={`absolute inset-0 bg-gradient-to-br from-primary/5 via-muted to-primary/10 flex items-center justify-center ${className}`}
     >
       <div className="text-center text-muted-foreground/60">
@@ -53,8 +53,10 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
   const getCoverSrc = () => {
     if (giveUp) return null;
 
-    const thumbSuffix = thumbWidth ? `${coverUrl && !coverUrl.startsWith("/uploads/") || !coverUrl ? "?" : "?"}w=${thumbWidth}&h=${Math.round(thumbWidth * 9 / 16)}&q=60` : "";
-    
+    const thumbSuffix = thumbWidth
+      ? `${(coverUrl && !coverUrl.startsWith("/uploads/")) || !coverUrl ? "?" : "?"}w=${thumbWidth}&h=${Math.round((thumbWidth * 9) / 16)}&q=60`
+      : "";
+
     if (coverUrl) {
       if (coverUrl.startsWith("/uploads/")) {
         if (thumbWidth) {
@@ -64,25 +66,22 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
       }
       return `/api/cover/${encodeURIComponent(coverUrl)}${thumbSuffix}`;
     }
-    
+
     if (videoId) {
       return `/api/cover/video/${videoId}${thumbSuffix}`;
     }
-    
+
     return null;
   };
 
   const coverSrc = getCoverSrc();
-  const coverSrcWithRetry =
-    coverSrc && shouldRetry ? `${coverSrc}?r=${retryKey}` : coverSrc;
+  const coverSrcWithRetry = coverSrc && shouldRetry ? `${coverSrc}?r=${retryKey}` : coverSrc;
 
   if (!coverSrcWithRetry) {
     return <CoverPlaceholder className={className} />;
   }
 
-  const placeholderProps = blurDataURL
-    ? ({ placeholder: "blur" as const, blurDataURL })
-    : {};
+  const placeholderProps = blurDataURL ? { placeholder: "blur" as const, blurDataURL } : {};
 
   return (
     <>

@@ -80,13 +80,7 @@ export function LinksClient({ links }: LinksClientProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-10">
           {links.map((link) => (
-            <a
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block"
-            >
+            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="group block">
               <div className="rounded-xl border bg-card p-5 transition-all duration-200 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">
                 <div className="flex items-start gap-4">
                   <div className="shrink-0 w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden ring-1 ring-border/50 group-hover:ring-primary/30 transition-colors">
@@ -111,9 +105,7 @@ export function LinksClient({ links }: LinksClientProps) {
                       <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     {link.description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {link.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{link.description}</p>
                     )}
                   </div>
                 </div>
@@ -138,14 +130,8 @@ export function LinksClient({ links }: LinksClientProps) {
             <div className="text-center py-8">
               <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
               <p className="font-medium text-lg">申请已提交</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                管理员将尽快审核，审核通过后会自动展示。
-              </p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setSubmitted(false)}
-              >
+              <p className="text-sm text-muted-foreground mt-1">管理员将尽快审核，审核通过后会自动展示。</p>
+              <Button variant="outline" className="mt-4" onClick={() => setSubmitted(false)}>
                 继续提交
               </Button>
             </div>
@@ -197,10 +183,7 @@ export function LinksClient({ links }: LinksClientProps) {
                 />
               </div>
               <div className="flex justify-end">
-                <Button
-                  onClick={handleSubmit}
-                  disabled={submitMutation.isPending || !name.trim() || !url.trim()}
-                >
+                <Button onClick={handleSubmit} disabled={submitMutation.isPending || !name.trim() || !url.trim()}>
                   {submitMutation.isPending ? "提交中..." : "提交申请"}
                 </Button>
               </div>

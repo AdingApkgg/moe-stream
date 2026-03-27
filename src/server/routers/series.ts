@@ -5,20 +5,23 @@ import { router, publicProcedure, protectedProcedure } from "../trpc";
 export const seriesRouter = router({
   // 获取所有公开合集（首页用，页码分页）
   list: publicProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(50).default(12),
-      page: z.number().min(1).default(1),
-      sortBy: z.enum(["latest", "videoCount", "views"]).default("latest"),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(12),
+        page: z.number().min(1).default(1),
+        sortBy: z.enum(["latest", "videoCount", "views"]).default("latest"),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, page, sortBy } = input;
 
       // 构建排序条件
-      const orderBy = sortBy === "videoCount"
-        ? { episodes: { _count: "desc" as const } }
-        : sortBy === "views"
-        ? { updatedAt: "desc" as const } // 暂时用更新时间代替
-        : { updatedAt: "desc" as const };
+      const orderBy =
+        sortBy === "videoCount"
+          ? { episodes: { _count: "desc" as const } }
+          : sortBy === "views"
+            ? { updatedAt: "desc" as const } // 暂时用更新时间代替
+            : { updatedAt: "desc" as const };
 
       const skip = (page - 1) * limit;
 
@@ -76,14 +79,14 @@ export const seriesRouter = router({
             creator: s.creator,
             episodeCount: s._count.episodes,
             totalViews: totalViews._sum.views || 0,
-            previewVideos: s.episodes.map(ep => ({
+            previewVideos: s.episodes.map((ep) => ({
               id: ep.video.id,
               coverUrl: ep.video.coverUrl,
               title: ep.video.title,
             })),
             updatedAt: s.updatedAt,
           };
-        })
+        }),
       );
 
       const totalPages = Math.ceil(totalCount / limit);
@@ -98,11 +101,13 @@ export const seriesRouter = router({
 
   // 获取用户的所有合集
   listByUser: publicProcedure
-    .input(z.object({
-      userId: z.string().optional(),
-      limit: z.number().min(1).max(50).default(20),
-      page: z.number().min(1).default(1),
-    }))
+    .input(
+      z.object({
+        userId: z.string().optional(),
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const userId = input.userId || ctx.session?.user?.id;
       if (!userId) {
@@ -135,7 +140,7 @@ export const seriesRouter = router({
       ]);
 
       return {
-        items: series.map(s => ({
+        items: series.map((s) => ({
           ...s,
           episodeCount: s._count.episodes,
           firstEpisodeCover: s.episodes[0]?.video.coverUrl || s.coverUrl,
@@ -147,101 +152,99 @@ export const seriesRouter = router({
     }),
 
   // 获取单个合集详情（含所有剧集）
-  getById: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const series = await ctx.prisma.series.findUnique({
-        where: { id: input.id },
-        include: {
-          creator: {
-            select: {
-              id: true,
-              username: true,
-              nickname: true,
-              avatar: true,
-            },
+  getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const series = await ctx.prisma.series.findUnique({
+      where: { id: input.id },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            nickname: true,
+            avatar: true,
           },
-          episodes: {
-            orderBy: { episodeNum: "asc" },
-            include: {
-              video: {
-                select: {
-                  id: true,
-                  title: true,
-                  coverUrl: true,
-                  duration: true,
-                  views: true,
-                  status: true,
-                },
+        },
+        episodes: {
+          orderBy: { episodeNum: "asc" },
+          include: {
+            video: {
+              select: {
+                id: true,
+                title: true,
+                coverUrl: true,
+                duration: true,
+                views: true,
+                status: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
-      if (!series) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
-      }
+    if (!series) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
+    }
 
-      return series;
-    }),
+    return series;
+  }),
 
   // 根据视频ID获取其所属的合集
-  getByVideoId: publicProcedure
-    .input(z.object({ videoId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const episode = await ctx.prisma.seriesEpisode.findFirst({
-        where: { videoId: input.videoId },
-        include: {
-          series: {
-            include: {
-              creator: {
-                select: {
-                  id: true,
-                  username: true,
-                  nickname: true,
-                  avatar: true,
-                },
+  getByVideoId: publicProcedure.input(z.object({ videoId: z.string() })).query(async ({ ctx, input }) => {
+    const episode = await ctx.prisma.seriesEpisode.findFirst({
+      where: { videoId: input.videoId },
+      include: {
+        series: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                nickname: true,
+                avatar: true,
               },
-              episodes: {
-                orderBy: { episodeNum: "asc" },
-                include: {
-                  video: {
-                    select: {
-                      id: true,
-                      title: true,
-                      coverUrl: true,
-                      duration: true,
-                      views: true,
-                      status: true,
-                    },
+            },
+            episodes: {
+              orderBy: { episodeNum: "asc" },
+              include: {
+                video: {
+                  select: {
+                    id: true,
+                    title: true,
+                    coverUrl: true,
+                    duration: true,
+                    views: true,
+                    status: true,
                   },
                 },
               },
             },
           },
         },
-      });
+      },
+    });
 
-      if (!episode) {
-        return null;
-      }
+    if (!episode) {
+      return null;
+    }
 
-      return {
-        series: episode.series,
-        currentEpisode: episode.episodeNum,
-      };
-    }),
+    return {
+      series: episode.series,
+      currentEpisode: episode.episodeNum,
+    };
+  }),
 
   // 创建合集
   create: protectedProcedure
-    .input(z.object({
-      title: z.string().min(1).max(100),
-      description: z.string().max(2000).optional(),
-      coverUrl: z.string().url().optional().or(z.literal("")),
-      downloadUrl: z.string().url().optional().or(z.literal("")),
-      downloadNote: z.string().max(1000).optional(),
-    }))
+    .input(
+      z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().max(2000).optional(),
+        coverUrl: z.string().url().optional().or(z.literal("")),
+        downloadUrl: z.string().url().optional().or(z.literal("")),
+        downloadNote: z.string().max(1000).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.create({
         data: {
@@ -259,14 +262,16 @@ export const seriesRouter = router({
 
   // 更新合集
   update: protectedProcedure
-    .input(z.object({
-      id: z.string(),
-      title: z.string().min(1).max(100).optional(),
-      description: z.string().max(2000).optional(),
-      coverUrl: z.string().url().optional().or(z.literal("")),
-      downloadUrl: z.string().url().optional().or(z.literal("")),
-      downloadNote: z.string().max(1000).optional(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1).max(100).optional(),
+        description: z.string().max(2000).optional(),
+        coverUrl: z.string().url().optional().or(z.literal("")),
+        downloadUrl: z.string().url().optional().or(z.literal("")),
+        downloadNote: z.string().max(1000).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.id },
@@ -293,36 +298,36 @@ export const seriesRouter = router({
     }),
 
   // 删除合集
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const series = await ctx.prisma.series.findUnique({
-        where: { id: input.id },
-      });
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const series = await ctx.prisma.series.findUnique({
+      where: { id: input.id },
+    });
 
-      if (!series) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
-      }
+    if (!series) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "合集不存在" });
+    }
 
-      if (series.creatorId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此合集" });
-      }
+    if (series.creatorId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此合集" });
+    }
 
-      await ctx.prisma.series.delete({
-        where: { id: input.id },
-      });
+    await ctx.prisma.series.delete({
+      where: { id: input.id },
+    });
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
   // 添加视频到合集
   addVideo: protectedProcedure
-    .input(z.object({
-      seriesId: z.string(),
-      videoId: z.string(),
-      episodeNum: z.number().int().positive().optional(),
-      episodeTitle: z.string().max(100).optional(),
-    }))
+    .input(
+      z.object({
+        seriesId: z.string(),
+        videoId: z.string(),
+        episodeNum: z.number().int().positive().optional(),
+        episodeTitle: z.string().max(100).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.seriesId },
@@ -365,7 +370,7 @@ export const seriesRouter = router({
       }
 
       // 自动分配集数
-      const episodeNum = input.episodeNum || (series._count.episodes + 1);
+      const episodeNum = input.episodeNum || series._count.episodes + 1;
 
       // 检查集数是否已被占用
       const episodeExists = await ctx.prisma.seriesEpisode.findUnique({
@@ -410,10 +415,12 @@ export const seriesRouter = router({
 
   // 从合集移除视频
   removeVideo: protectedProcedure
-    .input(z.object({
-      seriesId: z.string(),
-      videoId: z.string(),
-    }))
+    .input(
+      z.object({
+        seriesId: z.string(),
+        videoId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.seriesId },
@@ -453,12 +460,14 @@ export const seriesRouter = router({
 
   // 更新剧集信息
   updateEpisode: protectedProcedure
-    .input(z.object({
-      seriesId: z.string(),
-      videoId: z.string(),
-      episodeNum: z.number().int().positive().optional(),
-      episodeTitle: z.string().max(100).optional(),
-    }))
+    .input(
+      z.object({
+        seriesId: z.string(),
+        videoId: z.string(),
+        episodeNum: z.number().int().positive().optional(),
+        episodeTitle: z.string().max(100).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.seriesId },
@@ -503,13 +512,17 @@ export const seriesRouter = router({
 
   // 重新排序剧集
   reorderEpisodes: protectedProcedure
-    .input(z.object({
-      seriesId: z.string(),
-      episodes: z.array(z.object({
-        videoId: z.string(),
-        episodeNum: z.number().int().positive(),
-      })),
-    }))
+    .input(
+      z.object({
+        seriesId: z.string(),
+        episodes: z.array(
+          z.object({
+            videoId: z.string(),
+            episodeNum: z.number().int().positive(),
+          }),
+        ),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.seriesId },
@@ -525,7 +538,7 @@ export const seriesRouter = router({
 
       // 使用事务批量更新
       await ctx.prisma.$transaction(
-        input.episodes.map(ep =>
+        input.episodes.map((ep) =>
           ctx.prisma.seriesEpisode.update({
             where: {
               seriesId_videoId: {
@@ -534,8 +547,8 @@ export const seriesRouter = router({
               },
             },
             data: { episodeNum: ep.episodeNum },
-          })
-        )
+          }),
+        ),
       );
 
       return { success: true };

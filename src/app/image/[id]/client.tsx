@@ -38,12 +38,16 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
 
   const imageUrls = post.images ?? [];
 
-  const hasMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const hasMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const canEdit = hasMounted && (session?.user?.id === post.uploader.id || isPrivileged(session?.user?.role ?? ""));
 
   const { data: interaction } = trpc.image.getUserInteraction.useQuery(
     { imagePostId: post.id },
-    { enabled: !!post.id }
+    { enabled: !!post.id },
   );
 
   const utils = trpc.useUtils();
@@ -112,7 +116,11 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
         {/* Back button */}
         <FadeIn>
           <Link href="/image">
-            <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 mb-4 text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 -ml-2 mb-4 text-muted-foreground hover:text-foreground"
+            >
               <ArrowLeft className="h-4 w-4" />
               图片列表
             </Button>
@@ -123,9 +131,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
         <FadeIn delay={0.05}>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">{post.title}</h1>
           {post.description && (
-            <p className="text-muted-foreground text-sm sm:text-base mb-3 whitespace-pre-line">
-              {post.description}
-            </p>
+            <p className="text-muted-foreground text-sm sm:text-base mb-3 whitespace-pre-line">{post.description}</p>
           )}
         </FadeIn>
 
@@ -196,8 +202,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
                 onClick={() => toggleReaction.mutate({ imagePostId: post.id, type: "dislike" })}
                 disabled={toggleReaction.isPending}
               >
-                <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />
-                踩
+                <ThumbsDown className={cn("h-4 w-4", interaction?.disliked && "fill-current")} />踩
               </Button>
               <Button
                 variant={interaction?.favorited ? "default" : "outline"}
@@ -223,7 +228,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
                   disabled={toggleReaction.isPending}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                    interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    interaction?.liked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                   )}
                 >
                   <ThumbsUp className={cn("h-3.5 w-3.5", interaction?.liked && "fill-current")} />
@@ -234,18 +239,17 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
                   disabled={toggleReaction.isPending}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                    interaction?.disliked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    interaction?.disliked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                   )}
                 >
-                  <ThumbsDown className={cn("h-3.5 w-3.5", interaction?.disliked && "fill-current")} />
-                  踩
+                  <ThumbsDown className={cn("h-3.5 w-3.5", interaction?.disliked && "fill-current")} />踩
                 </button>
                 <button
                   onClick={() => toggleFavorite.mutate({ imagePostId: post.id })}
                   disabled={toggleFavorite.isPending}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-                    interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    interaction?.favorited ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                   )}
                 >
                   <Heart className={cn("h-3.5 w-3.5", interaction?.favorited && "fill-current")} />

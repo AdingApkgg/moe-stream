@@ -43,7 +43,8 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
     glareMaxOpacity: 0.12,
   });
 
-  const extra = video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? video.extraInfo : null;
+  const extra =
+    video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? video.extraInfo : null;
   const authorName = extra?.author || video.uploader.nickname || video.uploader.username;
 
   const totalVotes = video._count.likes + (video._count.dislikes || 0);
@@ -88,9 +89,7 @@ function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
               <ThumbsUp className="h-3 w-3" />
               {likeRatio}%
             </span>
-            <span className="text-white/80">
-              {formatViews(video.views)}次
-            </span>
+            <span className="text-white/80">{formatViews(video.views)}次</span>
           </div>
 
           {/* Tilt glare overlay */}

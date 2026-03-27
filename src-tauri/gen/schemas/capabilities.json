@@ -1,1 +1,12 @@
-{"default":{"identifier":"default","description":"允许远程 URL 的基本窗口操作","remote":{"urls":["https://mikiacg.vip/*","https://*.mikiacg.vip/*","https://aiacg.vip/*","https://*.aiacg.vip/*"]},"local":true,"windows":["*"],"permissions":["core:default"]}}
+{
+  "default": {
+    "identifier": "default",
+    "description": "允许远程 URL 的基本窗口操作",
+    "remote": {
+      "urls": ["https://mikiacg.vip/*", "https://*.mikiacg.vip/*", "https://aiacg.vip/*", "https://*.aiacg.vip/*"]
+    },
+    "local": true,
+    "windows": ["*"],
+    "permissions": ["core:default"]
+  }
+}

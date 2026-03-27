@@ -38,17 +38,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 const GROWTH_PRESETS = [
   { label: "24h", days: 1 },
@@ -168,7 +158,7 @@ function ContentDistributionChart({
       { name: "images", value: imagePostCount, fill: "var(--color-images)" },
       { name: "games", value: gameCount, fill: "var(--color-games)" },
     ],
-    [videoCount, imagePostCount, gameCount]
+    [videoCount, imagePostCount, gameCount],
   );
 
   const total = videoCount + imagePostCount + gameCount;
@@ -188,11 +178,31 @@ function ContentDistributionChart({
       <ChartContainer config={contentPieConfig} className="mx-auto aspect-square max-h-[220px]">
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} strokeWidth={2} stroke="hsl(var(--background))" />
-          <text x="50%" y="48%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-2xl font-bold">
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            innerRadius={55}
+            outerRadius={85}
+            strokeWidth={2}
+            stroke="hsl(var(--background))"
+          />
+          <text
+            x="50%"
+            y="48%"
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-foreground text-2xl font-bold"
+          >
             {formatCompact(total)}
           </text>
-          <text x="50%" y="60%" textAnchor="middle" dominantBaseline="central" className="fill-muted-foreground text-xs">
+          <text
+            x="50%"
+            y="60%"
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-muted-foreground text-xs"
+          >
             总内容
           </text>
           <ChartLegend content={<ChartLegendContent nameKey="name" />} />
@@ -354,11 +364,7 @@ function GrowthTrendChart({
               ))}
             </TabsList>
           </Tabs>
-          <DateRangePicker
-            value={range}
-            onChange={onRangeChange}
-            presets={TREND_PRESETS}
-          />
+          <DateRangePicker value={range} onChange={onRangeChange} presets={TREND_PRESETS} />
         </div>
       </div>
       <ChartContainer config={trendConfig} className="h-[280px] w-full">
@@ -424,9 +430,11 @@ function GrowthItem({
                 <CountUp value={value} />
               </span>
               {value > 0 && (
-                <Badge variant="secondary" className="text-green-600 bg-green-100 dark:bg-green-900/30 text-[10px] px-1.5 py-0 h-4">
-                  <ArrowUpRight className="h-2.5 w-2.5" />
-                  +{value}
+                <Badge
+                  variant="secondary"
+                  className="text-green-600 bg-green-100 dark:bg-green-900/30 text-[10px] px-1.5 py-0 h-4"
+                >
+                  <ArrowUpRight className="h-2.5 w-2.5" />+{value}
                 </Badge>
               )}
             </>
@@ -462,7 +470,13 @@ export default function StatsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <HeroStat icon={Users} label="注册用户" value={stats?.userCount ?? 0} color="blue" isLoading={statsLoading} />
           <HeroStat icon={Video} label="视频" value={stats?.videoCount ?? 0} color="green" isLoading={statsLoading} />
-          <HeroStat icon={Images} label="图片" value={stats?.imagePostCount ?? 0} color="violet" isLoading={statsLoading} />
+          <HeroStat
+            icon={Images}
+            label="图片"
+            value={stats?.imagePostCount ?? 0}
+            color="violet"
+            isLoading={statsLoading}
+          />
           <HeroStat icon={Gamepad2} label="游戏" value={stats?.gameCount ?? 0} color="amber" isLoading={statsLoading} />
         </div>
       </FadeIn>
@@ -526,7 +540,9 @@ export default function StatsPage() {
               { icon: Search, label: "搜索次数", value: stats?.searchCount ?? 0, color: "text-pink-500" },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
-                <div className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}>
+                <div
+                  className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}
+                >
                   <item.icon className={cn("h-4 w-4", item.color)} />
                 </div>
                 <div>
@@ -553,24 +569,86 @@ export default function StatsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               增长趋势
             </h2>
-            <DateRangePicker
-              value={growthRange}
-              onChange={setGrowthRange}
-              presets={GROWTH_PRESETS}
-            />
+            <DateRangePicker value={growthRange} onChange={setGrowthRange} presets={GROWTH_PRESETS} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <GrowthItem icon={Users} label="新增用户" value={growth?.newUsers ?? 0} color="text-blue-500" isLoading={growthLoading} />
-            <GrowthItem icon={Video} label="新增视频" value={growth?.newVideos ?? 0} color="text-green-500" isLoading={growthLoading} />
-            <GrowthItem icon={Images} label="新增图片" value={growth?.newImagePosts ?? 0} color="text-violet-500" isLoading={growthLoading} />
-            <GrowthItem icon={Gamepad2} label="新增游戏" value={growth?.newGames ?? 0} color="text-amber-500" isLoading={growthLoading} />
-            <GrowthItem icon={Eye} label="新增浏览" value={growth?.newViews ?? 0} color="text-orange-500" isLoading={growthLoading} />
-            <GrowthItem icon={Heart} label="新增点赞" value={growth?.newLikes ?? 0} color="text-red-500" isLoading={growthLoading} />
-            <GrowthItem icon={Star} label="新增收藏" value={growth?.newFavorites ?? 0} color="text-yellow-500" isLoading={growthLoading} />
-            <GrowthItem icon={MessageSquare} label="新增评论" value={growth?.newComments ?? 0} color="text-cyan-500" isLoading={growthLoading} />
-            <GrowthItem icon={Tag} label="新增标签" value={growth?.newTags ?? 0} color="text-purple-500" isLoading={growthLoading} />
-            <GrowthItem icon={Layers} label="新增合集" value={growth?.newSeries ?? 0} color="text-indigo-500" isLoading={growthLoading} />
-            <GrowthItem icon={Search} label="新增搜索" value={growth?.newSearches ?? 0} color="text-pink-500" isLoading={growthLoading} />
+            <GrowthItem
+              icon={Users}
+              label="新增用户"
+              value={growth?.newUsers ?? 0}
+              color="text-blue-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Video}
+              label="新增视频"
+              value={growth?.newVideos ?? 0}
+              color="text-green-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Images}
+              label="新增图片"
+              value={growth?.newImagePosts ?? 0}
+              color="text-violet-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Gamepad2}
+              label="新增游戏"
+              value={growth?.newGames ?? 0}
+              color="text-amber-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Eye}
+              label="新增浏览"
+              value={growth?.newViews ?? 0}
+              color="text-orange-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Heart}
+              label="新增点赞"
+              value={growth?.newLikes ?? 0}
+              color="text-red-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Star}
+              label="新增收藏"
+              value={growth?.newFavorites ?? 0}
+              color="text-yellow-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={MessageSquare}
+              label="新增评论"
+              value={growth?.newComments ?? 0}
+              color="text-cyan-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Tag}
+              label="新增标签"
+              value={growth?.newTags ?? 0}
+              color="text-purple-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Layers}
+              label="新增合集"
+              value={growth?.newSeries ?? 0}
+              color="text-indigo-500"
+              isLoading={growthLoading}
+            />
+            <GrowthItem
+              icon={Search}
+              label="新增搜索"
+              value={growth?.newSearches ?? 0}
+              color="text-pink-500"
+              isLoading={growthLoading}
+            />
           </div>
         </div>
       </FadeIn>

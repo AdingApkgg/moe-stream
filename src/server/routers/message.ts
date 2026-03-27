@@ -91,84 +91,75 @@ export const messageRouter = router({
       return { conversations: result, nextCursor };
     }),
 
-  conversationInfo: protectedProcedure
-    .input(z.object({ conversationId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const participant = await ctx.prisma.conversationParticipant.findUnique({
-        where: {
-          conversationId_userId: { conversationId: input.conversationId, userId },
-        },
-      });
-      if (!participant) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "你不是该会话的参与者" });
-      }
+  conversationInfo: protectedProcedure.input(z.object({ conversationId: z.string() })).query(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const participant = await ctx.prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: { conversationId: input.conversationId, userId },
+      },
+    });
+    if (!participant) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "你不是该会话的参与者" });
+    }
 
-      const conversation = await ctx.prisma.conversation.findUnique({
-        where: { id: input.conversationId },
-        include: {
-          participants: {
-            include: {
-              user: {
-                select: { id: true, nickname: true, username: true, avatar: true },
-              },
+    const conversation = await ctx.prisma.conversation.findUnique({
+      where: { id: input.conversationId },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: { id: true, nickname: true, username: true, avatar: true },
             },
           },
         },
-      });
+      },
+    });
 
-      if (!conversation) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "会话不存在" });
-      }
+    if (!conversation) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "会话不存在" });
+    }
 
-      const otherParticipant = conversation.participants.find(
-        (p) => p.userId !== userId,
-      );
+    const otherParticipant = conversation.participants.find((p) => p.userId !== userId);
 
-      return {
-        id: conversation.id,
-        otherUser: otherParticipant?.user || null,
-      };
-    }),
+    return {
+      id: conversation.id,
+      otherUser: otherParticipant?.user || null,
+    };
+  }),
 
-  getOrCreate: protectedProcedure
-    .input(z.object({ userId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const myId = ctx.session.user.id;
-      if (myId === input.userId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "不能与自己对话" });
-      }
+  getOrCreate: protectedProcedure.input(z.object({ userId: z.string() })).mutation(async ({ ctx, input }) => {
+    const myId = ctx.session.user.id;
+    if (myId === input.userId) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "不能与自己对话" });
+    }
 
-      const target = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { id: true },
-      });
-      if (!target) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
+    const target = await ctx.prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { id: true },
+    });
+    if (!target) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+    }
 
-      const existing = await ctx.prisma.conversation.findFirst({
-        where: {
-          AND: [
-            { participants: { some: { userId: myId } } },
-            { participants: { some: { userId: input.userId } } },
-          ],
+    const existing = await ctx.prisma.conversation.findFirst({
+      where: {
+        AND: [{ participants: { some: { userId: myId } } }, { participants: { some: { userId: input.userId } } }],
+      },
+      select: { id: true },
+    });
+
+    if (existing) return { conversationId: existing.id };
+
+    const conversation = await ctx.prisma.conversation.create({
+      data: {
+        participants: {
+          create: [{ userId: myId }, { userId: input.userId }],
         },
-        select: { id: true },
-      });
+      },
+    });
 
-      if (existing) return { conversationId: existing.id };
-
-      const conversation = await ctx.prisma.conversation.create({
-        data: {
-          participants: {
-            create: [{ userId: myId }, { userId: input.userId }],
-          },
-        },
-      });
-
-      return { conversationId: conversation.id };
-    }),
+    return { conversationId: conversation.id };
+  }),
 
   messages: protectedProcedure
     .input(
@@ -262,9 +253,7 @@ export const messageRouter = router({
         data: { lastReadAt: new Date() },
       });
 
-      socketEmitter
-        .to(`conversation:${input.conversationId}`)
-        .emit("message:new", message);
+      socketEmitter.to(`conversation:${input.conversationId}`).emit("message:new", message);
 
       const otherParticipants = await ctx.prisma.conversationParticipant.findMany({
         where: { conversationId: input.conversationId, userId: { not: userId } },
@@ -277,17 +266,16 @@ export const messageRouter = router({
       });
       const senderName = senderUser?.nickname || senderUser?.username || "某用户";
       for (const p of otherParticipants) {
-        socketEmitter
-          .to(`user:${p.userId}`)
-          .emit("message:unread", { conversationId: input.conversationId });
+        socketEmitter.to(`user:${p.userId}`).emit("message:unread", { conversationId: input.conversationId });
 
         await createNotification({
           userId: p.userId,
           type: "NEW_MESSAGE",
           title: "新私信",
-          content: input.type === "TEXT"
-            ? `${senderName}: ${(input.content || "").slice(0, 50)}`
-            : `${senderName} 发送了${input.type === "IMAGE" ? "一张图片" : input.type === "FILE" ? "一个文件" : "一个贴图"}`,
+          content:
+            input.type === "TEXT"
+              ? `${senderName}: ${(input.content || "").slice(0, 50)}`
+              : `${senderName} 发送了${input.type === "IMAGE" ? "一张图片" : input.type === "FILE" ? "一个文件" : "一个贴图"}`,
           data: { conversationId: input.conversationId, senderId: userId },
         });
       }
@@ -295,43 +283,37 @@ export const messageRouter = router({
       return message;
     }),
 
-  markRead: protectedProcedure
-    .input(z.object({ conversationId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ctx.prisma.conversationParticipant.updateMany({
-        where: { conversationId: input.conversationId, userId },
-        data: { lastReadAt: new Date() },
-      });
+  markRead: protectedProcedure.input(z.object({ conversationId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    await ctx.prisma.conversationParticipant.updateMany({
+      where: { conversationId: input.conversationId, userId },
+      data: { lastReadAt: new Date() },
+    });
 
-      socketEmitter
-        .to(`conversation:${input.conversationId}`)
-        .emit("message:read", { conversationId: input.conversationId, userId });
+    socketEmitter
+      .to(`conversation:${input.conversationId}`)
+      .emit("message:read", { conversationId: input.conversationId, userId });
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
-  deleteMessage: protectedProcedure
-    .input(z.object({ messageId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const message = await ctx.prisma.directMessage.findUnique({
-        where: { id: input.messageId },
-        select: { senderId: true, conversationId: true },
-      });
+  deleteMessage: protectedProcedure.input(z.object({ messageId: z.string() })).mutation(async ({ ctx, input }) => {
+    const message = await ctx.prisma.directMessage.findUnique({
+      where: { id: input.messageId },
+      select: { senderId: true, conversationId: true },
+    });
 
-      if (!message || message.senderId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "只能删除自己的消息" });
-      }
+    if (!message || message.senderId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "只能删除自己的消息" });
+    }
 
-      await ctx.prisma.directMessage.update({
-        where: { id: input.messageId },
-        data: { isDeleted: true },
-      });
+    await ctx.prisma.directMessage.update({
+      where: { id: input.messageId },
+      data: { isDeleted: true },
+    });
 
-      socketEmitter
-        .to(`conversation:${message.conversationId}`)
-        .emit("message:deleted", { messageId: input.messageId });
+    socketEmitter.to(`conversation:${message.conversationId}`).emit("message:deleted", { messageId: input.messageId });
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });

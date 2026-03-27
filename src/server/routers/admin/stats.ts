@@ -7,19 +7,19 @@ import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
 const MAX_RANGE_DAYS = 90;
 const DAY_MS = 1000 * 60 * 60 * 24;
 
-const dateRangeInput = z.object({
-  from: z.string().datetime(),
-  to: z.string().datetime(),
-}).refine(
-  (d) => new Date(d.to) >= new Date(d.from),
-  { message: "结束日期不能早于开始日期" },
-).refine(
-  (d) => {
-    const days = computeDayCount(new Date(d.from), new Date(d.to));
-    return days >= 1 && days <= MAX_RANGE_DAYS;
-  },
-  { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
-);
+const dateRangeInput = z
+  .object({
+    from: z.string().datetime(),
+    to: z.string().datetime(),
+  })
+  .refine((d) => new Date(d.to) >= new Date(d.from), { message: "结束日期不能早于开始日期" })
+  .refine(
+    (d) => {
+      const days = computeDayCount(new Date(d.from), new Date(d.to));
+      return days >= 1 && days <= MAX_RANGE_DAYS;
+    },
+    { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+  );
 
 function computeDayCount(from: Date, to: Date): number {
   const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate());
@@ -41,9 +41,7 @@ export const adminStatsRouter = router({
 
     const isOwner = isOwnerRole(user.role);
     const isAdmin = isPrivileged(user.role);
-    const scopes = isOwner
-      ? Object.keys(ADMIN_SCOPES)
-      : ((user.adminScopes as string[]) || []);
+    const scopes = isOwner ? Object.keys(ADMIN_SCOPES) : (user.adminScopes as string[]) || [];
 
     return {
       role: user.role,
@@ -130,7 +128,12 @@ export const adminStatsRouter = router({
       totalComments: videoComments + gameComments + imagePostComments,
       video: { likes: videoLikes, dislikes: videoDislikes, favorites: videoFavorites, comments: videoComments },
       game: { likes: gameLikes, dislikes: gameDislikes, favorites: gameFavorites, comments: gameComments },
-      image: { likes: imagePostLikes, dislikes: imagePostDislikes, favorites: imagePostFavorites, comments: imagePostComments },
+      image: {
+        likes: imagePostLikes,
+        dislikes: imagePostDislikes,
+        favorites: imagePostFavorites,
+        comments: imagePostComments,
+      },
     };
   }),
 
@@ -140,7 +143,7 @@ export const adminStatsRouter = router({
         type: z.enum(["video", "game", "image", "uploader", "points", "commentator", "collector", "liker"]),
         metric: z.enum(["views", "likes", "favorites", "comments", "uploads"]),
         limit: z.number().min(5).max(50).default(20),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { type, metric, limit } = input;
@@ -162,15 +165,28 @@ export const adminStatsRouter = router({
             value: u.points,
             extra: { joinedAt: u.createdAt },
           })),
-          type, metric,
+          type,
+          metric,
         };
       }
 
       if (type === "commentator") {
         const [videoComments, gameComments, imageComments] = await Promise.all([
-          ctx.prisma.comment.groupBy({ by: ["userId"], where: { isDeleted: false, userId: { not: null } }, _count: true }),
-          ctx.prisma.gameComment.groupBy({ by: ["userId"], where: { isDeleted: false, userId: { not: null } }, _count: true }),
-          ctx.prisma.imagePostComment.groupBy({ by: ["userId"], where: { isDeleted: false, userId: { not: null } }, _count: true }),
+          ctx.prisma.comment.groupBy({
+            by: ["userId"],
+            where: { isDeleted: false, userId: { not: null } },
+            _count: true,
+          }),
+          ctx.prisma.gameComment.groupBy({
+            by: ["userId"],
+            where: { isDeleted: false, userId: { not: null } },
+            _count: true,
+          }),
+          ctx.prisma.imagePostComment.groupBy({
+            by: ["userId"],
+            where: { isDeleted: false, userId: { not: null } },
+            _count: true,
+          }),
         ]);
 
         const commentMap = new Map<string, { video: number; game: number; image: number }>();
@@ -218,7 +234,8 @@ export const adminStatsRouter = router({
                 extra: { video: s.detail.video, game: s.detail.game, image: s.detail.image },
               };
             }),
-          type, metric,
+          type,
+          metric,
         };
       }
 
@@ -271,7 +288,8 @@ export const adminStatsRouter = router({
                 extra: { video: s.detail.video, game: s.detail.game, image: s.detail.image },
               };
             }),
-          type, metric,
+          type,
+          metric,
         };
       }
 
@@ -324,7 +342,8 @@ export const adminStatsRouter = router({
                 extra: { video: s.detail.video, game: s.detail.game, image: s.detail.image },
               };
             }),
-          type, metric,
+          type,
+          metric,
         };
       }
 
@@ -372,26 +391,44 @@ export const adminStatsRouter = router({
             orderBy: { views: "desc" },
             take: limit,
             select: {
-              id: true, title: true, coverUrl: true, views: true,
+              id: true,
+              title: true,
+              coverUrl: true,
+              views: true,
               uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
               _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
             },
           });
           return {
             items: videos.map((v) => ({
-              id: v.id, title: v.title, coverUrl: v.coverUrl,
+              id: v.id,
+              title: v.title,
+              coverUrl: v.coverUrl,
               value: v.views,
-              uploader: { id: v.uploader.id, name: v.uploader.nickname || v.uploader.username, avatar: v.uploader.avatar },
-              stats: { views: v.views, likes: v._count.likes, favorites: v._count.favorites, comments: v._count.comments },
+              uploader: {
+                id: v.uploader.id,
+                name: v.uploader.nickname || v.uploader.username,
+                avatar: v.uploader.avatar,
+              },
+              stats: {
+                views: v.views,
+                likes: v._count.likes,
+                favorites: v._count.favorites,
+                comments: v._count.comments,
+              },
             })),
-            type, metric,
+            type,
+            metric,
           };
         }
         if (metric === "likes") {
           const videos = await ctx.prisma.video.findMany({
             where: { status: "PUBLISHED" },
             select: {
-              id: true, title: true, coverUrl: true, views: true,
+              id: true,
+              title: true,
+              coverUrl: true,
+              views: true,
               uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
               _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
             },
@@ -399,19 +436,34 @@ export const adminStatsRouter = router({
           const sorted = videos.sort((a, b) => b._count.likes - a._count.likes).slice(0, limit);
           return {
             items: sorted.map((v) => ({
-              id: v.id, title: v.title, coverUrl: v.coverUrl,
+              id: v.id,
+              title: v.title,
+              coverUrl: v.coverUrl,
               value: v._count.likes,
-              uploader: { id: v.uploader.id, name: v.uploader.nickname || v.uploader.username, avatar: v.uploader.avatar },
-              stats: { views: v.views, likes: v._count.likes, favorites: v._count.favorites, comments: v._count.comments },
+              uploader: {
+                id: v.uploader.id,
+                name: v.uploader.nickname || v.uploader.username,
+                avatar: v.uploader.avatar,
+              },
+              stats: {
+                views: v.views,
+                likes: v._count.likes,
+                favorites: v._count.favorites,
+                comments: v._count.comments,
+              },
             })),
-            type, metric,
+            type,
+            metric,
           };
         }
         if (metric === "favorites") {
           const videos = await ctx.prisma.video.findMany({
             where: { status: "PUBLISHED" },
             select: {
-              id: true, title: true, coverUrl: true, views: true,
+              id: true,
+              title: true,
+              coverUrl: true,
+              views: true,
               uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
               _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
             },
@@ -419,19 +471,34 @@ export const adminStatsRouter = router({
           const sorted = videos.sort((a, b) => b._count.favorites - a._count.favorites).slice(0, limit);
           return {
             items: sorted.map((v) => ({
-              id: v.id, title: v.title, coverUrl: v.coverUrl,
+              id: v.id,
+              title: v.title,
+              coverUrl: v.coverUrl,
               value: v._count.favorites,
-              uploader: { id: v.uploader.id, name: v.uploader.nickname || v.uploader.username, avatar: v.uploader.avatar },
-              stats: { views: v.views, likes: v._count.likes, favorites: v._count.favorites, comments: v._count.comments },
+              uploader: {
+                id: v.uploader.id,
+                name: v.uploader.nickname || v.uploader.username,
+                avatar: v.uploader.avatar,
+              },
+              stats: {
+                views: v.views,
+                likes: v._count.likes,
+                favorites: v._count.favorites,
+                comments: v._count.comments,
+              },
             })),
-            type, metric,
+            type,
+            metric,
           };
         }
         // comments
         const videos = await ctx.prisma.video.findMany({
           where: { status: "PUBLISHED" },
           select: {
-            id: true, title: true, coverUrl: true, views: true,
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
             uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
             _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
           },
@@ -439,211 +506,317 @@ export const adminStatsRouter = router({
         const sorted = videos.sort((a, b) => b._count.comments - a._count.comments).slice(0, limit);
         return {
           items: sorted.map((v) => ({
-            id: v.id, title: v.title, coverUrl: v.coverUrl,
+            id: v.id,
+            title: v.title,
+            coverUrl: v.coverUrl,
             value: v._count.comments,
-            uploader: { id: v.uploader.id, name: v.uploader.nickname || v.uploader.username, avatar: v.uploader.avatar },
-            stats: { views: v.views, likes: v._count.likes, favorites: v._count.favorites, comments: v._count.comments },
+            uploader: {
+              id: v.uploader.id,
+              name: v.uploader.nickname || v.uploader.username,
+              avatar: v.uploader.avatar,
+            },
+            stats: {
+              views: v.views,
+              likes: v._count.likes,
+              favorites: v._count.favorites,
+              comments: v._count.comments,
+            },
           })),
-          type, metric,
+          type,
+          metric,
         };
       }
 
       if (type === "game") {
         const baseSelect = {
-          id: true, title: true, coverUrl: true, views: true,
+          id: true,
+          title: true,
+          coverUrl: true,
+          views: true,
           uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
           _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
         } as const;
 
         if (metric === "views") {
           const games = await ctx.prisma.game.findMany({
-            where: { status: "PUBLISHED" }, orderBy: { views: "desc" }, take: limit, select: baseSelect,
+            where: { status: "PUBLISHED" },
+            orderBy: { views: "desc" },
+            take: limit,
+            select: baseSelect,
           });
           return {
             items: games.map((g) => ({
-              id: g.id, title: g.title, coverUrl: g.coverUrl, value: g.views,
-              uploader: { id: g.uploader.id, name: g.uploader.nickname || g.uploader.username, avatar: g.uploader.avatar },
-              stats: { views: g.views, likes: g._count.likes, favorites: g._count.favorites, comments: g._count.comments },
+              id: g.id,
+              title: g.title,
+              coverUrl: g.coverUrl,
+              value: g.views,
+              uploader: {
+                id: g.uploader.id,
+                name: g.uploader.nickname || g.uploader.username,
+                avatar: g.uploader.avatar,
+              },
+              stats: {
+                views: g.views,
+                likes: g._count.likes,
+                favorites: g._count.favorites,
+                comments: g._count.comments,
+              },
             })),
-            type, metric,
+            type,
+            metric,
           };
         }
         const games = await ctx.prisma.game.findMany({
-          where: { status: "PUBLISHED" }, select: baseSelect,
+          where: { status: "PUBLISHED" },
+          select: baseSelect,
         });
         const key = metric === "likes" ? "likes" : metric === "favorites" ? "favorites" : "comments";
         const sorted = games.sort((a, b) => b._count[key] - a._count[key]).slice(0, limit);
         return {
           items: sorted.map((g) => ({
-            id: g.id, title: g.title, coverUrl: g.coverUrl,
+            id: g.id,
+            title: g.title,
+            coverUrl: g.coverUrl,
             value: g._count[key],
-            uploader: { id: g.uploader.id, name: g.uploader.nickname || g.uploader.username, avatar: g.uploader.avatar },
-            stats: { views: g.views, likes: g._count.likes, favorites: g._count.favorites, comments: g._count.comments },
+            uploader: {
+              id: g.uploader.id,
+              name: g.uploader.nickname || g.uploader.username,
+              avatar: g.uploader.avatar,
+            },
+            stats: {
+              views: g.views,
+              likes: g._count.likes,
+              favorites: g._count.favorites,
+              comments: g._count.comments,
+            },
           })),
-          type, metric,
+          type,
+          metric,
         };
       }
 
       // type === "image"
       const baseSelect = {
-        id: true, title: true, views: true, images: true,
+        id: true,
+        title: true,
+        views: true,
+        images: true,
         uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
         _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
       } as const;
 
       if (metric === "views") {
         const posts = await ctx.prisma.imagePost.findMany({
-          where: { status: "PUBLISHED" }, orderBy: { views: "desc" }, take: limit, select: baseSelect,
+          where: { status: "PUBLISHED" },
+          orderBy: { views: "desc" },
+          take: limit,
+          select: baseSelect,
         });
         return {
           items: posts.map((p) => ({
-            id: p.id, title: p.title, coverUrl: (p.images as string[])?.[0] ?? null,
+            id: p.id,
+            title: p.title,
+            coverUrl: (p.images as string[])?.[0] ?? null,
             value: p.views,
-            uploader: { id: p.uploader.id, name: p.uploader.nickname || p.uploader.username, avatar: p.uploader.avatar },
-            stats: { views: p.views, likes: p._count.likes, favorites: p._count.favorites, comments: p._count.comments },
+            uploader: {
+              id: p.uploader.id,
+              name: p.uploader.nickname || p.uploader.username,
+              avatar: p.uploader.avatar,
+            },
+            stats: {
+              views: p.views,
+              likes: p._count.likes,
+              favorites: p._count.favorites,
+              comments: p._count.comments,
+            },
           })),
-          type, metric,
+          type,
+          metric,
         };
       }
       const posts = await ctx.prisma.imagePost.findMany({
-        where: { status: "PUBLISHED" }, select: baseSelect,
+        where: { status: "PUBLISHED" },
+        select: baseSelect,
       });
       const key = metric === "likes" ? "likes" : metric === "favorites" ? "favorites" : "comments";
       const sorted = posts.sort((a, b) => b._count[key] - a._count[key]).slice(0, limit);
       return {
         items: sorted.map((p) => ({
-          id: p.id, title: p.title, coverUrl: (p.images as string[])?.[0] ?? null,
+          id: p.id,
+          title: p.title,
+          coverUrl: (p.images as string[])?.[0] ?? null,
           value: p._count[key],
           uploader: { id: p.uploader.id, name: p.uploader.nickname || p.uploader.username, avatar: p.uploader.avatar },
           stats: { views: p.views, likes: p._count.likes, favorites: p._count.favorites, comments: p._count.comments },
         })),
-        type, metric,
+        type,
+        metric,
       };
     }),
 
-  getGrowthStats: publicProcedure
-    .input(dateRangeInput)
-    .query(async ({ ctx, input }) => {
-      const since = new Date(input.from);
-      const until = new Date(input.to);
-      const dateRange = { gte: since, lte: until };
+  getGrowthStats: publicProcedure.input(dateRangeInput).query(async ({ ctx, input }) => {
+    const since = new Date(input.from);
+    const until = new Date(input.to);
+    const dateRange = { gte: since, lte: until };
 
-      const [
-        newUsers,
-        newVideos,
-        newGames,
-        newImagePosts,
-        newTags,
-        newSeries,
-        newSearches,
-        newVideoComments,
-        newGameComments,
-        newImageComments,
-        newVideoViews,
-        newGameViews,
-        newImageViews,
-        newVideoLikes,
-        newGameLikes,
-        newImageLikes,
-        newVideoFavorites,
-        newGameFavorites,
-        newImageFavorites,
-      ] = await Promise.all([
-        ctx.prisma.user.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.video.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
-        ctx.prisma.game.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
-        ctx.prisma.imagePost.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
-        ctx.prisma.tag.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.series.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.searchRecord.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.comment.count({ where: { createdAt: dateRange, isDeleted: false } }),
-        ctx.prisma.gameComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
-        ctx.prisma.imagePostComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
-        ctx.prisma.watchHistory.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.gameViewHistory.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.imagePostViewHistory.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.like.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.gameLike.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.imagePostLike.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.favorite.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.gameFavorite.count({ where: { createdAt: dateRange } }),
-        ctx.prisma.imagePostFavorite.count({ where: { createdAt: dateRange } }),
-      ]);
+    const [
+      newUsers,
+      newVideos,
+      newGames,
+      newImagePosts,
+      newTags,
+      newSeries,
+      newSearches,
+      newVideoComments,
+      newGameComments,
+      newImageComments,
+      newVideoViews,
+      newGameViews,
+      newImageViews,
+      newVideoLikes,
+      newGameLikes,
+      newImageLikes,
+      newVideoFavorites,
+      newGameFavorites,
+      newImageFavorites,
+    ] = await Promise.all([
+      ctx.prisma.user.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.video.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+      ctx.prisma.game.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+      ctx.prisma.imagePost.count({ where: { createdAt: dateRange, status: "PUBLISHED" } }),
+      ctx.prisma.tag.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.series.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.searchRecord.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.comment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+      ctx.prisma.gameComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+      ctx.prisma.imagePostComment.count({ where: { createdAt: dateRange, isDeleted: false } }),
+      ctx.prisma.watchHistory.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.gameViewHistory.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.imagePostViewHistory.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.like.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.gameLike.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.imagePostLike.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.favorite.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.gameFavorite.count({ where: { createdAt: dateRange } }),
+      ctx.prisma.imagePostFavorite.count({ where: { createdAt: dateRange } }),
+    ]);
 
-      return {
-        newUsers,
-        newVideos,
-        newGames,
-        newImagePosts,
-        newTags,
-        newSeries,
-        newSearches,
-        newComments: newVideoComments + newGameComments + newImageComments,
-        newViews: newVideoViews + newGameViews + newImageViews,
-        newLikes: newVideoLikes + newGameLikes + newImageLikes,
-        newFavorites: newVideoFavorites + newGameFavorites + newImageFavorites,
-      };
-    }),
+    return {
+      newUsers,
+      newVideos,
+      newGames,
+      newImagePosts,
+      newTags,
+      newSeries,
+      newSearches,
+      newComments: newVideoComments + newGameComments + newImageComments,
+      newViews: newVideoViews + newGameViews + newImageViews,
+      newLikes: newVideoLikes + newGameLikes + newImageLikes,
+      newFavorites: newVideoFavorites + newGameFavorites + newImageFavorites,
+    };
+  }),
 
   // 增长趋势数据（每日统计）
-  getGrowthTrend: publicProcedure
-    .input(dateRangeInput)
-    .query(async ({ ctx, input }) => {
-      const since = new Date(input.from);
-      const until = new Date(input.to);
-      const dateRange = { gte: since, lte: until };
+  getGrowthTrend: publicProcedure.input(dateRangeInput).query(async ({ ctx, input }) => {
+    const since = new Date(input.from);
+    const until = new Date(input.to);
+    const dateRange = { gte: since, lte: until };
 
-      const [users, videos, images, games, videoViews, gameViews, imageViews, videoLikes, gameLikes, imageLikes, videoFavs, gameFavs, imageFavs, videoComments, gameComments, imageComments] = await Promise.all([
-        ctx.prisma.user.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.video.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.imagePost.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.game.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
-        ctx.prisma.watchHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.gameViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.like.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.gameLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.imagePostLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.favorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.gameFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-        ctx.prisma.comment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
-        ctx.prisma.gameComment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
-        ctx.prisma.imagePostComment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
-      ]);
+    const [
+      users,
+      videos,
+      images,
+      games,
+      videoViews,
+      gameViews,
+      imageViews,
+      videoLikes,
+      gameLikes,
+      imageLikes,
+      videoFavs,
+      gameFavs,
+      imageFavs,
+      videoComments,
+      gameComments,
+      imageComments,
+    ] = await Promise.all([
+      ctx.prisma.user.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.video.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
+      ctx.prisma.imagePost.findMany({
+        where: { createdAt: dateRange, status: "PUBLISHED" },
+        select: { createdAt: true },
+      }),
+      ctx.prisma.game.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
+      ctx.prisma.watchHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.gameViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.like.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.gameLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.imagePostLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.favorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.gameFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+      ctx.prisma.comment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
+      ctx.prisma.gameComment.findMany({
+        where: { createdAt: dateRange, isDeleted: false },
+        select: { createdAt: true },
+      }),
+      ctx.prisma.imagePostComment.findMany({
+        where: { createdAt: dateRange, isDeleted: false },
+        select: { createdAt: true },
+      }),
+    ]);
 
-      type DayData = { users: number; videos: number; images: number; games: number; views: number; likes: number; favorites: number; comments: number };
-      const trend: Record<string, DayData> = {};
+    type DayData = {
+      users: number;
+      videos: number;
+      images: number;
+      games: number;
+      views: number;
+      likes: number;
+      favorites: number;
+      comments: number;
+    };
+    const trend: Record<string, DayData> = {};
 
-      const dayCount = computeDayCount(since, until);
-      const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const empty = (): DayData => ({ users: 0, videos: 0, images: 0, games: 0, views: 0, likes: 0, favorites: 0, comments: 0 });
+    const dayCount = computeDayCount(since, until);
+    const toKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const empty = (): DayData => ({
+      users: 0,
+      videos: 0,
+      images: 0,
+      games: 0,
+      views: 0,
+      likes: 0,
+      favorites: 0,
+      comments: 0,
+    });
 
-      for (let i = 0; i < dayCount; i++) {
-        const date = new Date(since);
-        date.setDate(date.getDate() + i);
-        trend[toKey(date)] = empty();
+    for (let i = 0; i < dayCount; i++) {
+      const date = new Date(since);
+      date.setDate(date.getDate() + i);
+      trend[toKey(date)] = empty();
+    }
+
+    const inc = (rows: { createdAt: Date }[], field: keyof DayData) => {
+      for (const r of rows) {
+        const k = toKey(new Date(r.createdAt));
+        if (trend[k]) trend[k][field]++;
       }
+    };
 
-      const inc = (rows: { createdAt: Date }[], field: keyof DayData) => {
-        for (const r of rows) {
-          const k = toKey(new Date(r.createdAt));
-          if (trend[k]) trend[k][field]++;
-        }
-      };
+    inc(users, "users");
+    inc(videos, "videos");
+    inc(images, "images");
+    inc(games, "games");
+    inc([...videoViews, ...gameViews, ...imageViews], "views");
+    inc([...videoLikes, ...gameLikes, ...imageLikes], "likes");
+    inc([...videoFavs, ...gameFavs, ...imageFavs], "favorites");
+    inc([...videoComments, ...gameComments, ...imageComments], "comments");
 
-      inc(users, "users");
-      inc(videos, "videos");
-      inc(images, "images");
-      inc(games, "games");
-      inc([...videoViews, ...gameViews, ...imageViews], "views");
-      inc([...videoLikes, ...gameLikes, ...imageLikes], "likes");
-      inc([...videoFavs, ...gameFavs, ...imageFavs], "favorites");
-      inc([...videoComments, ...gameComments, ...imageComments], "comments");
-
-      return Object.entries(trend)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, data]) => ({ date, ...data }));
-    }),
-
+    return Object.entries(trend)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({ date, ...data }));
+  }),
 });

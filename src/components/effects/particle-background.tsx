@@ -52,10 +52,13 @@ function getMouseWorld(mouseNorm: { x: number; y: number }) {
 }
 
 function applyMouseForce(
-  px: number, py: number,
-  mx: number, my: number,
+  px: number,
+  py: number,
+  mx: number,
+  my: number,
   dt: number,
-  radius: number, strength: number,
+  radius: number,
+  strength: number,
   attract: boolean = false,
 ) {
   const dx = px - mx;
@@ -98,9 +101,7 @@ function generateSakuraParticles(count: number, color: string) {
     swayFreq: 0.6 + Math.random() * 0.8,
     scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
     pulsePhase: Math.random() * Math.PI * 2,
-    color: color
-      ? new THREE.Color(color)
-      : new THREE.Color(preset.colors[i % preset.colors.length]),
+    color: color ? new THREE.Color(color) : new THREE.Color(preset.colors[i % preset.colors.length]),
   }));
 }
 
@@ -117,9 +118,7 @@ function generateFireflyParticles(count: number, color: string) {
     phase: Math.random() * Math.PI * 2,
     pulseSpeed: 1.2 + Math.random() * 2.5,
     scale: preset.size[0] + Math.random() * (preset.size[1] - preset.size[0]),
-    baseColor: color
-      ? new THREE.Color(color)
-      : new THREE.Color(preset.colors[i % preset.colors.length]),
+    baseColor: color ? new THREE.Color(color) : new THREE.Color(preset.colors[i % preset.colors.length]),
   }));
 }
 
@@ -140,9 +139,7 @@ function generateSnowParticles(count: number, color: string) {
     sparklePhase: Math.random() * Math.PI * 2,
     sparkleSpeed: 3 + Math.random() * 5,
     depthFactor: 0.5 + Math.random() * 0.5,
-    color: color
-      ? new THREE.Color(color)
-      : new THREE.Color(preset.colors[i % preset.colors.length]),
+    color: color ? new THREE.Color(color) : new THREE.Color(preset.colors[i % preset.colors.length]),
   }));
 }
 
@@ -158,9 +155,7 @@ function generateStarsParticles(count: number, color: string) {
     flashTimer: 8 + Math.random() * 20,
     flashCountdown: 8 + Math.random() * 20,
     isFlashing: false,
-    color: color
-      ? new THREE.Color(color)
-      : new THREE.Color(preset.colors[i % preset.colors.length]),
+    color: color ? new THREE.Color(color) : new THREE.Color(preset.colors[i % preset.colors.length]),
   }));
 }
 
@@ -177,9 +172,7 @@ function generateCyberParticles(count: number, color: string) {
     phase: Math.random() * Math.PI * 2,
     flashSpeed: 2 + Math.random() * 6,
     brightness: 0.4 + Math.random() * 0.6,
-    color: color
-      ? new THREE.Color(color)
-      : new THREE.Color(preset.colors[i % preset.colors.length]),
+    color: color ? new THREE.Color(color) : new THREE.Color(preset.colors[i % preset.colors.length]),
   }));
 }
 
@@ -227,7 +220,10 @@ function SakuraParticles({ config, count, mouse }: ParticleProps) {
       p.x += mf.x;
       p.y += mf.y;
 
-      if (p.y < -8) { p.y = 8 + Math.random() * 3; p.x = (Math.random() - 0.5) * 22; }
+      if (p.y < -8) {
+        p.y = 8 + Math.random() * 3;
+        p.x = (Math.random() - 0.5) * 22;
+      }
       if (p.x > 13) p.x = -13;
       if (p.x < -13) p.x = 13;
 
@@ -245,12 +241,7 @@ function SakuraParticles({ config, count, mouse }: ParticleProps) {
 
   return (
     <instancedMesh ref={meshRef} args={[geometry, undefined, count]}>
-      <meshBasicMaterial
-        transparent
-        opacity={config.opacity}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
+      <meshBasicMaterial transparent opacity={config.opacity} side={THREE.DoubleSide} depthWrite={false} />
     </instancedMesh>
   );
 }
@@ -333,12 +324,7 @@ function FireflyParticles({ config, count, mouse }: ParticleProps) {
     <>
       <instancedMesh ref={coreRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 12]} />
-        <meshBasicMaterial
-          transparent
-          opacity={config.opacity}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
+        <meshBasicMaterial transparent opacity={config.opacity} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={haloRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 12]} />
@@ -395,7 +381,10 @@ function SnowParticles({ config, count, mouse }: ParticleProps) {
       p.x += mf.x;
       p.y += mf.y;
 
-      if (p.y < -8) { p.y = 8 + Math.random() * 3; p.x = (Math.random() - 0.5) * 22; }
+      if (p.y < -8) {
+        p.y = 8 + Math.random() * 3;
+        p.x = (Math.random() - 0.5) * 22;
+      }
 
       p.sparklePhase += p.sparkleSpeed * dt;
       const sparkle = Math.max(0, Math.sin(p.sparklePhase));
@@ -413,12 +402,7 @@ function SnowParticles({ config, count, mouse }: ParticleProps) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <circleGeometry args={[1, 8]} />
-      <meshBasicMaterial
-        transparent
-        opacity={config.opacity}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-      />
+      <meshBasicMaterial transparent opacity={config.opacity} side={THREE.DoubleSide} depthWrite={false} />
     </instancedMesh>
   );
 }
@@ -494,12 +478,7 @@ function StarsParticles({ config, count }: Omit<ParticleProps, "mouse">) {
     <>
       <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 6]} />
-        <meshBasicMaterial
-          transparent
-          opacity={config.opacity}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
+        <meshBasicMaterial transparent opacity={config.opacity} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={haloRef} args={[undefined, undefined, count]}>
         <circleGeometry args={[1, 8]} />
@@ -593,15 +572,18 @@ function AuroraEffect({ config, mouse }: { config: ParticleConfig; mouse: React.
     };
   }, [config.color]);
 
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uSpeed: { value: config.speed },
-    uOpacity: { value: config.opacity },
-    uColor1: { value: colors.c1 },
-    uColor2: { value: colors.c2 },
-    uColor3: { value: colors.c3 },
-    uMouse: { value: new THREE.Vector2(0, 0) },
-  }), [config.speed, config.opacity, colors]);
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uSpeed: { value: config.speed },
+      uOpacity: { value: config.opacity },
+      uColor1: { value: colors.c1 },
+      uColor2: { value: colors.c2 },
+      uColor3: { value: colors.c3 },
+      uMouse: { value: new THREE.Vector2(0, 0) },
+    }),
+    [config.speed, config.opacity, colors],
+  );
 
   useFrame((state) => {
     if (!materialRef.current) return;
@@ -763,11 +745,7 @@ export default function ParticleBackground({ config }: { config: ParticleConfig 
   const count = mapDensity(config.density, isMobile);
 
   return (
-    <div
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0 }}
-      aria-hidden
-    >
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden>
       <Canvas
         camera={{ position: [0, 0, 8], fov: 60 }}
         dpr={[1, isMobile ? 1 : 1.5]}

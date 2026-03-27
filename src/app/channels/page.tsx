@@ -6,13 +6,7 @@ import { useStableSession } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Hash, Plus, Users, MessageSquare, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -25,10 +19,7 @@ export default function ChannelsPage() {
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
 
-  const { data, isLoading } = trpc.channel.list.useQuery(
-    { limit: 50 },
-    { placeholderData: (prev) => prev },
-  );
+  const { data, isLoading } = trpc.channel.list.useQuery({ limit: 50 }, { placeholderData: (prev) => prev });
   const utils = trpc.useUtils();
 
   const createMutation = trpc.channel.create.useMutation({
@@ -115,13 +106,9 @@ export default function ChannelsPage() {
                 <Button
                   className="w-full"
                   disabled={!name.trim() || !slug.trim() || createMutation.isPending}
-                  onClick={() =>
-                    createMutation.mutate({ name, slug, description, type })
-                  }
+                  onClick={() => createMutation.mutate({ name, slug, description, type })}
                 >
-                  {createMutation.isPending && (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  )}
+                  {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   创建
                 </Button>
               </div>
@@ -152,9 +139,7 @@ export default function ChannelsPage() {
                 {ch.avatarUrl ? (
                   <AvatarImage src={ch.avatarUrl} />
                 ) : (
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                    #
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">#</AvatarFallback>
                 )}
               </Avatar>
               <div className="flex-1 min-w-0">
@@ -167,11 +152,7 @@ export default function ChannelsPage() {
                     </Badge>
                   )}
                 </div>
-                {ch.description && (
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {ch.description}
-                  </p>
-                )}
+                {ch.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{ch.description}</p>}
               </div>
               <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                 <span className="flex items-center gap-1">

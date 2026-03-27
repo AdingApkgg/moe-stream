@@ -12,11 +12,7 @@ export function canUploadContent(user: { role: string; canUpload: boolean }): bo
   return isPrivileged(user.role) || user.canUpload;
 }
 
-export function userHasScope(
-  role: string,
-  adminScopes: string[],
-  scope: AdminScope
-): boolean {
+export function userHasScope(role: string, adminScopes: string[], scope: AdminScope): boolean {
   if (role === "OWNER") return true;
   if (role === "USER") return false;
   return adminScopes.includes(scope);

@@ -12,11 +12,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function AboutPage() {
-  return (
-    <LegalPage
-      field="aboutPage"
-      title="关于我们"
-      icon={<Users className="h-6 w-6 text-primary" />}
-    />
-  );
+  return <LegalPage field="aboutPage" title="关于我们" icon={<Users className="h-6 w-6 text-primary" />} />;
 }

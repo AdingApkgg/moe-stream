@@ -8,19 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   Users,
   Video,
@@ -109,12 +98,14 @@ function SidebarContent({
   pathname,
   onItemClick,
 }: {
-  permissions: {
-    isOwner: boolean;
-    isAdmin: boolean;
-    scopes: string[];
-    allScopes: Record<string, string>;
-  } | undefined;
+  permissions:
+    | {
+        isOwner: boolean;
+        isAdmin: boolean;
+        scopes: string[];
+        allScopes: Record<string, string>;
+      }
+    | undefined;
   pathname: string;
   onItemClick?: () => void;
 }) {
@@ -163,7 +154,9 @@ function SidebarContent({
                 <ArrowLeft className="h-3.5 w-3.5" />
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right" className="text-xs">返回首页</TooltipContent>
+            <TooltipContent side="right" className="text-xs">
+              返回首页
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -173,9 +166,7 @@ function SidebarContent({
         <nav className="py-2">
           {visibleGroups.map((group, groupIdx) => (
             <div key={group.label}>
-              {groupIdx > 0 && (
-                <div className="mx-4 my-1.5 border-t" />
-              )}
+              {groupIdx > 0 && <div className="mx-4 my-1.5 border-t" />}
               <div className="px-4 pt-2 pb-1">
                 <span className="text-[11px] font-medium text-muted-foreground/50 uppercase tracking-widest select-none">
                   {group.label}
@@ -194,13 +185,18 @@ function SidebarContent({
                         "group relative flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[13px] transition-colors",
                         isActive
                           ? "bg-accent text-accent-foreground font-medium"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
                       )}
                     >
                       {isActive && (
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary" />
                       )}
-                      <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-accent-foreground/70")} />
+                      <Icon
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          isActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-accent-foreground/70",
+                        )}
+                      />
                       {item.label}
                     </Link>
                   );
@@ -225,7 +221,12 @@ function SidebarContent({
           </Link>
         )}
         <div className="flex items-center gap-2.5 px-4 py-2.5 border-t">
-          <div className={cn("h-6 w-6 rounded-full flex items-center justify-center", permissions?.isOwner ? "bg-amber-500/10" : permissions?.isAdmin ? "bg-blue-500/10" : "bg-muted")}>
+          <div
+            className={cn(
+              "h-6 w-6 rounded-full flex items-center justify-center",
+              permissions?.isOwner ? "bg-amber-500/10" : permissions?.isAdmin ? "bg-blue-500/10" : "bg-muted",
+            )}
+          >
             <RoleIcon className={cn("h-3 w-3", roleInfo.color)} />
           </div>
           <div className="flex-1 min-w-0">
@@ -241,20 +242,15 @@ function SidebarContent({
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const { data: permissions, isLoading: permissionsLoading } =
-    trpc.admin.getMyPermissions.useQuery(undefined, {
-      enabled: !!session,
-    });
+  const { data: permissions, isLoading: permissionsLoading } = trpc.admin.getMyPermissions.useQuery(undefined, {
+    enabled: !!session,
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -318,7 +314,10 @@ export default function DashboardLayout({
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-[52px] border-b bg-card flex items-center px-4 gap-3">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <button className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-accent transition-colors" aria-label="打开菜单">
+              <button
+                className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
+                aria-label="打开菜单"
+              >
                 <Menu className="h-4 w-4" />
               </button>
             </SheetTrigger>
@@ -326,11 +325,7 @@ export default function DashboardLayout({
               <SheetHeader className="sr-only">
                 <SheetTitle>管理面板导航</SheetTitle>
               </SheetHeader>
-              <SidebarContent
-                permissions={permissions}
-                pathname={pathname}
-                onItemClick={() => setMobileOpen(false)}
-              />
+              <SidebarContent permissions={permissions} pathname={pathname} onItemClick={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
           <div className="flex items-center gap-2">
@@ -343,9 +338,7 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-4 lg:p-6 pt-[68px] lg:pt-6 min-h-full">
-            {children}
-          </div>
+          <div className="p-4 lg:p-6 pt-[68px] lg:pt-6 min-h-full">{children}</div>
         </main>
       </div>
     </div>

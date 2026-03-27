@@ -7,10 +7,14 @@ export const adminBackupsRouter = router({
 
   listBackups: adminProcedure
     .use(requireScope("settings:manage"))
-    .input(z.object({
-      page: z.number().int().min(1).default(1),
-      pageSize: z.number().int().min(5).max(50).default(20),
-    }).optional())
+    .input(
+      z
+        .object({
+          page: z.number().int().min(1).default(1),
+          pageSize: z.number().int().min(5).max(50).default(20),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const page = input?.page ?? 1;
       const pageSize = input?.pageSize ?? 20;
@@ -37,11 +41,15 @@ export const adminBackupsRouter = router({
 
   triggerBackup: adminProcedure
     .use(requireScope("settings:manage"))
-    .input(z.object({
-      includeDatabase: z.boolean().default(true),
-      includeUploads: z.boolean().default(true),
-      includeConfig: z.boolean().default(true),
-    }).optional())
+    .input(
+      z
+        .object({
+          includeDatabase: z.boolean().default(true),
+          includeUploads: z.boolean().default(true),
+          includeConfig: z.boolean().default(true),
+        })
+        .optional(),
+    )
     .mutation(async ({ ctx, input }) => {
       const { createBackup } = await import("@/lib/backup");
 
@@ -115,5 +123,4 @@ export const adminBackupsRouter = router({
 
       return result;
     }),
-
 });

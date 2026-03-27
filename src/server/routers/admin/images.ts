@@ -25,7 +25,7 @@ export const adminImagesRouter = router({
         limit: z.number().min(1).max(100).default(50),
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, status, search } = input;
@@ -74,7 +74,7 @@ export const adminImagesRouter = router({
       z.object({
         imageId: z.string(),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.imagePost.update({
@@ -99,7 +99,7 @@ export const adminImagesRouter = router({
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { status, search } = input;
@@ -126,7 +126,7 @@ export const adminImagesRouter = router({
       z.object({
         imageIds: z.array(z.string()).min(1).max(1000),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.prisma.imagePost.updateMany({
@@ -157,7 +157,7 @@ export const adminImagesRouter = router({
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -188,7 +188,12 @@ export const adminImagesRouter = router({
             }
           }
           if (beforeLines.length > 0) {
-            previews.push({ id: post.id, title: post.title, before: beforeLines.join("\n"), after: afterLines.join("\n") });
+            previews.push({
+              id: post.id,
+              title: post.title,
+              before: beforeLines.join("\n"),
+              after: afterLines.join("\n"),
+            });
           }
         } else {
           const original = ((post as Record<string, unknown>)[input.field] ?? "") as string;
@@ -211,7 +216,7 @@ export const adminImagesRouter = router({
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -255,5 +260,4 @@ export const adminImagesRouter = router({
 
       return { success: true, count: updatedCount };
     }),
-
 });

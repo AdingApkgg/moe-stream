@@ -18,10 +18,7 @@ export const channelRouter = router({
 
       const where = userId
         ? {
-            OR: [
-              { type: "PUBLIC" as const },
-              { members: { some: { userId } } },
-            ],
+            OR: [{ type: "PUBLIC" as const }, { members: { some: { userId } } }],
           }
         : { type: "PUBLIC" as const };
 
@@ -47,44 +44,46 @@ export const channelRouter = router({
       return { channels, nextCursor };
     }),
 
-  getBySlug: publicProcedure
-    .input(z.object({ slug: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const channel = await ctx.prisma.channel.findUnique({
-        where: { slug: input.slug },
-        include: {
-          _count: { select: { members: true, messages: true } },
-          creator: {
-            select: { id: true, nickname: true, username: true, avatar: true },
-          },
+  getBySlug: publicProcedure.input(z.object({ slug: z.string() })).query(async ({ ctx, input }) => {
+    const channel = await ctx.prisma.channel.findUnique({
+      where: { slug: input.slug },
+      include: {
+        _count: { select: { members: true, messages: true } },
+        creator: {
+          select: { id: true, nickname: true, username: true, avatar: true },
         },
+      },
+    });
+
+    if (!channel) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "频道不存在" });
+    }
+
+    if (channel.type === "PRIVATE") {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "私有频道需要登录" });
+      }
+      const membership = await ctx.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId: channel.id, userId } },
       });
-
-      if (!channel) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "频道不存在" });
+      if (!membership) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "你不是该频道的成员" });
       }
+    }
 
-      if (channel.type === "PRIVATE") {
-        const userId = ctx.session?.user?.id;
-        if (!userId) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "私有频道需要登录" });
-        }
-        const membership = await ctx.prisma.channelMember.findUnique({
-          where: { channelId_userId: { channelId: channel.id, userId } },
-        });
-        if (!membership) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "你不是该频道的成员" });
-        }
-      }
-
-      return channel;
-    }),
+    return channel;
+  }),
 
   create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1).max(50),
-        slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
+        slug: z
+          .string()
+          .min(1)
+          .max(50)
+          .regex(/^[a-z0-9-]+$/),
         description: z.string().max(500).optional(),
         type: z.enum(["PUBLIC", "PRIVATE"]).default("PUBLIC"),
       }),
@@ -139,88 +138,76 @@ export const channelRouter = router({
       return ctx.prisma.channel.update({ where: { id: channelId }, data });
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ channelId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const channel = await ctx.prisma.channel.findUnique({
-        where: { id: input.channelId },
-        select: { creatorId: true },
-      });
+  delete: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
+    const channel = await ctx.prisma.channel.findUnique({
+      where: { id: input.channelId },
+      select: { creatorId: true },
+    });
 
-      if (!channel || channel.creatorId !== ctx.session.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "只有创建者可以删除频道" });
-      }
+    if (!channel || channel.creatorId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "只有创建者可以删除频道" });
+    }
 
-      await ctx.prisma.channel.delete({ where: { id: input.channelId } });
-      return { success: true };
-    }),
+    await ctx.prisma.channel.delete({ where: { id: input.channelId } });
+    return { success: true };
+  }),
 
-  join: protectedProcedure
-    .input(z.object({ channelId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+  join: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
 
-      const channel = await ctx.prisma.channel.findUnique({
-        where: { id: input.channelId },
-        select: { type: true },
-      });
-      if (!channel) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "频道不存在" });
-      }
-      if (channel.type === "PRIVATE") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "私有频道需要邀请加入" });
-      }
+    const channel = await ctx.prisma.channel.findUnique({
+      where: { id: input.channelId },
+      select: { type: true },
+    });
+    if (!channel) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "频道不存在" });
+    }
+    if (channel.type === "PRIVATE") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "私有频道需要邀请加入" });
+    }
 
-      const existing = await ctx.prisma.channelMember.findUnique({
-        where: { channelId_userId: { channelId: input.channelId, userId } },
-      });
-      if (existing) return { joined: true };
+    const existing = await ctx.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId: input.channelId, userId } },
+    });
+    if (existing) return { joined: true };
 
-      await ctx.prisma.channelMember.create({
-        data: { channelId: input.channelId, userId },
-      });
+    await ctx.prisma.channelMember.create({
+      data: { channelId: input.channelId, userId },
+    });
 
-      socketEmitter
-        .to(`channel:${input.channelId}`)
-        .emit("channel:member:join", { channelId: input.channelId, userId });
+    socketEmitter.to(`channel:${input.channelId}`).emit("channel:member:join", { channelId: input.channelId, userId });
 
-      return { joined: true };
-    }),
+    return { joined: true };
+  }),
 
-  leave: protectedProcedure
-    .input(z.object({ channelId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+  leave: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
 
-      const membership = await ctx.prisma.channelMember.findUnique({
-        where: { channelId_userId: { channelId: input.channelId, userId } },
-      });
-      if (!membership) return { left: true };
-      if (membership.role === "OWNER") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "频道创建者不能退出频道" });
-      }
+    const membership = await ctx.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId: input.channelId, userId } },
+    });
+    if (!membership) return { left: true };
+    if (membership.role === "OWNER") {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "频道创建者不能退出频道" });
+    }
 
-      await ctx.prisma.channelMember.delete({
-        where: { channelId_userId: { channelId: input.channelId, userId } },
-      });
+    await ctx.prisma.channelMember.delete({
+      where: { channelId_userId: { channelId: input.channelId, userId } },
+    });
 
-      socketEmitter
-        .to(`channel:${input.channelId}`)
-        .emit("channel:member:leave", { channelId: input.channelId, userId });
+    socketEmitter.to(`channel:${input.channelId}`).emit("channel:member:leave", { channelId: input.channelId, userId });
 
-      return { left: true };
-    }),
+    return { left: true };
+  }),
 
-  isMember: protectedProcedure
-    .input(z.object({ channelId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const membership = await ctx.prisma.channelMember.findUnique({
-        where: { channelId_userId: { channelId: input.channelId, userId } },
-        select: { id: true, role: true },
-      });
-      return { isMember: !!membership, role: membership?.role ?? null };
-    }),
+  isMember: protectedProcedure.input(z.object({ channelId: z.string() })).query(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const membership = await ctx.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId: input.channelId, userId } },
+      select: { id: true, role: true },
+    });
+    return { isMember: !!membership, role: membership?.role ?? null };
+  }),
 
   members: publicProcedure
     .input(
@@ -395,53 +382,45 @@ export const channelRouter = router({
         data: { lastReadAt: new Date() },
       });
 
-      socketEmitter
-        .to(`channel:${input.channelId}`)
-        .emit("channel:message:new", message);
+      socketEmitter.to(`channel:${input.channelId}`).emit("channel:message:new", message);
 
       return message;
     }),
 
-  deleteMessage: protectedProcedure
-    .input(z.object({ messageId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      const message = await ctx.prisma.channelMessage.findUnique({
-        where: { id: input.messageId },
-        select: { senderId: true, channelId: true },
+  deleteMessage: protectedProcedure.input(z.object({ messageId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    const message = await ctx.prisma.channelMessage.findUnique({
+      where: { id: input.messageId },
+      select: { senderId: true, channelId: true },
+    });
+
+    if (!message) throw new TRPCError({ code: "NOT_FOUND" });
+
+    if (message.senderId !== userId) {
+      const membership = await ctx.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId: message.channelId, userId } },
       });
-
-      if (!message) throw new TRPCError({ code: "NOT_FOUND" });
-
-      if (message.senderId !== userId) {
-        const membership = await ctx.prisma.channelMember.findUnique({
-          where: { channelId_userId: { channelId: message.channelId, userId } },
-        });
-        if (!membership || membership.role === "MEMBER") {
-          throw new TRPCError({ code: "FORBIDDEN", message: "只能删除自己的消息" });
-        }
+      if (!membership || membership.role === "MEMBER") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "只能删除自己的消息" });
       }
+    }
 
-      await ctx.prisma.channelMessage.update({
-        where: { id: input.messageId },
-        data: { isDeleted: true },
-      });
+    await ctx.prisma.channelMessage.update({
+      where: { id: input.messageId },
+      data: { isDeleted: true },
+    });
 
-      socketEmitter
-        .to(`channel:${message.channelId}`)
-        .emit("channel:message:deleted", { messageId: input.messageId });
+    socketEmitter.to(`channel:${message.channelId}`).emit("channel:message:deleted", { messageId: input.messageId });
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
-  markRead: protectedProcedure
-    .input(z.object({ channelId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
-      await ctx.prisma.channelMember.updateMany({
-        where: { channelId: input.channelId, userId },
-        data: { lastReadAt: new Date() },
-      });
-      return { success: true };
-    }),
+  markRead: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
+    await ctx.prisma.channelMember.updateMany({
+      where: { channelId: input.channelId, userId },
+      data: { lastReadAt: new Date() },
+    });
+    return { success: true };
+  }),
 });

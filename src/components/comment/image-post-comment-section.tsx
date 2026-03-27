@@ -9,13 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, ArrowUpDown, User, LogIn } from "lucide-react";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { ImagePostCommentItem } from "./image-post-comment-item";
@@ -64,23 +58,26 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
     setTurnstileToken("");
   }, []);
 
-  const insertAtCursor = useCallback((text: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      setNewComment((prev) => prev + text);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const before = newComment.slice(0, start);
-    const after = newComment.slice(end);
-    setNewComment(before + text + after);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + text.length;
-      el.setSelectionRange(pos, pos);
-    });
-  }, [newComment]);
+  const insertAtCursor = useCallback(
+    (text: string) => {
+      const el = textareaRef.current;
+      if (!el) {
+        setNewComment((prev) => prev + text);
+        return;
+      }
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const before = newComment.slice(0, start);
+      const after = newComment.slice(end);
+      setNewComment(before + text + after);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + text.length;
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [newComment],
+  );
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -107,16 +104,11 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
 
   const { data: commentCount } = trpc.imagePostComment.getCount.useQuery({ imagePostId });
 
-  const {
-    data,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = trpc.imagePostComment.list.useInfiniteQuery(
-    { imagePostId, sort, limit: 20 },
-    { getNextPageParam: (lastPage) => lastPage.nextCursor }
-  );
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    trpc.imagePostComment.list.useInfiniteQuery(
+      { imagePostId, sort, limit: 20 },
+      { getNextPageParam: (lastPage) => lastPage.nextCursor },
+    );
 
   const createMutation = trpc.imagePostComment.create.useMutation({
     onSuccess: (data) => {
@@ -209,7 +201,23 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
     setTurnstileToken("");
     setCaptchaValue("");
     setSliderValue(null);
-  }, [newComment, isSubmitting, createMutation, imagePostId, deviceInfo, session, guestName, guestEmail, guestWebsite, captchaType, isTokenCaptcha, turnstileToken, captchaValue, sliderValue, getVisitorId]);
+  }, [
+    newComment,
+    isSubmitting,
+    createMutation,
+    imagePostId,
+    deviceInfo,
+    session,
+    guestName,
+    guestEmail,
+    guestWebsite,
+    captchaType,
+    isTokenCaptcha,
+    turnstileToken,
+    captchaValue,
+    sliderValue,
+    getVisitorId,
+  ]);
 
   const comments = data?.pages.flatMap((page) => page.comments) ?? [];
 
@@ -218,9 +226,7 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">
-            {commentCount !== undefined ? `${commentCount} 条评论` : "评论"}
-          </h3>
+          <h3 className="text-lg font-semibold">{commentCount !== undefined ? `${commentCount} 条评论` : "评论"}</h3>
         </div>
         {isMounted ? (
           <Select value={sort} onValueChange={(v) => setSort(v as SortType)}>
@@ -242,122 +248,128 @@ export function ImagePostCommentSection({ imagePostId }: ImagePostCommentSection
       {isMounted && requireLogin && !session ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-muted-foreground">
           <LogIn className="h-4 w-4" />
-          <span>请<a href="/login" className="text-primary underline underline-offset-4 mx-0.5">登录</a>后发表评论</span>
+          <span>
+            请
+            <a href="/login" className="text-primary underline underline-offset-4 mx-0.5">
+              登录
+            </a>
+            后发表评论
+          </span>
         </div>
       ) : (
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          {!isMounted ? (
-            <AvatarFallback>U</AvatarFallback>
-          ) : session ? (
-            <>
-              <AvatarImage src={session.user?.image || undefined} />
+        <div className="flex gap-3">
+          <Avatar className="h-10 w-10 shrink-0">
+            {!isMounted ? (
+              <AvatarFallback>U</AvatarFallback>
+            ) : session ? (
+              <>
+                <AvatarImage src={session.user?.image || undefined} />
+                <AvatarFallback>{(session.user?.name?.trim() || "").charAt(0).toUpperCase() || "U"}</AvatarFallback>
+              </>
+            ) : (
               <AvatarFallback>
-                {(session.user?.name?.trim() || "").charAt(0).toUpperCase() || "U"}
+                <User className="h-5 w-5" />
               </AvatarFallback>
-            </>
-          ) : (
-            <AvatarFallback>
-              <User className="h-5 w-5" />
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <div className="flex-1 space-y-3">
-          {isMounted && !session && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="image-guest-name" className="text-xs">
-                  昵称 <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="image-guest-name"
-                  placeholder="必填"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  maxLength={50}
-                  className="h-8"
-                />
+            )}
+          </Avatar>
+          <div className="flex-1 space-y-3">
+            {isMounted && !session && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="image-guest-name" className="text-xs">
+                    昵称 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="image-guest-name"
+                    placeholder="必填"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    maxLength={50}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="image-guest-email" className="text-xs">
+                    邮箱
+                  </Label>
+                  <Input
+                    id="image-guest-email"
+                    type="email"
+                    placeholder="可选，用于显示头像"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="image-guest-website" className="text-xs">
+                    网址
+                  </Label>
+                  <Input
+                    id="image-guest-website"
+                    type="url"
+                    placeholder="可选，https://..."
+                    value={guestWebsite}
+                    onChange={(e) => setGuestWebsite(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="image-guest-email" className="text-xs">
-                  邮箱
-                </Label>
-                <Input
-                  id="image-guest-email"
-                  type="email"
-                  placeholder="可选，用于显示头像"
-                  value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="image-guest-website" className="text-xs">
-                  网址
-                </Label>
-                <Input
-                  id="image-guest-website"
-                  type="url"
-                  placeholder="可选，https://..."
-                  value={guestWebsite}
-                  onChange={(e) => setGuestWebsite(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-            </div>
-          )}
-          <Textarea
-            ref={textareaRef}
-            placeholder="添加评论..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="min-h-[80px] resize-none"
-            maxLength={2000}
-          />
-          {captchaType !== "none" && (
-            <UnifiedCaptcha
-              type={captchaType}
-              turnstileSiteKey={turnstileSiteKey}
-              recaptchaSiteKey={recaptchaSiteKey}
-              hcaptchaSiteKey={hcaptchaSiteKey}
-              mathValue={captchaValue}
-              onMathChange={setCaptchaValue}
-              onTurnstileVerify={setTurnstileToken}
-              onTurnstileExpire={handleTurnstileExpire}
-              onSliderVerify={(p) => setSliderValue(p)}
-              refreshKey={captchaKey}
+            )}
+            <Textarea
+              ref={textareaRef}
+              placeholder="添加评论..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="min-h-[80px] resize-none"
+              maxLength={2000}
             />
-          )}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-1">
-              <EmojiStickerPicker
-                onEmojiSelect={(emoji) => insertAtCursor(emoji)}
-                onStickerSelect={(markup) => insertAtCursor(markup)}
+            {captchaType !== "none" && (
+              <UnifiedCaptcha
+                type={captchaType}
+                turnstileSiteKey={turnstileSiteKey}
+                recaptchaSiteKey={recaptchaSiteKey}
+                hcaptchaSiteKey={hcaptchaSiteKey}
+                mathValue={captchaValue}
+                onMathChange={setCaptchaValue}
+                onTurnstileVerify={setTurnstileToken}
+                onTurnstileExpire={handleTurnstileExpire}
+                onSliderVerify={(p) => setSliderValue(p)}
+                refreshKey={captchaKey}
               />
-              <span className="text-xs text-muted-foreground">{newComment.length}/2000</span>
-            </div>
-            <div className="flex gap-2">
-              {newComment && (
-                <Button variant="ghost" size="sm" onClick={() => setNewComment("")}>
-                  取消
+            )}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1">
+                <EmojiStickerPicker
+                  onEmojiSelect={(emoji) => insertAtCursor(emoji)}
+                  onStickerSelect={(markup) => insertAtCursor(markup)}
+                />
+                <span className="text-xs text-muted-foreground">{newComment.length}/2000</span>
+              </div>
+              <div className="flex gap-2">
+                {newComment && (
+                  <Button variant="ghost" size="sm" onClick={() => setNewComment("")}>
+                    取消
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleSubmit}
+                  disabled={
+                    !newComment.trim() ||
+                    isSubmitting ||
+                    (!session && !guestName.trim()) ||
+                    (captchaType === "math" && !captchaValue.trim()) ||
+                    (isTokenCaptcha && !turnstileToken) ||
+                    (captchaType === "slider" && sliderValue === null)
+                  }
+                >
+                  {isSubmitting ? "发表中..." : "发表评论"}
                 </Button>
-              )}
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={
-                  !newComment.trim() || isSubmitting || (!session && !guestName.trim()) ||
-                  (captchaType === "math" && !captchaValue.trim()) ||
-                  (isTokenCaptcha && !turnstileToken) ||
-                  (captchaType === "slider" && sliderValue === null)
-                }
-              >
-                {isSubmitting ? "发表中..." : "发表评论"}
-              </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       <div className="space-y-4">

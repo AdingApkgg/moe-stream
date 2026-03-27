@@ -29,13 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,12 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast-with-sound";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Megaphone,
   Plus,
@@ -138,7 +127,11 @@ function parseAds(raw: unknown): Ad[] {
   }));
 }
 
-function getAdStatus(ad: Ad): { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: typeof CheckCircle2 } {
+function getAdStatus(ad: Ad): {
+  label: string;
+  variant: "default" | "secondary" | "outline" | "destructive";
+  icon: typeof CheckCircle2;
+} {
   if (!ad.enabled) return { label: "已禁用", variant: "secondary", icon: EyeOff };
   if (!isAdInSchedule(ad)) {
     const now = new Date();
@@ -152,7 +145,9 @@ function formatDate(d: string | null | undefined): string {
   if (!d) return "—";
   try {
     return new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
-  } catch { return "—"; }
+  } catch {
+    return "—";
+  }
 }
 
 export default function AdsManagementPage() {
@@ -186,7 +181,9 @@ export default function AdsManagementPage() {
 
   const platforms = useMemo(() => {
     const set = new Set<string>();
-    allAds.forEach((a) => { if (a.platform) set.add(a.platform); });
+    allAds.forEach((a) => {
+      if (a.platform) set.add(a.platform);
+    });
     return Array.from(set).sort();
   }, [allAds]);
 
@@ -209,21 +206,32 @@ export default function AdsManagementPage() {
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter((ad) =>
-        ad.title.toLowerCase().includes(q) ||
-        ad.platform.toLowerCase().includes(q) ||
-        ad.url.toLowerCase().includes(q) ||
-        (ad.description || "").toLowerCase().includes(q)
+      result = result.filter(
+        (ad) =>
+          ad.title.toLowerCase().includes(q) ||
+          ad.platform.toLowerCase().includes(q) ||
+          ad.url.toLowerCase().includes(q) ||
+          (ad.description || "").toLowerCase().includes(q),
       );
     }
     result = [...result].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
-        case "title": cmp = a.title.localeCompare(b.title, "zh-CN"); break;
-        case "platform": cmp = (a.platform || "").localeCompare(b.platform || "", "zh-CN"); break;
-        case "weight": cmp = a.weight - b.weight; break;
-        case "createdAt": cmp = (a.createdAt || "").localeCompare(b.createdAt || ""); break;
-        case "status": cmp = getAdStatusOrder(a) - getAdStatusOrder(b); break;
+        case "title":
+          cmp = a.title.localeCompare(b.title, "zh-CN");
+          break;
+        case "platform":
+          cmp = (a.platform || "").localeCompare(b.platform || "", "zh-CN");
+          break;
+        case "weight":
+          cmp = a.weight - b.weight;
+          break;
+        case "createdAt":
+          cmp = (a.createdAt || "").localeCompare(b.createdAt || "");
+          break;
+        case "status":
+          cmp = getAdStatusOrder(a) - getAdStatusOrder(b);
+          break;
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -255,13 +263,14 @@ export default function AdsManagementPage() {
   }, []);
 
   const handleStatCardClick = useCallback((status: string) => {
-    setFilterStatus((prev) => prev === status ? "all" : status);
+    setFilterStatus((prev) => (prev === status ? "all" : status));
   }, []);
 
   const toggleSelectAd = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -277,39 +286,43 @@ export default function AdsManagementPage() {
 
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
 
-  const saveAds = useCallback(async (newAds: Ad[]) => {
-    setSaving(true);
-    try {
-      await updateConfig.mutateAsync({
-        sponsorAds: newAds.map((a) => ({
-          id: a.id,
-          title: a.title,
-          platform: a.platform || "",
-          url: a.url,
-          description: a.description || "",
-          imageUrl: a.imageUrl || "",
-          weight: a.weight,
-          enabled: a.enabled,
-          position: a.position || "all",
-          startDate: a.startDate || null,
-          endDate: a.endDate || null,
-          createdAt: a.createdAt,
-        })),
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [updateConfig]);
+  const saveAds = useCallback(
+    async (newAds: Ad[]) => {
+      setSaving(true);
+      try {
+        await updateConfig.mutateAsync({
+          sponsorAds: newAds.map((a) => ({
+            id: a.id,
+            title: a.title,
+            platform: a.platform || "",
+            url: a.url,
+            description: a.description || "",
+            imageUrl: a.imageUrl || "",
+            weight: a.weight,
+            enabled: a.enabled,
+            position: a.position || "all",
+            startDate: a.startDate || null,
+            endDate: a.endDate || null,
+            createdAt: a.createdAt,
+          })),
+        });
+      } finally {
+        setSaving(false);
+      }
+    },
+    [updateConfig],
+  );
 
-  const handleBatchToggle = useCallback(async (enabled: boolean) => {
-    if (selectedIds.size === 0) return;
-    const newAds = allAds.map((ad) =>
-      selectedIds.has(ad.id) ? { ...ad, enabled } : ad
-    );
-    await saveAds(newAds);
-    setSelectedIds(new Set());
-    toast.success(`已批量${enabled ? "启用" : "禁用"} ${selectedIds.size} 个广告`);
-  }, [selectedIds, allAds, saveAds]);
+  const handleBatchToggle = useCallback(
+    async (enabled: boolean) => {
+      if (selectedIds.size === 0) return;
+      const newAds = allAds.map((ad) => (selectedIds.has(ad.id) ? { ...ad, enabled } : ad));
+      await saveAds(newAds);
+      setSelectedIds(new Set());
+      toast.success(`已批量${enabled ? "启用" : "禁用"} ${selectedIds.size} 个广告`);
+    },
+    [selectedIds, allAds, saveAds],
+  );
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -358,11 +371,7 @@ export default function AdsManagementPage() {
     const isEdit = !!editingId;
     let newAds: Ad[];
     if (isEdit) {
-      newAds = allAds.map((ad) =>
-        ad.id === editingId
-          ? { ...ad, ...form, id: editingId }
-          : ad
-      );
+      newAds = allAds.map((ad) => (ad.id === editingId ? { ...ad, ...form, id: editingId } : ad));
     } else {
       const newAd: Ad = {
         ...form,
@@ -389,9 +398,7 @@ export default function AdsManagementPage() {
   };
 
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
-    const newAds = allAds.map((ad) =>
-      ad.id === id ? { ...ad, enabled } : ad
-    );
+    const newAds = allAds.map((ad) => (ad.id === id ? { ...ad, enabled } : ad));
     await saveAds(newAds);
     toast.success(enabled ? "广告已启用" : "广告已禁用");
   };
@@ -423,17 +430,20 @@ export default function AdsManagementPage() {
     toast.success("广告门配置已更新");
   };
 
-  const livePreviewAd: Ad = useMemo(() => ({
-    id: "preview",
-    title: form.title || "广告标题预览",
-    platform: form.platform || "",
-    url: form.url || "#",
-    description: form.description || undefined,
-    imageUrl: form.imageUrl || undefined,
-    weight: form.weight,
-    enabled: true,
-    position: form.position,
-  }), [form]);
+  const livePreviewAd: Ad = useMemo(
+    () => ({
+      id: "preview",
+      title: form.title || "广告标题预览",
+      platform: form.platform || "",
+      url: form.url || "#",
+      description: form.description || undefined,
+      imageUrl: form.imageUrl || undefined,
+      weight: form.weight,
+      enabled: true,
+      position: form.position,
+    }),
+    [form],
+  );
 
   if (isLoading) {
     return (
@@ -443,7 +453,9 @@ export default function AdsManagementPage() {
           <Skeleton className="h-9 w-28" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
         </div>
         <Skeleton className="h-[400px] rounded-lg" />
       </div>
@@ -480,8 +492,13 @@ export default function AdsManagementPage() {
       {/* 统计卡片 —— 可点击快速筛选 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card
-          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "all" && activeFilterCount === 0 && "ring-2 ring-primary/30")}
-          onClick={() => { clearAllFilters(); }}
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            filterStatus === "all" && activeFilterCount === 0 && "ring-2 ring-primary/30",
+          )}
+          onClick={() => {
+            clearAllFilters();
+          }}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -496,7 +513,10 @@ export default function AdsManagementPage() {
           </CardContent>
         </Card>
         <Card
-          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "active" && "ring-2 ring-green-500/40")}
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            filterStatus === "active" && "ring-2 ring-green-500/40",
+          )}
           onClick={() => handleStatCardClick("active")}
         >
           <CardContent className="p-4">
@@ -512,7 +532,10 @@ export default function AdsManagementPage() {
           </CardContent>
         </Card>
         <Card
-          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "disabled" && "ring-2 ring-muted-foreground/30")}
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            filterStatus === "disabled" && "ring-2 ring-muted-foreground/30",
+          )}
           onClick={() => handleStatCardClick("disabled")}
         >
           <CardContent className="p-4">
@@ -528,7 +551,10 @@ export default function AdsManagementPage() {
           </CardContent>
         </Card>
         <Card
-          className={cn("cursor-pointer transition-all hover:shadow-md", filterStatus === "scheduled" && "ring-2 ring-blue-500/40")}
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            filterStatus === "scheduled" && "ring-2 ring-blue-500/40",
+          )}
           onClick={() => handleStatCardClick("scheduled")}
         >
           <CardContent className="p-4">
@@ -586,7 +612,9 @@ export default function AdsManagementPage() {
                 <SelectContent>
                   <SelectItem value="all-filter">全部广告位</SelectItem>
                   {AD_POSITIONS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -610,7 +638,9 @@ export default function AdsManagementPage() {
                   <SelectContent>
                     <SelectItem value="all">全部平台</SelectItem>
                     {platforms.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -628,7 +658,7 @@ export default function AdsManagementPage() {
                       key={opt.value}
                       onClick={() => {
                         if (sortField === opt.value) {
-                          setSortDir((d) => d === "asc" ? "desc" : "asc");
+                          setSortDir((d) => (d === "asc" ? "desc" : "asc"));
                         } else {
                           setSortField(opt.value);
                           setSortDir("asc");
@@ -658,30 +688,57 @@ export default function AdsManagementPage() {
                   <>
                     <span className="text-muted-foreground/40">|</span>
                     {searchQuery.trim() && (
-                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setSearchQuery("")}>
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-[11px] cursor-pointer"
+                        onClick={() => setSearchQuery("")}
+                      >
                         搜索: {searchQuery.length > 8 ? searchQuery.slice(0, 8) + "…" : searchQuery}
                         <X className="h-3 w-3" />
                       </Badge>
                     )}
                     {filterStatus !== "all" && (
-                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterStatus("all")}>
-                        {filterStatus === "active" ? "投放中" : filterStatus === "disabled" ? "已禁用" : filterStatus === "scheduled" ? "待投放" : "已过期"}
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-[11px] cursor-pointer"
+                        onClick={() => setFilterStatus("all")}
+                      >
+                        {filterStatus === "active"
+                          ? "投放中"
+                          : filterStatus === "disabled"
+                            ? "已禁用"
+                            : filterStatus === "scheduled"
+                              ? "待投放"
+                              : "已过期"}
                         <X className="h-3 w-3" />
                       </Badge>
                     )}
                     {filterPosition !== "all-filter" && (
-                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterPosition("all-filter")}>
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-[11px] cursor-pointer"
+                        onClick={() => setFilterPosition("all-filter")}
+                      >
                         {AD_POSITIONS.find((p) => p.value === filterPosition)?.label}
                         <X className="h-3 w-3" />
                       </Badge>
                     )}
                     {filterPlatform !== "all" && (
-                      <Badge variant="secondary" className="gap-1 text-[11px] cursor-pointer" onClick={() => setFilterPlatform("all")}>
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-[11px] cursor-pointer"
+                        onClick={() => setFilterPlatform("all")}
+                      >
                         {filterPlatform}
                         <X className="h-3 w-3" />
                       </Badge>
                     )}
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearAllFilters}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-muted-foreground"
+                      onClick={clearAllFilters}
+                    >
                       清除全部
                     </Button>
                   </>
@@ -695,14 +752,18 @@ export default function AdsManagementPage() {
             {/* 批量操作工具栏 */}
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2.5 animate-in slide-in-from-top-2">
-                <span className="text-sm font-medium">
-                  已选择 {selectedIds.size} 项
-                </span>
+                <span className="text-sm font-medium">已选择 {selectedIds.size} 项</span>
                 <div className="h-4 w-px bg-border" />
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => handleBatchToggle(true)} disabled={saving}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={() => handleBatchToggle(true)}
+                        disabled={saving}
+                      >
                         <Power className="h-3.5 w-3.5" />
                         启用
                       </Button>
@@ -711,7 +772,13 @@ export default function AdsManagementPage() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 gap-1" onClick={() => handleBatchToggle(false)} disabled={saving}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1"
+                        onClick={() => handleBatchToggle(false)}
+                        disabled={saving}
+                      >
                         <PowerOff className="h-3.5 w-3.5" />
                         禁用
                       </Button>
@@ -720,7 +787,13 @@ export default function AdsManagementPage() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 gap-1 text-destructive hover:text-destructive" onClick={() => setBatchDeleteOpen(true)} disabled={saving}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-destructive hover:text-destructive"
+                        onClick={() => setBatchDeleteOpen(true)}
+                        disabled={saving}
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                         删除
                       </Button>
@@ -744,13 +817,9 @@ export default function AdsManagementPage() {
                 <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Megaphone className="h-7 w-7 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium mb-1">
-                  {allAds.length === 0 ? "还没有广告" : "没有匹配的广告"}
-                </h3>
+                <h3 className="text-lg font-medium mb-1">{allAds.length === 0 ? "还没有广告" : "没有匹配的广告"}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {allAds.length === 0
-                    ? "点击「新建广告」开始创建第一个广告"
-                    : "尝试调整过滤条件，或"}
+                  {allAds.length === 0 ? "点击「新建广告」开始创建第一个广告" : "尝试调整过滤条件，或"}
                 </p>
                 {allAds.length === 0 ? (
                   <Button onClick={handleOpenCreate}>
@@ -783,14 +852,18 @@ export default function AdsManagementPage() {
                 const posLabel = AD_POSITIONS.find((p) => p.value === ad.position)?.label ?? "全部位置";
                 const isSelected = selectedIds.has(ad.id);
                 return (
-                  <Card key={ad.id} className={cn("transition-all", !ad.enabled && "opacity-60", isSelected && "ring-2 ring-primary/30 bg-primary/[0.02]")}>
+                  <Card
+                    key={ad.id}
+                    className={cn(
+                      "transition-all",
+                      !ad.enabled && "opacity-60",
+                      isSelected && "ring-2 ring-primary/30 bg-primary/[0.02]",
+                    )}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <div className="flex items-center pt-0.5">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelectAd(ad.id)}
-                          />
+                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectAd(ad.id)} />
                         </div>
 
                         {/* 图片缩略图 */}
@@ -1037,7 +1110,9 @@ export default function AdsManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {AD_POSITIONS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1052,7 +1127,12 @@ export default function AdsManagementPage() {
                   <Input
                     type="date"
                     value={form.startDate ? form.startDate.slice(0, 10) : ""}
-                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value ? new Date(e.target.value + "T00:00:00").toISOString() : null }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        startDate: e.target.value ? new Date(e.target.value + "T00:00:00").toISOString() : null,
+                      }))
+                    }
                   />
                   <p className="text-[11px] text-muted-foreground">留空表示立即投放</p>
                 </div>
@@ -1061,7 +1141,12 @@ export default function AdsManagementPage() {
                   <Input
                     type="date"
                     value={form.endDate ? form.endDate.slice(0, 10) : ""}
-                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value ? new Date(e.target.value + "T23:59:59").toISOString() : null }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        endDate: e.target.value ? new Date(e.target.value + "T23:59:59").toISOString() : null,
+                      }))
+                    }
                   />
                   <p className="text-[11px] text-muted-foreground">留空表示长期有效</p>
                 </div>
@@ -1069,10 +1154,7 @@ export default function AdsManagementPage() {
 
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <span className="text-sm font-medium">立即启用</span>
-                <Switch
-                  checked={form.enabled}
-                  onCheckedChange={(v) => setForm((f) => ({ ...f, enabled: v }))}
-                />
+                <Switch checked={form.enabled} onCheckedChange={(v) => setForm((f) => ({ ...f, enabled: v }))} />
               </div>
             </div>
 
@@ -1135,9 +1217,7 @@ export default function AdsManagementPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除广告？</AlertDialogTitle>
-            <AlertDialogDescription>
-              删除后无法恢复，广告将从所有广告位中移除。
-            </AlertDialogDescription>
+            <AlertDialogDescription>删除后无法恢复，广告将从所有广告位中移除。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -1156,14 +1236,15 @@ export default function AdsManagementPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认批量删除 {selectedIds.size} 个广告？</AlertDialogTitle>
-            <AlertDialogDescription>
-              删除后无法恢复，所选广告将全部从所有广告位中移除。
-            </AlertDialogDescription>
+            <AlertDialogDescription>删除后无法恢复，所选广告将全部从所有广告位中移除。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { handleBatchDelete(); setBatchDeleteOpen(false); }}
+              onClick={() => {
+                handleBatchDelete();
+                setBatchDeleteOpen(false);
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               删除 {selectedIds.size} 个广告

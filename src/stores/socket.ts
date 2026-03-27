@@ -38,10 +38,8 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     }),
   setUnreadNotifications: (count) => set({ unreadNotifications: count }),
   setUnreadMessages: (count) => set({ unreadMessages: count }),
-  incrementUnreadNotifications: () =>
-    set((state) => ({ unreadNotifications: state.unreadNotifications + 1 })),
-  incrementUnreadMessages: () =>
-    set((state) => ({ unreadMessages: state.unreadMessages + 1 })),
+  incrementUnreadNotifications: () => set((state) => ({ unreadNotifications: state.unreadNotifications + 1 })),
+  incrementUnreadMessages: () => set((state) => ({ unreadMessages: state.unreadMessages + 1 })),
   setActiveConversation: (id) => set({ activeConversationId: id }),
   isOnline: (userId) => get().onlineUsers.has(userId),
 }));

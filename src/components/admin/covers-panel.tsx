@@ -178,9 +178,7 @@ export function CoversPanel() {
   const isLoading = statsQuery.isLoading;
   const coverPercent = stats?.db ? Math.round((stats.db.withCover / Math.max(stats.db.total, 1)) * 100) : 0;
   const blurPercent = stats?.db ? Math.round((stats.db.withBlur / Math.max(stats.db.total, 1)) * 100) : 0;
-  const successRate = stats && stats.count > 0
-    ? Math.round((stats.success / stats.count) * 100)
-    : null;
+  const successRate = stats && stats.count > 0 ? Math.round((stats.success / stats.count) * 100) : null;
 
   return (
     <div className="space-y-6">
@@ -191,16 +189,9 @@ export function CoversPanel() {
             <ImageIcon className="h-5 w-5" />
             封面管理
           </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            监控封面自动生成系统的运行状态，管理生成任务
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">监控封面自动生成系统的运行状态，管理生成任务</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => utils.admin.getCoverStats.invalidate()}
-          disabled={isLoading}
-        >
+        <Button variant="outline" size="sm" onClick={() => utils.admin.getCoverStats.invalidate()} disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`} />
           刷新
         </Button>
@@ -244,9 +235,7 @@ export function CoversPanel() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">平均耗时</p>
-                <p className="text-2xl font-bold tabular-nums">
-                  {stats ? formatMs(stats.avgMs) : "-"}
-                </p>
+                <p className="text-2xl font-bold tabular-nums">{stats ? formatMs(stats.avgMs) : "-"}</p>
               </div>
             </div>
           </CardContent>
@@ -274,9 +263,7 @@ export function CoversPanel() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">成功率</p>
-                <p className="text-2xl font-bold tabular-nums">
-                  {successRate !== null ? `${successRate}%` : "-"}
-                </p>
+                <p className="text-2xl font-bold tabular-nums">{successRate !== null ? `${successRate}%` : "-"}</p>
               </div>
             </div>
           </CardContent>
@@ -299,14 +286,18 @@ export function CoversPanel() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">封面覆盖率</span>
-                    <span className="font-medium">{stats.db.withCover} / {stats.db.total} ({coverPercent}%)</span>
+                    <span className="font-medium">
+                      {stats.db.withCover} / {stats.db.total} ({coverPercent}%)
+                    </span>
                   </div>
                   <Progress value={coverPercent} className="h-2" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">模糊占位图覆盖率</span>
-                    <span className="font-medium">{stats.db.withBlur} / {stats.db.total} ({blurPercent}%)</span>
+                    <span className="font-medium">
+                      {stats.db.withBlur} / {stats.db.total} ({blurPercent}%)
+                    </span>
                   </div>
                   <Progress value={blurPercent} className="h-2" />
                 </div>
@@ -361,16 +352,19 @@ export function CoversPanel() {
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
               最近缺少封面的视频
             </CardTitle>
-            <CardDescription>
-              最近上传但尚未生成封面的 {stats.db.recentNoCover.length} 个视频
-            </CardDescription>
+            <CardDescription>最近上传但尚未生成封面的 {stats.db.recentNoCover.length} 个视频</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {stats.db.recentNoCover.map((v) => (
-                <div key={v.id} className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                <div
+                  key={v.id}
+                  className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Badge variant="outline" className="shrink-0 font-mono text-xs">{v.id}</Badge>
+                    <Badge variant="outline" className="shrink-0 font-mono text-xs">
+                      {v.id}
+                    </Badge>
                     <span className="text-sm truncate">{v.title}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -419,15 +413,17 @@ export function CoversPanel() {
               永久失败的视频
             </CardTitle>
             <CardDescription>
-              以下 {stats.db.permFailedIds.length} 个视频多次生成失败，已停止自动重试。
-              可能是视频 URL 无法访问或格式不兼容。
+              以下 {stats.db.permFailedIds.length} 个视频多次生成失败，已停止自动重试。 可能是视频 URL
+              无法访问或格式不兼容。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {stats.db.permFailedIds.map((id) => (
                 <div key={id} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 rounded px-2 py-1">
-                  <Badge variant="outline" className="font-mono text-xs border-red-300 dark:border-red-800">{id}</Badge>
+                  <Badge variant="outline" className="font-mono text-xs border-red-300 dark:border-red-800">
+                    {id}
+                  </Badge>
                   <Link href={`/video/${id}`} target="_blank">
                     <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
                       <ExternalLink className="h-3 w-3" />
@@ -444,11 +440,7 @@ export function CoversPanel() {
                     }}
                     disabled={generatingId === id}
                   >
-                    {generatingId === id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Play className="h-3 w-3" />
-                    )}
+                    {generatingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
                   </Button>
                 </div>
               ))}
@@ -484,9 +476,7 @@ export function CoversPanel() {
               <Play className="h-4 w-4" />
               补全缺失封面
             </CardTitle>
-            <CardDescription>
-              扫描缺少封面的已发布视频并入队
-            </CardDescription>
+            <CardDescription>扫描缺少封面的已发布视频并入队</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
@@ -521,9 +511,7 @@ export function CoversPanel() {
               <RotateCcw className="h-4 w-4" />
               重新生成封面
             </CardTitle>
-            <CardDescription>
-              输入视频 ID（逗号分隔），重新生成
-            </CardDescription>
+            <CardDescription>输入视频 ID（逗号分隔），重新生成</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
@@ -562,16 +550,10 @@ export function CoversPanel() {
               <RefreshCw className="h-4 w-4" />
               重置合集封面
             </CardTitle>
-            <CardDescription>
-              输入合集 ID，重置该合集下所有视频封面
-            </CardDescription>
+            <CardDescription>输入合集 ID，重置该合集下所有视频封面</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              placeholder="合集 ID"
-              value={seriesIdInput}
-              onChange={(e) => setSeriesIdInput(e.target.value)}
-            />
+            <Input placeholder="合集 ID" value={seriesIdInput} onChange={(e) => setSeriesIdInput(e.target.value)} />
             <Button
               onClick={() => {
                 if (!seriesIdInput.trim()) {
@@ -600,9 +582,7 @@ export function CoversPanel() {
               <Upload className="h-4 w-4" />
               手动上传封面
             </CardTitle>
-            <CardDescription>
-              自动生成失败时，手动上传图片作为封面
-            </CardDescription>
+            <CardDescription>自动生成失败时，手动上传图片作为封面</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
@@ -610,13 +590,7 @@ export function CoversPanel() {
               value={uploadVideoId}
               onChange={(e) => setUploadVideoId(e.target.value)}
             />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <Button
               onClick={handleFileSelect}
               disabled={uploadCoverMut.isPending || !uploadVideoId.trim()}
@@ -652,8 +626,8 @@ export function CoversPanel() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>确认重置所有本地生成的封面？</AlertDialogTitle>
                   <AlertDialogDescription>
-                    将清除所有本地自动生成的封面（/uploads/cover/ 开头），包括封面 URL 和模糊占位图，并触发自动重新生成。
-                    不影响外部链接封面。最多处理 500 个视频。
+                    将清除所有本地自动生成的封面（/uploads/cover/ 开头），包括封面 URL
+                    和模糊占位图，并触发自动重新生成。 不影响外部链接封面。最多处理 500 个视频。
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -680,8 +654,8 @@ export function CoversPanel() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>确认重置外部封面？</AlertDialogTitle>
                   <AlertDialogDescription>
-                    将清除所有非本地生成的封面 URL（外部链接等），并触发自动重新生成。
-                    不影响本地已生成的封面。最多处理 500 个视频。
+                    将清除所有非本地生成的封面 URL（外部链接等），并触发自动重新生成。 不影响本地已生成的封面。最多处理
+                    500 个视频。
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -708,8 +682,7 @@ export function CoversPanel() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>确认重置所有封面？</AlertDialogTitle>
                   <AlertDialogDescription>
-                    这将清除所有视频的封面 URL 和模糊占位图，并触发自动重新生成。
-                    此操作不可逆，最多处理 500 个视频。
+                    这将清除所有视频的封面 URL 和模糊占位图，并触发自动重新生成。 此操作不可逆，最多处理 500 个视频。
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -742,10 +715,7 @@ export function CoversPanel() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => resetStatsMut.mutate()}
-                    disabled={resetStatsMut.isPending}
-                  >
+                  <AlertDialogAction onClick={() => resetStatsMut.mutate()} disabled={resetStatsMut.isPending}>
                     确认清除
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -771,7 +741,7 @@ function CoverLogPanel({ canManage }: { canManage: boolean }) {
     {
       enabled: canManage,
       refetchInterval: autoRefresh ? 3000 : false,
-    }
+    },
   );
 
   const clearLogsMut = trpc.admin.clearCoverLogs.useMutation({
@@ -791,7 +761,14 @@ function CoverLogPanel({ canManage }: { canManage: boolean }) {
 
   function colorize(line: string): string {
     if (line.includes("✓") || line.includes("成功") || line.includes("完成")) return "text-green-400";
-    if (line.includes("✗") || line.includes("失败") || line.includes("放弃") || line.includes("异常") || line.includes("错误")) return "text-red-400";
+    if (
+      line.includes("✗") ||
+      line.includes("失败") ||
+      line.includes("放弃") ||
+      line.includes("异常") ||
+      line.includes("错误")
+    )
+      return "text-red-400";
     if (line.includes("重试") || line.includes("超时") || line.includes("警告")) return "text-yellow-400";
     if (line.includes("入队") || line.includes("启动") || line.includes("补全")) return "text-blue-400";
     return "text-zinc-300";
@@ -844,9 +821,7 @@ function CoverLogPanel({ canManage }: { canManage: boolean }) {
       </CardHeader>
       <CardContent>
         {logs.length === 0 ? (
-          <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
-            暂无日志
-          </div>
+          <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">暂无日志</div>
         ) : (
           <div className="bg-zinc-950 rounded-lg p-4 max-h-[500px] overflow-y-auto font-mono text-xs leading-5 space-y-px">
             {[...logs].reverse().map((line, i) => (

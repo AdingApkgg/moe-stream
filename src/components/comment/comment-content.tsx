@@ -11,9 +11,7 @@ interface CommentContentProps {
   className?: string;
 }
 
-type ContentSegment =
-  | { type: "text"; value: string }
-  | { type: "sticker"; packSlug: string; stickerId: string };
+type ContentSegment = { type: "text"; value: string } | { type: "sticker"; packSlug: string; stickerId: string };
 
 function parseContent(content: string): ContentSegment[] {
   const segments: ContentSegment[] = [];
@@ -53,25 +51,13 @@ export function CommentContent({ content, className }: CommentContentProps) {
         if (seg.type === "text") {
           return <span key={i}>{seg.value}</span>;
         }
-        return (
-          <StickerInline
-            key={i}
-            packSlug={seg.packSlug}
-            stickerId={seg.stickerId}
-          />
-        );
+        return <StickerInline key={i} packSlug={seg.packSlug} stickerId={seg.stickerId} />;
       })}
     </span>
   );
 }
 
-function StickerInline({
-  packSlug,
-  stickerId,
-}: {
-  packSlug: string;
-  stickerId: string;
-}) {
+function StickerInline({ packSlug, stickerId }: { packSlug: string; stickerId: string }) {
   const { data: packs } = trpc.sticker.listPacks.useQuery(undefined, {
     staleTime: Infinity,
   });
@@ -84,11 +70,7 @@ function StickerInline({
   }, [packs, packSlug, stickerId]);
 
   if (!sticker) {
-    return (
-      <span className="text-muted-foreground text-xs">
-        [贴图]
-      </span>
-    );
+    return <span className="text-muted-foreground text-xs">[贴图]</span>;
   }
 
   return (

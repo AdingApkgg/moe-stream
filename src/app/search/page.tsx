@@ -10,7 +10,7 @@ interface SearchPageProps {
 
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
   const { q: query } = await searchParams;
-  
+
   const config = await getPublicSiteConfig();
   const siteName = config.siteName;
 

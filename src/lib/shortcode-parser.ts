@@ -4,14 +4,14 @@
  */
 
 export interface VideoExtraInfo {
-  intro?: string;                    // 作品介绍
-  episodes?: { title: string; content: string }[];  // 剧集介绍
-  author?: string;                   // 原作者
-  authorIntro?: string;              // 作者介绍
-  keywords?: string[];               // 搜索关键词
-  downloads?: { name: string; url: string; password?: string }[];  // 下载链接
-  relatedVideos?: string[];          // 相关视频标题
-  notices?: { type: 'info' | 'success' | 'warning' | 'error'; content: string }[];  // 公告
+  intro?: string; // 作品介绍
+  episodes?: { title: string; content: string }[]; // 剧集介绍
+  author?: string; // 原作者
+  authorIntro?: string; // 作者介绍
+  keywords?: string[]; // 搜索关键词
+  downloads?: { name: string; url: string; password?: string }[]; // 下载链接
+  relatedVideos?: string[]; // 相关视频标题
+  notices?: { type: "info" | "success" | "warning" | "error"; content: string }[]; // 公告
 }
 
 /**
@@ -23,9 +23,9 @@ export function parseShortcode(content: string): VideoExtraInfo {
   // 解析 alert 标签（公告）
   const alertRegex = /\{alert\s+type="([^"]+)"\}([\s\S]*?)\{\/alert\}/g;
   let alertMatch;
-  const notices: VideoExtraInfo['notices'] = [];
+  const notices: VideoExtraInfo["notices"] = [];
   while ((alertMatch = alertRegex.exec(content)) !== null) {
-    const type = alertMatch[1] as 'info' | 'success' | 'warning' | 'error';
+    const type = alertMatch[1] as "info" | "success" | "warning" | "error";
     const alertContent = cleanHtml(alertMatch[2]);
     notices.push({ type, content: alertContent });
   }
@@ -38,7 +38,7 @@ export function parseShortcode(content: string): VideoExtraInfo {
   let tabsMatch;
   while ((tabsMatch = tabsRegex.exec(content)) !== null) {
     const tabsContent = tabsMatch[1];
-    
+
     // 解析每个 tab-pane
     const paneRegex = /\{tabs-pane\s+label="([^"]+)"\}([\s\S]*?)\{\/tabs-pane\}/g;
     let paneMatch;
@@ -47,39 +47,39 @@ export function parseShortcode(content: string): VideoExtraInfo {
       const paneContent = cleanHtml(paneMatch[2]);
 
       switch (label) {
-        case '作品介绍':
+        case "作品介绍":
           result.intro = paneContent;
           break;
-        case '剧集介绍':
+        case "剧集介绍":
           // 从 paneContent 中提取剧集信息
           const episodes = parseEpisodes(paneMatch[2]);
           if (episodes.length > 0) {
             result.episodes = episodes;
           }
           break;
-        case '作品信息':
+        case "作品信息":
           // 提取作者信息
           const authorMatch = paneContent.match(/原作者[：:]\s*【?([^】\n]+)】?/);
           if (authorMatch) {
             result.author = authorMatch[1].trim();
           }
           break;
-        case '搜索关键词':
+        case "搜索关键词":
           const keywords = paneContent
-            .split('\n')
-            .map(k => k.trim())
-            .filter(k => k.length > 0);
+            .split("\n")
+            .map((k) => k.trim())
+            .filter((k) => k.length > 0);
           if (keywords.length > 0) {
             result.keywords = keywords;
           }
           break;
-        case '视频下载':
+        case "视频下载":
           const downloads = parseDownloads(paneMatch[2]);
           if (downloads.length > 0) {
             result.downloads = downloads;
           }
           break;
-        case '作者介绍':
+        case "作者介绍":
           result.authorIntro = paneContent;
           break;
       }
@@ -113,22 +113,22 @@ export function parseShortcode(content: string): VideoExtraInfo {
  */
 function parseEpisodes(content: string): { title: string; content: string }[] {
   const episodes: { title: string; content: string }[] = [];
-  
+
   // 从 alert 标签中提取剧集
   const alertRegex = /\{alert\s+type="[^"]+"\}([\s\S]*?)\{\/alert\}/g;
   let match;
   while ((match = alertRegex.exec(content)) !== null) {
     const alertContent = match[1];
-    
+
     // 提取标题（如 【第一集】）
     const titleMatch = alertContent.match(/<p[^>]*>【([^】]+)】<\/p>|【([^】]+)】/);
     if (titleMatch) {
       const title = titleMatch[1] || titleMatch[2];
-      const episodeContent = cleanHtml(alertContent.replace(/<p[^>]*>【[^】]+】<\/p>|【[^】]+】/, ''));
+      const episodeContent = cleanHtml(alertContent.replace(/<p[^>]*>【[^】]+】<\/p>|【[^】]+】/, ""));
       episodes.push({ title, content: episodeContent.trim() });
     }
   }
-  
+
   return episodes;
 }
 
@@ -137,7 +137,7 @@ function parseEpisodes(content: string): { title: string; content: string }[] {
  */
 function parseDownloads(content: string): { name: string; url: string; password?: string }[] {
   const downloads: { name: string; url: string; password?: string }[] = [];
-  
+
   // 解析 cloud 短代码
   const cloudRegex = /\{cloud\s+title="([^"]+)"\s+type="[^"]*"\s+url="([^"]+)"(?:\s+password="([^"]*)")?\s*\/?\}/g;
   let match;
@@ -148,7 +148,7 @@ function parseDownloads(content: string): { name: string; url: string; password?
       password: match[3] || undefined,
     });
   }
-  
+
   return downloads;
 }
 
@@ -157,10 +157,10 @@ function parseDownloads(content: string): { name: string; url: string; password?
  */
 function cleanHtml(content: string): string {
   return content
-    .replace(/<[^>]+>/g, '') // 移除 HTML 标签
-    .replace(/\{[^}]+\}/g, '') // 移除短代码
-    .replace(/\*\*([^*]+)\*\*/g, '$1') // 移除 Markdown 加粗
-    .replace(/\n{3,}/g, '\n\n') // 合并多个换行
+    .replace(/<[^>]+>/g, "") // 移除 HTML 标签
+    .replace(/\{[^}]+\}/g, "") // 移除短代码
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // 移除 Markdown 加粗
+    .replace(/\n{3,}/g, "\n\n") // 合并多个换行
     .trim();
 }
 
@@ -175,9 +175,7 @@ export function extraInfoToMarkdown(info: VideoExtraInfo): string {
   }
 
   if (info.episodes && info.episodes.length > 0) {
-    parts.push(`## 剧集介绍\n\n${info.episodes.map(ep => 
-      `### ${ep.title}\n\n${ep.content}`
-    ).join('\n\n')}`);
+    parts.push(`## 剧集介绍\n\n${info.episodes.map((ep) => `### ${ep.title}\n\n${ep.content}`).join("\n\n")}`);
   }
 
   if (info.author) {
@@ -189,20 +187,22 @@ export function extraInfoToMarkdown(info: VideoExtraInfo): string {
   }
 
   if (info.keywords && info.keywords.length > 0) {
-    parts.push(`## 搜索关键词\n\n${info.keywords.join('、')}`);
+    parts.push(`## 搜索关键词\n\n${info.keywords.join("、")}`);
   }
 
   if (info.downloads && info.downloads.length > 0) {
-    parts.push(`## 下载链接\n\n${info.downloads.map(d => 
-      `- [${d.name}](${d.url})${d.password ? ` (密码: ${d.password})` : ''}`
-    ).join('\n')}`);
+    parts.push(
+      `## 下载链接\n\n${info.downloads
+        .map((d) => `- [${d.name}](${d.url})${d.password ? ` (密码: ${d.password})` : ""}`)
+        .join("\n")}`,
+    );
   }
 
   if (info.relatedVideos && info.relatedVideos.length > 0) {
-    parts.push(`## 相关视频\n\n${info.relatedVideos.map(v => `- ${v}`).join('\n')}`);
+    parts.push(`## 相关视频\n\n${info.relatedVideos.map((v) => `- ${v}`).join("\n")}`);
   }
 
-  return parts.join('\n\n---\n\n');
+  return parts.join("\n\n---\n\n");
 }
 
 /**
@@ -213,13 +213,13 @@ export interface BatchImportItem {
   videoUrl: string;
   coverUrl?: string;
   description?: string;
-  shortcodeContent?: string;  // 原始短代码内容
+  shortcodeContent?: string; // 原始短代码内容
   tags?: string[];
   customId?: string;
 }
 
 export function parseBatchImport(items: BatchImportItem[]): (BatchImportItem & { extraInfo?: VideoExtraInfo })[] {
-  return items.map(item => {
+  return items.map((item) => {
     if (item.shortcodeContent) {
       const extraInfo = parseShortcode(item.shortcodeContent);
       return { ...item, extraInfo };

@@ -24,10 +24,7 @@ const MIME_MAP: Record<string, string> = {
   "7z": "application/x-7z-compressed",
 };
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     const { path } = await params;
     const storageKey = path.join("/");

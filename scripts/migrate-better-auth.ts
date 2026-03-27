@@ -1,10 +1,10 @@
 /**
  * Better Auth 数据迁移脚本
- * 
+ *
  * 为所有用户执行以下操作：
  * 1. 创建 credential Account 记录（将 User.password 复制到 Account.password）
  * 2. 将 username 改为小写（Better Auth username 插件要求），原始大小写存入 displayUsername
- * 
+ *
  * 运行方式:
  *   开发环境: npx tsx scripts/migrate-better-auth.ts
  *   生产环境: NODE_ENV=production npx tsx scripts/migrate-better-auth.ts

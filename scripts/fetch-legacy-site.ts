@@ -26,8 +26,7 @@ import { writeFileSync } from "fs";
 
 const BASE_URL = process.env.LEGACY_VIDEO_SITE_URL || "https://old-video-site.example.com";
 const HEADERS: Record<string, string> = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   Accept: "text/html,application/xhtml+xml",
   "Accept-Language": "zh-CN,zh;q=0.9",
 };
@@ -112,11 +111,7 @@ async function poolAll<T>(
 
 // ─── 带重试的 fetch ──────────────────────────────────────
 
-async function fetchWithRetry(
-  url: string,
-  timeout: number,
-  retries = 3,
-): Promise<string> {
+async function fetchWithRetry(url: string, timeout: number, retries = 3): Promise<string> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       if (attempt > 0) await sleep(500 * attempt);
@@ -178,9 +173,7 @@ async function discoverArticlesByIdScan(
       const html = await fetchWithRetry(url, timeout);
       const $ = cheerio.load(html);
       const title =
-        $("h1.joe_detail__title").text().trim() ||
-        $('meta[property="og:title"]').attr("content")?.trim() ||
-        "";
+        $("h1.joe_detail__title").text().trim() || $('meta[property="og:title"]').attr("content")?.trim() || "";
       const hasTitle = title.length > 0 && !title.includes(BASE_URL.split("//")[1]?.split(".")[0] || "");
 
       if (hasTitle) {
@@ -222,10 +215,7 @@ function decodeGotoUrl(raw: string): string {
 
 // ─── 从视频页面提取信息 ──────────────────────────────────
 
-async function extractFromPage(
-  pageUrl: string,
-  timeout: number,
-): Promise<VideoInfo> {
+async function extractFromPage(pageUrl: string, timeout: number): Promise<VideoInfo> {
   const idMatch = pageUrl.match(/\/archives\/(\d+)\.html/);
   const videoId = idMatch?.[1] ?? String(pageUrl.length);
 
@@ -255,16 +245,13 @@ async function extractFromPage(
       .join("\n");
 
     // Joe.CONTENT.cover — 最可靠的封面来源
-    const joeContentCover =
-      scriptContent.match(/Joe\.CONTENT\.cover\s*=\s*`([^`]*)`/)?.[1] ?? "";
+    const joeContentCover = scriptContent.match(/Joe\.CONTENT\.cover\s*=\s*`([^`]*)`/)?.[1] ?? "";
 
     // Joe.CONTENT.fields — JSON 结构化字段
     let fieldsAbstract = "";
     let fieldsKeywords = "";
     let fieldsVideo = "";
-    const fieldsMatch = scriptContent.match(
-      /Joe\.CONTENT\.fields\s*=\s*(\{[\s\S]*?\});/,
-    );
+    const fieldsMatch = scriptContent.match(/Joe\.CONTENT\.fields\s*=\s*(\{[\s\S]*?\});/);
     if (fieldsMatch) {
       try {
         const fields = JSON.parse(fieldsMatch[1]);
@@ -336,9 +323,7 @@ async function extractFromPage(
     let authorIntro = "";
     // Joe 主题的 tabs-pane 会渲染成 HTML，查找含"作者介绍"标签的内容区
     const articleHtml = $("article.joe_detail__article").html() ?? "";
-    const authorIntroMatch = articleHtml.match(
-      /label="作者介绍"\}([\s\S]*?)\{\/tabs-pane\}/,
-    );
+    const authorIntroMatch = articleHtml.match(/label="作者介绍"\}([\s\S]*?)\{\/tabs-pane\}/);
     if (authorIntroMatch) {
       // 清理 HTML/短代码，保留纯文本
       authorIntro = authorIntroMatch[1]
@@ -372,16 +357,20 @@ async function extractFromPage(
       const subTitle =
         $el.attr("data-title")?.trim() ||
         $el.attr("data-original-title")?.trim() ||
-        $el.find(".video-desc-box").first().contents().filter(function () {
-          return this.type === "text";
-        }).text().trim() ||
+        $el
+          .find(".video-desc-box")
+          .first()
+          .contents()
+          .filter(function () {
+            return this.type === "text";
+          })
+          .text()
+          .trim() ||
         "";
 
       // 封面：优先 data-cover 属性，兜底 .video-thumbnail-right 内的 img
       const epCover =
-        $el.attr("data-cover")?.trim() ||
-        $el.find(".video-thumbnail-right img").attr("src")?.trim() ||
-        "";
+        $el.attr("data-cover")?.trim() || $el.find(".video-thumbnail-right img").attr("src")?.trim() || "";
 
       if (num > 0 && !episodes.some((e) => e.num === num)) {
         episodes.push({
@@ -396,8 +385,7 @@ async function extractFromPage(
     // 方式 2：从 Joe.CONTENT.fields.video（Markdown 链接 [第N集--标题](url)）
     if (episodes.length === 0 && fieldsVideo) {
       // 匹配 [第N集--副标题](url) 或 [短片--副标题](url)
-      const mdRe =
-        /\[(?:第(\d+)集|([^\]]+?))(?:--([^\]]*))?\]\((https?:\/\/[^)]+)\)/g;
+      const mdRe = /\[(?:第(\d+)集|([^\]]+?))(?:--([^\]]*))?\]\((https?:\/\/[^)]+)\)/g;
       let m: RegExpExecArray | null;
       let autoNum = 0;
       while ((m = mdRe.exec(fieldsVideo)) !== null) {
@@ -407,11 +395,7 @@ async function extractFromPage(
         const subtitle = m[3]?.trim() ?? "";
         const url = m[4];
 
-        const epTitle = subtitle
-          ? prefix
-            ? `${prefix} - ${subtitle}`
-            : subtitle
-          : prefix || `第${num}集`;
+        const epTitle = subtitle ? (prefix ? `${prefix} - ${subtitle}` : subtitle) : prefix || `第${num}集`;
 
         if (!episodes.some((e) => e.num === num)) {
           episodes.push({ num, title: epTitle, videoUrl: url, coverUrl: "" });
@@ -473,9 +457,7 @@ function generateImportJson(videos: VideoInfo[]): {
   data: { series: ExportSeries[] };
   videoCount: number;
 } {
-  const valid = videos.filter(
-    (v) => v.title && !v.error && (v.videoUrl || v.episodes.length > 0),
-  );
+  const valid = videos.filter((v) => v.title && !v.error && (v.videoUrl || v.episodes.length > 0));
 
   // 按作者分组
   const grouped = new Map<string, VideoInfo[]>();
@@ -488,9 +470,7 @@ function generateImportJson(videos: VideoInfo[]): {
   const seriesList: ExportSeries[] = [];
   let videoCount = 0;
 
-  for (const [author, vids] of [...grouped.entries()].sort((a, b) =>
-    a[0].localeCompare(b[0]),
-  )) {
+  for (const [author, vids] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const ref = vids[0];
 
     // 合并 tags + keywords 去重
@@ -572,7 +552,9 @@ async function main() {
     console.log(`封面: ${info.coverUrl}`);
     console.log(`标签: ${info.tags.join(", ") || "（无）"}`);
     console.log(`关键词: ${info.keywords.join(", ") || "（无）"}`);
-    console.log(`下载: ${info.downloads.length ? info.downloads.map((d) => `${d.name}: ${d.url}`).join("; ") : "（无）"}`);
+    console.log(
+      `下载: ${info.downloads.length ? info.downloads.map((d) => `${d.name}: ${d.url}`).join("; ") : "（无）"}`,
+    );
     console.log(`作者介绍: ${info.authorIntro ? info.authorIntro.slice(0, 80) + "..." : "（无）"}`);
     console.log(`剧集数: ${info.episodes.length}`);
     if (info.episodes.length > 0) {
@@ -611,9 +593,7 @@ async function main() {
   console.log("─".repeat(50));
 
   // 2) 并发抓取详情页
-  const tasks = uniqueLinks.map(
-    (link) => () => extractFromPage(link, config.timeout),
-  );
+  const tasks = uniqueLinks.map((link) => () => extractFromPage(link, config.timeout));
 
   const videos = await poolAll(tasks, config.concurrency, (result, done, total) => {
     const status = result.error
@@ -629,20 +609,12 @@ async function main() {
 
   // 3) 统计
   const validCount = videos.filter((v) => v.title && !v.error).length;
-  const noVideoCount = videos.filter(
-    (v) => v.title && !v.error && !v.videoUrl && v.episodes.length === 0,
-  ).length;
+  const noVideoCount = videos.filter((v) => v.title && !v.error && !v.videoUrl && v.episodes.length === 0).length;
   const errorCount = videos.filter((v) => v.error).length;
   const totalEpisodes = videos
     .filter((v) => v.title && !v.error)
     .reduce(
-      (sum, v) =>
-        sum +
-        (v.episodes.length > 1
-          ? v.episodes.filter((e) => e.videoUrl).length
-          : v.videoUrl
-            ? 1
-            : 0),
+      (sum, v) => sum + (v.episodes.length > 1 ? v.episodes.filter((e) => e.videoUrl).length : v.videoUrl ? 1 : 0),
       0,
     );
 
@@ -656,10 +628,7 @@ async function main() {
 
   // 4) 生成导入 JSON 并保存
   const { data: importData, videoCount } = generateImportJson(videos);
-  const timestamp = new Date()
-    .toISOString()
-    .replace(/[T:]/g, "_")
-    .slice(0, 19);
+  const timestamp = new Date().toISOString().replace(/[T:]/g, "_").slice(0, 19);
   const outputFile = `legacy_videos_${timestamp}.json`;
 
   writeFileSync(outputFile, JSON.stringify(importData, null, 2), "utf-8");

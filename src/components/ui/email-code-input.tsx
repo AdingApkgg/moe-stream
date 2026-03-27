@@ -15,14 +15,7 @@ interface EmailCodeInputProps {
   error?: string;
 }
 
-export function EmailCodeInput({
-  email,
-  type,
-  value,
-  onChange,
-  disabled = false,
-  error,
-}: EmailCodeInputProps) {
+export function EmailCodeInput({ email, type, value, onChange, disabled = false, error }: EmailCodeInputProps) {
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
@@ -89,13 +82,7 @@ export function EmailCodeInput({
           disabled={disabled || isSending || countdown > 0 || !email}
           className="min-w-[100px]"
         >
-          {isSending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : countdown > 0 ? (
-            `${countdown}s`
-          ) : (
-            "发送验证码"
-          )}
+          {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : countdown > 0 ? `${countdown}s` : "发送验证码"}
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}

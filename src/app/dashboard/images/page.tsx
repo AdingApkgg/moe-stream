@@ -11,13 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,10 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Images,
@@ -193,8 +184,12 @@ export default function DashboardImagesPage() {
   const [regexReplacement, setRegexReplacement] = useState("");
   const [regexFlags, setRegexFlags] = useState("g");
   const [regexPreviewing, setRegexPreviewing] = useState(false);
-  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
-  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
+  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>(
+    [],
+  );
+  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(
+    null,
+  );
   const [transferOpen, setTransferOpen] = useState(false);
 
   const limit = 50;
@@ -207,7 +202,7 @@ export default function DashboardImagesPage() {
 
   const { data, isLoading, isFetching } = trpc.admin.listAllImages.useQuery(
     { page, limit, search: search || undefined, status: statusFilter },
-    { enabled: permissions?.scopes.includes("video:moderate") }
+    { enabled: permissions?.scopes.includes("video:moderate") },
   );
 
   const moderateMutation = trpc.admin.moderateImage.useMutation({
@@ -263,26 +258,26 @@ export default function DashboardImagesPage() {
     onError: (error: { message: string }) => toast.error(error.message || "批量编辑失败"),
   });
 
-  const images = useMemo(
-    () => (data?.images || []) as unknown as ImageItem[],
-    [data?.images]
-  );
+  const images = useMemo(() => (data?.images || []) as unknown as ImageItem[], [data?.images]);
 
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.currentPage ?? 1;
 
-  const updateUrl = useCallback((params: { page?: number; status?: string; q?: string }) => {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      if (value && value !== "1" && value !== "ALL" && value !== "") {
-        url.searchParams.set(key, String(value));
-      } else {
-        url.searchParams.delete(key);
-      }
-    });
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const updateUrl = useCallback(
+    (params: { page?: number; status?: string; q?: string }) => {
+      const url = new URL(window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && value !== "1" && value !== "ALL" && value !== "") {
+          url.searchParams.set(key, String(value));
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -386,11 +381,7 @@ export default function DashboardImagesPage() {
   const isPageAllSelected = images.length > 0 && images.every((i) => selectedIds.has(i.id));
 
   if (!canModerate) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有图片管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有图片管理权限</div>;
   }
 
   return (
@@ -400,7 +391,9 @@ export default function DashboardImagesPage() {
         <div className="flex items-center gap-2">
           <Images className="h-5 w-5" />
           <h1 className="text-xl font-semibold">图片管理</h1>
-          <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
+          <Badge variant="outline" className="ml-2">
+            {totalCount} 个
+          </Badge>
         </div>
 
         {stats && (
@@ -459,18 +452,8 @@ export default function DashboardImagesPage() {
       {/* 批量操作栏 */}
       <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={togglePageSelect}
-            className="gap-1"
-            title="选择/取消本页"
-          >
-            {isPageAllSelected ? (
-              <CheckSquare className="h-4 w-4" />
-            ) : (
-              <Square className="h-4 w-4" />
-            )}
+          <Button variant="ghost" size="sm" onClick={togglePageSelect} className="gap-1" title="选择/取消本页">
+            {isPageAllSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             本页
           </Button>
           <Button
@@ -481,11 +464,7 @@ export default function DashboardImagesPage() {
             className="gap-1"
             title={`选择所有 ${totalCount} 个图片帖`}
           >
-            {selectAllLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ChevronsRight className="h-4 w-4" />
-            )}
+            {selectAllLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsRight className="h-4 w-4" />}
             全选 ({totalCount})
           </Button>
           {selectedIds.size > 0 && (
@@ -497,9 +476,7 @@ export default function DashboardImagesPage() {
 
         {selectedIds.size > 0 && (
           <>
-            <span className="text-sm text-muted-foreground">
-              已选 {selectedIds.size} 个
-            </span>
+            <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 个</span>
             <div className="flex items-center gap-2 ml-auto">
               <Button
                 variant="outline"
@@ -531,22 +508,13 @@ export default function DashboardImagesPage() {
                 <XCircle className="h-4 w-4 mr-1" />
                 批量拒绝
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={exporting}
-              >
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
                 {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
                 导出 JSON
               </Button>
               {canManage && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTransferOpen(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" />
                     转移所有权
                   </Button>
@@ -587,9 +555,7 @@ export default function DashboardImagesPage() {
         </div>
       ) : images.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            没有找到图片帖
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">没有找到图片帖</CardContent>
         </Card>
       ) : (
         <>
@@ -601,20 +567,10 @@ export default function DashboardImagesPage() {
               const previewImages = imageUrls.slice(0, 4);
 
               return (
-                <Card
-                  key={post.id}
-                  className={cn(
-                    "transition-colors",
-                    isSelected && "ring-2 ring-primary"
-                  )}
-                >
+                <Card key={post.id} className={cn("transition-colors", isSelected && "ring-2 ring-primary")}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(post.id)}
-                        className="mt-1"
-                      />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(post.id)} className="mt-1" />
 
                       {/* 缩略图 - 2x2 网格 */}
                       <div className="relative w-24 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
@@ -651,10 +607,7 @@ export default function DashboardImagesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <Link
-                              href={`/image/${post.id}`}
-                              className="font-medium hover:underline line-clamp-1"
-                            >
+                            <Link href={`/image/${post.id}`} className="font-medium hover:underline line-clamp-1">
                               {post.title}
                             </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -749,11 +702,7 @@ export default function DashboardImagesPage() {
                             className="h-8 w-8 ml-auto"
                             onClick={() => toggleExpand(post.id)}
                           >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </Button>
                         </div>
                       </div>
@@ -935,9 +884,7 @@ export default function DashboardImagesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定要删除这个图片帖吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，图片帖及其所有关联数据将被永久删除。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作不可撤销，图片帖及其所有关联数据将被永久删除。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -974,29 +921,33 @@ export default function DashboardImagesPage() {
       </AlertDialog>
 
       {/* 正则批量编辑对话框 */}
-      <Dialog open={regexOpen} onOpenChange={(open) => {
-        setRegexOpen(open);
-        if (!open) {
-          setRegexPreviews([]);
-          setRegexPreviewStats(null);
-        }
-      }}>
+      <Dialog
+        open={regexOpen}
+        onOpenChange={(open) => {
+          setRegexOpen(open);
+          if (!open) {
+            setRegexPreviews([]);
+            setRegexPreviewStats(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>正则批量编辑</DialogTitle>
-            <DialogDescription>
-              对已选 {selectedIds.size} 个图片帖使用正则表达式批量替换字段内容
-            </DialogDescription>
+            <DialogDescription>对已选 {selectedIds.size} 个图片帖使用正则表达式批量替换字段内容</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>目标字段</Label>
-              <Select value={regexField} onValueChange={(v) => {
-                setRegexField(v as typeof regexField);
-                setRegexPreviews([]);
-                setRegexPreviewStats(null);
-              }}>
+              <Select
+                value={regexField}
+                onValueChange={(v) => {
+                  setRegexField(v as typeof regexField);
+                  setRegexPreviews([]);
+                  setRegexPreviewStats(null);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -1036,9 +987,7 @@ export default function DashboardImagesPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                点击模版一键填入正则和替换内容，填入后可按需微调
-              </p>
+              <p className="text-xs text-muted-foreground">点击模版一键填入正则和替换内容，填入后可按需微调</p>
             </div>
 
             <div className="space-y-2">
@@ -1082,9 +1031,7 @@ export default function DashboardImagesPage() {
                 }}
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-muted-foreground">
-                支持 $1, $2 等捕获组引用。留空则删除匹配内容
-              </p>
+              <p className="text-xs text-muted-foreground">支持 $1, $2 等捕获组引用。留空则删除匹配内容</p>
             </div>
 
             <Button
@@ -1168,9 +1115,7 @@ export default function DashboardImagesPage() {
                 )}
 
                 {regexPreviews.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    没有图片帖匹配该正则表达式
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-4">没有图片帖匹配该正则表达式</p>
                 )}
               </div>
             )}
@@ -1197,9 +1142,7 @@ export default function DashboardImagesPage() {
                 });
               }}
             >
-              {batchRegexUpdateMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+              {batchRegexUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               应用变更 {regexPreviewStats ? `(${regexPreviewStats.totalMatched} 个)` : ""}
             </Button>
           </DialogFooter>

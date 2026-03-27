@@ -63,9 +63,7 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
   }
 
   const displayName = user.nickname || user.username;
-  const description = user.bio 
-    ? user.bio.slice(0, 160) 
-    : `${displayName} 的个人主页`;
+  const description = user.bio ? user.bio.slice(0, 160) : `${displayName} 的个人主页`;
 
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
@@ -79,14 +77,16 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
       title: `${displayName} - ${siteName}`,
       description,
       url: `${baseUrl}/user/${id}`,
-      images: user.avatar ? [
-        {
-          url: user.avatar,
-          width: 200,
-          height: 200,
-          alt: displayName,
-        },
-      ] : undefined,
+      images: user.avatar
+        ? [
+            {
+              url: user.avatar,
+              width: 200,
+              height: 200,
+              alt: displayName,
+            },
+          ]
+        : undefined,
     },
     twitter: {
       card: "summary",

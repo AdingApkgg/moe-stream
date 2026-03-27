@@ -37,9 +37,9 @@ function getIp2RegionV4Searcher(): Ip2RegionSearcher | null {
   if (ip2regionV4Initialized) {
     return ip2regionV4Searcher;
   }
-  
+
   ip2regionV4Initialized = true;
-  
+
   try {
     const dbPath = path.join(process.cwd(), "data", "ip2region_v4.xdb");
     const cBuffer = loadContentFromFile(dbPath);
@@ -59,9 +59,9 @@ function getIp2RegionV6Searcher(): Ip2RegionSearcher | null {
   if (ip2regionV6Initialized) {
     return ip2regionV6Searcher;
   }
-  
+
   ip2regionV6Initialized = true;
-  
+
   try {
     const dbPath = path.join(process.cwd(), "data", "ip2region_v6.xdb");
     const cBuffer = loadContentFromFile(dbPath);
@@ -87,7 +87,7 @@ function getIp2RegionSearcher(ip: string): Ip2RegionSearcher | null {
  */
 function parseRegion(region: string): IpLocation {
   const parts = region.split("|");
-  
+
   return {
     country: parts[0] && parts[0] !== "0" ? parts[0] : undefined,
     province: parts[1] && parts[1] !== "0" ? parts[1] : undefined,
@@ -116,7 +116,7 @@ function isPrivateIp(ip: string): boolean {
     }
     return false;
   }
-  
+
   // IPv4 私有地址
   if (ip === "127.0.0.1") return true;
   if (ip.startsWith("10.")) return true;
@@ -143,14 +143,14 @@ function formatLocation(location: IpLocation | null): string | null {
  */
 export async function getIpLocation(ip: string | null): Promise<string | null> {
   if (!ip) return null;
-  
+
   // 开发环境：私有 IP 使用测试公网 IP
   if (process.env.NODE_ENV === "development" && isPrivateIp(ip)) {
-    ip = isIPv6(ip) 
+    ip = isIPv6(ip)
       ? "2400:3200::1" // 阿里 IPv6 DNS（杭州）
       : "1.1.1.1"; // 南京 IPv4 DNS
   }
-  
+
   if (isPrivateIp(ip)) return null;
 
   const cacheKey = `ip-location:${ip}`;
@@ -163,14 +163,14 @@ export async function getIpLocation(ip: string | null): Promise<string | null> {
 
   try {
     const searcher = getIp2RegionSearcher(ip);
-    
+
     if (!searcher) {
       console.log(`[IP Location] ip2region ${ipVersion} not available, falling back to API for ${ip}`);
       return await getIpLocationFromApi(ip, cacheKey);
     }
-    
+
     const region = await searcher.search(ip);
-    
+
     if (!region) {
       console.log(`[IP Location] ip2region returned empty, falling back to API for ${ip}`);
       return await getIpLocationFromApi(ip, cacheKey);
@@ -204,7 +204,7 @@ async function getIpLocationFromApi(ip: string, cacheKey: string): Promise<strin
     // 添加 lang=zh-CN 获取中文结果
     const response = await fetch(
       `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,regionName,city,isp,query&lang=zh-CN`,
-      { headers: { "User-Agent": "moe-stream/1.0" } }
+      { headers: { "User-Agent": "moe-stream/1.0" } },
     );
 
     if (!response.ok) {

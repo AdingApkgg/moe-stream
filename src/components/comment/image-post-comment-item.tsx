@@ -42,11 +42,7 @@ import {
   Languages,
   Clock,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
@@ -117,23 +113,26 @@ export function ImagePostCommentItem({
   const [replyToUser, setReplyToUser] = useState<CommentUser | null>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const insertAtReplyCursor = useCallback((text: string) => {
-    const el = replyTextareaRef.current;
-    if (!el) {
-      setReplyContent((prev) => prev + text);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const before = replyContent.slice(0, start);
-    const after = replyContent.slice(end);
-    setReplyContent(before + text + after);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + text.length;
-      el.setSelectionRange(pos, pos);
-    });
-  }, [replyContent]);
+  const insertAtReplyCursor = useCallback(
+    (text: string) => {
+      const el = replyTextareaRef.current;
+      if (!el) {
+        setReplyContent((prev) => prev + text);
+        return;
+      }
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const before = replyContent.slice(0, start);
+      const after = replyContent.slice(end);
+      setReplyContent(before + text + after);
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + text.length;
+        el.setSelectionRange(pos, pos);
+      });
+    },
+    [replyContent],
+  );
 
   const utils = trpc.useUtils();
   const isOwner = comment.userId && session?.user?.id === comment.userId;
@@ -151,7 +150,7 @@ export function ImagePostCommentItem({
     {
       enabled: showReplies && !isReply,
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    },
   );
 
   const replies = repliesData?.pages.flatMap((page) => page.replies) ?? [];
@@ -243,7 +242,7 @@ export function ImagePostCommentItem({
       const newReaction = localReaction === isLike ? null : isLike;
       reactMutation.mutate({ commentId: comment.id, isLike: newReaction });
     },
-    [session, localReaction, reactMutation, comment.id]
+    [session, localReaction, reactMutation, comment.id],
   );
 
   const handleReply = useCallback(() => {
@@ -270,7 +269,7 @@ export function ImagePostCommentItem({
         setIsReplying(true);
       }
     },
-    [session, isReply, onReplyToComment, comment.user]
+    [session, isReply, onReplyToComment, comment.user],
   );
 
   const handleEdit = useCallback(() => {
@@ -402,7 +401,9 @@ export function ImagePostCommentItem({
                     <span>{osInfo}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">操作系统</TooltipContent>
+                <TooltipContent side="bottom" className="text-xs">
+                  操作系统
+                </TooltipContent>
               </Tooltip>
             )}
             {osInfo && browserInfo && <span className="text-muted-foreground/50">·</span>}
@@ -414,7 +415,9 @@ export function ImagePostCommentItem({
                     <span>{browserInfo}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">浏览器</TooltipContent>
+                <TooltipContent side="bottom" className="text-xs">
+                  浏览器
+                </TooltipContent>
               </Tooltip>
             )}
             {(osInfo || browserInfo) && languageInfo && <span className="text-muted-foreground/50">·</span>}
@@ -426,7 +429,9 @@ export function ImagePostCommentItem({
                     <span>{languageInfo}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">语言</TooltipContent>
+                <TooltipContent side="bottom" className="text-xs">
+                  语言
+                </TooltipContent>
               </Tooltip>
             )}
             {(osInfo || browserInfo || languageInfo) && timezoneInfo && (
@@ -440,7 +445,9 @@ export function ImagePostCommentItem({
                     <span>{timezoneInfo}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">时区</TooltipContent>
+                <TooltipContent side="bottom" className="text-xs">
+                  时区
+                </TooltipContent>
               </Tooltip>
             )}
             {(osInfo || browserInfo || languageInfo || timezoneInfo) && locationInfo && (
@@ -454,7 +461,9 @@ export function ImagePostCommentItem({
                     <span>{locationInfo}</span>
                   </span>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">{locationLabel} 属地</TooltipContent>
+                <TooltipContent side="bottom" className="text-xs">
+                  {locationLabel} 属地
+                </TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -535,9 +544,7 @@ export function ImagePostCommentItem({
                 )}
                 {!isReply && isAdmin && (
                   <DropdownMenuItem
-                    onClick={() =>
-                      pinMutation.mutate({ commentId: comment.id, isPinned: !comment.isPinned })
-                    }
+                    onClick={() => pinMutation.mutate({ commentId: comment.id, isPinned: !comment.isPinned })}
                   >
                     <Pin className="h-4 w-4 mr-2" />
                     {comment.isPinned ? "取消置顶" : "置顶"}
@@ -572,21 +579,14 @@ export function ImagePostCommentItem({
           <div className="mt-3 flex gap-3">
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={session?.user?.image || undefined} />
-              <AvatarFallback>
-                {(session?.user?.name?.trim() ?? "").charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
+              <AvatarFallback>{(session?.user?.name?.trim() ?? "").charAt(0).toUpperCase() || "U"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
               {replyToUser && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>回复</span>
                   <span className="text-primary">@{replyToUser.nickname || replyToUser.username}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 px-1 text-xs"
-                    onClick={() => setReplyToUser(null)}
-                  >
+                  <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => setReplyToUser(null)}>
                     ×
                   </Button>
                 </div>

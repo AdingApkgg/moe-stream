@@ -11,10 +11,7 @@ const prisma = new PrismaClient({ adapter });
  * Socket.io auth middleware: extracts the Better Auth session cookie,
  * looks up the session in the database, and attaches user data.
  */
-export async function authenticateSocket(
-  socket: Socket,
-  next: (err?: Error) => void,
-) {
+export async function authenticateSocket(socket: Socket, next: (err?: Error) => void) {
   try {
     const cookie = socket.handshake.headers.cookie;
     if (!cookie) return next(new Error("No cookie provided"));
@@ -41,10 +38,7 @@ export async function authenticateSocket(
 }
 
 function extractSessionToken(cookie: string): string | null {
-  const cookieNames = [
-    "better-auth.session_token",
-    "__Secure-better-auth.session_token",
-  ];
+  const cookieNames = ["better-auth.session_token", "__Secure-better-auth.session_token"];
 
   for (const name of cookieNames) {
     const match = cookie.match(new RegExp(`(?:^|;\\s*)${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]+)`));

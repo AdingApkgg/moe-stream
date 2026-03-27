@@ -23,9 +23,7 @@ const getTag = cache(async (slug: string) => {
   });
 });
 
-export async function generateMetadata({
-  params,
-}: TagPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: TagPageProps): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
   const tag = await getTag(slug);
@@ -82,9 +80,7 @@ export default async function TagPage({ params }: TagPageProps) {
   const siteName = config.siteName;
   const siteUrl = config.siteUrl;
 
-  const total = tag
-    ? tag.videoCount + tag.gameCount + tag.imagePostCount
-    : 0;
+  const total = tag ? tag.videoCount + tag.gameCount + tag.imagePostCount : 0;
 
   return (
     <>

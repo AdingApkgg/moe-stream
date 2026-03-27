@@ -12,13 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,10 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Video,
@@ -87,9 +78,16 @@ type VideoStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | VideoStatus;
 
 type VideoRegexField =
-  | "title" | "description" | "coverUrl" | "videoUrl"
-  | "extraInfo.intro" | "extraInfo.author" | "extraInfo.authorIntro"
-  | "extraInfo.downloads.url" | "extraInfo.downloads.name" | "extraInfo.downloads.password"
+  | "title"
+  | "description"
+  | "coverUrl"
+  | "videoUrl"
+  | "extraInfo.intro"
+  | "extraInfo.author"
+  | "extraInfo.authorIntro"
+  | "extraInfo.downloads.url"
+  | "extraInfo.downloads.name"
+  | "extraInfo.downloads.password"
   | "extraInfo.relatedVideos";
 
 interface RegexTemplate {
@@ -248,11 +246,11 @@ interface VideoItem {
 export default function AdminVideosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const initialPage = parseInt(searchParams.get("page") || "1");
   const initialStatus = (searchParams.get("status") || "ALL") as StatusFilter;
   const initialSearch = searchParams.get("q") || "";
-  
+
   const [page, setPage] = useState(initialPage);
   const [search, setSearch] = useState(initialSearch);
   const [searchInput, setSearchInput] = useState(initialSearch);
@@ -271,8 +269,12 @@ export default function AdminVideosPage() {
   const [regexReplacement, setRegexReplacement] = useState("");
   const [regexFlags, setRegexFlags] = useState("g");
   const [regexPreviewing, setRegexPreviewing] = useState(false);
-  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
-  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
+  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>(
+    [],
+  );
+  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(
+    null,
+  );
   const [transferOpen, setTransferOpen] = useState(false);
 
   const limit = 50;
@@ -285,11 +287,14 @@ export default function AdminVideosPage() {
 
   const { data, isLoading, isFetching } = trpc.admin.listAllVideos.useQuery(
     { page, limit, search: search || undefined, status: statusFilter },
-    { enabled: permissions?.scopes.includes("video:moderate") }
+    { enabled: permissions?.scopes.includes("video:moderate") },
   );
 
   const moderateMutation = trpc.admin.moderateVideo.useMutation({
-    onSuccess: (_: { success: boolean; video: { id: string; title: string; status: string } }, variables: { videoId: string; status: "PUBLISHED" | "REJECTED" }) => {
+    onSuccess: (
+      _: { success: boolean; video: { id: string; title: string; status: string } },
+      variables: { videoId: string; status: "PUBLISHED" | "REJECTED" },
+    ) => {
       toast.success(variables.status === "PUBLISHED" ? "视频已通过审核" : "视频已拒绝");
       utils.admin.listAllVideos.invalidate();
       utils.admin.getVideoStats.invalidate();
@@ -341,27 +346,27 @@ export default function AdminVideosPage() {
     onError: (error: { message: string }) => toast.error(error.message || "批量编辑失败"),
   });
 
-  const videos = useMemo(
-    () => (data?.videos || []) as unknown as VideoItem[],
-    [data?.videos]
-  );
+  const videos = useMemo(() => (data?.videos || []) as unknown as VideoItem[], [data?.videos]);
 
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.currentPage ?? 1;
 
   // 更新 URL
-  const updateUrl = useCallback((params: { page?: number; status?: string; q?: string }) => {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      if (value && value !== "1" && value !== "ALL" && value !== "") {
-        url.searchParams.set(key, String(value));
-      } else {
-        url.searchParams.delete(key);
-      }
-    });
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const updateUrl = useCallback(
+    (params: { page?: number; status?: string; q?: string }) => {
+      const url = new URL(window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && value !== "1" && value !== "ALL" && value !== "") {
+          url.searchParams.set(key, String(value));
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   // 搜索防抖
   useState(() => {
@@ -391,7 +396,7 @@ export default function AdminVideosPage() {
   const togglePageSelect = useCallback(() => {
     const pageIds = new Set(videos.map((v) => v.id));
     const allPageSelected = videos.every((v) => selectedIds.has(v.id));
-    
+
     if (allPageSelected) {
       const newSet = new Set(selectedIds);
       pageIds.forEach((id) => newSet.delete(id));
@@ -462,7 +467,7 @@ export default function AdminVideosPage() {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
     updateUrl({ page: newPage, status: statusFilter, q: search });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleStatusChange = (value: StatusFilter) => {
@@ -491,11 +496,7 @@ export default function AdminVideosPage() {
   const isPageAllSelected = videos.length > 0 && videos.every((v) => selectedIds.has(v.id));
 
   if (!canModerate) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有视频管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有视频管理权限</div>;
   }
 
   return (
@@ -518,834 +519,810 @@ export default function AdminVideosPage() {
       </div>
 
       <TabsContent value="videos">
-      <div className="space-y-6">
-      {/* 标题和统计 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Video className="h-5 w-5" />
-          <h2 className="text-xl font-semibold">视频管理</h2>
-          <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
-        </div>
+        <div className="space-y-6">
+          {/* 标题和统计 */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Video className="h-5 w-5" />
+              <h2 className="text-xl font-semibold">视频管理</h2>
+              <Badge variant="outline" className="ml-2">
+                {totalCount} 个
+              </Badge>
+            </div>
 
-        {stats && (
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">总计</span>
-              <Badge variant="outline">{stats.total}</Badge>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">已发布</span>
-              <Badge className="bg-green-500">{stats.published}</Badge>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">待审核</span>
-              <Badge variant="secondary">{stats.pending}</Badge>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">已拒绝</span>
-              <Badge variant="destructive">{stats.rejected}</Badge>
-            </div>
+            {stats && (
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">总计</span>
+                  <Badge variant="outline">{stats.total}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">已发布</span>
+                  <Badge className="bg-green-500">{stats.published}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">待审核</span>
+                  <Badge variant="secondary">{stats.pending}</Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">已拒绝</span>
+                  <Badge variant="destructive">{stats.rejected}</Badge>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* 搜索和筛选 */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="搜索视频标题或描述..."
-            value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              // 简单防抖
-              setTimeout(() => {
-                setSearch(e.target.value);
-                setPage(1);
-                updateUrl({ page: 1, q: e.target.value, status: statusFilter });
-              }, 300);
-            }}
-            className="pl-10"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="状态筛选" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">全部状态</SelectItem>
-            <SelectItem value="PENDING">待审核</SelectItem>
-            <SelectItem value="PUBLISHED">已发布</SelectItem>
-            <SelectItem value="REJECTED">已拒绝</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          {/* 搜索和筛选 */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索视频标题或描述..."
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  // 简单防抖
+                  setTimeout(() => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                    updateUrl({ page: 1, q: e.target.value, status: statusFilter });
+                  }, 300);
+                }}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="状态筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">全部状态</SelectItem>
+                <SelectItem value="PENDING">待审核</SelectItem>
+                <SelectItem value="PUBLISHED">已发布</SelectItem>
+                <SelectItem value="REJECTED">已拒绝</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* 批量操作栏 */}
-      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={togglePageSelect}
-            className="gap-1"
-            title="选择/取消本页"
-          >
-            {isPageAllSelected ? (
-              <CheckSquare className="h-4 w-4" />
-            ) : (
-              <Square className="h-4 w-4" />
-            )}
-            本页
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={selectAll}
-            disabled={selectAllLoading}
-            className="gap-1"
-            title={`选择所有 ${totalCount} 个视频`}
-          >
-            {selectAllLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ChevronsRight className="h-4 w-4" />
-            )}
-            全选 ({totalCount})
-          </Button>
-          {selectedIds.size > 0 && (
-            <Button variant="ghost" size="sm" onClick={deselectAll}>
-              取消全选
-            </Button>
-          )}
-        </div>
-
-        {selectedIds.size > 0 && (
-          <>
-            <span className="text-sm text-muted-foreground">
-              已选 {selectedIds.size} 个
-            </span>
-            <div className="flex items-center gap-2 ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-green-600"
-                onClick={() =>
-                  batchModerateMutation.mutate({
-                    videoIds: Array.from(selectedIds),
-                    status: "PUBLISHED",
-                  })
-                }
-                disabled={batchModerateMutation.isPending}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                批量通过
+          {/* 批量操作栏 */}
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={togglePageSelect} className="gap-1" title="选择/取消本页">
+                {isPageAllSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                本页
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="text-orange-600"
-                onClick={() =>
-                  batchModerateMutation.mutate({
-                    videoIds: Array.from(selectedIds),
-                    status: "REJECTED",
-                  })
-                }
-                disabled={batchModerateMutation.isPending}
+                onClick={selectAll}
+                disabled={selectAllLoading}
+                className="gap-1"
+                title={`选择所有 ${totalCount} 个视频`}
               >
-                <XCircle className="h-4 w-4 mr-1" />
-                批量拒绝
+                {selectAllLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronsRight className="h-4 w-4" />
+                )}
+                全选 ({totalCount})
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={exporting}
-              >
-                {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
-                导出 JSON
-              </Button>
-              {canManage && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTransferOpen(true)}
-                  >
-                    <ArrowRightLeft className="h-4 w-4 mr-1" />
-                    转移所有权
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRegexPreviews([]);
-                      setRegexPreviewStats(null);
-                      setRegexOpen(true);
-                    }}
-                  >
-                    <Replace className="h-4 w-4 mr-1" />
-                    正则编辑
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setBatchAction("delete")}
-                    disabled={batchDeleteMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    批量删除
-                  </Button>
-                </>
+              {selectedIds.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={deselectAll}>
+                  取消全选
+                </Button>
               )}
             </div>
-          </>
-        )}
-      </div>
 
-      {/* 视频列表 */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
-        </div>
-      ) : videos.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            没有找到视频
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <div className="space-y-3">
-            {videos.map((video) => {
-              const isSelected = selectedIds.has(video.id);
-              const isExpanded = expandedIds.has(video.id);
-              return (
-                <Card
-                  key={video.id}
-                  className={cn(
-                    "transition-colors",
-                    isSelected && "ring-2 ring-primary"
+            {selectedIds.size > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 个</span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-green-600"
+                    onClick={() =>
+                      batchModerateMutation.mutate({
+                        videoIds: Array.from(selectedIds),
+                        status: "PUBLISHED",
+                      })
+                    }
+                    disabled={batchModerateMutation.isPending}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    批量通过
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-orange-600"
+                    onClick={() =>
+                      batchModerateMutation.mutate({
+                        videoIds: Array.from(selectedIds),
+                        status: "REJECTED",
+                      })
+                    }
+                    disabled={batchModerateMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    批量拒绝
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+                    {exporting ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-1" />
+                    )}
+                    导出 JSON
+                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
+                        <ArrowRightLeft className="h-4 w-4 mr-1" />
+                        转移所有权
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setRegexPreviews([]);
+                          setRegexPreviewStats(null);
+                          setRegexOpen(true);
+                        }}
+                      >
+                        <Replace className="h-4 w-4 mr-1" />
+                        正则编辑
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setBatchAction("delete")}
+                        disabled={batchDeleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        批量删除
+                      </Button>
+                    </>
                   )}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(video.id)}
-                        className="mt-1"
-                      />
+                </div>
+              </>
+            )}
+          </div>
 
-                      {/* 封面 */}
-                      <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
-                        <Image
-                          src={getCoverUrl(video.id, video.coverUrl, { w: 320 })}
-                          alt={video.title}
-                          fill
-                          className="object-cover"
-                          sizes="160px"
-                          unoptimized
-                        />
-                        {video.duration && (
-                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
-                            {formatDuration(video.duration)}
+          {/* 视频列表 */}
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : videos.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">没有找到视频</CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {videos.map((video) => {
+                  const isSelected = selectedIds.has(video.id);
+                  const isExpanded = expandedIds.has(video.id);
+                  return (
+                    <Card key={video.id} className={cn("transition-colors", isSelected && "ring-2 ring-primary")}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelect(video.id)}
+                            className="mt-1"
+                          />
+
+                          {/* 封面 */}
+                          <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
+                            <Image
+                              src={getCoverUrl(video.id, video.coverUrl, { w: 320 })}
+                              alt={video.title}
+                              fill
+                              className="object-cover"
+                              sizes="160px"
+                              unoptimized
+                            />
+                            {video.duration && (
+                              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
+                                {formatDuration(video.duration)}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 信息 */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <Link href={`/video/${video.id}`} className="font-medium hover:underline line-clamp-1">
+                                  {video.title}
+                                </Link>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage src={video.uploader.avatar || undefined} />
+                                    <AvatarFallback className="text-xs">
+                                      {(video.uploader.nickname || video.uploader.username).charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <Link href={`/user/${video.uploader.id}`} className="hover:underline">
+                                    {video.uploader.nickname || video.uploader.username}
+                                  </Link>
+                                  <span>·</span>
+                                  <span>{formatRelativeTime(video.createdAt)}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                                  <span className="flex items-center gap-1">
+                                    <Eye className="h-3 w-3" />
+                                    {video.views}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Heart className="h-3 w-3" />
+                                    {video._count.likes}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Star className="h-3 w-3" />
+                                    {video._count.favorites}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MessageSquare className="h-3 w-3" />
+                                    {video._count.comments}
+                                  </span>
+                                </div>
+                              </div>
+                              {getStatusBadge(video.status as VideoStatus)}
+                            </div>
+
+                            {/* 操作按钮 */}
+                            <div className="flex items-center gap-1 mt-2">
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/video/${video.id}`} target="_blank">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  查看
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/video/edit/${video.id}`}>
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  编辑
+                                </Link>
+                              </Button>
+                              {video.status !== "PUBLISHED" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600"
+                                  onClick={() =>
+                                    moderateMutation.mutate({
+                                      videoId: video.id,
+                                      status: "PUBLISHED",
+                                    })
+                                  }
+                                  disabled={moderateMutation.isPending}
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  通过
+                                </Button>
+                              )}
+                              {video.status !== "REJECTED" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-orange-600"
+                                  onClick={() =>
+                                    moderateMutation.mutate({
+                                      videoId: video.id,
+                                      status: "REJECTED",
+                                    })
+                                  }
+                                  disabled={moderateMutation.isPending}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  拒绝
+                                </Button>
+                              )}
+                              {canManage && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive"
+                                  onClick={() => setDeletingId(video.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  删除
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 ml-auto"
+                                onClick={() => toggleExpand(video.id)}
+                              >
+                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                              </Button>
+                            </div>
+
+                            {/* 封面链接和视频源链接 */}
+                            <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-muted-foreground font-mono">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className="shrink-0 text-muted-foreground/60">封面</span>
+                                {video.coverUrl ? (
+                                  <a
+                                    href={video.coverUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="truncate hover:underline hover:text-foreground"
+                                    title={video.coverUrl}
+                                  >
+                                    {video.coverUrl}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground/40">未设置</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className="shrink-0 text-muted-foreground/60">视频</span>
+                                <a
+                                  href={video.videoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="truncate hover:underline hover:text-foreground"
+                                  title={video.videoUrl}
+                                >
+                                  {video.videoUrl}
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 展开的详细信息 */}
+                        <Collapsible open={isExpanded}>
+                          <CollapsibleContent>
+                            <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-3">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                  <div className="font-medium text-foreground mb-1">视频 ID</div>
+                                  <code className="text-xs bg-muted px-1 py-0.5 rounded">{video.id}</code>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    创建时间
+                                  </div>
+                                  {new Date(video.createdAt).toLocaleString("zh-CN")}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    时长
+                                  </div>
+                                  {video.duration ? formatDuration(video.duration) : "-"}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground mb-1">分P数</div>
+                                  {video.sources?.length || 1}
+                                </div>
+                              </div>
+
+                              {video.description && (
+                                <div>
+                                  <div className="font-medium text-foreground mb-1">描述</div>
+                                  <p className="text-sm whitespace-pre-wrap">{video.description}</p>
+                                </div>
+                              )}
+
+                              {video.tags && video.tags.length > 0 && (
+                                <div>
+                                  <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                                    <Tag className="h-3 w-3" />
+                                    标签
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {video.tags.map((t) => (
+                                      <Badge key={t.tag.id} variant="outline" className="text-xs">
+                                        {t.tag.name}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* 分页 */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    第 {currentPage} 页，共 {totalPages} 页（{totalCount} 个视频）
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1 || isFetching}
+                      title="第一页"
+                    >
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1 || isFetching}
+                      title="上一页"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    {/* 页码按钮 */}
+                    <div className="flex items-center gap-1 mx-2">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="icon"
+                            onClick={() => handlePageChange(pageNum)}
+                            disabled={isFetching}
+                            className="w-9 h-9"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages || isFetching}
+                      title="下一页"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages || isFetching}
+                      title="最后一页"
+                    >
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 加载中遮罩 */}
+              {isFetching && !isLoading && (
+                <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 删除确认对话框 */}
+          <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确定要删除这个视频吗？</AlertDialogTitle>
+                <AlertDialogDescription>此操作不可撤销，视频及其所有关联数据将被永久删除。</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deletingId && deleteMutation.mutate({ videoId: deletingId })}
+                >
+                  {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  确认删除
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* 批量删除确认对话框 */}
+          <AlertDialog open={batchAction === "delete"} onOpenChange={() => setBatchAction(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确定批量删除吗？</AlertDialogTitle>
+                <AlertDialogDescription className="text-destructive">
+                  将永久删除 {selectedIds.size} 个视频及其所有关联数据，此操作不可恢复！
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => batchDeleteMutation.mutate({ videoIds: Array.from(selectedIds) })}
+                >
+                  永久删除
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* 正则批量编辑对话框 */}
+          <Dialog
+            open={regexOpen}
+            onOpenChange={(open) => {
+              setRegexOpen(open);
+              if (!open) {
+                setRegexPreviews([]);
+                setRegexPreviewStats(null);
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>正则批量编辑</DialogTitle>
+                <DialogDescription>对已选 {selectedIds.size} 个视频使用正则表达式批量替换字段内容</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* 字段选择 */}
+                <div className="space-y-2">
+                  <Label>目标字段</Label>
+                  <Select
+                    value={regexField}
+                    onValueChange={(v) => {
+                      setRegexField(v as typeof regexField);
+                      setRegexPreviews([]);
+                      setRegexPreviewStats(null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="videoUrl">视频加载源 (videoUrl)</SelectItem>
+                      <SelectItem value="coverUrl">封面链接 (coverUrl)</SelectItem>
+                      <SelectItem value="title">标题 (title)</SelectItem>
+                      <SelectItem value="description">描述 (description)</SelectItem>
+                      <SelectItem value="extraInfo.intro">作品介绍 (intro)</SelectItem>
+                      <SelectItem value="extraInfo.author">原作者 (author)</SelectItem>
+                      <SelectItem value="extraInfo.authorIntro">作者介绍 (authorIntro)</SelectItem>
+                      <SelectItem value="extraInfo.downloads.url">下载链接 (downloads.url)</SelectItem>
+                      <SelectItem value="extraInfo.downloads.name">下载名称 (downloads.name)</SelectItem>
+                      <SelectItem value="extraInfo.downloads.password">下载密码 (downloads.password)</SelectItem>
+                      <SelectItem value="extraInfo.relatedVideos">相关视频 (relatedVideos)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 常用模版 */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <BookTemplate className="h-3.5 w-3.5" />
+                    常用模版
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {REGEX_TEMPLATES.map((tpl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={cn(
+                          "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                          "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
+                          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                        )}
+                        title={tpl.description}
+                        onClick={() => {
+                          setRegexField(tpl.field);
+                          setRegexPattern(tpl.pattern);
+                          setRegexReplacement(tpl.replacement);
+                          setRegexFlags(tpl.flags);
+                          setRegexPreviews([]);
+                          setRegexPreviewStats(null);
+                          toast.success(`已填入模版: ${tpl.name}`);
+                        }}
+                      >
+                        <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+                        {tpl.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">点击模版一键填入正则和替换内容，填入后可按需微调</p>
+                </div>
+
+                {/* 正则表达式 */}
+                <div className="space-y-2">
+                  <Label>匹配正则</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="例: https://old-cdn\.com"
+                      value={regexPattern}
+                      onChange={(e) => {
+                        setRegexPattern(e.target.value);
+                        setRegexPreviews([]);
+                        setRegexPreviewStats(null);
+                      }}
+                      className="flex-1 font-mono text-sm"
+                    />
+                    <Input
+                      placeholder="flags"
+                      value={regexFlags}
+                      onChange={(e) => {
+                        setRegexFlags(e.target.value);
+                        setRegexPreviews([]);
+                        setRegexPreviewStats(null);
+                      }}
+                      className="w-20 font-mono text-sm text-center"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    支持 JavaScript 正则语法，flags 默认 g（全局替换）。常用：gi（全局+忽略大小写）
+                  </p>
+                </div>
+
+                {/* 替换为 */}
+                <div className="space-y-2">
+                  <Label>替换为</Label>
+                  <Input
+                    placeholder="例: https://new-cdn.com"
+                    value={regexReplacement}
+                    onChange={(e) => {
+                      setRegexReplacement(e.target.value);
+                      setRegexPreviews([]);
+                      setRegexPreviewStats(null);
+                    }}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">支持 $1, $2 等捕获组引用。留空则删除匹配内容</p>
+                </div>
+
+                {/* 预览按钮 */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={!regexPattern || regexPreviewing}
+                  onClick={async () => {
+                    setRegexPreviewing(true);
+                    try {
+                      new RegExp(regexPattern, regexFlags);
+                    } catch {
+                      toast.error("无效的正则表达式");
+                      setRegexPreviewing(false);
+                      return;
+                    }
+                    try {
+                      const result = await utils.client.admin.batchRegexPreview.query({
+                        videoIds: Array.from(selectedIds),
+                        field: regexField,
+                        pattern: regexPattern,
+                        replacement: regexReplacement,
+                        flags: regexFlags,
+                      });
+                      setRegexPreviews(result.previews);
+                      setRegexPreviewStats({ totalMatched: result.totalMatched, totalSelected: result.totalSelected });
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "预览失败");
+                    } finally {
+                      setRegexPreviewing(false);
+                    }
+                  }}
+                >
+                  {regexPreviewing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  预览变更
+                </Button>
+
+                {/* 预览结果 */}
+                {regexPreviewStats && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant={regexPreviewStats.totalMatched > 0 ? "default" : "secondary"}>
+                        {regexPreviewStats.totalMatched} / {regexPreviewStats.totalSelected} 个视频将被修改
+                      </Badge>
+                    </div>
+
+                    {regexPreviews.length > 0 && (
+                      <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 sticky top-0">
+                            <tr>
+                              <th className="text-left p-2 font-medium">视频</th>
+                              <th className="text-left p-2 font-medium text-red-600">替换前</th>
+                              <th className="text-left p-2 font-medium text-green-600">替换后</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {regexPreviews.slice(0, 50).map((p) => (
+                              <tr key={p.id} className="hover:bg-muted/30">
+                                <td className="p-2 max-w-[120px] truncate" title={p.title}>
+                                  {p.title}
+                                </td>
+                                <td className="p-2 font-mono text-xs text-red-600 max-w-[200px] break-all">
+                                  {p.before.length > 100 ? p.before.slice(0, 100) + "..." : p.before}
+                                </td>
+                                <td className="p-2 font-mono text-xs text-green-600 max-w-[200px] break-all">
+                                  {p.after.length > 100 ? p.after.slice(0, 100) + "..." : p.after}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {regexPreviews.length > 50 && (
+                          <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+                            还有 {regexPreviews.length - 50} 条变更未显示
                           </div>
                         )}
                       </div>
-
-                      {/* 信息 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <Link
-                              href={`/video/${video.id}`}
-                              className="font-medium hover:underline line-clamp-1"
-                            >
-                              {video.title}
-                            </Link>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage src={video.uploader.avatar || undefined} />
-                                <AvatarFallback className="text-xs">
-                                  {(video.uploader.nickname || video.uploader.username).charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <Link href={`/user/${video.uploader.id}`} className="hover:underline">
-                                {video.uploader.nickname || video.uploader.username}
-                              </Link>
-                              <span>·</span>
-                              <span>{formatRelativeTime(video.createdAt)}</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                              <span className="flex items-center gap-1">
-                                <Eye className="h-3 w-3" />
-                                {video.views}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Heart className="h-3 w-3" />
-                                {video._count.likes}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Star className="h-3 w-3" />
-                                {video._count.favorites}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MessageSquare className="h-3 w-3" />
-                                {video._count.comments}
-                              </span>
-                            </div>
-                          </div>
-                          {getStatusBadge(video.status as VideoStatus)}
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex items-center gap-1 mt-2">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/video/${video.id}`} target="_blank">
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              查看
-                            </Link>
-                          </Button>
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/video/edit/${video.id}`}>
-                              <Edit className="h-3 w-3 mr-1" />
-                              编辑
-                            </Link>
-                          </Button>
-                          {video.status !== "PUBLISHED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-green-600"
-                              onClick={() =>
-                                moderateMutation.mutate({
-                                  videoId: video.id,
-                                  status: "PUBLISHED",
-                                })
-                              }
-                              disabled={moderateMutation.isPending}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              通过
-                            </Button>
-                          )}
-                          {video.status !== "REJECTED" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-orange-600"
-                              onClick={() =>
-                                moderateMutation.mutate({
-                                  videoId: video.id,
-                                  status: "REJECTED",
-                                })
-                              }
-                              disabled={moderateMutation.isPending}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              拒绝
-                            </Button>
-                          )}
-                          {canManage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => setDeletingId(video.id)}
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              删除
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 ml-auto"
-                            onClick={() => toggleExpand(video.id)}
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-
-                        {/* 封面链接和视频源链接 */}
-                        <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-muted-foreground font-mono">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="shrink-0 text-muted-foreground/60">封面</span>
-                            {video.coverUrl ? (
-                              <a href={video.coverUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={video.coverUrl}>
-                                {video.coverUrl}
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground/40">未设置</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="shrink-0 text-muted-foreground/60">视频</span>
-                            <a href={video.videoUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={video.videoUrl}>
-                              {video.videoUrl}
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 展开的详细信息 */}
-                    <Collapsible open={isExpanded}>
-                      <CollapsibleContent>
-                        <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-3">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div>
-                              <div className="font-medium text-foreground mb-1">视频 ID</div>
-                              <code className="text-xs bg-muted px-1 py-0.5 rounded">{video.id}</code>
-                            </div>
-                            <div>
-                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                创建时间
-                              </div>
-                              {new Date(video.createdAt).toLocaleString("zh-CN")}
-                            </div>
-                            <div>
-                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                时长
-                              </div>
-                              {video.duration ? formatDuration(video.duration) : "-"}
-                            </div>
-                            <div>
-                              <div className="font-medium text-foreground mb-1">分P数</div>
-                              {video.sources?.length || 1}
-                            </div>
-                          </div>
-
-                          {video.description && (
-                            <div>
-                              <div className="font-medium text-foreground mb-1">描述</div>
-                              <p className="text-sm whitespace-pre-wrap">{video.description}</p>
-                            </div>
-                          )}
-
-                          {video.tags && video.tags.length > 0 && (
-                            <div>
-                              <div className="font-medium text-foreground mb-1 flex items-center gap-1">
-                                <Tag className="h-3 w-3" />
-                                标签
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {video.tags.map((t) => (
-                                  <Badge key={t.tag.id} variant="outline" className="text-xs">
-                                    {t.tag.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* 分页 */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t">
-              <div className="text-sm text-muted-foreground">
-                第 {currentPage} 页，共 {totalPages} 页（{totalCount} 个视频）
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1 || isFetching}
-                  title="第一页"
-                >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1 || isFetching}
-                  title="上一页"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                {/* 页码按钮 */}
-                <div className="flex items-center gap-1 mx-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="icon"
-                        onClick={() => handlePageChange(pageNum)}
-                        disabled={isFetching}
-                        className="w-9 h-9"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || isFetching}
-                  title="下一页"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages || isFetching}
-                  title="最后一页"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* 加载中遮罩 */}
-          {isFetching && !isLoading && (
-            <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* 删除确认对话框 */}
-      <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确定要删除这个视频吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，视频及其所有关联数据将被永久删除。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deletingId && deleteMutation.mutate({ videoId: deletingId })}
-            >
-              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              确认删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 批量删除确认对话框 */}
-      <AlertDialog open={batchAction === "delete"} onOpenChange={() => setBatchAction(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确定批量删除吗？</AlertDialogTitle>
-            <AlertDialogDescription className="text-destructive">
-              将永久删除 {selectedIds.size} 个视频及其所有关联数据，此操作不可恢复！
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => batchDeleteMutation.mutate({ videoIds: Array.from(selectedIds) })}
-            >
-              永久删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 正则批量编辑对话框 */}
-      <Dialog open={regexOpen} onOpenChange={(open) => {
-        setRegexOpen(open);
-        if (!open) {
-          setRegexPreviews([]);
-          setRegexPreviewStats(null);
-        }
-      }}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>正则批量编辑</DialogTitle>
-            <DialogDescription>
-              对已选 {selectedIds.size} 个视频使用正则表达式批量替换字段内容
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* 字段选择 */}
-            <div className="space-y-2">
-              <Label>目标字段</Label>
-              <Select value={regexField} onValueChange={(v) => {
-                setRegexField(v as typeof regexField);
-                setRegexPreviews([]);
-                setRegexPreviewStats(null);
-              }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="videoUrl">视频加载源 (videoUrl)</SelectItem>
-                  <SelectItem value="coverUrl">封面链接 (coverUrl)</SelectItem>
-                  <SelectItem value="title">标题 (title)</SelectItem>
-                  <SelectItem value="description">描述 (description)</SelectItem>
-                  <SelectItem value="extraInfo.intro">作品介绍 (intro)</SelectItem>
-                  <SelectItem value="extraInfo.author">原作者 (author)</SelectItem>
-                  <SelectItem value="extraInfo.authorIntro">作者介绍 (authorIntro)</SelectItem>
-                  <SelectItem value="extraInfo.downloads.url">下载链接 (downloads.url)</SelectItem>
-                  <SelectItem value="extraInfo.downloads.name">下载名称 (downloads.name)</SelectItem>
-                  <SelectItem value="extraInfo.downloads.password">下载密码 (downloads.password)</SelectItem>
-                  <SelectItem value="extraInfo.relatedVideos">相关视频 (relatedVideos)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 常用模版 */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <BookTemplate className="h-3.5 w-3.5" />
-                常用模版
-              </Label>
-              <div className="flex flex-wrap gap-1.5">
-                {REGEX_TEMPLATES.map((tpl, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
-                      "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
-                      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     )}
-                    title={tpl.description}
-                    onClick={() => {
-                      setRegexField(tpl.field);
-                      setRegexPattern(tpl.pattern);
-                      setRegexReplacement(tpl.replacement);
-                      setRegexFlags(tpl.flags);
-                      setRegexPreviews([]);
-                      setRegexPreviewStats(null);
-                      toast.success(`已填入模版: ${tpl.name}`);
-                    }}
-                  >
-                    <Zap className="h-3 w-3 text-amber-500 shrink-0" />
-                    {tpl.name}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                点击模版一键填入正则和替换内容，填入后可按需微调
-              </p>
-            </div>
 
-            {/* 正则表达式 */}
-            <div className="space-y-2">
-              <Label>匹配正则</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="例: https://old-cdn\.com"
-                  value={regexPattern}
-                  onChange={(e) => {
-                    setRegexPattern(e.target.value);
-                    setRegexPreviews([]);
-                    setRegexPreviewStats(null);
-                  }}
-                  className="flex-1 font-mono text-sm"
-                />
-                <Input
-                  placeholder="flags"
-                  value={regexFlags}
-                  onChange={(e) => {
-                    setRegexFlags(e.target.value);
-                    setRegexPreviews([]);
-                    setRegexPreviewStats(null);
-                  }}
-                  className="w-20 font-mono text-sm text-center"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                支持 JavaScript 正则语法，flags 默认 g（全局替换）。常用：gi（全局+忽略大小写）
-              </p>
-            </div>
-
-            {/* 替换为 */}
-            <div className="space-y-2">
-              <Label>替换为</Label>
-              <Input
-                placeholder="例: https://new-cdn.com"
-                value={regexReplacement}
-                onChange={(e) => {
-                  setRegexReplacement(e.target.value);
-                  setRegexPreviews([]);
-                  setRegexPreviewStats(null);
-                }}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                支持 $1, $2 等捕获组引用。留空则删除匹配内容
-              </p>
-            </div>
-
-            {/* 预览按钮 */}
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!regexPattern || regexPreviewing}
-              onClick={async () => {
-                setRegexPreviewing(true);
-                try {
-                  new RegExp(regexPattern, regexFlags);
-                } catch {
-                  toast.error("无效的正则表达式");
-                  setRegexPreviewing(false);
-                  return;
-                }
-                try {
-                  const result = await utils.client.admin.batchRegexPreview.query({
-                    videoIds: Array.from(selectedIds),
-                    field: regexField,
-                    pattern: regexPattern,
-                    replacement: regexReplacement,
-                    flags: regexFlags,
-                  });
-                  setRegexPreviews(result.previews);
-                  setRegexPreviewStats({ totalMatched: result.totalMatched, totalSelected: result.totalSelected });
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "预览失败");
-                } finally {
-                  setRegexPreviewing(false);
-                }
-              }}
-            >
-              {regexPreviewing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4 mr-2" />
-              )}
-              预览变更
-            </Button>
-
-            {/* 预览结果 */}
-            {regexPreviewStats && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Badge variant={regexPreviewStats.totalMatched > 0 ? "default" : "secondary"}>
-                    {regexPreviewStats.totalMatched} / {regexPreviewStats.totalSelected} 个视频将被修改
-                  </Badge>
-                </div>
-
-                {regexPreviews.length > 0 && (
-                  <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-2 font-medium">视频</th>
-                          <th className="text-left p-2 font-medium text-red-600">替换前</th>
-                          <th className="text-left p-2 font-medium text-green-600">替换后</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {regexPreviews.slice(0, 50).map((p) => (
-                          <tr key={p.id} className="hover:bg-muted/30">
-                            <td className="p-2 max-w-[120px] truncate" title={p.title}>
-                              {p.title}
-                            </td>
-                            <td className="p-2 font-mono text-xs text-red-600 max-w-[200px] break-all">
-                              {p.before.length > 100 ? p.before.slice(0, 100) + "..." : p.before}
-                            </td>
-                            <td className="p-2 font-mono text-xs text-green-600 max-w-[200px] break-all">
-                              {p.after.length > 100 ? p.after.slice(0, 100) + "..." : p.after}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {regexPreviews.length > 50 && (
-                      <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
-                        还有 {regexPreviews.length - 50} 条变更未显示
-                      </div>
+                    {regexPreviews.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">没有视频匹配该正则表达式</p>
                     )}
                   </div>
                 )}
-
-                {regexPreviews.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    没有视频匹配该正则表达式
-                  </p>
-                )}
               </div>
-            )}
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRegexOpen(false)}>
-              取消
-            </Button>
-            <Button
-              disabled={
-                !regexPattern ||
-                !regexPreviewStats ||
-                regexPreviewStats.totalMatched === 0 ||
-                batchRegexUpdateMutation.isPending
-              }
-              onClick={() => {
-                batchRegexUpdateMutation.mutate({
-                  videoIds: Array.from(selectedIds),
-                  field: regexField,
-                  pattern: regexPattern,
-                  replacement: regexReplacement,
-                  flags: regexFlags,
-                });
-              }}
-            >
-              {batchRegexUpdateMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              应用变更 {regexPreviewStats ? `(${regexPreviewStats.totalMatched} 个)` : ""}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRegexOpen(false)}>
+                  取消
+                </Button>
+                <Button
+                  disabled={
+                    !regexPattern ||
+                    !regexPreviewStats ||
+                    regexPreviewStats.totalMatched === 0 ||
+                    batchRegexUpdateMutation.isPending
+                  }
+                  onClick={() => {
+                    batchRegexUpdateMutation.mutate({
+                      videoIds: Array.from(selectedIds),
+                      field: regexField,
+                      pattern: regexPattern,
+                      replacement: regexReplacement,
+                      flags: regexFlags,
+                    });
+                  }}
+                >
+                  {batchRegexUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  应用变更 {regexPreviewStats ? `(${regexPreviewStats.totalMatched} 个)` : ""}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-      <TransferOwnerDialog
-        open={transferOpen}
-        onOpenChange={setTransferOpen}
-        selectedCount={selectedIds.size}
-        selectedIds={Array.from(selectedIds)}
-        contentType="video"
-        contentLabel="视频"
-        onSuccess={() => {
-          utils.admin.listAllVideos.invalidate();
-          setSelectedIds(new Set());
-        }}
-      />
-    </div>
+          <TransferOwnerDialog
+            open={transferOpen}
+            onOpenChange={setTransferOpen}
+            selectedCount={selectedIds.size}
+            selectedIds={Array.from(selectedIds)}
+            contentType="video"
+            contentLabel="视频"
+            onSuccess={() => {
+              utils.admin.listAllVideos.invalidate();
+              setSelectedIds(new Set());
+            }}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="series">

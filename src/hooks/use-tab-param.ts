@@ -7,10 +7,7 @@ import { useState, useCallback } from "react";
  * 将 Tab 状态同步到 URL search params，刷新/分享链接时自动恢复选中 Tab。
  * 切换 Tab 时会重置同页面的分页参数。
  */
-export function useTabParam<T extends string>(
-  defaultValue: T,
-  key = "tab",
-): [T, (tab: string) => void] {
+export function useTabParam<T extends string>(defaultValue: T, key = "tab"): [T, (tab: string) => void] {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -32,11 +29,7 @@ export function useTabParam<T extends string>(
       params.delete("gp");
       params.delete("ip");
       const qs = params.toString();
-      window.history.replaceState(
-        null,
-        "",
-        `${pathname}${qs ? `?${qs}` : ""}`,
-      );
+      window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
     },
     [key, defaultValue, pathname],
   );

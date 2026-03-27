@@ -7,17 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  Upload,
-  X,
-  FileIcon,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Zap,
-  Pause,
-  Play,
-} from "lucide-react";
+import { Upload, X, FileIcon, CheckCircle2, AlertCircle, Loader2, Zap, Pause, Play } from "lucide-react";
 
 export interface UploadedFile {
   id: string;
@@ -27,14 +17,7 @@ export interface UploadedFile {
   mimeType: string;
 }
 
-type UploadStatus =
-  | "pending"
-  | "hashing"
-  | "checking"
-  | "uploading"
-  | "paused"
-  | "completed"
-  | "error";
+type UploadStatus = "pending" | "hashing" | "checking" | "uploading" | "paused" | "completed" | "error";
 
 interface FileUploadItem {
   file: File;
@@ -82,14 +65,9 @@ export function FileUploader({
   const initUpload = trpc.file.initUpload.useMutation();
   const completeUpload = trpc.file.completeUpload.useMutation();
 
-  const updateItem = useCallback(
-    (id: string, patch: Partial<FileUploadItem>) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-      );
-    },
-    [],
-  );
+  const updateItem = useCallback((id: string, patch: Partial<FileUploadItem>) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }, []);
 
   const uploadFile = useCallback(
     async (item: FileUploadItem): Promise<UploadedFile | null> => {
@@ -99,11 +77,7 @@ export function FileUploader({
       // 1. Compute hash
       let hash: string;
       try {
-        hash = await computeSHA256(
-          item.file,
-          (pct) => updateItem(item.id, { hashProgress: pct }),
-          ac.signal,
-        );
+        hash = await computeSHA256(item.file, (pct) => updateItem(item.id, { hashProgress: pct }), ac.signal);
         updateItem(item.id, { hash });
       } catch (err) {
         if ((err as Error).name === "AbortError") return null;
@@ -163,10 +137,11 @@ export function FileUploader({
           const formData = new FormData();
           formData.append("chunk", blob);
 
-          const resp = await fetch(
-            `/api/files/upload-chunk?fileId=${initResult.fileId}&index=${i}`,
-            { method: "POST", body: formData, signal: ac.signal },
-          );
+          const resp = await fetch(`/api/files/upload-chunk?fileId=${initResult.fileId}&index=${i}`, {
+            method: "POST",
+            body: formData,
+            signal: ac.signal,
+          });
           if (!resp.ok) {
             const body = await resp.json().catch(() => ({}));
             throw new Error((body as { error?: string }).error || `Chunk ${i} failed`);
@@ -174,7 +149,7 @@ export function FileUploader({
 
           updateItem(item.id, {
             progress: Math.round(((i + 1) / totalChunks) * 100),
-            completedChunks: [...(Array.from({ length: i + 1 }, (_, k) => k))],
+            completedChunks: [...Array.from({ length: i + 1 }, (_, k) => k)],
           });
         }
       } else if (initResult.parts && initResult.uploadId) {
@@ -232,10 +207,7 @@ export function FileUploader({
           xhr.addEventListener("error", () => reject(new Error("上传失败")));
           ac.signal.addEventListener("abort", () => xhr.abort());
           xhr.open("PUT", initResult.uploadUrl!);
-          xhr.setRequestHeader(
-            "Content-Type",
-            item.file.type || "application/octet-stream",
-          );
+          xhr.setRequestHeader("Content-Type", item.file.type || "application/octet-stream");
           xhr.send(item.file);
         });
       }
@@ -279,9 +251,7 @@ export function FileUploader({
 
           setItems((prev) =>
             prev.map((it) =>
-              it.id === item.id
-                ? { ...it, status: "completed", progress: 100, result, isFlashUpload: !it.fileId }
-                : it,
+              it.id === item.id ? { ...it, status: "completed", progress: 100, result, isFlashUpload: !it.fileId } : it,
             ),
           );
 
@@ -293,9 +263,7 @@ export function FileUploader({
             status: "error",
             error: err instanceof Error ? err.message : "上传失败",
           });
-          toast.error(
-            `${item.file.name}: ${err instanceof Error ? err.message : "上传失败"}`,
-          );
+          toast.error(`${item.file.name}: ${err instanceof Error ? err.message : "上传失败"}`);
         }
       }
 
@@ -323,9 +291,7 @@ export function FileUploader({
         if (result) {
           setItems((prev) =>
             prev.map((it) =>
-              it.id === itemId
-                ? { ...it, status: "completed", progress: 100, result, isFlashUpload: !it.fileId }
-                : it,
+              it.id === itemId ? { ...it, status: "completed", progress: 100, result, isFlashUpload: !it.fileId } : it,
             ),
           );
           onFileUploaded?.(result);
@@ -378,9 +344,7 @@ export function FileUploader({
       <div
         className={cn(
           "relative rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer",
-          isDragOver
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/50",
+          isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50",
           isUploading && "pointer-events-none opacity-60",
         )}
         onDragOver={(e) => {
@@ -392,29 +356,15 @@ export function FileUploader({
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">
-          拖拽文件到此处，或点击选择文件
-        </p>
-        <p className="text-xs text-muted-foreground/70 mt-1">
-          支持断点续传和秒传
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={accept}
-          onChange={handleFileSelect}
-          className="hidden"
-        />
+        <p className="text-sm text-muted-foreground">拖拽文件到此处，或点击选择文件</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">支持断点续传和秒传</p>
+        <input ref={fileInputRef} type="file" multiple accept={accept} onChange={handleFileSelect} className="hidden" />
       </div>
 
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-3 rounded-lg border p-3"
-            >
+            <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3">
               <div className="shrink-0">
                 {item.status === "completed" && item.isFlashUpload ? (
                   <Zap className="h-5 w-5 text-amber-500" />
@@ -424,9 +374,7 @@ export function FileUploader({
                   <AlertCircle className="h-5 w-5 text-destructive" />
                 ) : item.status === "paused" ? (
                   <Pause className="h-5 w-5 text-muted-foreground" />
-                ) : item.status === "uploading" ||
-                  item.status === "hashing" ||
-                  item.status === "checking" ? (
+                ) : item.status === "uploading" || item.status === "hashing" || item.status === "checking" ? (
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 ) : (
                   <FileIcon className="h-5 w-5 text-muted-foreground" />
@@ -436,25 +384,15 @@ export function FileUploader({
                 <p className="text-sm font-medium truncate">{item.file.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {formatFileSize(item.file.size)}
-                  {item.status === "hashing" && (
-                    <span className="ml-2 text-primary">校验中 {item.hashProgress}%</span>
-                  )}
-                  {item.status === "checking" && (
-                    <span className="ml-2 text-primary">查重中...</span>
-                  )}
+                  {item.status === "hashing" && <span className="ml-2 text-primary">校验中 {item.hashProgress}%</span>}
+                  {item.status === "checking" && <span className="ml-2 text-primary">查重中...</span>}
                   {item.status === "completed" && item.isFlashUpload && (
                     <span className="ml-2 text-amber-600 font-medium">秒传完成</span>
                   )}
-                  {item.status === "paused" && (
-                    <span className="ml-2 text-muted-foreground">已暂停</span>
-                  )}
-                  {item.error && (
-                    <span className="text-destructive ml-2">{item.error}</span>
-                  )}
+                  {item.status === "paused" && <span className="ml-2 text-muted-foreground">已暂停</span>}
+                  {item.error && <span className="text-destructive ml-2">{item.error}</span>}
                 </p>
-                {item.status === "hashing" && (
-                  <Progress value={item.hashProgress} className="mt-1 h-1" />
-                )}
+                {item.status === "hashing" && <Progress value={item.hashProgress} className="mt-1 h-1" />}
                 {(item.status === "uploading" || item.status === "paused") && (
                   <Progress value={item.progress} className="mt-1 h-1" />
                 )}
@@ -486,9 +424,7 @@ export function FileUploader({
                     <Play className="h-4 w-4" />
                   </Button>
                 )}
-                {(item.status === "completed" ||
-                  item.status === "error" ||
-                  item.status === "paused") && (
+                {(item.status === "completed" || item.status === "error" || item.status === "paused") && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -513,7 +449,6 @@ export function FileUploader({
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }

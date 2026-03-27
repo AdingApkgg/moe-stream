@@ -108,31 +108,29 @@ export const adminFilesRouter = router({
       }));
     }),
 
-  cleanStale: adminProcedure
-    .use(requireScope("settings:manage"))
-    .mutation(async ({ ctx }) => {
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const staleFiles = await ctx.prisma.userFile.findMany({
-        where: {
-          status: "UPLOADING",
-          createdAt: { lt: cutoff },
-        },
-      });
+  cleanStale: adminProcedure.use(requireScope("settings:manage")).mutation(async ({ ctx }) => {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const staleFiles = await ctx.prisma.userFile.findMany({
+      where: {
+        status: "UPLOADING",
+        createdAt: { lt: cutoff },
+      },
+    });
 
-      let cleaned = 0;
-      for (const file of staleFiles) {
-        try {
-          await deleteUserFile(file.id, file.userId);
-          cleaned++;
-        } catch {
-          await ctx.prisma.userFile.update({
-            where: { id: file.id },
-            data: { status: "FAILED" },
-          });
-        }
+    let cleaned = 0;
+    for (const file of staleFiles) {
+      try {
+        await deleteUserFile(file.id, file.userId);
+        cleaned++;
+      } catch {
+        await ctx.prisma.userFile.update({
+          where: { id: file.id },
+          data: { status: "FAILED" },
+        });
       }
-      return { cleaned, total: staleFiles.length };
-    }),
+    }
+    return { cleaned, total: staleFiles.length };
+  }),
 
   updateUserQuota: adminProcedure
     .use(requireScope("settings:manage"))

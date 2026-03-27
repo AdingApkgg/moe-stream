@@ -25,7 +25,11 @@ const emptySubscribe = () => () => {};
  * 仅当「系统设置中启用广告」且「用户未被关闭广告」时渲染。
  */
 export function AdSlot({ slotId = "default", minHeight, compact, className, children }: AdSlotProps) {
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
   const { ads, showAds } = useRandomAds(1, slotId, resolveSlotPosition(slotId));
   const ad = ads[0];
 

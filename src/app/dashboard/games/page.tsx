@@ -11,13 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,10 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import {
   Gamepad2,
@@ -78,10 +69,19 @@ type GameStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | GameStatus;
 
 type GameRegexField =
-  | "title" | "description" | "coverUrl" | "gameType" | "version"
-  | "extraInfo.downloads.url" | "extraInfo.downloads.name" | "extraInfo.downloads.password"
-  | "extraInfo.screenshots" | "extraInfo.videos"
-  | "extraInfo.originalName" | "extraInfo.authorUrl" | "extraInfo.characterIntro";
+  | "title"
+  | "description"
+  | "coverUrl"
+  | "gameType"
+  | "version"
+  | "extraInfo.downloads.url"
+  | "extraInfo.downloads.name"
+  | "extraInfo.downloads.password"
+  | "extraInfo.screenshots"
+  | "extraInfo.videos"
+  | "extraInfo.originalName"
+  | "extraInfo.authorUrl"
+  | "extraInfo.characterIntro";
 
 interface RegexTemplate {
   name: string;
@@ -313,8 +313,12 @@ export default function DashboardGamesPage() {
   const [regexReplacement, setRegexReplacement] = useState("");
   const [regexFlags, setRegexFlags] = useState("g");
   const [regexPreviewing, setRegexPreviewing] = useState(false);
-  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>([]);
-  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(null);
+  const [regexPreviews, setRegexPreviews] = useState<{ id: string; title: string; before: string; after: string }[]>(
+    [],
+  );
+  const [regexPreviewStats, setRegexPreviewStats] = useState<{ totalMatched: number; totalSelected: number } | null>(
+    null,
+  );
   const [transferOpen, setTransferOpen] = useState(false);
 
   const limit = 50;
@@ -327,7 +331,7 @@ export default function DashboardGamesPage() {
 
   const { data, isLoading, isFetching } = trpc.admin.listAllGames.useQuery(
     { page, limit, search: search || undefined, status: statusFilter },
-    { enabled: permissions?.scopes.includes("video:moderate") }
+    { enabled: permissions?.scopes.includes("video:moderate") },
   );
 
   const moderateMutation = trpc.admin.moderateGame.useMutation({
@@ -383,26 +387,26 @@ export default function DashboardGamesPage() {
     onError: (error: { message: string }) => toast.error(error.message || "批量编辑失败"),
   });
 
-  const games = useMemo(
-    () => (data?.games || []) as unknown as GameItem[],
-    [data?.games]
-  );
+  const games = useMemo(() => (data?.games || []) as unknown as GameItem[], [data?.games]);
 
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const currentPage = data?.currentPage ?? 1;
 
-  const updateUrl = useCallback((params: { page?: number; status?: string; q?: string }) => {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      if (value && value !== "1" && value !== "ALL" && value !== "") {
-        url.searchParams.set(key, String(value));
-      } else {
-        url.searchParams.delete(key);
-      }
-    });
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const updateUrl = useCallback(
+    (params: { page?: number; status?: string; q?: string }) => {
+      const url = new URL(window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && value !== "1" && value !== "ALL" && value !== "") {
+          url.searchParams.set(key, String(value));
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -506,11 +510,7 @@ export default function DashboardGamesPage() {
   const isPageAllSelected = games.length > 0 && games.every((g) => selectedIds.has(g.id));
 
   if (!canModerate) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        您没有游戏管理权限
-      </div>
-    );
+    return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有游戏管理权限</div>;
   }
 
   return (
@@ -520,7 +520,9 @@ export default function DashboardGamesPage() {
         <div className="flex items-center gap-2">
           <Gamepad2 className="h-5 w-5" />
           <h1 className="text-xl font-semibold">游戏管理</h1>
-          <Badge variant="outline" className="ml-2">{totalCount} 个</Badge>
+          <Badge variant="outline" className="ml-2">
+            {totalCount} 个
+          </Badge>
         </div>
 
         {stats && (
@@ -579,18 +581,8 @@ export default function DashboardGamesPage() {
       {/* 批量操作栏 */}
       <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg flex-wrap">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={togglePageSelect}
-            className="gap-1"
-            title="选择/取消本页"
-          >
-            {isPageAllSelected ? (
-              <CheckSquare className="h-4 w-4" />
-            ) : (
-              <Square className="h-4 w-4" />
-            )}
+          <Button variant="ghost" size="sm" onClick={togglePageSelect} className="gap-1" title="选择/取消本页">
+            {isPageAllSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             本页
           </Button>
           <Button
@@ -601,11 +593,7 @@ export default function DashboardGamesPage() {
             className="gap-1"
             title={`选择所有 ${totalCount} 个游戏`}
           >
-            {selectAllLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ChevronsRight className="h-4 w-4" />
-            )}
+            {selectAllLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsRight className="h-4 w-4" />}
             全选 ({totalCount})
           </Button>
           {selectedIds.size > 0 && (
@@ -617,9 +605,7 @@ export default function DashboardGamesPage() {
 
         {selectedIds.size > 0 && (
           <>
-            <span className="text-sm text-muted-foreground">
-              已选 {selectedIds.size} 个
-            </span>
+            <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 个</span>
             <div className="flex items-center gap-2 ml-auto">
               <Button
                 variant="outline"
@@ -651,22 +637,13 @@ export default function DashboardGamesPage() {
                 <XCircle className="h-4 w-4 mr-1" />
                 批量拒绝
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={exporting}
-              >
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
                 {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
                 导出 JSON
               </Button>
               {canManage && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTransferOpen(true)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
                     <ArrowRightLeft className="h-4 w-4 mr-1" />
                     转移所有权
                   </Button>
@@ -707,9 +684,7 @@ export default function DashboardGamesPage() {
         </div>
       ) : games.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            没有找到游戏
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">没有找到游戏</CardContent>
         </Card>
       ) : (
         <>
@@ -718,20 +693,10 @@ export default function DashboardGamesPage() {
               const isSelected = selectedIds.has(game.id);
               const isExpanded = expandedIds.has(game.id);
               return (
-                <Card
-                  key={game.id}
-                  className={cn(
-                    "transition-colors",
-                    isSelected && "ring-2 ring-primary"
-                  )}
-                >
+                <Card key={game.id} className={cn("transition-colors", isSelected && "ring-2 ring-primary")}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleSelect(game.id)}
-                        className="mt-1"
-                      />
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(game.id)} className="mt-1" />
 
                       {/* 封面 */}
                       <div className="relative w-20 h-[104px] rounded-lg bg-muted overflow-hidden shrink-0">
@@ -758,10 +723,7 @@ export default function DashboardGamesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <Link
-                              href={`/game/${game.id}`}
-                              className="font-medium hover:underline line-clamp-1"
-                            >
+                            <Link href={`/game/${game.id}`} className="font-medium hover:underline line-clamp-1">
                               {game.title}
                             </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
@@ -790,13 +752,12 @@ export default function DashboardGamesPage() {
                                 <Heart className="h-3 w-3" />
                                 {game._count.favorites}
                               </span>
-                              {game.version && (
-                                <span className="text-muted-foreground/70">
-                                  {game.version}
-                                </span>
-                              )}
+                              {game.version && <span className="text-muted-foreground/70">{game.version}</span>}
                               {!game.isFree && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-400">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1 py-0 text-amber-600 border-amber-400"
+                                >
                                   付费
                                 </Badge>
                               )}
@@ -870,11 +831,7 @@ export default function DashboardGamesPage() {
                             className="h-8 w-8 ml-auto"
                             onClick={() => toggleExpand(game.id)}
                           >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </Button>
                         </div>
 
@@ -883,7 +840,13 @@ export default function DashboardGamesPage() {
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="shrink-0 text-muted-foreground/60">封面</span>
                             {game.coverUrl ? (
-                              <a href={game.coverUrl} target="_blank" rel="noopener noreferrer" className="truncate hover:underline hover:text-foreground" title={game.coverUrl}>
+                              <a
+                                href={game.coverUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="truncate hover:underline hover:text-foreground"
+                                title={game.coverUrl}
+                              >
                                 {game.coverUrl}
                               </a>
                             ) : (
@@ -1040,9 +1003,7 @@ export default function DashboardGamesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定要删除这个游戏吗？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，游戏及其所有关联数据将被永久删除。
-            </AlertDialogDescription>
+            <AlertDialogDescription>此操作不可撤销，游戏及其所有关联数据将被永久删除。</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
@@ -1079,29 +1040,33 @@ export default function DashboardGamesPage() {
       </AlertDialog>
 
       {/* 正则批量编辑对话框 */}
-      <Dialog open={regexOpen} onOpenChange={(open) => {
-        setRegexOpen(open);
-        if (!open) {
-          setRegexPreviews([]);
-          setRegexPreviewStats(null);
-        }
-      }}>
+      <Dialog
+        open={regexOpen}
+        onOpenChange={(open) => {
+          setRegexOpen(open);
+          if (!open) {
+            setRegexPreviews([]);
+            setRegexPreviewStats(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>正则批量编辑</DialogTitle>
-            <DialogDescription>
-              对已选 {selectedIds.size} 个游戏使用正则表达式批量替换字段内容
-            </DialogDescription>
+            <DialogDescription>对已选 {selectedIds.size} 个游戏使用正则表达式批量替换字段内容</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>目标字段</Label>
-              <Select value={regexField} onValueChange={(v) => {
-                setRegexField(v as typeof regexField);
-                setRegexPreviews([]);
-                setRegexPreviewStats(null);
-              }}>
+              <Select
+                value={regexField}
+                onValueChange={(v) => {
+                  setRegexField(v as typeof regexField);
+                  setRegexPreviews([]);
+                  setRegexPreviewStats(null);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -1151,9 +1116,7 @@ export default function DashboardGamesPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                点击模版一键填入正则和替换内容，填入后可按需微调
-              </p>
+              <p className="text-xs text-muted-foreground">点击模版一键填入正则和替换内容，填入后可按需微调</p>
             </div>
 
             <div className="space-y-2">
@@ -1197,9 +1160,7 @@ export default function DashboardGamesPage() {
                 }}
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-muted-foreground">
-                支持 $1, $2 等捕获组引用。留空则删除匹配内容
-              </p>
+              <p className="text-xs text-muted-foreground">支持 $1, $2 等捕获组引用。留空则删除匹配内容</p>
             </div>
 
             <Button
@@ -1283,9 +1244,7 @@ export default function DashboardGamesPage() {
                 )}
 
                 {regexPreviews.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    没有游戏匹配该正则表达式
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-4">没有游戏匹配该正则表达式</p>
                 )}
               </div>
             )}
@@ -1312,9 +1271,7 @@ export default function DashboardGamesPage() {
                 });
               }}
             >
-              {batchRegexUpdateMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+              {batchRegexUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               应用变更 {regexPreviewStats ? `(${regexPreviewStats.totalMatched} 个)` : ""}
             </Button>
           </DialogFooter>

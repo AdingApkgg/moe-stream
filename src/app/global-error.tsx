@@ -13,13 +13,7 @@ function isChunkLoadError(error: unknown): boolean {
   );
 }
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     if (isChunkLoadError(error)) {
       const reloadKey = "chunk-error-reload";
@@ -51,9 +45,7 @@ export default function GlobalError({
       >
         <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>页面加载出错</h2>
         <p style={{ color: "#666", maxWidth: "24rem" }}>
-          {isChunkLoadError(error)
-            ? "网站已更新，正在加载新版本..."
-            : "发生了意外错误，请尝试刷新页面。"}
+          {isChunkLoadError(error) ? "网站已更新，正在加载新版本..." : "发生了意外错误，请尝试刷新页面。"}
         </p>
         <button
           onClick={() => reset()}

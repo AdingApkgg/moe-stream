@@ -53,13 +53,11 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   }, [setContentMode]);
 
   const [sortBy, setSortBy] = useState<SortBy>("latest");
-  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } = useTagFilter();
+  const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
+    useTagFilter();
   const [page, setPage] = usePageParam();
 
-  const {
-    data: postData,
-    isLoading,
-  } = trpc.image.list.useQuery(
+  const { data: postData, isLoading } = trpc.image.list.useQuery(
     {
       limit: 20,
       page,
@@ -69,12 +67,12 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     },
     {
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   const posts = useMemo(
-    () => postData?.posts ?? (page === 1 ? initialPosts : []),
-    [postData?.posts, page, initialPosts]
+    () => postData?.posts ?? (page === 1 && sortBy === "latest" && !hasFilter ? initialPosts : []),
+    [postData?.posts, page, sortBy, hasFilter, initialPosts],
   );
   const totalPages = postData?.totalPages ?? 1;
 
@@ -99,12 +97,15 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
             {sortOptions.map((option) => (
               <button
                 key={option.id}
-                onClick={() => { setSortBy(option.id); setPage(1); }}
+                onClick={() => {
+                  setSortBy(option.id);
+                  setPage(1);
+                }}
                 className={cn(
                   "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                   sortBy === option.id
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
+                    : "bg-muted hover:bg-muted/80 text-foreground",
                 )}
               >
                 {option.label}
@@ -116,8 +117,15 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                 {initialTags.map((tag) => (
                   <button
                     key={tag.id}
-                    onClick={() => { toggleTag(tag.slug); setPage(1); }}
-                    onContextMenu={(e) => { e.preventDefault(); toggleExclude(tag.slug); setPage(1); }}
+                    onClick={() => {
+                      toggleTag(tag.slug);
+                      setPage(1);
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      toggleExclude(tag.slug);
+                      setPage(1);
+                    }}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                       isSelected(tag.slug) && "bg-foreground text-background",
@@ -154,7 +162,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                     <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} />
                   ) : (
                     <ImagePostCard key={item.data.id} post={item.data} index={index} />
-                  )
+                  ),
                 )}
               </div>
             ) : (
@@ -170,9 +178,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                 <div className="text-muted-foreground mb-4">
                   <Images className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">没有找到图片</p>
-                  <p className="text-sm mt-1">
-                    {hasFilter ? "尝试调整标签筛选条件" : "暂无图片内容"}
-                  </p>
+                  <p className="text-sm mt-1">{hasFilter ? "尝试调整标签筛选条件" : "暂无图片内容"}</p>
                 </div>
                 {hasFilter && (
                   <Button variant="outline" onClick={clearAll} className="mt-4">
@@ -183,12 +189,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
             )}
           </div>
 
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            className="mt-8"
-          />
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
         </section>
       </div>
     </PageWrapper>

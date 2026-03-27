@@ -5,13 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/lib/toast-with-sound";
 import { Loader2, ShieldCheck, Mail, KeyRound } from "lucide-react";
 import { Suspense } from "react";
@@ -172,15 +166,8 @@ function TwoFactorForm() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "otp" && !otpSent ? (
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={handleSendOtp}
-                  disabled={otpSending}
-                >
-                  {otpSending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
+                <Button type="button" className="w-full" onClick={handleSendOtp} disabled={otpSending}>
+                  {otpSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   发送验证码到邮箱
                 </Button>
               ) : (
@@ -204,14 +191,8 @@ function TwoFactorForm() {
                     />
                     信任此设备 30 天
                   </label>
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isLoading || !code.trim()}
-                  >
-                    {isLoading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
+                  <Button type="submit" className="w-full" disabled={isLoading || !code.trim()}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     验证
                   </Button>
                 </>

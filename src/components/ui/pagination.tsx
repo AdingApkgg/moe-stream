@@ -13,13 +13,7 @@ interface PaginationProps {
   className?: string;
 }
 
-export function Pagination({
-  currentPage,
-  totalPages,
-  onPageChange,
-  basePath,
-  className,
-}: PaginationProps) {
+export function Pagination({ currentPage, totalPages, onPageChange, basePath, className }: PaginationProps) {
   const router = useRouter();
   const { play } = useSound();
 
@@ -40,13 +34,7 @@ export function Pagination({
     if (totalPages <= 1) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (
-        t.tagName === "INPUT" ||
-        t.tagName === "TEXTAREA" ||
-        t.isContentEditable ||
-        t.tagName === "VIDEO"
-      )
-        return;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.tagName === "VIDEO") return;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         go(currentPage - 1);
@@ -67,11 +55,7 @@ export function Pagination({
     <div className={cn("flex flex-col items-center gap-3", className)}>
       {/* 页码按钮行 */}
       <nav className="flex items-center gap-0.5" aria-label="分页">
-        <PgBtn
-          onClick={() => go(currentPage - 1)}
-          disabled={currentPage <= 1}
-          aria-label="上一页"
-        >
+        <PgBtn onClick={() => go(currentPage - 1)} disabled={currentPage <= 1} aria-label="上一页">
           ‹
         </PgBtn>
 
@@ -84,33 +68,19 @@ export function Pagination({
               …
             </span>
           ) : (
-            <PgBtn
-              key={p}
-              active={p === currentPage}
-              onClick={() => go(p)}
-            >
+            <PgBtn key={p} active={p === currentPage} onClick={() => go(p)}>
               {p}
             </PgBtn>
           ),
         )}
 
-        <PgBtn
-          onClick={() => go(currentPage + 1)}
-          disabled={currentPage >= totalPages}
-          aria-label="下一页"
-        >
+        <PgBtn onClick={() => go(currentPage + 1)} disabled={currentPage >= totalPages} aria-label="下一页">
           ›
         </PgBtn>
       </nav>
 
       {/* 跳页输入 */}
-      {totalPages > 5 && (
-        <JumpInput
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onJump={go}
-        />
-      )}
+      {totalPages > 5 && <JumpInput currentPage={currentPage} totalPages={totalPages} onJump={go} />}
     </div>
   );
 }

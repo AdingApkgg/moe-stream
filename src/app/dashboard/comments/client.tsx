@@ -8,13 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,10 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -135,31 +126,17 @@ function CommentCard({
 }: CommentCardProps) {
   const deviceInfo = comment.deviceInfo as DeviceInfoType | null;
   const isGuest = !comment.user;
-  const displayName = isGuest
-    ? (comment.guestName || "访客")
-    : (comment.user!.nickname || comment.user!.username);
+  const displayName = isGuest ? comment.guestName || "访客" : comment.user!.nickname || comment.user!.username;
 
   return (
-    <Card
-      className={cn(
-        "transition-colors",
-        isSelected && "ring-2 ring-primary",
-        comment.isDeleted && "opacity-60"
-      )}
-    >
+    <Card className={cn("transition-colors", isSelected && "ring-2 ring-primary", comment.isDeleted && "opacity-60")}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onToggleSelect}
-            className="mt-1"
-          />
+          <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} className="mt-1" />
 
           <Avatar className="h-10 w-10 shrink-0">
-            <AvatarImage src={isGuest ? undefined : (comment.user!.avatar || undefined)} />
-            <AvatarFallback>
-              {displayName.charAt(0).toUpperCase()}
-            </AvatarFallback>
+            <AvatarImage src={isGuest ? undefined : comment.user!.avatar || undefined} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
@@ -170,36 +147,28 @@ function CommentCard({
                   <span className="ml-1 text-xs">(访客)</span>
                 </span>
               ) : (
-                <Link
-                  href={`/user/${comment.user!.id}`}
-                  className="font-medium hover:underline"
-                >
+                <Link href={`/user/${comment.user!.id}`} className="font-medium hover:underline">
                   {displayName}
                 </Link>
               )}
-              <span className="text-xs text-muted-foreground">
-                {formatRelativeTime(comment.createdAt)}
-              </span>
+              <span className="text-xs text-muted-foreground">{formatRelativeTime(comment.createdAt)}</span>
               {comment.isDeleted && (
-                <Badge variant="destructive" className="text-xs">已删除</Badge>
+                <Badge variant="destructive" className="text-xs">
+                  已删除
+                </Badge>
               )}
               {comment.isHidden && !comment.isDeleted && (
-                <Badge variant="secondary" className="text-xs">已隐藏</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  已隐藏
+                </Badge>
               )}
-              {comment.isPinned && (
-                <Badge className="text-xs">已置顶</Badge>
-              )}
+              {comment.isPinned && <Badge className="text-xs">已置顶</Badge>}
             </div>
 
-            <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-              {comment.content}
-            </p>
+            <p className="mt-1 text-sm whitespace-pre-wrap break-words">{comment.content}</p>
 
             <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-              <Link
-                href={contentLink.href}
-                className="hover:underline flex items-center gap-1"
-              >
+              <Link href={contentLink.href} className="hover:underline flex items-center gap-1">
                 <ExternalLink className="h-3 w-3" />
                 {contentLink.title}
               </Link>
@@ -244,32 +213,17 @@ function CommentCard({
               onClick={onToggleHidden}
               title={comment.isHidden ? "显示" : "隐藏"}
             >
-              {comment.isHidden ? (
-                <Eye className="h-4 w-4" />
-              ) : (
-                <EyeOff className="h-4 w-4" />
-              )}
+              {comment.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </Button>
 
             {comment.isDeleted ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onRestore}
-                  title="恢复"
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRestore} title="恢复">
                   <RotateCcw className="h-4 w-4" />
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      title="彻底删除"
-                    >
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="彻底删除">
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -295,44 +249,25 @@ function CommentCard({
             ) : (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    title="删除"
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="删除">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确定删除这条评论吗？</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      删除后可通过「已删除」筛选找到并恢复。
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>删除后可通过「已删除」筛选找到并恢复。</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>取消</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete}>
-                      删除
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={onDelete}>删除</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onToggleExpand}
-              title="详情"
-            >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleExpand} title="详情">
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -399,9 +334,7 @@ function CommentCard({
               {comment.userAgent && (
                 <div className="mt-3">
                   <div className="font-medium text-foreground mb-1">User-Agent</div>
-                  <code className="text-xs bg-muted px-2 py-1 rounded block break-all">
-                    {comment.userAgent}
-                  </code>
+                  <code className="text-xs bg-muted px-2 py-1 rounded block break-all">{comment.userAgent}</code>
                 </div>
               )}
             </div>
@@ -430,9 +363,12 @@ function VideoCommentList({ initialPage }: { initialPage: number }) {
 
   const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.admin.listComments.useQuery(
-    { limit: 20, page: currentPage, search: search || undefined, status }
-  );
+  const { data, isLoading } = trpc.admin.listComments.useQuery({
+    limit: 20,
+    page: currentPage,
+    search: search || undefined,
+    status,
+  });
 
   const { data: stats } = trpc.admin.getCommentStats.useQuery();
 
@@ -523,7 +459,7 @@ function VideoCommentList({ initialPage }: { initialPage: number }) {
       if (selectedIds.size === 0) return;
       batchMutation.mutate({ commentIds: Array.from(selectedIds), action });
     },
-    [selectedIds, batchMutation]
+    [selectedIds, batchMutation],
   );
 
   return (
@@ -586,9 +522,7 @@ function VideoCommentList({ initialPage }: { initialPage: number }) {
         </div>
       ) : comments.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            暂无评论
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">暂无评论</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -646,9 +580,12 @@ function GameCommentList({ initialPage }: { initialPage: number }) {
 
   const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.admin.listGameComments.useQuery(
-    { limit: 20, page: currentPage, search: search || undefined, status }
-  );
+  const { data, isLoading } = trpc.admin.listGameComments.useQuery({
+    limit: 20,
+    page: currentPage,
+    search: search || undefined,
+    status,
+  });
 
   const { data: stats } = trpc.admin.getGameCommentStats.useQuery();
 
@@ -739,7 +676,7 @@ function GameCommentList({ initialPage }: { initialPage: number }) {
       if (selectedIds.size === 0) return;
       batchMutation.mutate({ commentIds: Array.from(selectedIds), action });
     },
-    [selectedIds, batchMutation]
+    [selectedIds, batchMutation],
   );
 
   return (
@@ -802,9 +739,7 @@ function GameCommentList({ initialPage }: { initialPage: number }) {
         </div>
       ) : comments.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            暂无评论
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">暂无评论</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -862,9 +797,12 @@ function ImagePostCommentList({ initialPage }: { initialPage: number }) {
 
   const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.admin.listImagePostComments.useQuery(
-    { limit: 20, page: currentPage, search: search || undefined, status }
-  );
+  const { data, isLoading } = trpc.admin.listImagePostComments.useQuery({
+    limit: 20,
+    page: currentPage,
+    search: search || undefined,
+    status,
+  });
 
   const { data: stats } = trpc.admin.getImagePostCommentStats.useQuery();
 
@@ -955,7 +893,7 @@ function ImagePostCommentList({ initialPage }: { initialPage: number }) {
       if (selectedIds.size === 0) return;
       batchMutation.mutate({ commentIds: Array.from(selectedIds), action });
     },
-    [selectedIds, batchMutation]
+    [selectedIds, batchMutation],
   );
 
   return (
@@ -1018,9 +956,7 @@ function ImagePostCommentList({ initialPage }: { initialPage: number }) {
         </div>
       ) : comments.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            暂无评论
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">暂无评论</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -1081,25 +1017,14 @@ function BatchActions({
 
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleSelectAll}
-        className="gap-1"
-      >
-        {selectedIds.size === comments.length ? (
-          <CheckSquare className="h-4 w-4" />
-        ) : (
-          <Square className="h-4 w-4" />
-        )}
+      <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
+        {selectedIds.size === comments.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         {selectedIds.size === comments.length ? "取消全选" : "全选"}
       </Button>
 
       {selectedIds.size > 0 && (
         <>
-          <span className="text-sm text-muted-foreground">
-            已选 {selectedIds.size} 条
-          </span>
+          <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 条</span>
           <div className="flex items-center gap-2 ml-auto">
             <Button
               variant="outline"
@@ -1121,12 +1046,7 @@ function BatchActions({
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  disabled={batchMutation.isPending}
-                >
+                <Button variant="outline" size="sm" className="text-destructive" disabled={batchMutation.isPending}>
                   <Trash2 className="h-4 w-4 mr-1" />
                   批量删除
                 </Button>
@@ -1140,9 +1060,7 @@ function BatchActions({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleBatchAction("delete")}>
-                    确定删除
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={() => handleBatchAction("delete")}>确定删除</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -1157,11 +1075,7 @@ function BatchActions({
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={batchHardDeleteMutation.isPending}
-                >
+                <Button variant="destructive" size="sm" disabled={batchHardDeleteMutation.isPending}>
                   <XCircle className="h-4 w-4 mr-1" />
                   彻底删除
                 </Button>
@@ -1233,31 +1147,17 @@ function GuestbookCard({
 }: GuestbookCardProps) {
   const deviceInfo = message.deviceInfo as DeviceInfoType | null;
   const isGuest = !message.user;
-  const displayName = isGuest
-    ? (message.guestName || "访客")
-    : (message.user!.nickname || message.user!.username);
+  const displayName = isGuest ? message.guestName || "访客" : message.user!.nickname || message.user!.username;
 
   return (
-    <Card
-      className={cn(
-        "transition-colors",
-        isSelected && "ring-2 ring-primary",
-        message.isDeleted && "opacity-60"
-      )}
-    >
+    <Card className={cn("transition-colors", isSelected && "ring-2 ring-primary", message.isDeleted && "opacity-60")}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onToggleSelect}
-            className="mt-1"
-          />
+          <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} className="mt-1" />
 
           <Avatar className="h-10 w-10 shrink-0">
-            <AvatarImage src={isGuest ? undefined : (message.user!.avatar || undefined)} />
-            <AvatarFallback>
-              {displayName.charAt(0).toUpperCase()}
-            </AvatarFallback>
+            <AvatarImage src={isGuest ? undefined : message.user!.avatar || undefined} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
@@ -1268,34 +1168,27 @@ function GuestbookCard({
                   <span className="ml-1 text-xs">(访客)</span>
                 </span>
               ) : (
-                <Link
-                  href={`/user/${message.user!.id}`}
-                  className="font-medium hover:underline"
-                >
+                <Link href={`/user/${message.user!.id}`} className="font-medium hover:underline">
                   {displayName}
                 </Link>
               )}
-              <span className="text-xs text-muted-foreground">
-                {formatRelativeTime(message.createdAt)}
-              </span>
+              <span className="text-xs text-muted-foreground">{formatRelativeTime(message.createdAt)}</span>
               {message.isDeleted && (
-                <Badge variant="destructive" className="text-xs">已删除</Badge>
+                <Badge variant="destructive" className="text-xs">
+                  已删除
+                </Badge>
               )}
               {message.isHidden && !message.isDeleted && (
-                <Badge variant="secondary" className="text-xs">已隐藏</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  已隐藏
+                </Badge>
               )}
             </div>
 
-            <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-              {message.content}
-            </p>
+            <p className="mt-1 text-sm whitespace-pre-wrap break-words">{message.content}</p>
 
             <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-              {message.guestEmail && (
-                <span className="flex items-center gap-1">
-                  邮箱: {message.guestEmail}
-                </span>
-              )}
+              {message.guestEmail && <span className="flex items-center gap-1">邮箱: {message.guestEmail}</span>}
               {message.guestWebsite && (
                 <a
                   href={message.guestWebsite}
@@ -1340,32 +1233,17 @@ function GuestbookCard({
               onClick={onToggleHidden}
               title={message.isHidden ? "显示" : "隐藏"}
             >
-              {message.isHidden ? (
-                <Eye className="h-4 w-4" />
-              ) : (
-                <EyeOff className="h-4 w-4" />
-              )}
+              {message.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </Button>
 
             {message.isDeleted ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onRestore}
-                  title="恢复"
-                >
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRestore} title="恢复">
                   <RotateCcw className="h-4 w-4" />
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      title="彻底删除"
-                    >
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="彻底删除">
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -1391,44 +1269,25 @@ function GuestbookCard({
             ) : (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    title="删除"
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="删除">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确定删除这条留言吗？</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      删除后可通过「已删除」筛选找到并恢复。
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>删除后可通过「已删除」筛选找到并恢复。</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>取消</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDelete}>
-                      删除
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={onDelete}>删除</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onToggleExpand}
-              title="详情"
-            >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleExpand} title="详情">
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -1495,9 +1354,7 @@ function GuestbookCard({
               {message.userAgent && (
                 <div className="mt-3">
                   <div className="font-medium text-foreground mb-1">User-Agent</div>
-                  <code className="text-xs bg-muted px-2 py-1 rounded block break-all">
-                    {message.userAgent}
-                  </code>
+                  <code className="text-xs bg-muted px-2 py-1 rounded block break-all">{message.userAgent}</code>
                 </div>
               )}
             </div>
@@ -1526,9 +1383,12 @@ function GuestbookList({ initialPage }: { initialPage: number }) {
 
   const utils = trpc.useUtils();
 
-  const { data, isLoading } = trpc.admin.listGuestbookMessages.useQuery(
-    { limit: 20, page: currentPage, search: search || undefined, status }
-  );
+  const { data, isLoading } = trpc.admin.listGuestbookMessages.useQuery({
+    limit: 20,
+    page: currentPage,
+    search: search || undefined,
+    status,
+  });
 
   const { data: stats } = trpc.admin.getGuestbookStats.useQuery();
 
@@ -1619,7 +1479,7 @@ function GuestbookList({ initialPage }: { initialPage: number }) {
       if (selectedIds.size === 0) return;
       batchMutation.mutate({ messageIds: Array.from(selectedIds), action });
     },
-    [selectedIds, batchMutation]
+    [selectedIds, batchMutation],
   );
 
   return (
@@ -1682,9 +1542,7 @@ function GuestbookList({ initialPage }: { initialPage: number }) {
         </div>
       ) : messages.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            暂无留言
-          </CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">暂无留言</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -1741,25 +1599,14 @@ function GuestbookBatchActions({
 
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleSelectAll}
-        className="gap-1"
-      >
-        {selectedIds.size === messages.length ? (
-          <CheckSquare className="h-4 w-4" />
-        ) : (
-          <Square className="h-4 w-4" />
-        )}
+      <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
+        {selectedIds.size === messages.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         {selectedIds.size === messages.length ? "取消全选" : "全选"}
       </Button>
 
       {selectedIds.size > 0 && (
         <>
-          <span className="text-sm text-muted-foreground">
-            已选 {selectedIds.size} 条
-          </span>
+          <span className="text-sm text-muted-foreground">已选 {selectedIds.size} 条</span>
           <div className="flex items-center gap-2 ml-auto">
             <Button
               variant="outline"
@@ -1781,12 +1628,7 @@ function GuestbookBatchActions({
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  disabled={batchMutation.isPending}
-                >
+                <Button variant="outline" size="sm" className="text-destructive" disabled={batchMutation.isPending}>
                   <Trash2 className="h-4 w-4 mr-1" />
                   批量删除
                 </Button>
@@ -1800,9 +1642,7 @@ function GuestbookBatchActions({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleBatchAction("delete")}>
-                    确定删除
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={() => handleBatchAction("delete")}>确定删除</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -1817,11 +1657,7 @@ function GuestbookBatchActions({
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={batchHardDeleteMutation.isPending}
-                >
+                <Button variant="destructive" size="sm" disabled={batchHardDeleteMutation.isPending}>
                   <XCircle className="h-4 w-4 mr-1" />
                   彻底删除
                 </Button>

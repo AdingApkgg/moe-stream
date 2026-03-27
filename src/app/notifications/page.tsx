@@ -57,7 +57,7 @@ export default function NotificationsPage() {
               "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
               activeFilter === tab.value
                 ? "bg-primary text-primary-foreground"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {tab.label}
@@ -66,10 +66,7 @@ export default function NotificationsPage() {
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden">
-        <NotificationList
-          key={activeFilter}
-          typeFilter={activeFilter === "ALL" ? undefined : activeFilter}
-        />
+        <NotificationList key={activeFilter} typeFilter={activeFilter === "ALL" ? undefined : activeFilter} />
       </div>
     </div>
   );

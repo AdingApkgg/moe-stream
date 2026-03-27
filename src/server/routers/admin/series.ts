@@ -7,10 +7,7 @@ export const adminSeriesRouter = router({
   // ==================== 合集管理 ====================
 
   getSeriesStats: adminProcedure.use(requireScope("video:moderate")).query(async ({ ctx }) => {
-    const [total, totalEpisodes] = await Promise.all([
-      ctx.prisma.series.count(),
-      ctx.prisma.seriesEpisode.count(),
-    ]);
+    const [total, totalEpisodes] = await Promise.all([ctx.prisma.series.count(), ctx.prisma.seriesEpisode.count()]);
 
     return { total, totalEpisodes };
   }),
@@ -22,7 +19,7 @@ export const adminSeriesRouter = router({
         page: z.number().min(1).default(1),
         limit: z.number().min(1).max(100).default(50),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, search } = input;
@@ -106,14 +103,16 @@ export const adminSeriesRouter = router({
 
   adminUpdateSeries: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      id: z.string(),
-      title: z.string().min(1).max(100).optional(),
-      description: z.string().max(2000).optional().nullable(),
-      coverUrl: z.string().optional().nullable(),
-      downloadUrl: z.string().optional().nullable(),
-      downloadNote: z.string().max(1000).optional().nullable(),
-    }))
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1).max(100).optional(),
+        description: z.string().max(2000).optional().nullable(),
+        coverUrl: z.string().optional().nullable(),
+        downloadUrl: z.string().optional().nullable(),
+        downloadNote: z.string().max(1000).optional().nullable(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const series = await ctx.prisma.series.findUnique({
         where: { id: input.id },
@@ -158,10 +157,12 @@ export const adminSeriesRouter = router({
 
   adminRemoveEpisode: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      seriesId: z.string(),
-      videoId: z.string(),
-    }))
+    .input(
+      z.object({
+        seriesId: z.string(),
+        videoId: z.string(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.seriesEpisode.delete({
         where: {
@@ -177,9 +178,11 @@ export const adminSeriesRouter = router({
 
   adminBatchDeleteSeries: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      seriesIds: z.array(z.string()).min(1).max(500),
-    }))
+    .input(
+      z.object({
+        seriesIds: z.array(z.string()).min(1).max(500),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.prisma.series.deleteMany({
         where: { id: { in: input.seriesIds } },
@@ -187,5 +190,4 @@ export const adminSeriesRouter = router({
 
       return { success: true, count: result.count };
     }),
-
 });

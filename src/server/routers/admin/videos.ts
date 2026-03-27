@@ -32,7 +32,7 @@ export const adminVideosRouter = router({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, status, search, sortBy } = input;
@@ -49,11 +49,12 @@ export const adminVideosRouter = router({
         }),
       };
 
-      const orderBy = sortBy === "views" 
-        ? { views: 'desc' as const }
-        : sortBy === "likes"
-          ? { createdAt: 'desc' as const }
-          : { createdAt: 'desc' as const };
+      const orderBy =
+        sortBy === "views"
+          ? { views: "desc" as const }
+          : sortBy === "likes"
+            ? { createdAt: "desc" as const }
+            : { createdAt: "desc" as const };
 
       const [videos, totalCount] = await Promise.all([
         ctx.prisma.video.findMany({
@@ -84,7 +85,7 @@ export const adminVideosRouter = router({
       z.object({
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { status, search } = input;
@@ -106,7 +107,7 @@ export const adminVideosRouter = router({
         select: { id: true },
       });
 
-      return videos.map(v => v.id);
+      return videos.map((v) => v.id);
     }),
 
   // 审核视频
@@ -116,7 +117,7 @@ export const adminVideosRouter = router({
       z.object({
         videoId: z.string(),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const video = await ctx.prisma.video.update({
@@ -173,7 +174,7 @@ export const adminVideosRouter = router({
       z.object({
         videoIds: z.array(z.string()).min(1).max(100),
         status: z.enum(["PUBLISHED", "REJECTED"]),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.prisma.video.updateMany({
@@ -222,15 +223,22 @@ export const adminVideosRouter = router({
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
         field: z.enum([
-          "title", "description", "coverUrl", "videoUrl",
-          "extraInfo.intro", "extraInfo.author", "extraInfo.authorIntro",
-          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "title",
+          "description",
+          "coverUrl",
+          "videoUrl",
+          "extraInfo.intro",
+          "extraInfo.author",
+          "extraInfo.authorIntro",
+          "extraInfo.downloads.url",
+          "extraInfo.downloads.name",
+          "extraInfo.downloads.password",
           "extraInfo.relatedVideos",
         ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -274,7 +282,13 @@ export const adminVideosRouter = router({
               }
             }
             if (beforeLines.length > 0) {
-              previews.push({ id: video.id, title: video.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+              previews.push({
+                id: video.id,
+                title: video.title,
+                before: beforeLines.join("\n"),
+                after: afterLines.join("\n"),
+                changed: true,
+              });
             }
           } else if (subField === "relatedVideos") {
             const arr = (extra[subField] ?? []) as string[];
@@ -288,7 +302,13 @@ export const adminVideosRouter = router({
               }
             }
             if (beforeLines.length > 0) {
-              previews.push({ id: video.id, title: video.title, before: beforeLines.join("\n"), after: afterLines.join("\n"), changed: true });
+              previews.push({
+                id: video.id,
+                title: video.title,
+                before: beforeLines.join("\n"),
+                after: afterLines.join("\n"),
+                changed: true,
+              });
             }
           } else {
             const original = (extra[subField] ?? "") as string;
@@ -310,15 +330,22 @@ export const adminVideosRouter = router({
       z.object({
         videoIds: z.array(z.string()).min(1).max(500),
         field: z.enum([
-          "title", "description", "coverUrl", "videoUrl",
-          "extraInfo.intro", "extraInfo.author", "extraInfo.authorIntro",
-          "extraInfo.downloads.url", "extraInfo.downloads.name", "extraInfo.downloads.password",
+          "title",
+          "description",
+          "coverUrl",
+          "videoUrl",
+          "extraInfo.intro",
+          "extraInfo.author",
+          "extraInfo.authorIntro",
+          "extraInfo.downloads.url",
+          "extraInfo.downloads.name",
+          "extraInfo.downloads.password",
           "extraInfo.relatedVideos",
         ]),
         pattern: z.string().min(1),
         replacement: z.string(),
         flags: z.string().default("g"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       let regex: RegExp;
@@ -403,17 +430,24 @@ export const adminVideosRouter = router({
   // 批量导入视频（解析短代码）
   batchImportVideos: adminProcedure
     .use(requireScope("video:manage"))
-    .input(z.object({
-      videos: z.array(z.object({
-        title: z.string().min(1).max(100),
-        videoUrl: z.string().url(),
-        coverUrl: z.string().url().optional().or(z.literal("")),
-        description: z.string().max(5000).optional(),
-        shortcodeContent: z.string().optional(), // 原始短代码内容
-        tagNames: z.array(z.string()).optional(),
-        customId: z.string().optional(),
-      })).min(1).max(100),
-    }))
+    .input(
+      z.object({
+        videos: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(100),
+              videoUrl: z.string().url(),
+              coverUrl: z.string().url().optional().or(z.literal("")),
+              description: z.string().max(5000).optional(),
+              shortcodeContent: z.string().optional(), // 原始短代码内容
+              tagNames: z.array(z.string()).optional(),
+              customId: z.string().optional(),
+            }),
+          )
+          .min(1)
+          .max(100),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const results: { title: string; id?: string; error?: string }[] = [];
 
@@ -429,11 +463,12 @@ export const adminVideosRouter = router({
           const tagIds: string[] = [];
           if (videoData.tagNames && videoData.tagNames.length > 0) {
             for (const tagName of videoData.tagNames) {
-              const slug = tagName
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
-              
+              const slug =
+                tagName
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")
+                  .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, "") || `tag-${Date.now()}`;
+
               const tag = await ctx.prisma.tag.upsert({
                 where: { name: tagName },
                 update: {},
@@ -465,7 +500,7 @@ export const adminVideosRouter = router({
               status: "PUBLISHED",
               extraInfo: extraInfo ? JSON.parse(JSON.stringify(extraInfo)) : undefined,
               uploader: { connect: { id: ctx.session.user.id } },
-              ...(tagIds.length > 0 
+              ...(tagIds.length > 0
                 ? { tags: { create: tagIds.map((tagId) => ({ tag: { connect: { id: tagId } } })) } }
                 : {}),
             },
@@ -475,23 +510,22 @@ export const adminVideosRouter = router({
 
           results.push({ title: videoData.title, id: video.id });
         } catch (error) {
-          results.push({ 
-            title: videoData.title, 
-            error: error instanceof Error ? error.message : "未知错误" 
+          results.push({
+            title: videoData.title,
+            error: error instanceof Error ? error.message : "未知错误",
           });
         }
       }
 
-      const successCount = results.filter(r => r.id).length;
-      const failCount = results.filter(r => r.error).length;
+      const successCount = results.filter((r) => r.id).length;
+      const failCount = results.filter((r) => r.error).length;
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         total: input.videos.length,
         successCount,
         failCount,
         results,
       };
     }),
-
 });

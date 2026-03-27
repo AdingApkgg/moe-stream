@@ -15,7 +15,7 @@ declare global {
           "error-callback"?: () => void;
           theme?: "light" | "dark";
           size?: "normal" | "compact";
-        }
+        },
       ) => string;
       remove: (widgetId: string) => void;
       reset: (widgetId: string) => void;

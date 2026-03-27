@@ -17,7 +17,7 @@ export const isSetupComplete = cache(async (): Promise<boolean> => {
         });
         return !!owner;
       },
-      300
+      300,
     );
   } catch {
     return false;

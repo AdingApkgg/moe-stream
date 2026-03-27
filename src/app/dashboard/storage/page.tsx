@@ -27,24 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  FolderCog,
-  Plus,
-  Edit2,
-  Trash2,
-  Loader2,
-  Wifi,
-  Star,
-  Database,
-} from "lucide-react";
+import { FolderCog, Plus, Edit2, Trash2, Loader2, Wifi, Star, Database } from "lucide-react";
 
 const PROVIDERS = [
   { value: "local", label: "本地存储" },
@@ -202,7 +187,10 @@ export default function StoragePoliciesPage() {
       uploadDir: form.uploadDir || null,
       maxFileSize: form.maxFileSize,
       allowedTypes: form.allowedTypes
-        ? form.allowedTypes.split(",").map((s) => s.trim()).filter(Boolean)
+        ? form.allowedTypes
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       isDefault: form.isDefault,
       enabled: form.enabled,
@@ -252,27 +240,21 @@ export default function StoragePoliciesPage() {
             <FolderCog className="h-6 w-6 text-primary" />
             存储策略
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            配置多套存储策略，支持本地 / S3 / R2 / OSS / COS 等
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">配置多套存储策略，支持本地 / S3 / R2 / OSS / COS 等</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
             <span className="text-sm text-muted-foreground">用户文件上传</span>
             <Switch
               checked={siteConfig?.fileUploadEnabled ?? false}
-              onCheckedChange={(enabled) =>
-                updateConfigMutation.mutate({ fileUploadEnabled: enabled })
-              }
+              onCheckedChange={(enabled) => updateConfigMutation.mutate({ fileUploadEnabled: enabled })}
             />
           </div>
           <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
             <span className="text-sm text-muted-foreground">网盘导入</span>
             <Switch
               checked={siteConfig?.cloudImportEnabled ?? false}
-              onCheckedChange={(enabled) =>
-                updateConfigMutation.mutate({ cloudImportEnabled: enabled })
-              }
+              onCheckedChange={(enabled) => updateConfigMutation.mutate({ cloudImportEnabled: enabled })}
             />
           </div>
           <Button onClick={handleOpenCreate}>
@@ -309,9 +291,7 @@ export default function StoragePoliciesPage() {
                       默认
                     </Badge>
                   )}
-                  {!policy.enabled && (
-                    <Badge variant="secondary">已禁用</Badge>
-                  )}
+                  {!policy.enabled && <Badge variant="secondary">已禁用</Badge>}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -378,7 +358,9 @@ export default function StoragePoliciesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {PROVIDERS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -408,10 +390,7 @@ export default function StoragePoliciesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>存储桶 (Bucket)</Label>
-                    <Input
-                      value={form.bucket}
-                      onChange={(e) => setForm({ ...form, bucket: e.target.value })}
-                    />
+                    <Input value={form.bucket} onChange={(e) => setForm({ ...form, bucket: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>区域 (Region)</Label>
@@ -476,9 +455,7 @@ export default function StoragePoliciesPage() {
                 <Input
                   type="number"
                   value={form.sortOrder}
-                  onChange={(e) =>
-                    setForm({ ...form, sortOrder: parseInt(e.target.value || "0") })
-                  }
+                  onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value || "0") })}
                 />
               </div>
             </div>
@@ -497,18 +474,12 @@ export default function StoragePoliciesPage() {
                 <Label>设为默认策略</Label>
                 <p className="text-xs text-muted-foreground">无匹配路由规则时使用此策略</p>
               </div>
-              <Switch
-                checked={form.isDefault}
-                onCheckedChange={(v) => setForm({ ...form, isDefault: v })}
-              />
+              <Switch checked={form.isDefault} onCheckedChange={(v) => setForm({ ...form, isDefault: v })} />
             </div>
 
             <div className="flex items-center justify-between">
               <Label>启用</Label>
-              <Switch
-                checked={form.enabled}
-                onCheckedChange={(v) => setForm({ ...form, enabled: v })}
-              />
+              <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
             </div>
           </div>
 

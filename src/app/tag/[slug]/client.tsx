@@ -21,18 +21,11 @@ interface TagAggregateClientProps {
 
 type ContentType = "video" | "game" | "image";
 
-export function TagAggregateClient({
-  slug,
-  initialTag,
-}: TagAggregateClientProps) {
+export function TagAggregateClient({ slug, initialTag }: TagAggregateClientProps) {
   const [page, setPage] = usePageParam();
 
   const defaultTab: ContentType =
-    (initialTag?.videoCount ?? 0) > 0
-      ? "video"
-      : (initialTag?.gameCount ?? 0) > 0
-        ? "game"
-        : "image";
+    (initialTag?.videoCount ?? 0) > 0 ? "video" : (initialTag?.gameCount ?? 0) > 0 ? "game" : "image";
 
   const [activeTab, setActiveTab] = useTabParam<ContentType>(defaultTab);
 
@@ -41,28 +34,25 @@ export function TagAggregateClient({
     {
       staleTime: initialTag ? 60000 : 0,
       refetchOnMount: !initialTag,
-    }
+    },
   );
 
   const displayTag = tagData || initialTag;
 
-  const { data: videoData, isLoading: videosLoading } =
-    trpc.video.list.useQuery(
-      { limit: 20, page, tagId: displayTag?.id },
-      { enabled: activeTab === "video" && !!displayTag?.id, placeholderData: (prev) => prev }
-    );
+  const { data: videoData, isLoading: videosLoading } = trpc.video.list.useQuery(
+    { limit: 20, page, tagId: displayTag?.id },
+    { enabled: activeTab === "video" && !!displayTag?.id, placeholderData: (prev) => prev },
+  );
 
-  const { data: gameData, isLoading: gamesLoading } =
-    trpc.game.list.useQuery(
-      { limit: 20, page, tagId: displayTag?.id },
-      { enabled: activeTab === "game" && !!displayTag?.id, placeholderData: (prev) => prev }
-    );
+  const { data: gameData, isLoading: gamesLoading } = trpc.game.list.useQuery(
+    { limit: 20, page, tagId: displayTag?.id },
+    { enabled: activeTab === "game" && !!displayTag?.id, placeholderData: (prev) => prev },
+  );
 
-  const { data: imageData, isLoading: imagesLoading } =
-    trpc.image.list.useQuery(
-      { limit: 20, page, tagId: displayTag?.id },
-      { enabled: activeTab === "image" && !!displayTag?.id, placeholderData: (prev) => prev }
-    );
+  const { data: imageData, isLoading: imagesLoading } = trpc.image.list.useQuery(
+    { limit: 20, page, tagId: displayTag?.id },
+    { enabled: activeTab === "image" && !!displayTag?.id, placeholderData: (prev) => prev },
+  );
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as ContentType);
@@ -73,9 +63,7 @@ export function TagAggregateClient({
     return (
       <div className="container py-12 text-center">
         <h1 className="text-2xl font-bold">标签不存在</h1>
-        <p className="text-muted-foreground mt-2">
-          找不到标签 &ldquo;{slug}&rdquo;
-        </p>
+        <p className="text-muted-foreground mt-2">找不到标签 &ldquo;{slug}&rdquo;</p>
         <Button asChild className="mt-4">
           <Link href="/tags">浏览全部标签</Link>
         </Button>
@@ -95,12 +83,8 @@ export function TagAggregateClient({
             <Tag className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">
-              #{displayTag?.name || initialTag?.name}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              共 {videoCount + gameCount + imageCount} 个内容
-            </p>
+            <h1 className="text-2xl font-bold">#{displayTag?.name || initialTag?.name}</h1>
+            <p className="text-sm text-muted-foreground">共 {videoCount + gameCount + imageCount} 个内容</p>
           </div>
         </div>
       </div>
@@ -111,30 +95,33 @@ export function TagAggregateClient({
             <TabsTrigger value="video" className="gap-1.5">
               <FileVideo className="h-4 w-4" />
               视频
-              <Badge variant="secondary" className="ml-1 text-xs">{videoCount}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {videoCount}
+              </Badge>
             </TabsTrigger>
           )}
           {gameCount > 0 && (
             <TabsTrigger value="game" className="gap-1.5">
               <Gamepad2 className="h-4 w-4" />
               游戏
-              <Badge variant="secondary" className="ml-1 text-xs">{gameCount}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {gameCount}
+              </Badge>
             </TabsTrigger>
           )}
           {imageCount > 0 && (
             <TabsTrigger value="image" className="gap-1.5">
               <Images className="h-4 w-4" />
               图片
-              <Badge variant="secondary" className="ml-1 text-xs">{imageCount}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {imageCount}
+              </Badge>
             </TabsTrigger>
           )}
         </TabsList>
 
         <TabsContent value="video">
-          <VideoGrid
-            videos={videoData?.videos ?? []}
-            isLoading={videosLoading || (!initialTag && tagLoading)}
-          />
+          <VideoGrid videos={videoData?.videos ?? []} isLoading={videosLoading || (!initialTag && tagLoading)} />
           <Pagination
             currentPage={page}
             totalPages={videoData?.totalPages ?? 1}
@@ -149,10 +136,7 @@ export function TagAggregateClient({
         </TabsContent>
 
         <TabsContent value="game">
-          <GameGrid
-            games={gameData?.games ?? []}
-            isLoading={gamesLoading || (!initialTag && tagLoading)}
-          />
+          <GameGrid games={gameData?.games ?? []} isLoading={gamesLoading || (!initialTag && tagLoading)} />
           <Pagination
             currentPage={page}
             totalPages={gameData?.totalPages ?? 1}
@@ -167,7 +151,7 @@ export function TagAggregateClient({
         </TabsContent>
 
         <TabsContent value="image">
-          {(imagesLoading || (!initialTag && tagLoading)) ? (
+          {imagesLoading || (!initialTag && tagLoading) ? (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />

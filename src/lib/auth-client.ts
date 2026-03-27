@@ -34,7 +34,7 @@ export function useSession() {
   const { data, error, isPending, refetch } = authClient.useSession();
   const status = isPending ? "loading" : error || !data?.user ? "unauthenticated" : "authenticated";
 
-  const customUser = data?.user as NonNullable<typeof data>["user"] & CustomSessionUser | undefined;
+  const customUser = data?.user as (NonNullable<typeof data>["user"] & CustomSessionUser) | undefined;
   const role = customUser?.role as "USER" | "ADMIN" | "OWNER" | undefined;
   const canUpload = isPrivileged(role ?? "") || customUser?.canUpload === true;
   const adsEnabled = customUser?.adsEnabled ?? true;

@@ -56,16 +56,7 @@ export function GameVideoPlayer({ src, poster, className }: GameVideoPlayerProps
     };
   }, [src]);
 
-  return (
-    <video
-      ref={videoRef}
-      controls
-      playsInline
-      preload="metadata"
-      poster={poster}
-      className={className}
-    />
-  );
+  return <video ref={videoRef} controls playsInline preload="metadata" poster={poster} className={className} />;
 }
 
 /** 判断 URL 是否为视频文件 */

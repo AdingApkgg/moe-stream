@@ -58,9 +58,7 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
 
   const toggleTag = useCallback(
     (slug: string) => {
-      const next = selectedSlugs.includes(slug)
-        ? selectedSlugs.filter((s) => s !== slug)
-        : [...selectedSlugs, slug];
+      const next = selectedSlugs.includes(slug) ? selectedSlugs.filter((s) => s !== slug) : [...selectedSlugs, slug];
 
       const nextExcluded = excludedSlugs.filter((s) => s !== slug);
 
@@ -86,15 +84,9 @@ export function useTagFilter(opts: UseTagFilterOptions = {}) {
     updateUrl([], []);
   }, [updateUrl]);
 
-  const isSelected = useCallback(
-    (slug: string) => selectedSlugs.includes(slug),
-    [selectedSlugs],
-  );
+  const isSelected = useCallback((slug: string) => selectedSlugs.includes(slug), [selectedSlugs]);
 
-  const isExcluded = useCallback(
-    (slug: string) => excludedSlugs.includes(slug),
-    [excludedSlugs],
-  );
+  const isExcluded = useCallback((slug: string) => excludedSlugs.includes(slug), [excludedSlugs]);
 
   const hasFilter = selectedSlugs.length > 0 || excludedSlugs.length > 0;
 

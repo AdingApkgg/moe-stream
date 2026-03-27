@@ -63,20 +63,24 @@ function getContentHref(type: ContentType, id: string): string {
 }
 
 const METRIC_ICON_MAP: Record<Metric, LucideIcon> = {
-  views: Eye, likes: Heart, favorites: Star, comments: MessageSquare, uploads: Upload,
+  views: Eye,
+  likes: Heart,
+  favorites: Star,
+  comments: MessageSquare,
+  uploads: Upload,
 };
 
 const USER_TYPE_ICON_MAP: Record<UserType, LucideIcon> = {
-  points: Coins, uploader: Upload, commentator: MessageSquare, liker: Heart, collector: Star,
+  points: Coins,
+  uploader: Upload,
+  commentator: MessageSquare,
+  liker: Heart,
+  collector: Star,
 };
 
 // ==================== 排名徽章 ====================
 
-const RANK_COLORS = [
-  "from-amber-500 to-yellow-400",
-  "from-slate-400 to-slate-300",
-  "from-amber-700 to-amber-600",
-];
+const RANK_COLORS = ["from-amber-500 to-yellow-400", "from-slate-400 to-slate-300", "from-amber-700 to-amber-600"];
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) {
@@ -84,14 +88,10 @@ function RankBadge({ rank }: { rank: number }) {
       <div
         className={cn(
           "w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center shrink-0 shadow-sm",
-          RANK_COLORS[rank - 1]
+          RANK_COLORS[rank - 1],
         )}
       >
-        {rank === 1 ? (
-          <Crown className="h-4 w-4 text-white" />
-        ) : (
-          <Medal className="h-4 w-4 text-white" />
-        )}
+        {rank === 1 ? <Crown className="h-4 w-4 text-white" /> : <Medal className="h-4 w-4 text-white" />}
       </div>
     );
   }
@@ -137,7 +137,7 @@ function ContentRankItem({
       href={href}
       className={cn(
         "flex items-center gap-3 rounded-xl border bg-card p-3 transition-all hover:shadow-md hover:border-primary/20",
-        rank <= 3 && "border-primary/10 bg-primary/[0.02]"
+        rank <= 3 && "border-primary/10 bg-primary/[0.02]",
       )}
     >
       <RankBadge rank={rank} />
@@ -145,20 +145,20 @@ function ContentRankItem({
       {item.coverUrl && (
         <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0 relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/cover/${encodeURIComponent(item.coverUrl)}?w=120&h=80&q=50`} alt="" className="w-full h-full object-cover" />
+          <img
+            src={`/api/cover/${encodeURIComponent(item.coverUrl)}?w=120&h=80&q=50`}
+            alt=""
+            className="w-full h-full object-cover"
+          />
         </div>
       )}
 
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm truncate", rank <= 3 ? "font-semibold" : "font-medium")}>
-          {item.title}
-        </p>
+        <p className={cn("text-sm truncate", rank <= 3 ? "font-semibold" : "font-medium")}>{item.title}</p>
         <div className="flex items-center gap-2 mt-0.5">
           <Avatar className="h-4 w-4">
             <AvatarImage src={item.uploader.avatar || undefined} />
-            <AvatarFallback className="text-[8px]">
-              {item.uploader.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
+            <AvatarFallback className="text-[8px]">{item.uploader.name.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <span className="text-[11px] text-muted-foreground truncate">{item.uploader.name}</span>
         </div>
@@ -201,44 +201,38 @@ function UserRankItem({
       href={`/user/${item.userId}`}
       className={cn(
         "flex items-center gap-3 rounded-xl border bg-card p-3 transition-all hover:shadow-md hover:border-primary/20",
-        rank <= 3 && "border-primary/10 bg-primary/[0.02]"
+        rank <= 3 && "border-primary/10 bg-primary/[0.02]",
       )}
     >
       <RankBadge rank={rank} />
 
       <Avatar className="h-9 w-9 shrink-0">
         <AvatarImage src={item.avatar || undefined} />
-        <AvatarFallback className="text-xs font-medium">
-          {item.nickname.charAt(0).toUpperCase()}
-        </AvatarFallback>
+        <AvatarFallback className="text-xs font-medium">{item.nickname.charAt(0).toUpperCase()}</AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm truncate", rank <= 3 ? "font-semibold" : "font-medium")}>
-          {item.nickname}
-        </p>
+        <p className={cn("text-sm truncate", rank <= 3 ? "font-semibold" : "font-medium")}>{item.nickname}</p>
         {showBreakdown && (
           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-            {(('videos' in detail ? detail.videos : detail.video) ?? 0) > 0 && (
+            {(("videos" in detail ? detail.videos : detail.video) ?? 0) > 0 && (
               <span className="flex items-center gap-0.5">
-                <Video className="h-3 w-3" /> {'videos' in detail ? detail.videos : detail.video}
+                <Video className="h-3 w-3" /> {"videos" in detail ? detail.videos : detail.video}
               </span>
             )}
-            {(('games' in detail ? detail.games : detail.game) ?? 0) > 0 && (
+            {(("games" in detail ? detail.games : detail.game) ?? 0) > 0 && (
               <span className="flex items-center gap-0.5">
-                <Gamepad2 className="h-3 w-3" /> {'games' in detail ? detail.games : detail.game}
+                <Gamepad2 className="h-3 w-3" /> {"games" in detail ? detail.games : detail.game}
               </span>
             )}
-            {(('images' in detail ? detail.images : detail.image) ?? 0) > 0 && (
+            {(("images" in detail ? detail.images : detail.image) ?? 0) > 0 && (
               <span className="flex items-center gap-0.5">
-                <Images className="h-3 w-3" /> {'images' in detail ? detail.images : detail.image}
+                <Images className="h-3 w-3" /> {"images" in detail ? detail.images : detail.image}
               </span>
             )}
           </div>
         )}
-        {userType === "points" && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">积分达人</p>
-        )}
+        {userType === "points" && <p className="text-[11px] text-muted-foreground mt-0.5">积分达人</p>}
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
@@ -253,16 +247,10 @@ function UserRankItem({
 
 // ==================== 排名列表 ====================
 
-function ContentRankingList({
-  contentType,
-  metric,
-}: {
-  contentType: ContentType;
-  metric: Metric;
-}) {
+function ContentRankingList({ contentType, metric }: { contentType: ContentType; metric: Metric }) {
   const { data, isLoading } = trpc.admin.getLeaderboard.useQuery(
     { type: contentType, metric, limit: 20 },
-    { staleTime: 60_000 }
+    { staleTime: 60_000 },
   );
 
   if (isLoading) {
@@ -286,24 +274,27 @@ function ContentRankingList({
 
   return (
     <div className="space-y-2">
-      {(data.items as { id: string; title: string; coverUrl: string | null; value: number; uploader: { id: string; name: string; avatar: string | null }; stats: { views: number; likes: number; favorites: number; comments: number } }[]).map(
-        (item, idx) => (
-          <ContentRankItem key={item.id} rank={idx + 1} item={item} type={contentType} metric={metric} />
-        )
-      )}
+      {(
+        data.items as {
+          id: string;
+          title: string;
+          coverUrl: string | null;
+          value: number;
+          uploader: { id: string; name: string; avatar: string | null };
+          stats: { views: number; likes: number; favorites: number; comments: number };
+        }[]
+      ).map((item, idx) => (
+        <ContentRankItem key={item.id} rank={idx + 1} item={item} type={contentType} metric={metric} />
+      ))}
     </div>
   );
 }
 
-function UserRankingList({
-  userType,
-}: {
-  userType: UserType;
-}) {
-  const metricForApi = userType === "uploader" ? "uploads" as Metric : "views" as Metric;
+function UserRankingList({ userType }: { userType: UserType }) {
+  const metricForApi = userType === "uploader" ? ("uploads" as Metric) : ("views" as Metric);
   const { data, isLoading } = trpc.admin.getLeaderboard.useQuery(
     { type: userType, metric: metricForApi, limit: 20 },
-    { staleTime: 60_000 }
+    { staleTime: 60_000 },
   );
 
   if (isLoading) {
@@ -327,11 +318,18 @@ function UserRankingList({
 
   return (
     <div className="space-y-2">
-      {(data.items as { userId: string; nickname: string; avatar: string | null; value: number; detail?: { videos: number; games: number; images: number }; extra?: Record<string, unknown> }[]).map(
-        (item, idx) => (
-          <UserRankItem key={item.userId} rank={idx + 1} item={item} userType={userType} />
-        )
-      )}
+      {(
+        data.items as {
+          userId: string;
+          nickname: string;
+          avatar: string | null;
+          value: number;
+          detail?: { videos: number; games: number; images: number };
+          extra?: Record<string, unknown>;
+        }[]
+      ).map((item, idx) => (
+        <UserRankItem key={item.userId} rank={idx + 1} item={item} userType={userType} />
+      ))}
     </div>
   );
 }
@@ -455,9 +453,7 @@ export default function RankingPage() {
               TOP 20
             </Badge>
             {category === "user" && currentUserTypeInfo && (
-              <span className="text-xs text-muted-foreground/60 hidden sm:inline">
-                {currentUserTypeInfo.desc}
-              </span>
+              <span className="text-xs text-muted-foreground/60 hidden sm:inline">{currentUserTypeInfo.desc}</span>
             )}
           </div>
 

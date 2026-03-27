@@ -14,10 +14,7 @@ interface GameTagPageClientProps {
   initialTag: SerializedGameTag | null;
 }
 
-export function GameTagPageClient({
-  slug,
-  initialTag,
-}: GameTagPageClientProps) {
+export function GameTagPageClient({ slug, initialTag }: GameTagPageClientProps) {
   const [page, setPage] = usePageParam();
 
   const { data: tag, isLoading: tagLoading } = trpc.tag.getBySlug.useQuery(
@@ -25,7 +22,7 @@ export function GameTagPageClient({
     {
       staleTime: initialTag ? 60000 : 0,
       refetchOnMount: !initialTag,
-    }
+    },
   );
 
   const displayTag = tag || initialTag;
@@ -35,7 +32,7 @@ export function GameTagPageClient({
     {
       enabled: !!displayTag?.id,
       placeholderData: (prev) => prev,
-    }
+    },
   );
 
   const games = data?.games ?? [];
@@ -45,9 +42,7 @@ export function GameTagPageClient({
     return (
       <div className="container py-12 text-center">
         <h1 className="text-2xl font-bold">标签不存在</h1>
-        <p className="text-muted-foreground mt-2">
-          找不到标签 &ldquo;{slug}&rdquo;
-        </p>
+        <p className="text-muted-foreground mt-2">找不到标签 &ldquo;{slug}&rdquo;</p>
         <Button asChild className="mt-4">
           <Link href="/game">浏览全部游戏</Link>
         </Button>
@@ -68,24 +63,15 @@ export function GameTagPageClient({
               <Gamepad2 className="h-5 w-5 text-muted-foreground" />
             </h1>
             <p className="text-sm text-muted-foreground">
-              共 {displayTag?.gameCount ?? initialTag?.gameCount ?? 0}{" "}
-              个游戏
+              共 {displayTag?.gameCount ?? initialTag?.gameCount ?? 0} 个游戏
             </p>
           </div>
         </div>
       </div>
 
-      <GameGrid
-        games={games}
-        isLoading={isLoading || (!initialTag && tagLoading)}
-      />
+      <GameGrid games={games} isLoading={isLoading || (!initialTag && tagLoading)} />
 
-      <Pagination
-        currentPage={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        className="mt-8"
-      />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
 
       {!isLoading && games.length === 0 && displayTag && (
         <div className="text-center py-12">

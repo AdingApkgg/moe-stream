@@ -46,10 +46,7 @@ export function AdGate() {
   const allAds = useMemo(() => parseAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
   const enabledAds = useMemo(() => getActiveAds(allAds, "ad-gate"), [allAds]);
 
-  const gateOn =
-    siteConfig?.adsEnabled === true &&
-    siteConfig?.adGateEnabled === true &&
-    enabledAds.length > 0;
+  const gateOn = siteConfig?.adsEnabled === true && siteConfig?.adGateEnabled === true && enabledAds.length > 0;
   const required = siteConfig?.adGateViewsRequired ?? 3;
   const hours = siteConfig?.adGateHours ?? 12;
 
@@ -58,21 +55,15 @@ export function AdGate() {
     (session === null ? true : (session.user as { adsEnabled?: boolean })?.adsEnabled !== false);
 
   // 随机选一条用于「随机观看广告」按钮
-  const randomAd = useMemo(
-    () => pickWeightedRandomAds(enabledAds, 1, "ad-gate")[0] ?? null,
-    [enabledAds]
-  );
+  const randomAd = useMemo(() => pickWeightedRandomAds(enabledAds, 1, "ad-gate")[0] ?? null, [enabledAds]);
 
-  const openSponsor = useCallback(
-    (url: string) => {
-      if (typeof window === "undefined") return;
-      window.open(url, "_blank", "noopener,noreferrer");
-      try {
-        sessionStorage.setItem(SESSION_CLICK_AT, String(Date.now()));
-      } catch {}
-    },
-    []
-  );
+  const openSponsor = useCallback((url: string) => {
+    if (typeof window === "undefined") return;
+    window.open(url, "_blank", "noopener,noreferrer");
+    try {
+      sessionStorage.setItem(SESSION_CLICK_AT, String(Date.now()));
+    } catch {}
+  }, []);
 
   const tryCountReturn = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -133,11 +124,7 @@ export function AdGate() {
         localStorage.removeItem(STORAGE_FREE_UNTIL);
       }
       const count = localStorage.getItem(STORAGE_VIEW_COUNT);
-      setTimeout(
-        () =>
-          setViewCount(count ? Math.min(parseInt(count, 10) || 0, required) : 0),
-        0
-      );
+      setTimeout(() => setViewCount(count ? Math.min(parseInt(count, 10) || 0, required) : 0), 0);
     } catch {}
   }, [mounted, required]);
 
@@ -192,20 +179,13 @@ export function AdGate() {
 
         {randomAd && (
           <div className="flex justify-center">
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              onClick={() => openSponsor(randomAd.url)}
-            >
+            <Button variant="outline" size="lg" className="gap-2" onClick={() => openSponsor(randomAd.url)}>
               🎲 随机观看广告
             </Button>
           </div>
         )}
 
-        <p className="text-center text-sm text-muted-foreground">
-          🎯 点击下方广告或随机按钮，支持本站运营！
-        </p>
+        <p className="text-center text-sm text-muted-foreground">🎯 点击下方广告或随机按钮，支持本站运营！</p>
 
         <ul className="space-y-2">
           {enabledAds.map((ad, i) => (
@@ -215,17 +195,13 @@ export function AdGate() {
                 onClick={() => openSponsor(ad.url)}
                 className={cn(
                   "w-full rounded-lg border bg-muted/50 text-left text-sm transition-colors overflow-hidden",
-                  "hover:bg-muted hover:border-primary/50"
+                  "hover:bg-muted hover:border-primary/50",
                 )}
               >
                 {ad.imageUrl ? (
                   <div className="flex gap-3 p-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={ad.imageUrl}
-                      alt={ad.title}
-                      className="w-16 h-16 rounded object-cover shrink-0"
-                    />
+                    <img src={ad.imageUrl} alt={ad.title} className="w-16 h-16 rounded object-cover shrink-0" />
                     <div className="flex flex-col justify-center min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-foreground truncate">{ad.title}</span>
@@ -250,9 +226,7 @@ export function AdGate() {
                         </span>
                       )}
                     </div>
-                    {ad.description && (
-                      <span className="mt-1 block text-muted-foreground">{ad.description}</span>
-                    )}
+                    {ad.description && <span className="mt-1 block text-muted-foreground">{ad.description}</span>}
                   </div>
                 )}
               </button>

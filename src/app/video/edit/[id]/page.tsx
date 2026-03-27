@@ -42,13 +42,7 @@ import {
   Layers,
 } from "lucide-react";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { VideoPlayer } from "@/components/video/video-player";
 import { cn } from "@/lib/utils";
@@ -91,24 +85,18 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
   const [showExtraInfo, setShowExtraInfo] = useState(false);
 
-  const { data: video, isLoading: videoLoading } = trpc.video.getForEdit.useQuery(
-    { id },
-    { enabled: !!session }
-  );
+  const { data: video, isLoading: videoLoading } = trpc.video.getForEdit.useQuery({ id }, { enabled: !!session });
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
 
   // 获取用户的合集列表
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery(
     { limit: 50 },
-    { enabled: !!session }
+    { enabled: !!session },
   );
 
   // 获取视频当前所在的合集
-  const { data: videoSeries } = trpc.series.getByVideoId.useQuery(
-    { videoId: id },
-    { enabled: !!session }
-  );
+  const { data: videoSeries } = trpc.series.getByVideoId.useQuery({ videoId: id }, { enabled: !!session });
 
   // 创建合集
   const createSeriesMutation = trpc.series.create.useMutation({
@@ -154,10 +142,11 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const videoUrl = form.watch("videoUrl");
 
   // 过滤标签
-  const filteredTags = allTags?.filter((tag) => {
-    if (!tagSearch.trim()) return true;
-    return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
-  }) || [];
+  const filteredTags =
+    allTags?.filter((tag) => {
+      if (!tagSearch.trim()) return true;
+      return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
+    }) || [];
 
   const toggleTag = (tag: { id: string; name: string }) => {
     const exists = selectedTags.find((t) => t.id === tag.id);
@@ -173,7 +162,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
     if (!tag || newTags.length + selectedTags.length >= 10) return;
     if (newTags.includes(tag)) return;
     if (selectedTags.some((t) => t.name.toLowerCase() === tag.toLowerCase())) return;
-    
+
     const existingTag = allTags?.find((t) => t.name.toLowerCase() === tag.toLowerCase());
     if (existingTag) {
       toggleTag(existingTag);
@@ -207,9 +196,9 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
         videoUrl: video.videoUrl,
       });
       setSelectedTags(video.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })));
-      
+
       // 加载扩展信息
-      if (video.extraInfo && typeof video.extraInfo === 'object' && !Array.isArray(video.extraInfo)) {
+      if (video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo)) {
         setExtraInfo(video.extraInfo as VideoExtraInfo);
         // 如果有扩展信息，自动展开
         const info = video.extraInfo as VideoExtraInfo;
@@ -327,9 +316,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
           <AlertCircle className="h-12 w-12 text-destructive" />
         </div>
         <h1 className="text-2xl font-bold">暂无编辑权限</h1>
-        <p className="text-muted-foreground text-center max-w-md">
-          您的账号暂未开通投稿功能，无法编辑视频
-        </p>
+        <p className="text-muted-foreground text-center max-w-md">您的账号暂未开通投稿功能，无法编辑视频</p>
         <Button asChild variant="outline">
           <Link href="/my-works">返回我的作品</Link>
         </Button>
@@ -374,11 +361,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                       <FormItem>
                         <FormLabel>标题 *</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="输入视频标题" 
-                            {...field}
-                            className="text-base"
-                          />
+                          <Input placeholder="输入视频标题" {...field} className="text-base" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -424,11 +407,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                   {/* 视频预览 */}
                   {showPreview && videoUrl && (
                     <div className="rounded-lg overflow-hidden border bg-black">
-                      <VideoPlayer
-                        url={videoUrl}
-                        poster={coverUrl || undefined}
-                        autoStart={false}
-                      />
+                      <VideoPlayer url={videoUrl} poster={coverUrl || undefined} autoStart={false} />
                     </div>
                   )}
 
@@ -440,11 +419,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                       <FormItem>
                         <FormLabel>简介</FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="视频简介（可选）"
-                            className="min-h-[100px] resize-none"
-                            {...field}
-                          />
+                          <Textarea placeholder="视频简介（可选）" className="min-h-[100px] resize-none" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -460,9 +435,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                     <Tag className="h-5 w-5" />
                     标签
                   </CardTitle>
-                  <CardDescription>
-                    选择或创建标签，最多 10 个
-                  </CardDescription>
+                  <CardDescription>选择或创建标签，最多 10 个</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* 已选标签 */}
@@ -551,9 +524,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                                 variant={isSelected ? "default" : "outline"}
                                 className={cn(
                                   "cursor-pointer text-xs transition-all",
-                                  isSelected
-                                    ? "hover:bg-primary/80"
-                                    : "hover:bg-accent hover:text-accent-foreground"
+                                  isSelected ? "hover:bg-primary/80" : "hover:bg-accent hover:text-accent-foreground",
                                 )}
                                 onClick={() => toggleTag(tag)}
                               >
@@ -582,27 +553,32 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                           <Info className="h-5 w-5" />
                           扩展信息
                           {hasExtraInfo() && (
-                            <Badge variant="secondary" className="text-xs">已填写</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              已填写
+                            </Badge>
                           )}
                         </CardTitle>
-                        <ChevronDown className={cn(
-                          "h-5 w-5 transition-transform",
-                          showExtraInfo && "rotate-180"
-                        )} />
+                        <ChevronDown className={cn("h-5 w-5 transition-transform", showExtraInfo && "rotate-180")} />
                       </div>
-                      <CardDescription>
-                        添加作品介绍、作者信息、下载链接等（可选）
-                      </CardDescription>
+                      <CardDescription>添加作品介绍、作者信息、下载链接等（可选）</CardDescription>
                     </CardHeader>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <CardContent>
                       <Tabs defaultValue="intro" className="w-full">
                         <TabsList className="grid w-full grid-cols-4">
-                          <TabsTrigger value="intro" className="text-xs">作品介绍</TabsTrigger>
-                          <TabsTrigger value="author" className="text-xs">作者信息</TabsTrigger>
-                          <TabsTrigger value="downloads" className="text-xs">下载链接</TabsTrigger>
-                          <TabsTrigger value="related" className="text-xs">相关内容</TabsTrigger>
+                          <TabsTrigger value="intro" className="text-xs">
+                            作品介绍
+                          </TabsTrigger>
+                          <TabsTrigger value="author" className="text-xs">
+                            作者信息
+                          </TabsTrigger>
+                          <TabsTrigger value="downloads" className="text-xs">
+                            下载链接
+                          </TabsTrigger>
+                          <TabsTrigger value="related" className="text-xs">
+                            相关内容
+                          </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="intro" className="space-y-4 mt-4">
@@ -623,10 +599,12 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setExtraInfo({
-                                  ...extraInfo,
-                                  episodes: [...(extraInfo.episodes || []), { title: "", content: "" }]
-                                })}
+                                onClick={() =>
+                                  setExtraInfo({
+                                    ...extraInfo,
+                                    episodes: [...(extraInfo.episodes || []), { title: "", content: "" }],
+                                  })
+                                }
                               >
                                 <Plus className="h-4 w-4 mr-1" />
                                 添加剧集
@@ -699,10 +677,15 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                             <Input
                               placeholder="用逗号分隔多个关键词"
                               value={extraInfo.keywords?.join(", ") || ""}
-                              onChange={(e) => setExtraInfo({
-                                ...extraInfo,
-                                keywords: e.target.value.split(",").map(k => k.trim()).filter(Boolean)
-                              })}
+                              onChange={(e) =>
+                                setExtraInfo({
+                                  ...extraInfo,
+                                  keywords: e.target.value
+                                    .split(",")
+                                    .map((k) => k.trim())
+                                    .filter(Boolean),
+                                })
+                              }
                             />
                             <p className="text-xs text-muted-foreground">帮助用户找到这个视频的关键词</p>
                           </div>
@@ -718,10 +701,12 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => setExtraInfo({
-                                ...extraInfo,
-                                downloads: [...(extraInfo.downloads || []), { name: "", url: "", password: "" }]
-                              })}
+                              onClick={() =>
+                                setExtraInfo({
+                                  ...extraInfo,
+                                  downloads: [...(extraInfo.downloads || []), { name: "", url: "", password: "" }],
+                                })
+                              }
                             >
                               <Plus className="h-4 w-4 mr-1" />
                               添加链接
@@ -788,10 +773,12 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => setExtraInfo({
-                                ...extraInfo,
-                                relatedVideos: [...(extraInfo.relatedVideos || []), ""]
-                              })}
+                              onClick={() =>
+                                setExtraInfo({
+                                  ...extraInfo,
+                                  relatedVideos: [...(extraInfo.relatedVideos || []), ""],
+                                })
+                              }
                             >
                               <Plus className="h-4 w-4 mr-1" />
                               添加
@@ -862,7 +849,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                   <div
                     className={cn(
                       "relative aspect-video rounded-lg border-2 border-dashed overflow-hidden transition-colors group",
-                      coverUrl ? "border-transparent" : "border-muted-foreground/25"
+                      coverUrl ? "border-transparent" : "border-muted-foreground/25",
                     )}
                   >
                     {coverUrl ? (
@@ -918,9 +905,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                       </Button>
                     )}
                   </div>
-                  <CardDescription>
-                    将视频添加到合集（可选）
-                  </CardDescription>
+                  <CardDescription>将视频添加到合集（可选）</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {!showCreateSeries ? (
@@ -929,7 +914,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                         value={selectedSeriesId || ""}
                         onValueChange={(value) => {
                           setSelectedSeriesId(value || null);
-                          const series = userSeries?.items.find(s => s.id === value);
+                          const series = userSeries?.items.find((s) => s.id === value);
                           if (series) {
                             setEpisodeNum(series.episodeCount + 1);
                           }
@@ -950,9 +935,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                             </SelectItem>
                           ))}
                           {(!userSeries?.items || userSeries.items.length === 0) && (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                              暂无合集
-                            </div>
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">暂无合集</div>
                           )}
                         </SelectContent>
                       </Select>
@@ -1013,9 +996,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                             }
                           }}
                         >
-                          {createSeriesMutation.isPending && (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          )}
+                          {createSeriesMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                           创建
                         </Button>
                       </div>
@@ -1026,12 +1007,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
 
               {/* 操作按钮 */}
               <div className="space-y-3">
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 text-base" 
-                  disabled={isSubmitting}
-                  size="lg"
-                >
+                <Button type="submit" className="w-full h-12 text-base" disabled={isSubmitting} size="lg">
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />

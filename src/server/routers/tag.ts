@@ -166,50 +166,48 @@ export const tagRouter = router({
     );
   }),
 
-  groupedByCategory: publicProcedure
-    .input(z.object({ type: tagTypeSchema }))
-    .query(async ({ ctx, input }) => {
-      const h = tagQueryHelpers(input.type);
+  groupedByCategory: publicProcedure.input(z.object({ type: tagTypeSchema })).query(async ({ ctx, input }) => {
+    const h = tagQueryHelpers(input.type);
 
-      return getOrSet(
-        CACHE_KEYS.tagsByCategory(input.type),
-        async () => {
-          const [categories, tags] = await Promise.all([
-            ctx.prisma.tagCategory.findMany({
-              orderBy: { sortOrder: "asc" },
-            }),
-            ctx.prisma.tag.findMany({
-              where: h.hasContent,
-              select: tagSelect,
-              orderBy: { name: "asc" },
-            }),
-          ]);
+    return getOrSet(
+      CACHE_KEYS.tagsByCategory(input.type),
+      async () => {
+        const [categories, tags] = await Promise.all([
+          ctx.prisma.tagCategory.findMany({
+            orderBy: { sortOrder: "asc" },
+          }),
+          ctx.prisma.tag.findMany({
+            where: h.hasContent,
+            select: tagSelect,
+            orderBy: { name: "asc" },
+          }),
+        ]);
 
-          const grouped: {
-            category: { id: string; name: string; slug: string; color: string; type: string } | null;
-            tags: typeof tags;
-          }[] = [];
+        const grouped: {
+          category: { id: string; name: string; slug: string; color: string; type: string } | null;
+          tags: typeof tags;
+        }[] = [];
 
-          for (const cat of categories) {
-            const catTags = tags.filter((t) => t.categoryId === cat.id);
-            if (catTags.length > 0) {
-              grouped.push({
-                category: { id: cat.id, name: cat.name, slug: cat.slug, color: cat.color, type: cat.type },
-                tags: catTags,
-              });
-            }
+        for (const cat of categories) {
+          const catTags = tags.filter((t) => t.categoryId === cat.id);
+          if (catTags.length > 0) {
+            grouped.push({
+              category: { id: cat.id, name: cat.name, slug: cat.slug, color: cat.color, type: cat.type },
+              tags: catTags,
+            });
           }
+        }
 
-          const uncategorized = tags.filter((t) => !t.categoryId);
-          if (uncategorized.length > 0) {
-            grouped.push({ category: null, tags: uncategorized });
-          }
+        const uncategorized = tags.filter((t) => !t.categoryId);
+        if (uncategorized.length > 0) {
+          grouped.push({ category: null, tags: uncategorized });
+        }
 
-          return grouped;
-        },
-        CACHE_TTL.categories,
-      );
-    }),
+        return grouped;
+      },
+      CACHE_TTL.categories,
+    );
+  }),
 
   create: adminProcedure
     .input(
@@ -235,15 +233,13 @@ export const tagRouter = router({
       return tag;
     }),
 
-  delete: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.tag.delete({
-        where: { id: input.id },
-      });
+  delete: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    await ctx.prisma.tag.delete({
+      where: { id: input.id },
+    });
 
-      await deleteCachePattern("tag:*");
+    await deleteCachePattern("tag:*");
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 });

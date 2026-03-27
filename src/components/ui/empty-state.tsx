@@ -15,18 +15,12 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
         "flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in slide-in-from-bottom-3 duration-400 ease-out fill-mode-both",
-        className
+        className,
       )}
     >
       <div className="rounded-full bg-muted p-6 mb-6 animate-in zoom-in-80 fade-in duration-350 delay-75 ease-out fill-mode-both">

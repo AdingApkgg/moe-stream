@@ -14,13 +14,22 @@ export const adminExportRouter = router({
           tags: { include: { tag: { select: { name: true } } } },
           seriesEpisodes: {
             include: {
-              series: { select: { id: true, title: true, description: true, coverUrl: true, downloadUrl: true, downloadNote: true } },
+              series: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  coverUrl: true,
+                  downloadUrl: true,
+                  downloadNote: true,
+                },
+              },
             },
           },
         },
       });
 
-      const mapVideo = (v: typeof videos[number]) => ({
+      const mapVideo = (v: (typeof videos)[number]) => ({
         title: v.title,
         description: v.description || undefined,
         coverUrl: v.coverUrl || undefined,
@@ -29,15 +38,18 @@ export const adminExportRouter = router({
         extraInfo: v.extraInfo || undefined,
       });
 
-      const seriesMap = new Map<string, {
-        title: string;
-        description?: string;
-        coverUrl?: string;
-        downloadUrl?: string;
-        downloadNote?: string;
-        videosWithOrder: { video: typeof videos[number]; episodeNum: number }[];
-      }>();
-      const standalone: (typeof videos[number])[] = [];
+      const seriesMap = new Map<
+        string,
+        {
+          title: string;
+          description?: string;
+          coverUrl?: string;
+          downloadUrl?: string;
+          downloadNote?: string;
+          videosWithOrder: { video: (typeof videos)[number]; episodeNum: number }[];
+        }
+      >();
+      const standalone: (typeof videos)[number][] = [];
 
       for (const v of videos) {
         if (v.seriesEpisodes.length > 0) {
@@ -65,9 +77,7 @@ export const adminExportRouter = router({
         coverUrl: s.coverUrl,
         downloadUrl: s.downloadUrl,
         downloadNote: s.downloadNote,
-        videos: s.videosWithOrder
-          .sort((a, b) => a.episodeNum - b.episodeNum)
-          .map((item) => mapVideo(item.video)),
+        videos: s.videosWithOrder.sort((a, b) => a.episodeNum - b.episodeNum).map((item) => mapVideo(item.video)),
       }));
 
       if (standalone.length > 0) {
@@ -125,5 +135,4 @@ export const adminExportRouter = router({
         tagNames: p.tags.map((t) => t.tag.name),
       }));
     }),
-
 });

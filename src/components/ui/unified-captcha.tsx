@@ -42,33 +42,16 @@ export function UnifiedCaptcha({
   }
 
   if (type === "math") {
-    return (
-      <CaptchaInput
-        key={refreshKey}
-        value={mathValue}
-        onChange={onMathChange || (() => {})}
-        error={mathError}
-      />
-    );
+    return <CaptchaInput key={refreshKey} value={mathValue} onChange={onMathChange || (() => {})} error={mathError} />;
   }
 
   if (type === "slider") {
-    return (
-      <SliderCaptcha
-        key={refreshKey}
-        onVerify={onSliderVerify || (() => {})}
-        error={mathError}
-      />
-    );
+    return <SliderCaptcha key={refreshKey} onVerify={onSliderVerify || (() => {})} error={mathError} />;
   }
 
   if (type === "turnstile") {
     if (!turnstileSiteKey) {
-      return (
-        <p className="text-xs text-destructive">
-          Turnstile 未配置 Site Key，验证码已跳过
-        </p>
-      );
+      return <p className="text-xs text-destructive">Turnstile 未配置 Site Key，验证码已跳过</p>;
     }
     return (
       <TurnstileWidget
@@ -82,11 +65,7 @@ export function UnifiedCaptcha({
 
   if (type === "recaptcha") {
     if (!recaptchaSiteKey) {
-      return (
-        <p className="text-xs text-destructive">
-          reCAPTCHA 未配置 Site Key，验证码已跳过
-        </p>
-      );
+      return <p className="text-xs text-destructive">reCAPTCHA 未配置 Site Key，验证码已跳过</p>;
     }
     return (
       <RecaptchaWidget
@@ -100,11 +79,7 @@ export function UnifiedCaptcha({
 
   if (type === "hcaptcha") {
     if (!hcaptchaSiteKey) {
-      return (
-        <p className="text-xs text-destructive">
-          hCaptcha 未配置 Site Key，验证码已跳过
-        </p>
-      );
+      return <p className="text-xs text-destructive">hCaptcha 未配置 Site Key，验证码已跳过</p>;
     }
     return (
       <HcaptchaWidget

@@ -5,12 +5,7 @@ import { generateUniqueAmount, generateOrderNo, releaseAmount } from "@/lib/usdt
 
 type TxClient = Parameters<Parameters<typeof import("@/lib/prisma").prisma.$transaction>[0]>[0];
 
-async function updateReferralPaymentStats(
-  tx: TxClient,
-  referralLinkId: string,
-  userId: string,
-  amount: number,
-) {
+async function updateReferralPaymentStats(tx: TxClient, referralLinkId: string, userId: string, amount: number) {
   const link = await tx.referralLink.findUnique({
     where: { id: referralLinkId },
     select: { userId: true },
@@ -77,7 +72,7 @@ export const paymentRouter = router({
       z.object({
         packageId: z.string().optional(),
         customAmount: z.number().min(0.01).optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const config = await ctx.prisma.siteConfig.findUnique({
@@ -173,26 +168,24 @@ export const paymentRouter = router({
       };
     }),
 
-  checkOrderStatus: protectedProcedure
-    .input(z.object({ orderId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const order = await ctx.prisma.paymentOrder.findFirst({
-        where: { id: input.orderId, userId: ctx.session.user.id },
-        select: {
-          id: true,
-          orderNo: true,
-          status: true,
-          amount: true,
-          pointsAmount: true,
-          grantUpload: true,
-          paidAt: true,
-          txHash: true,
-          expiresAt: true,
-        },
-      });
-      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
-      return order;
-    }),
+  checkOrderStatus: protectedProcedure.input(z.object({ orderId: z.string() })).query(async ({ ctx, input }) => {
+    const order = await ctx.prisma.paymentOrder.findFirst({
+      where: { id: input.orderId, userId: ctx.session.user.id },
+      select: {
+        id: true,
+        orderNo: true,
+        status: true,
+        amount: true,
+        pointsAmount: true,
+        grantUpload: true,
+        paidAt: true,
+        txHash: true,
+        expiresAt: true,
+      },
+    });
+    if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+    return order;
+  }),
 
   getMyOrders: protectedProcedure
     .input(z.object({ page: z.number().min(1).default(1), limit: z.number().min(1).max(50).default(20) }))
@@ -224,21 +217,19 @@ export const paymentRouter = router({
       return { orders, total, totalPages: Math.ceil(total / limit) };
     }),
 
-  cancelOrder: protectedProcedure
-    .input(z.object({ orderId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const order = await ctx.prisma.paymentOrder.findFirst({
-        where: { id: input.orderId, userId: ctx.session.user.id, status: "PENDING" },
-      });
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "订单不存在或无法取消" });
+  cancelOrder: protectedProcedure.input(z.object({ orderId: z.string() })).mutation(async ({ ctx, input }) => {
+    const order = await ctx.prisma.paymentOrder.findFirst({
+      where: { id: input.orderId, userId: ctx.session.user.id, status: "PENDING" },
+    });
+    if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "订单不存在或无法取消" });
 
-      await ctx.prisma.paymentOrder.update({
-        where: { id: order.id },
-        data: { status: "CANCELLED" },
-      });
-      await releaseAmount(order.amount);
-      return { success: true };
-    }),
+    await ctx.prisma.paymentOrder.update({
+      where: { id: order.id },
+      data: { status: "CANCELLED" },
+    });
+    await releaseAmount(order.amount);
+    return { success: true };
+  }),
 
   // ========== 管理端 ==========
 
@@ -246,21 +237,20 @@ export const paymentRouter = router({
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [totalOrders, paidOrders, totalRevenue, todayRevenue, todayOrders, pendingOrders] =
-      await Promise.all([
-        ctx.prisma.paymentOrder.count(),
-        ctx.prisma.paymentOrder.count({ where: { status: "PAID" } }),
-        ctx.prisma.paymentOrder.aggregate({
-          where: { status: "PAID" },
-          _sum: { amount: true },
-        }),
-        ctx.prisma.paymentOrder.aggregate({
-          where: { status: "PAID", paidAt: { gte: todayStart } },
-          _sum: { amount: true },
-        }),
-        ctx.prisma.paymentOrder.count({ where: { status: "PAID", paidAt: { gte: todayStart } } }),
-        ctx.prisma.paymentOrder.count({ where: { status: "PENDING" } }),
-      ]);
+    const [totalOrders, paidOrders, totalRevenue, todayRevenue, todayOrders, pendingOrders] = await Promise.all([
+      ctx.prisma.paymentOrder.count(),
+      ctx.prisma.paymentOrder.count({ where: { status: "PAID" } }),
+      ctx.prisma.paymentOrder.aggregate({
+        where: { status: "PAID" },
+        _sum: { amount: true },
+      }),
+      ctx.prisma.paymentOrder.aggregate({
+        where: { status: "PAID", paidAt: { gte: todayStart } },
+        _sum: { amount: true },
+      }),
+      ctx.prisma.paymentOrder.count({ where: { status: "PAID", paidAt: { gte: todayStart } } }),
+      ctx.prisma.paymentOrder.count({ where: { status: "PENDING" } }),
+    ]);
 
     return {
       totalOrders,
@@ -280,7 +270,7 @@ export const paymentRouter = router({
         limit: z.number().min(1).max(100).default(20),
         status: z.enum(["ALL", "PENDING", "PAID", "EXPIRED", "CANCELLED"]).default("ALL"),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { page, limit, status, search } = input;
@@ -362,18 +352,16 @@ export const paymentRouter = router({
       return { success: true };
     }),
 
-  adminCancelOrder: adminProcedure
-    .input(z.object({ orderId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const order = await ctx.prisma.paymentOrder.findUnique({ where: { id: input.orderId } });
-      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
-      if (order.status !== "PENDING") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "仅待支付订单可取消" });
-      }
-      await ctx.prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
-      await releaseAmount(order.amount);
-      return { success: true };
-    }),
+  adminCancelOrder: adminProcedure.input(z.object({ orderId: z.string() })).mutation(async ({ ctx, input }) => {
+    const order = await ctx.prisma.paymentOrder.findUnique({ where: { id: input.orderId } });
+    if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+    if (order.status !== "PENDING") {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "仅待支付订单可取消" });
+    }
+    await ctx.prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
+    await releaseAmount(order.amount);
+    return { success: true };
+  }),
 
   // ========== 套餐管理 ==========
 
@@ -393,7 +381,7 @@ export const paymentRouter = router({
         grantUpload: z.boolean().default(false),
         description: z.string().optional(),
         sortOrder: z.number().int().default(0),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.paymentPackage.create({ data: input });
@@ -410,25 +398,23 @@ export const paymentRouter = router({
         description: z.string().nullable().optional(),
         isActive: z.boolean().optional(),
         sortOrder: z.number().int().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       return ctx.prisma.paymentPackage.update({ where: { id }, data });
     }),
 
-  adminDeletePackage: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const hasOrders = await ctx.prisma.paymentOrder.count({ where: { packageId: input.id } });
-      if (hasOrders > 0) {
-        await ctx.prisma.paymentPackage.update({
-          where: { id: input.id },
-          data: { isActive: false },
-        });
-        return { deactivated: true };
-      }
-      await ctx.prisma.paymentPackage.delete({ where: { id: input.id } });
-      return { deleted: true };
-    }),
+  adminDeletePackage: adminProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const hasOrders = await ctx.prisma.paymentOrder.count({ where: { packageId: input.id } });
+    if (hasOrders > 0) {
+      await ctx.prisma.paymentPackage.update({
+        where: { id: input.id },
+        data: { isActive: false },
+      });
+      return { deactivated: true };
+    }
+    await ctx.prisma.paymentPackage.delete({ where: { id: input.id } });
+    return { deleted: true };
+  }),
 });
