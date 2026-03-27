@@ -93,14 +93,6 @@ function CreatedKeyDisplay({ apiKey, onClose }: { apiKey: string; onClose: () =>
 }
 
 function ScopeMatrix({ scopes, onChange }: { scopes: string[]; onChange: (scopes: string[]) => void }) {
-  const toggleScope = (scopeId: string) => {
-    if (scopes.includes(scopeId)) {
-      onChange(scopes.filter((s) => s !== scopeId));
-    } else {
-      onChange([...scopes, scopeId]);
-    }
-  };
-
   const handleWriteToggle = (groupId: string) => {
     const writeId = `${groupId}:write`;
     const readId = `${groupId}:read`;

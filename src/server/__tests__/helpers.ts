@@ -69,6 +69,7 @@ export function createMockContext(overrides?: Partial<Context>): Context {
     ipv4Address: null,
     ipv6Address: null,
     userAgent: null,
+    apiKeyScopes: null,
     ...overrides,
   };
 }

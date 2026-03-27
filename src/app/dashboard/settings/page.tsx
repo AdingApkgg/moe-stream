@@ -899,8 +899,8 @@ export default function AdminSettingsPage() {
             "Gitlab",
             "Reddit",
           ].flatMap((k) => [
-            [`oauth${k}ClientId`, (cfg[`oauth${k}ClientId`] as string) || ""],
-            [`oauth${k}ClientSecret`, (cfg[`oauth${k}ClientSecret`] as string) || ""],
+            [`oauth${k}ClientId`, ((cfg as Record<string, unknown>)[`oauth${k}ClientId`] as string) || ""],
+            [`oauth${k}ClientSecret`, ((cfg as Record<string, unknown>)[`oauth${k}ClientSecret`] as string) || ""],
           ]),
         ),
       });

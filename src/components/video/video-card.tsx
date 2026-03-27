@@ -36,7 +36,7 @@ interface VideoCardProps {
   index?: number;
 }
 
-function VideoCardComponent({ video, index = 0 }: VideoCardProps) {
+function VideoCardComponent({ video }: VideoCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({

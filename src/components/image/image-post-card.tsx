@@ -34,7 +34,7 @@ function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): strin
   return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
 }
 
-function ImagePostCardComponent({ post, index = 0 }: ImagePostCardProps) {
+function ImagePostCardComponent({ post }: ImagePostCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({

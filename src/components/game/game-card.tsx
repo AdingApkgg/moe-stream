@@ -95,7 +95,7 @@ function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: 
   );
 }
 
-function GameCardComponent({ game, index = 0 }: GameCardProps) {
+function GameCardComponent({ game }: GameCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
