@@ -56,7 +56,7 @@ import {
   ScrollText,
   BarChart3,
 } from "lucide-react";
-import type { SiteConfig } from "@/generated/prisma";
+import type { SiteConfig } from "@/generated/prisma/client";
 import { toast } from "@/lib/toast-with-sound";
 import {
   AlertDialog,
