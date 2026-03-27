@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createMDX from "@next/mdx";
-import rehypePrettyCode, { type Options as PrettyCodeOptions } from "rehype-pretty-code";
 
 export default function config(phase: string) {
   if (phase === PHASE_PRODUCTION_BUILD) {
@@ -67,17 +66,10 @@ export default function config(phase: string) {
     },
   };
 
-  const prettyCodeOptions: PrettyCodeOptions = {
-    theme: { dark: "github-dark-dimmed", light: "github-light" },
-    keepBackground: false,
-    defaultLang: "plaintext",
-  };
-
   const withMDX = createMDX({
     extension: /\.mdx?$/,
     options: {
       remarkPlugins: ["remark-gfm"],
-      rehypePlugins: [[rehypePrettyCode, prettyCodeOptions]],
     },
   });
 

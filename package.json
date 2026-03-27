@@ -133,7 +133,6 @@
     "react-player": "^3.4.0",
     "react-qr-code": "^2.0.18",
     "recharts": "3.8.0",
-    "rehype-pretty-code": "^0.14.3",
     "remark-gfm": "^4.0.1",
     "serwist": "^9.5.7",
     "sharp": "^0.34.5",

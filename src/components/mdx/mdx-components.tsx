@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import { CodeBlock } from "./code-block";
 
 /** prose 样式类（供各 MDX 渲染器共享） */
 export const mdxProseClasses = [
@@ -20,6 +21,7 @@ export const mdxProseClasses = [
 /** 共享 MDX 组件映射 */
 export function getMDXComponents(overrides: MDXComponents = {}): MDXComponents {
   return {
+    pre: (props) => <CodeBlock {...props} />,
     a: ({ href, children, ...props }) => (
       <a
         href={href}
@@ -34,7 +36,6 @@ export function getMDXComponents(overrides: MDXComponents = {}): MDXComponents {
       // eslint-disable-next-line @next/next/no-img-element
       <img src={src} alt={alt || ""} className="rounded-lg max-w-full h-auto" loading="lazy" {...props} />
     ),
-    // 未来自定义组件在此注册
     ...overrides,
   };
 }

@@ -321,90 +321,35 @@
   }
 }
 
-/* rehype-pretty-code 代码块配色 */
-[data-rehype-pretty-code-figure] {
-  position: relative;
-  margin: 0.75rem 0;
-}
-
-[data-rehype-pretty-code-figure] pre {
+/* MDX 代码块语法高亮（shiki 双主题） */
+.mdx-code-block pre {
   overflow-x: auto;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   padding: 0.875rem 1rem;
   font-size: 0.8125rem;
   line-height: 1.7;
-  background-color: oklch(0.97 0.005 285) !important;
 }
 
-.dark [data-rehype-pretty-code-figure] pre {
-  background-color: oklch(0.18 0.02 285) !important;
-}
-
-[data-rehype-pretty-code-figure] code {
+.mdx-code-block code {
   display: grid;
-  counter-reset: line;
-}
-
-[data-rehype-pretty-code-figure] [data-line] {
-  padding: 0 0.25rem;
-  border-left: 2px solid transparent;
-}
-
-[data-rehype-pretty-code-figure] [data-highlighted-line] {
-  background: oklch(0.55 0.24 285 / 8%);
-  border-left-color: oklch(0.55 0.24 285);
-}
-
-.dark [data-rehype-pretty-code-figure] [data-highlighted-line] {
-  background: oklch(0.7 0.2 285 / 10%);
-  border-left-color: oklch(0.7 0.2 285);
-}
-
-[data-rehype-pretty-code-figure] [data-highlighted-chars] {
-  background: oklch(0.55 0.24 285 / 12%);
-  border-radius: 0.25rem;
-  padding: 0.125rem 0.25rem;
-}
-
-.dark [data-rehype-pretty-code-figure] [data-highlighted-chars] {
-  background: oklch(0.7 0.2 285 / 15%);
-}
-
-[data-rehype-pretty-code-title] {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: 0.5rem 1rem;
-  background: var(--muted);
 }
 
-[data-rehype-pretty-code-title] + pre {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+.mdx-code-block .line {
+  padding: 0 0.125rem;
 }
 
-code[data-theme*=" "],
-code[data-theme*=" "] span {
+.shiki,
+.shiki span {
   color: var(--shiki-light);
   background-color: var(--shiki-light-bg);
 }
 
-.dark code[data-theme*=" "],
-.dark code[data-theme*=" "] span {
+.dark .shiki,
+.dark .shiki span {
   color: var(--shiki-dark);
   background-color: var(--shiki-dark-bg);
-}
-
-:not(pre) > code[data-theme] {
-  display: inline;
-  background: var(--muted);
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
 }
 
 /* 滚动条美化 */
