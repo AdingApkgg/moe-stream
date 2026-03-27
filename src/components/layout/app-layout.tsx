@@ -11,7 +11,7 @@ import { AdGate } from "@/components/ads/ad-gate";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted, PageTransition } from "@/components/motion";
 
 const SIDEBAR_COLLAPSED_KEY = "mikiacg-sidebar-collapsed";
 
@@ -114,7 +114,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             !isOverlayMode && "pb-16 md:pb-0",
           )}
         >
-          <div className="flex-1">{children}</div>
+          <div className="flex-1 relative">
+            <PageTransition>{children}</PageTransition>
+          </div>
           <Footer />
         </main>
       </div>

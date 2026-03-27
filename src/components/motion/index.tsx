@@ -10,6 +10,7 @@ import {
   type HTMLMotionProps,
   useReducedMotion,
 } from "framer-motion";
+import { usePathname } from "next/navigation";
 import { useIsMounted as useIsMountedFn } from "usehooks-ts";
 import ReactCountUp from "react-countup";
 import { cn } from "@/lib/utils";
@@ -187,6 +188,37 @@ export function MotionProvider({ children }: MotionProviderProps) {
 }
 
 // ============================================================================
+// PageTransition — 路由切换淡入淡出（消除白屏闪烁）
+// ============================================================================
+
+interface PageTransitionProps {
+  children: ReactNode;
+}
+
+export function PageTransition({ children }: PageTransitionProps) {
+  const pathname = usePathname();
+  const config = useAnimationConfig();
+
+  if (!config.enabled || !config.pageTransition) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <m.div
+        key={pathname}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: config.duration.fast, ease: EASE_OUT }}
+      >
+        {children}
+      </m.div>
+    </AnimatePresence>
+  );
+}
+
+// ============================================================================
 // MotionPage — 页面过渡（替代 PageWrapper + FadeIn）
 // ============================================================================
 
@@ -204,19 +236,22 @@ export function MotionPage({ children, className, direction = "up" }: MotionPage
     return <div className={className}>{children}</div>;
   }
 
+  if (direction === "none") {
+    return <div className={className}>{children}</div>;
+  }
+
   const directionMap = {
     up: { y: config.displacement.medium },
     down: { y: -config.displacement.medium },
     left: { x: config.displacement.medium },
     right: { x: -config.displacement.medium },
-    none: {},
   };
 
   return (
     <m.div
       className={className}
-      initial={{ opacity: 0, ...directionMap[direction] }}
-      animate={{ opacity: 1, x: 0, y: 0 }}
+      initial={directionMap[direction]}
+      animate={{ x: 0, y: 0 }}
       transition={{ duration: config.duration.normal, ease: EASE_OUT_EXPO }}
     >
       {children}
@@ -605,5 +640,5 @@ export function CountUp({
 // 导出
 // ============================================================================
 
-export { motion, AnimatePresence, useReducedMotion };
+export { m, AnimatePresence, useReducedMotion };
 export type { Variants, HTMLMotionProps };
