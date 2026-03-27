@@ -40,7 +40,8 @@
       "!public/sw.js",
       "!public/ccl*.js",
       "!pnpm-lock.yaml",
-      "!.claude/**"
+      "!.claude/**",
+      "!.history/**"
     ]
   }
 }

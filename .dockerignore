@@ -5,6 +5,7 @@ node_modules
 .cursor
 .vscode
 .history
+.claude
 .DS_Store
 *.log
 
