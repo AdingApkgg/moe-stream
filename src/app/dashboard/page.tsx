@@ -7,7 +7,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/dashboard/videos");
+    router.replace("/dashboard/stats");
   }, [router]);
 
   return null;

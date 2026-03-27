@@ -60,13 +60,16 @@ export function Footer() {
             <Link href="/links" className="hover:text-foreground transition-colors">
               友链
             </Link>
-            <Link href="/feed.xml" className="hover:text-foreground transition-colors">
+            <Link href="/rss" className="hover:text-foreground transition-colors">
               RSS
             </Link>
-            <Link href="/llms.txt" className="hover:text-foreground transition-colors">
+            <Link href="/llms" className="hover:text-foreground transition-colors">
               llms.txt
             </Link>
-            <Link href="/sitemap.xml" className="hover:text-foreground transition-colors">
+            <Link href="/api-docs" className="hover:text-foreground transition-colors">
+              API 文档
+            </Link>
+            <Link href="/sitemap" className="hover:text-foreground transition-colors">
               Sitemap
             </Link>
             {githubUrl && (

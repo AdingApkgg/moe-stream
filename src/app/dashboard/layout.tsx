@@ -34,6 +34,7 @@ import {
   Megaphone,
   HardDrive,
   FolderCog,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -45,11 +46,14 @@ type MenuItem = {
 };
 
 type MenuGroup = {
-  label: string;
+  label?: string;
   items: MenuItem[];
 };
 
 const menuGroups: MenuGroup[] = [
+  {
+    items: [{ href: "/dashboard/stats", label: "数据总览", icon: BarChart3, scope: null }],
+  },
   {
     label: "内容",
     items: [
@@ -165,13 +169,15 @@ function SidebarContent({
       <ScrollArea className="flex-1 min-h-0">
         <nav className="py-2">
           {visibleGroups.map((group, groupIdx) => (
-            <div key={group.label}>
+            <div key={group.label ?? `group-${groupIdx}`}>
               {groupIdx > 0 && <div className="mx-4 my-1.5 border-t" />}
-              <div className="px-4 pt-2 pb-1">
-                <span className="text-[11px] font-medium text-muted-foreground/50 uppercase tracking-widest select-none">
-                  {group.label}
-                </span>
-              </div>
+              {group.label && (
+                <div className="px-4 pt-2 pb-1">
+                  <span className="text-[11px] font-medium text-muted-foreground/50 uppercase tracking-widest select-none">
+                    {group.label}
+                  </span>
+                </div>
+              )}
               <div className="px-2">
                 {group.items.map((item) => {
                   const Icon = item.icon;

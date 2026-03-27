@@ -147,7 +147,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <MessageSquare className="mr-2 h-4 w-4" />
             评论动态
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/stats"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/stats"))}>
             <BarChart3 className="mr-2 h-4 w-4" />
             数据总览
           </CommandItem>

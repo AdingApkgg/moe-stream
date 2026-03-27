@@ -2,7 +2,7 @@
 
 import { type ReactNode, useId } from "react";
 import {
-  motion,
+  m,
   LazyMotion,
   domAnimation,
   AnimatePresence,
@@ -213,14 +213,14 @@ export function MotionPage({ children, className, direction = "up" }: MotionPage
   };
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0, ...directionMap[direction] }}
       animate={{ opacity: 1, x: 0, y: 0 }}
       transition={{ duration: config.duration.normal, ease: EASE_OUT_EXPO }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -245,7 +245,7 @@ export function MotionList({ children, className, staggerDelay }: MotionListProp
   const delay = staggerDelay ?? config.staggerDelay;
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial="hidden"
       animate="visible"
@@ -261,7 +261,7 @@ export function MotionList({ children, className, staggerDelay }: MotionListProp
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -278,7 +278,7 @@ export function MotionItem({ children, className }: MotionItemProps) {
   }
 
   return (
-    <motion.div
+    <m.div
       className={className}
       variants={{
         hidden: { opacity: 0, y: config.displacement.small },
@@ -290,7 +290,7 @@ export function MotionItem({ children, className }: MotionItemProps) {
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -313,7 +313,7 @@ export function MotionCard({ children, className, scale = 1.02, yOffset = -3 }: 
   }
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial="rest"
       whileHover="hover"
@@ -332,7 +332,7 @@ export function MotionCard({ children, className, scale = 1.02, yOffset = -3 }: 
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -356,7 +356,7 @@ export function MotionTabContent({ children, activeKey, className }: MotionTabCo
 
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         key={`${id}-${activeKey}`}
         className={className}
         initial={{ opacity: 0, y: config.displacement.small }}
@@ -365,7 +365,7 @@ export function MotionTabContent({ children, activeKey, className }: MotionTabCo
         transition={{ duration: config.duration.fast, ease: EASE_OUT }}
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }
@@ -390,7 +390,7 @@ export function MotionDialog({ children, className, isOpen }: MotionDialogProps)
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <m.div
           className={className}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -403,7 +403,7 @@ export function MotionDialog({ children, className, isOpen }: MotionDialogProps)
           }}
         >
           {children}
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
@@ -427,9 +427,9 @@ export function MotionDiv({ children, className, ...props }: ClientOnlyMotionPro
   }
 
   return (
-    <motion.div className={className} {...props}>
+    <m.div className={className} {...props}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -511,7 +511,7 @@ export function StaggerList({ children, className, staggerDelay = 0.04 }: Stagge
   }
 
   return (
-    <motion.div
+    <m.div
       className={className}
       initial="hidden"
       animate="visible"
@@ -527,7 +527,7 @@ export function StaggerList({ children, className, staggerDelay = 0.04 }: Stagge
       }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -539,9 +539,9 @@ interface StaggerItemProps {
 export function StaggerItem({ children, className }: StaggerItemProps) {
   const shouldReduce = useReducedMotion();
   return (
-    <motion.div className={className} variants={shouldReduce ? fadeIn : staggerItem}>
+    <m.div className={className} variants={shouldReduce ? fadeIn : staggerItem}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -559,14 +559,14 @@ export function ScaleOnHover({ children, className, scale = 1.03 }: ScaleOnHover
   }
 
   return (
-    <motion.div
+    <m.div
       className={className}
       whileHover={{ scale }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 500, damping: 25, mass: 0.5 }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
