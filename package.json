@@ -183,7 +183,7 @@
       "biome check --write --unsafe",
       "eslint --fix --no-warn-ignored"
     ],
-    "*.{js,mjs,cjs,json,css,yaml,yml}": [
+    "*.{js,mjs,cjs,json,css}": [
       "biome check --write --unsafe"
     ]
   },
