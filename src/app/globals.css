@@ -329,6 +329,11 @@
   padding: 0.875rem 1rem;
   font-size: 0.8125rem;
   line-height: 1.7;
+  background: oklch(0.965 0.005 285) !important;
+}
+
+.dark .mdx-code-block pre {
+  background: oklch(0.17 0.02 285) !important;
 }
 
 .mdx-code-block code {
@@ -340,16 +345,12 @@
   padding: 0 0.125rem;
 }
 
-.shiki,
 .shiki span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
 }
 
-.dark .shiki,
 .dark .shiki span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
 }
 
 /* 滚动条美化 */

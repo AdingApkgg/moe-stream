@@ -1,8 +1,21 @@
-"use client";
-
 import { cn } from "@/lib/utils";
-import { Copy, Check } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { codeToHtml } from "shiki";
+import { CopyButton } from "./copy-button";
+import type { ReactNode } from "react";
+
+const METHOD_COLORS: Record<string, string> = {
+  GET: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  POST: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
+  PUT: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  DELETE: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+};
+
+const AUTH_LABELS: Record<string, { text: string; cls: string }> = {
+  public: { text: "公开", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" },
+  protected: { text: "需登录", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400" },
+  admin: { text: "管理员", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400" },
+  owner: { text: "站长", cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400" },
+};
 
 export function Endpoint({
   method = "POST",
@@ -15,23 +28,11 @@ export function Endpoint({
   auth?: "public" | "protected" | "admin" | "owner";
   scope?: string;
 }) {
-  const methodColors: Record<string, string> = {
-    GET: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
-    POST: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
-    PUT: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-    DELETE: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-  };
-  const authLabels: Record<string, { text: string; cls: string }> = {
-    public: { text: "公开", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" },
-    protected: { text: "需登录", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400" },
-    admin: { text: "管理员", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400" },
-    owner: { text: "站长", cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400" },
-  };
-  const a = authLabels[auth];
+  const a = AUTH_LABELS[auth];
 
   return (
     <div className="not-prose flex items-center gap-2 flex-wrap rounded-lg border bg-muted/30 px-3 py-2 my-3">
-      <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-bold", methodColors[method])}>{method}</span>
+      <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-bold", METHOD_COLORS[method])}>{method}</span>
       <code className="text-sm font-mono">/api/trpc/{path}</code>
       <span className={cn("ml-auto inline-block rounded px-2 py-0.5 text-[11px] font-medium", a.cls)}>{a.text}</span>
       {scope && (
@@ -43,30 +44,18 @@ export function Endpoint({
   );
 }
 
-export function CopyBlock({ children, lang = "bash" }: { children: string; lang?: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(children.trim());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+export async function CopyBlock({ children, lang = "bash" }: { children: string; lang?: string }) {
+  const code = children.trim();
+  const html = await codeToHtml(code, {
+    lang,
+    themes: { light: "github-light", dark: "github-dark-dimmed" },
+    defaultColor: false,
+  });
 
   return (
-    <div className="not-prose relative group my-3">
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-md bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-      >
-        {copied ? (
-          <Check className="h-3.5 w-3.5 text-green-500" />
-        ) : (
-          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-        )}
-      </button>
-      <pre className="rounded-lg bg-muted border p-4 text-xs overflow-x-auto leading-relaxed">
-        <code className={`language-${lang}`}>{children.trim()}</code>
-      </pre>
+    <div className="not-prose mdx-code-block group relative my-3">
+      <CopyButton code={code} />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
 }
