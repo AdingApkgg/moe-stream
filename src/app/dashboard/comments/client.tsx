@@ -440,10 +440,12 @@ function VideoCommentList({ initialPage }: { initialPage: number }) {
     });
   }, []);
 
+  const allPageSelected = comments.length > 0 && comments.every((c) => selectedIds.has(c.id));
+
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === comments.length) setSelectedIds(new Set());
+    if (allPageSelected) setSelectedIds(new Set());
     else setSelectedIds(new Set(comments.map((c) => c.id)));
-  }, [comments, selectedIds.size]);
+  }, [comments, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -657,10 +659,12 @@ function GameCommentList({ initialPage }: { initialPage: number }) {
     });
   }, []);
 
+  const allPageSelected = comments.length > 0 && comments.every((c) => selectedIds.has(c.id));
+
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === comments.length) setSelectedIds(new Set());
+    if (allPageSelected) setSelectedIds(new Set());
     else setSelectedIds(new Set(comments.map((c) => c.id)));
-  }, [comments, selectedIds.size]);
+  }, [comments, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -874,10 +878,12 @@ function ImagePostCommentList({ initialPage }: { initialPage: number }) {
     });
   }, []);
 
+  const allPageSelected = comments.length > 0 && comments.every((c) => selectedIds.has(c.id));
+
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === comments.length) setSelectedIds(new Set());
+    if (allPageSelected) setSelectedIds(new Set());
     else setSelectedIds(new Set(comments.map((c) => c.id)));
-  }, [comments, selectedIds.size]);
+  }, [comments, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -1018,8 +1024,12 @@ function BatchActions({
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
       <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
-        {selectedIds.size === comments.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-        {selectedIds.size === comments.length ? "取消全选" : "全选"}
+        {comments.length > 0 && comments.every((c) => selectedIds.has(c.id)) ? (
+          <CheckSquare className="h-4 w-4" />
+        ) : (
+          <Square className="h-4 w-4" />
+        )}
+        {comments.length > 0 && comments.every((c) => selectedIds.has(c.id)) ? "取消全选" : "全选"}
       </Button>
 
       {selectedIds.size > 0 && (
@@ -1460,10 +1470,12 @@ function GuestbookList({ initialPage }: { initialPage: number }) {
     });
   }, []);
 
+  const allPageSelected = messages.length > 0 && messages.every((m) => selectedIds.has(m.id));
+
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === messages.length) setSelectedIds(new Set());
+    if (allPageSelected) setSelectedIds(new Set());
     else setSelectedIds(new Set(messages.map((m) => m.id)));
-  }, [messages, selectedIds.size]);
+  }, [messages, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -1600,8 +1612,12 @@ function GuestbookBatchActions({
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
       <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
-        {selectedIds.size === messages.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-        {selectedIds.size === messages.length ? "取消全选" : "全选"}
+        {messages.length > 0 && messages.every((m) => selectedIds.has(m.id)) ? (
+          <CheckSquare className="h-4 w-4" />
+        ) : (
+          <Square className="h-4 w-4" />
+        )}
+        {messages.length > 0 && messages.every((m) => selectedIds.has(m.id)) ? "取消全选" : "全选"}
       </Button>
 
       {selectedIds.size > 0 && (

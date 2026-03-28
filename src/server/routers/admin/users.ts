@@ -112,6 +112,14 @@ export const adminUsersRouter = router({
     .use(requireScope("user:manage"))
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const target = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true },
+      });
+      if (!target) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
+      }
+
       await ctx.prisma.user.update({
         where: { id: input.userId },
         data: { isBanned: false, banReason: null, bannedAt: null },

@@ -195,14 +195,16 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
     });
   }, []);
 
+  const selectableUsers = users.filter((u) => u.role !== "OWNER");
+  const allPageSelected = selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
+
   const toggleSelectAll = useCallback(() => {
-    const selectableUsers = users.filter((u) => u.role !== "OWNER");
-    if (selectedIds.size === selectableUsers.length) {
+    if (allPageSelected) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
     }
-  }, [users, selectedIds.size]);
+  }, [selectableUsers, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -265,8 +267,6 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   if (!permissions?.scopes.includes("user:view")) {
     return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有用户管理权限</div>;
   }
-
-  const selectableUsers = users.filter((u) => u.role !== "OWNER");
 
   return (
     <div className="space-y-6">
@@ -337,12 +337,8 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
       {users.length > 0 && permissions?.scopes.includes("user:manage") && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="gap-1">
-            {selectedIds.size === selectableUsers.length && selectableUsers.length > 0 ? (
-              <CheckSquare className="h-4 w-4" />
-            ) : (
-              <Square className="h-4 w-4" />
-            )}
-            {selectedIds.size === selectableUsers.length && selectableUsers.length > 0 ? "取消全选" : "全选"}
+            {allPageSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            {allPageSelected ? "取消全选" : "全选"}
           </Button>
 
           {selectedIds.size > 0 && (

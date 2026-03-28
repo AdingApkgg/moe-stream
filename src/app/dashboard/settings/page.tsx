@@ -40,7 +40,6 @@ import {
   FileText,
   Link2,
   Shield,
-  Megaphone,
   HardDrive,
   Download,
   Upload,
@@ -123,32 +122,11 @@ const configFormSchema = z.object({
   icpBeian: z.string().max(100).optional().nullable(),
   publicSecurityBeian: z.string().max(100).optional().nullable(),
 
-  // 广告系统
-  adsEnabled: z.boolean(),
-
-  // 广告门
-  adGateEnabled: z.boolean(),
-  adGateViewsRequired: z.number().int().min(1).max(20),
-  adGateHours: z.number().int().min(1).max(168),
-
-  // 广告列表（统一管理，广告门和页面广告位共用）
-  sponsorAds: z.array(
-    z.object({
-      title: z.string().min(1, "标题必填").max(200),
-      platform: z.string().max(100),
-      url: z.string().url("请输入有效 URL"),
-      description: z.string().max(500),
-      imageUrl: z.string().max(2000),
-      weight: z.number().int().min(1).max(100),
-      enabled: z.boolean(),
-    }),
-  ),
-
   // 验证码 / 人机验证
-  captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("math"),
-  captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
-  captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
-  captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
+  captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
+  captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
+  captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
+  captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
   turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
   turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
   recaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -157,7 +135,7 @@ const configFormSchema = z.object({
   hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
   // SMTP 邮件
-  mailSendMode: z.enum(["smtp", "http_api"]).catch("smtp"),
+  mailSendMode: z.enum(["smtp", "http_api"]),
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
   smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -177,7 +155,7 @@ const configFormSchema = z.object({
   googlePrivateKey: z.string().max(10000).optional().nullable().or(z.literal("")),
 
   // 对象存储
-  storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).catch("local"),
+  storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]),
   storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
   storageBucket: z.string().max(200).optional().nullable().or(z.literal("")),
   storageRegion: z.string().max(100).optional().nullable().or(z.literal("")),
@@ -204,7 +182,7 @@ const configFormSchema = z.object({
 
   // 视觉效果
   effectEnabled: z.boolean(),
-  effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]).catch("sakura"),
+  effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]),
   effectDensity: z.number().int().min(1).max(100),
   effectSpeed: z.number().min(0.1).max(3.0),
   effectOpacity: z.number().min(0).max(1),
@@ -664,11 +642,6 @@ export default function AdminSettingsPage() {
       footerText: "",
       icpBeian: "",
       publicSecurityBeian: "",
-      adsEnabled: false,
-      adGateEnabled: false,
-      adGateViewsRequired: 3,
-      adGateHours: 12,
-      sponsorAds: [],
       captchaLogin: "math",
       captchaRegister: "none",
       captchaComment: "none",
@@ -776,7 +749,11 @@ export default function AdminSettingsPage() {
         sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
         sectionImageEnabled: cfg.sectionImageEnabled ?? true,
         sectionGameEnabled: cfg.sectionGameEnabled ?? true,
-        videoSelectorMode: (cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled") ?? "series",
+        videoSelectorMode: (["series", "author", "uploader", "disabled"] as const).includes(
+          cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled",
+        )
+          ? (cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled")
+          : "series",
         videosPerPage: cfg.videosPerPage,
         commentsPerPage: cfg.commentsPerPage,
         maxUploadSize: cfg.maxUploadSize,
@@ -789,19 +766,6 @@ export default function AdminSettingsPage() {
         footerText: cfg.footerText || "",
         icpBeian: cfg.icpBeian || "",
         publicSecurityBeian: cfg.publicSecurityBeian || "",
-        adsEnabled: cfg.adsEnabled ?? false,
-        adGateEnabled: cfg.adGateEnabled ?? false,
-        adGateViewsRequired: cfg.adGateViewsRequired ?? 3,
-        adGateHours: cfg.adGateHours ?? 12,
-        sponsorAds: ((cfg.sponsorAds as ConfigFormValues["sponsorAds"]) ?? []).map((item) => ({
-          title: item.title ?? "",
-          platform: item.platform ?? "",
-          url: item.url ?? "",
-          description: item.description ?? "",
-          imageUrl: item.imageUrl ?? "",
-          weight: item.weight ?? 1,
-          enabled: item.enabled !== false,
-        })),
         captchaLogin: validEnum(
           cfg.captchaLogin,
           ["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"] as const,
@@ -1062,10 +1026,6 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="footer" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <Link2 className="h-3.5 w-3.5" /> 页脚
             </TabsTrigger>
-            <TabsTrigger value="ads" className="justify-start gap-2 px-3 h-8 text-[13px]">
-              <Megaphone className="h-3.5 w-3.5" /> 广告
-            </TabsTrigger>
-
             <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">
               安全与认证
             </span>
@@ -1116,7 +1076,6 @@ export default function AdminSettingsPage() {
                 <SelectLabel>页面</SelectLabel>
                 <SelectItem value="pages">页面管理</SelectItem>
                 <SelectItem value="footer">页脚</SelectItem>
-                <SelectItem value="ads">广告</SelectItem>
               </SelectGroup>
               <SelectSeparator />
               <SelectGroup>
@@ -1522,10 +1481,11 @@ export default function AdminSettingsPage() {
                             <FormLabel>积分汇率（1 USDT）</FormLabel>
                             <FormControl>
                               <Input
+                                {...field}
                                 type="number"
                                 min={1}
                                 value={field.value}
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
                               />
                             </FormControl>
                             <FormDescription>自定义金额充值时 1 USDT 兑换多少积分</FormDescription>
@@ -1542,11 +1502,12 @@ export default function AdminSettingsPage() {
                             <FormLabel>订单超时（分钟）</FormLabel>
                             <FormControl>
                               <Input
+                                {...field}
                                 type="number"
                                 min={5}
                                 max={1440}
                                 value={field.value}
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 30)}
                               />
                             </FormControl>
                             <FormDescription>未支付订单自动过期的时间</FormDescription>
@@ -2923,11 +2884,12 @@ export default function AdminSettingsPage() {
                                 <FormLabel>SMTP 端口</FormLabel>
                                 <FormControl>
                                   <Input
+                                    {...field}
                                     type="number"
                                     min={1}
                                     max={65535}
                                     value={field.value ?? 465}
-                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 465)}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 465)}
                                   />
                                 </FormControl>
                                 <FormDescription>通常为 465 (SSL) 或 587 (TLS)</FormDescription>
@@ -3066,7 +3028,7 @@ export default function AdminSettingsPage() {
                           <FormItem>
                             <FormLabel>上传目录</FormLabel>
                             <FormControl>
-                              <Input {...field} value={field.value || "./uploads"} placeholder="./uploads" />
+                              <Input {...field} placeholder="./uploads" />
                             </FormControl>
                             <FormDescription>本地文件上传的存储路径，相对于项目根目录</FormDescription>
                             <FormMessage />
@@ -3432,63 +3394,6 @@ export default function AdminSettingsPage() {
                         </FormItem>
                       )}
                     />
-
-                    <Button type="submit" disabled={updateConfig.isPending}>
-                      {updateConfig.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      保存设置
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* 广告 */}
-              <TabsContent value="ads" forceMount className="data-[state=inactive]:hidden">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Megaphone className="h-5 w-5" />
-                      广告设置
-                    </CardTitle>
-                    <CardDescription>
-                      广告管理已升级为独立页面，支持广告位投放、投放时间管理和实时预览。
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="adsEnabled"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>启用广告</FormLabel>
-                            <FormDescription>
-                              开启后，广告将展示在首页、侧栏等位置（可在「用户管理」中单独关闭某用户的广告）
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
-                      <Megaphone className="h-8 w-8 mx-auto text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-sm">广告列表和广告门已迁移至独立管理页面</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          支持广告位投放、投放时间、实时预览等更多功能
-                        </p>
-                      </div>
-                      <Button type="button" variant="outline" onClick={() => (window.location.href = "/dashboard/ads")}>
-                        <Megaphone className="h-4 w-4 mr-2" />
-                        前往广告管理
-                      </Button>
-                    </div>
 
                     <Button type="submit" disabled={updateConfig.isPending}>
                       {updateConfig.isPending ? (

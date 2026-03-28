@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
@@ -408,6 +408,18 @@ export default function DashboardGamesPage() {
     [router],
   );
 
+  // 搜索防抖
+  useEffect(() => {
+    if (searchInput === search) return;
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+      updateUrl({ page: 1, q: searchInput, status: statusFilter });
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -556,11 +568,6 @@ export default function DashboardGamesPage() {
             value={searchInput}
             onChange={(e) => {
               setSearchInput(e.target.value);
-              setTimeout(() => {
-                setSearch(e.target.value);
-                setPage(1);
-                updateUrl({ page: 1, q: e.target.value, status: statusFilter });
-              }, 300);
             }}
             className="pl-10"
           />

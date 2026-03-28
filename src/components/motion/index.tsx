@@ -199,6 +199,9 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   const config = useAnimationConfig();
 
+  // 后台使用 fixed 全屏布局，无需页面过渡动画；用稳定 key 避免重挂载导致闪烁
+  const transitionKey = pathname.startsWith("/dashboard") ? "/dashboard" : pathname;
+
   if (!config.enabled || !config.pageTransition) {
     return <>{children}</>;
   }
@@ -206,7 +209,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <AnimatePresence mode="popLayout" initial={false}>
       <m.div
-        key={pathname}
+        key={transitionKey}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

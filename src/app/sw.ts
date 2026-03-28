@@ -27,9 +27,6 @@ const EXCLUDED_PATHS = /\/uploads\//i;
 // Auth 相关路径 - 永不缓存
 const AUTH_PATHS = /\/api\/auth\//i;
 
-// 跨域资源 - 不缓存（避免 opaque 响应导致 Cache.put 失败）
-const isCrossOrigin = (url: URL) => url.origin !== self.location.origin;
-
 // 已知的运行时缓存名称，用于激活时清理旧缓存
 const KNOWN_CACHES = new Set(["static-assets", "images", "fonts", "api", "pages", "js-css"]);
 
@@ -42,30 +39,28 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+const isSameOrigin = (url: URL) => url.origin === self.location.origin;
+
 const serwist = new Serwist({
   precacheEntries: [],
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // 跨域请求 - 不缓存（opaque 响应无法通过 Cache.put 缓存）
-    {
-      matcher: ({ url }) => isCrossOrigin(url),
-      handler: new NetworkOnly(),
-    },
     // 视频、音频、大文件 - 不缓存，直接走网络
     {
-      matcher: ({ url }) => EXCLUDED_EXTENSIONS.test(url.pathname) || EXCLUDED_PATHS.test(url.pathname),
+      matcher: ({ url }) =>
+        isSameOrigin(url) && (EXCLUDED_EXTENSIONS.test(url.pathname) || EXCLUDED_PATHS.test(url.pathname)),
       handler: new NetworkOnly(),
     },
     // Auth 相关 API - 永不缓存，确保 session 状态实时
     {
-      matcher: ({ url }) => AUTH_PATHS.test(url.pathname),
+      matcher: ({ url }) => isSameOrigin(url) && AUTH_PATHS.test(url.pathname),
       handler: new NetworkOnly(),
     },
     // 静态资源 - 缓存优先（仅同源）
     {
-      matcher: /\/_next\/static\/.*/i,
+      matcher: ({ url }) => isSameOrigin(url) && /^\/_next\/static\//.test(url.pathname),
       handler: new CacheFirst({
         cacheName: "static-assets",
         plugins: [
@@ -77,9 +72,9 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // 图片 - 缓存优先（仅同源，限制大小）
+    // 图片 - 缓存优先（仅同源）
     {
-      matcher: /\.(?:jpg|jpeg|gif|png|svg|ico|webp|avif)$/i,
+      matcher: ({ url }) => isSameOrigin(url) && /\.(?:jpg|jpeg|gif|png|svg|ico|webp|avif)$/i.test(url.pathname),
       handler: new CacheFirst({
         cacheName: "images",
         plugins: [
@@ -94,7 +89,7 @@ const serwist = new Serwist({
     },
     // 字体 - 缓存优先（仅同源）
     {
-      matcher: /\.(?:woff|woff2|ttf|otf|eot)$/i,
+      matcher: ({ url }) => isSameOrigin(url) && /\.(?:woff|woff2|ttf|otf|eot)$/i.test(url.pathname),
       handler: new CacheFirst({
         cacheName: "fonts",
         plugins: [
@@ -106,9 +101,9 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // API 请求 - 网络优先（只缓存成功响应）
+    // API 请求 - 网络优先（只缓存成功响应，仅同源）
     {
-      matcher: /\/api\/.*/i,
+      matcher: ({ url }) => isSameOrigin(url) && /^\/api\//.test(url.pathname),
       handler: new NetworkFirst({
         cacheName: "api",
         plugins: [
@@ -121,9 +116,9 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // HTML 页面 - 网络优先
+    // HTML 页面 - 网络优先（仅同源）
     {
-      matcher: ({ request }) => request.mode === "navigate",
+      matcher: ({ request, url }) => isSameOrigin(url) && request.mode === "navigate",
       handler: new NetworkFirst({
         cacheName: "pages",
         plugins: [
@@ -138,7 +133,7 @@ const serwist = new Serwist({
     },
     // JS/CSS 资源 - 旧缓存优先（仅同源）
     {
-      matcher: /\.(?:js|css)$/i,
+      matcher: ({ url }) => isSameOrigin(url) && /\.(?:js|css)$/i.test(url.pathname),
       handler: new StaleWhileRevalidate({
         cacheName: "js-css",
         plugins: [
@@ -151,7 +146,7 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // 注意：不再有通配符规则，未匹配的请求直接走网络
+    // 跨域请求和未匹配请求不会被 SW 拦截，直接由浏览器处理
   ],
 });
 

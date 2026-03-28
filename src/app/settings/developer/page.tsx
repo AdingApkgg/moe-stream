@@ -35,6 +35,46 @@ import { formatRelativeTime } from "@/lib/format";
 import dayjs from "dayjs";
 import { API_SCOPE_GROUPS, API_SCOPE_TEMPLATES, ALL_SCOPE_IDS, summarizeScopes } from "@/lib/api-scopes";
 
+function ScopeRouterEntry({
+  scope,
+  label,
+  read,
+  write,
+  routers,
+}: {
+  scope: string;
+  label: string;
+  read: string;
+  write?: string;
+  routers: string;
+}) {
+  return (
+    <div className="rounded border px-3 py-2 space-y-1">
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-[11px] font-mono">
+          {scope}
+        </Badge>
+        <span className="font-medium text-foreground text-xs">{label}</span>
+      </div>
+      <div className="space-y-0.5 text-[11px]">
+        <p>
+          <span className="text-green-600 dark:text-green-400 font-medium">读取：</span>
+          {read}
+        </p>
+        {write && (
+          <p>
+            <span className="text-amber-600 dark:text-amber-400 font-medium">写入：</span>
+            {write}
+          </p>
+        )}
+        <p className="text-muted-foreground/70">
+          路由：<code className="text-[10px]">{routers}</code>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ScopesBadges({ scopes }: { scopes: string[] }) {
   const summary = summarizeScopes(scopes);
   if (summary.length === 0) return null;
@@ -126,6 +166,7 @@ function ScopeMatrix({ scopes, onChange }: { scopes: string[]; onChange: (scopes
         const writeId = `${group.id}:write`;
         const hasRead = scopes.includes(readId);
         const hasWrite = scopes.includes(writeId);
+        const hasWriteScope = group.scopes.some((s) => s.id === writeId);
 
         return (
           <div
@@ -140,7 +181,11 @@ function ScopeMatrix({ scopes, onChange }: { scopes: string[]; onChange: (scopes
               <Checkbox checked={hasRead || hasWrite} onCheckedChange={() => handleReadToggle(group.id)} />
             </div>
             <div className="flex justify-center">
-              <Checkbox checked={hasWrite} onCheckedChange={() => handleWriteToggle(group.id)} />
+              {hasWriteScope ? (
+                <Checkbox checked={hasWrite} onCheckedChange={() => handleWriteToggle(group.id)} />
+              ) : (
+                <span className="text-[10px] text-muted-foreground/50">—</span>
+              )}
             </div>
           </div>
         );
@@ -371,8 +416,12 @@ export default function DeveloperSettingsPage() {
         <code className="block text-xs font-mono bg-muted rounded p-2.5">Authorization: Bearer sk-your-api-key</code>
         <div className="space-y-1.5 text-xs text-muted-foreground">
           <p>
-            API 基于 tRPC 协议，请求体格式为{" "}
-            <code className="px-1 py-0.5 bg-muted rounded text-[11px]">{`{"json": { ... }}`}</code>。
+            所有 tRPC 端点均可通过 API Key 访问，权限由创建 Key 时选择的范围控制。Query 操作需对应的读取权限，Mutation
+            操作需写入权限。
+          </p>
+          <p>
+            请求格式为 tRPC over HTTP：
+            <code className="px-1 py-0.5 bg-muted rounded text-[11px] ml-1">GET /api/trpc/video.getById?input=...</code>
           </p>
           <p>
             详细接口文档请前往{" "}
@@ -381,6 +430,67 @@ export default function DeveloperSettingsPage() {
             </a>{" "}
             查看。
           </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+        <h4 className="text-sm font-medium">权限范围与可访问路由</h4>
+        <div className="space-y-3 text-xs text-muted-foreground">
+          <ScopeRouterEntry
+            scope="content"
+            label="内容"
+            read="查询视频 / 游戏 / 图帖 / 标签 / 合集列表与详情"
+            write="创建、编辑、删除内容；导入；管理标签和合集"
+            routers="video, game, image, tag, series, sticker, import"
+          />
+          <ScopeRouterEntry
+            scope="comment"
+            label="评论"
+            read="查询各类评论列表"
+            write="发表、编辑、删除评论"
+            routers="comment, gameComment, imagePostComment"
+          />
+          <ScopeRouterEntry
+            scope="social"
+            label="社交"
+            read="查看关注、私信、频道、留言板"
+            write="关注/取关、发消息、管理频道"
+            routers="follow, message, channel, guestbook"
+          />
+          <ScopeRouterEntry scope="file" label="文件" read="查询文件列表和用量" write="上传、删除文件" routers="file" />
+          <ScopeRouterEntry
+            scope="user"
+            label="用户"
+            read="查看个人资料、API Key 列表、推荐链接"
+            write="修改资料、管理 API Key、兑换码"
+            routers="user, apiKey, referral, redeem, payment"
+          />
+          <ScopeRouterEntry
+            scope="notification"
+            label="通知"
+            read="查询通知列表和未读数"
+            write="标记已读、删除通知"
+            routers="notification"
+          />
+          <ScopeRouterEntry
+            scope="stats"
+            label="数据统计"
+            read="站点总览、增长趋势、排行榜、内容分布、用户统计"
+            routers="openApi.overview, openApi.growth, openApi.leaderboard ..."
+          />
+          <ScopeRouterEntry
+            scope="system"
+            label="系统信息"
+            read="热门标签、合集列表、存储用量、搜索热词、标签分类"
+            routers="openApi.popularTags, openApi.storageUsage, site ..."
+          />
+          <ScopeRouterEntry
+            scope="admin"
+            label="管理后台"
+            read="后台统计、用户 / 内容 / 评论审核列表"
+            write="审核操作、封禁用户、修改站点配置"
+            routers="admin.*（需管理员角色）"
+          />
         </div>
       </div>
     </div>

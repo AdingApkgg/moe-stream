@@ -71,6 +71,27 @@ export const API_SCOPE_GROUPS: readonly ApiScopeGroup[] = [
       { id: "notification:write", label: "写入", desc: "标记已读、删除" },
     ],
   },
+  {
+    id: "stats",
+    label: "数据统计",
+    description: "站点统计、增长趋势、排行榜",
+    scopes: [{ id: "stats:read", label: "读取", desc: "查询数据总览、增长趋势、排行榜、内容分布" }],
+  },
+  {
+    id: "system",
+    label: "系统信息",
+    description: "存储用量、标签、合集等系统数据",
+    scopes: [{ id: "system:read", label: "读取", desc: "查询存储用量、热门标签、合集列表" }],
+  },
+  {
+    id: "admin",
+    label: "管理后台",
+    description: "后台管理操作（需管理员角色）",
+    scopes: [
+      { id: "admin:read", label: "读取", desc: "查询后台数据、审核列表、用户管理" },
+      { id: "admin:write", label: "写入", desc: "审核内容、封禁用户、修改配置" },
+    ],
+  },
 ] as const;
 
 /** 所有有效 scope id 列表 */
@@ -141,5 +162,11 @@ export const API_SCOPE_TEMPLATES: readonly ApiScopeTemplate[] = [
     label: "只读访问",
     description: "所有资源的只读权限",
     scopes: ALL_SCOPE_IDS.filter((s) => s.endsWith(":read")),
+  },
+  {
+    id: "data-analysis",
+    label: "数据分析",
+    description: "统计数据 + 系统信息只读",
+    scopes: ["stats:read", "system:read", "content:read"],
   },
 ] as const;

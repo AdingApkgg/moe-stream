@@ -38,7 +38,7 @@ import {
   Smartphone,
   Monitor,
   Tablet,
-  Chrome,
+  Globe,
   Languages,
   Clock,
 } from "lucide-react";
@@ -411,7 +411,7 @@ export function ImagePostCommentItem({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex items-center gap-0.5 cursor-default">
-                    <Chrome className="h-3 w-3" />
+                    <Globe className="h-3 w-3" />
                     <span>{browserInfo}</span>
                   </span>
                 </TooltipTrigger>

@@ -38,7 +38,7 @@ import {
   Smartphone,
   Monitor,
   Tablet,
-  Chrome,
+  Globe,
   Languages,
   Clock,
 } from "lucide-react";
@@ -450,7 +450,7 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex items-center gap-0.5 cursor-default">
-                    <Chrome className="h-3 w-3" />
+                    <Globe className="h-3 w-3" />
                     <span>{browserInfo}</span>
                   </span>
                 </TooltipTrigger>

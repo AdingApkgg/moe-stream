@@ -794,21 +794,48 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                 setMobileSeriesExpanded(false);
                               }}
                               disabled={isVideoLoading}
-                              className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                              className={`w-full text-left flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 ${
                                 isCurrentVideo ? "bg-primary/10" : ""
                               } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
                             >
-                              <span
-                                className={`text-xs font-medium shrink-0 w-8 ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}
-                              >
-                                {ep.episodeNum}
-                              </span>
-                              <span
-                                className={`text-sm truncate flex-1 ${isCurrentVideo ? "text-primary font-medium" : ""}`}
-                              >
-                                {ep.episodeTitle || ep.video.title}
-                              </span>
-                              {isCurrentVideo && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                              <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 160 })}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                                {isCurrentVideo && (
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <Play className="h-3 w-3 text-white fill-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={`text-[10px] font-medium ${isCurrentVideo ? "text-primary" : "text-muted-foreground"}`}
+                                  >
+                                    第{ep.episodeNum}集
+                                  </span>
+                                  {isCurrentVideo && (
+                                    <span className="text-[10px] text-primary font-medium">播放中</span>
+                                  )}
+                                </div>
+                                <p className={`text-sm truncate ${isCurrentVideo ? "text-primary font-medium" : ""}`}>
+                                  {ep.episodeTitle || ep.video.title}
+                                </p>
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                                  <span className="flex items-center gap-0.5">
+                                    <Eye className="h-2.5 w-2.5" />
+                                    {formatViews(ep.video.views)}
+                                  </span>
+                                  <span className="flex items-center gap-0.5">
+                                    <Heart className="h-2.5 w-2.5" />
+                                    {ep.video._count.likes}
+                                  </span>
+                                </span>
+                              </div>
                             </button>
                           );
                         })
@@ -822,21 +849,44 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                 setMobileSeriesExpanded(false);
                               }}
                               disabled={isVideoLoading}
-                              className={`w-full text-left flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
+                              className={`w-full text-left flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 ${
                                 isCurrent ? "bg-primary/10" : ""
                               } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
                             >
-                              <span
-                                className={`text-sm truncate flex-1 ${isCurrent ? "text-primary font-medium" : ""}`}
-                              >
-                                {v.title}
-                              </span>
-                              {v.duration && (
-                                <span className="text-xs text-muted-foreground shrink-0">
-                                  {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                              <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={getCoverUrl(v.id, v.coverUrl, { w: 160 })}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                                {isCurrent && (
+                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <Play className="h-3 w-3 text-white fill-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {isCurrent && <span className="text-[10px] text-primary font-medium">播放中</span>}
+                                <p className={`text-sm truncate ${isCurrent ? "text-primary font-medium" : ""}`}>
+                                  {v.title}
+                                </p>
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                                  {v.duration && (
+                                    <span>
+                                      {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-0.5">
+                                    <Eye className="h-2.5 w-2.5" />
+                                    {formatViews(v.views)}
+                                  </span>
+                                  <span className="flex items-center gap-0.5">
+                                    <Heart className="h-2.5 w-2.5" />
+                                    {v._count.likes}
+                                  </span>
                                 </span>
-                              )}
-                              {isCurrent && <Play className="h-3 w-3 text-primary fill-primary shrink-0" />}
+                              </div>
                             </button>
                           );
                         })}
@@ -1196,12 +1246,22 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                 <p className={`text-sm truncate ${isCurrentVideo ? "font-medium" : ""}`}>
                                   {ep.episodeTitle || ep.video.title}
                                 </p>
-                                {ep.video.duration && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {Math.floor(ep.video.duration / 60)}:
-                                    {String(ep.video.duration % 60).padStart(2, "0")}
-                                  </p>
-                                )}
+                                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                  {ep.video.duration && (
+                                    <span>
+                                      {Math.floor(ep.video.duration / 60)}:
+                                      {String(ep.video.duration % 60).padStart(2, "0")}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-0.5">
+                                    <Eye className="h-3 w-3" />
+                                    {formatViews(ep.video.views)}
+                                  </span>
+                                  <span className="flex items-center gap-0.5">
+                                    <Heart className="h-3 w-3" />
+                                    {ep.video._count.likes}
+                                  </span>
+                                </p>
                               </div>
                             </button>
                           );
@@ -1239,11 +1299,21 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                   </Badge>
                                 )}
                                 <p className={`text-sm truncate ${isCurrent ? "font-medium" : ""}`}>{v.title}</p>
-                                {v.duration && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
-                                  </p>
-                                )}
+                                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                  {v.duration && (
+                                    <span>
+                                      {Math.floor(v.duration / 60)}:{String(v.duration % 60).padStart(2, "0")}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-0.5">
+                                    <Eye className="h-3 w-3" />
+                                    {formatViews(v.views)}
+                                  </span>
+                                  <span className="flex items-center gap-0.5">
+                                    <Heart className="h-3 w-3" />
+                                    {v._count.likes}
+                                  </span>
+                                </p>
                               </div>
                             </button>
                           );

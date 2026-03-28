@@ -259,13 +259,18 @@ export const adminTagsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const sourceTagIds = input.sourceTagIds.filter((id) => id !== input.targetTagId);
+      if (sourceTagIds.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "源标签不能与目标标签相同" });
+      }
+
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
 
       await ctx.prisma.$transaction(async (tx) => {
         // 迁移视频关联
         const sourceVideos = await tx.video.findMany({
-          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          where: { tags: { some: { tagId: { in: sourceTagIds } } } },
           select: { id: true },
         });
         if (sourceVideos.length > 0) {
@@ -274,13 +279,13 @@ export const adminTagsRouter = router({
             skipDuplicates: true,
           });
           await tx.tagOnVideo.deleteMany({
-            where: { tagId: { in: input.sourceTagIds } },
+            where: { tagId: { in: sourceTagIds } },
           });
         }
 
         // 迁移游戏关联
         const sourceGames = await tx.game.findMany({
-          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          where: { tags: { some: { tagId: { in: sourceTagIds } } } },
           select: { id: true },
         });
         if (sourceGames.length > 0) {
@@ -289,13 +294,13 @@ export const adminTagsRouter = router({
             skipDuplicates: true,
           });
           await tx.tagOnGame.deleteMany({
-            where: { tagId: { in: input.sourceTagIds } },
+            where: { tagId: { in: sourceTagIds } },
           });
         }
 
         // 迁移图片关联
         const sourceImagePosts = await tx.imagePost.findMany({
-          where: { tags: { some: { tagId: { in: input.sourceTagIds } } } },
+          where: { tags: { some: { tagId: { in: sourceTagIds } } } },
           select: { id: true },
         });
         if (sourceImagePosts.length > 0) {
@@ -304,30 +309,30 @@ export const adminTagsRouter = router({
             skipDuplicates: true,
           });
           await tx.tagOnImagePost.deleteMany({
-            where: { tagId: { in: input.sourceTagIds } },
+            where: { tagId: { in: sourceTagIds } },
           });
         }
 
         // 迁移别名到目标标签
         await tx.tagAlias.updateMany({
-          where: { tagId: { in: input.sourceTagIds } },
+          where: { tagId: { in: sourceTagIds } },
           data: { tagId: input.targetTagId },
         });
 
         // 迁移蕴含关系：先收集、再删除、再去重重建，避免唯一约束冲突
         const sourceImplications = await tx.tagImplication.findMany({
           where: {
-            OR: [{ sourceTagId: { in: input.sourceTagIds } }, { targetTagId: { in: input.sourceTagIds } }],
+            OR: [{ sourceTagId: { in: sourceTagIds } }, { targetTagId: { in: sourceTagIds } }],
           },
         });
 
         await tx.tagImplication.deleteMany({
           where: {
-            OR: [{ sourceTagId: { in: input.sourceTagIds } }, { targetTagId: { in: input.sourceTagIds } }],
+            OR: [{ sourceTagId: { in: sourceTagIds } }, { targetTagId: { in: sourceTagIds } }],
           },
         });
 
-        const allSourceIds = new Set(input.sourceTagIds);
+        const allSourceIds = new Set(sourceTagIds);
         const newImplications: { sourceTagId: string; targetTagId: string }[] = [];
         const seen = new Set<string>();
 
@@ -348,7 +353,7 @@ export const adminTagsRouter = router({
           });
         }
 
-        await tx.tag.deleteMany({ where: { id: { in: input.sourceTagIds } } });
+        await tx.tag.deleteMany({ where: { id: { in: sourceTagIds } } });
       });
 
       const { refreshTagCounts } = await import("@/lib/tag-counts");
@@ -356,7 +361,7 @@ export const adminTagsRouter = router({
 
       await deleteCachePattern("tag:*");
 
-      return { success: true, mergedCount: input.sourceTagIds.length };
+      return { success: true, mergedCount: sourceTagIds.length };
     }),
 
   // ========== 标签别名管理 ==========

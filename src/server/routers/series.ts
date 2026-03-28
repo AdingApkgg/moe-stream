@@ -215,6 +215,7 @@ export const seriesRouter = router({
                     duration: true,
                     views: true,
                     status: true,
+                    _count: { select: { likes: true } },
                   },
                 },
               },

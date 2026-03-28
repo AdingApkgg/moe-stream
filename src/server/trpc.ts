@@ -165,13 +165,97 @@ const t = initTRPC.context<Context>().create({
   },
 });
 
-// 导出 router 和 procedure
+// 导出 router 和 工具
 export const router = t.router;
 export const mergeRouters = t.mergeRouters;
-export const publicProcedure = t.procedure;
 export const createCallerFactory = t.createCallerFactory;
 
-// 认证中间件
+// ==================== 全局 API Key 权限自动检查 ====================
+
+/**
+ * 路由名 → API Key 权限范围映射表。
+ * - { read, write? } — 根据操作类型（query→read, mutation→write）自动检查对应 scope
+ * - "self"           — 路由内部自行管理权限检查（如 openApi）
+ * - "block"          — 禁止 API Key 访问
+ * 未在此表中的路由：默认禁止 API Key 访问。
+ */
+type ScopeMapping = { read: string; write?: string } | "self" | "block";
+
+const API_SCOPE_ROUTER_MAP: Record<string, ScopeMapping> = {
+  // 内容
+  video: { read: "content:read", write: "content:write" },
+  game: { read: "content:read", write: "content:write" },
+  image: { read: "content:read", write: "content:write" },
+  tag: { read: "content:read", write: "content:write" },
+  series: { read: "content:read", write: "content:write" },
+  sticker: { read: "content:read" },
+  import: { read: "content:read", write: "content:write" },
+  // 评论
+  comment: { read: "comment:read", write: "comment:write" },
+  gameComment: { read: "comment:read", write: "comment:write" },
+  imagePostComment: { read: "comment:read", write: "comment:write" },
+  // 社交
+  follow: { read: "social:read", write: "social:write" },
+  message: { read: "social:read", write: "social:write" },
+  channel: { read: "social:read", write: "social:write" },
+  guestbook: { read: "social:read", write: "social:write" },
+  // 文件
+  file: { read: "file:read", write: "file:write" },
+  // 用户
+  user: { read: "user:read", write: "user:write" },
+  apiKey: { read: "user:read", write: "user:write" },
+  referral: { read: "user:read" },
+  redeem: { read: "user:read", write: "user:write" },
+  payment: { read: "user:read", write: "user:write" },
+  // 通知
+  notification: { read: "notification:read", write: "notification:write" },
+  // 管理后台（仍需管理员角色）
+  admin: { read: "admin:read", write: "admin:write" },
+  // 系统
+  site: { read: "system:read" },
+  // 自管理
+  openApi: "self",
+  // 禁止
+  setup: "block",
+};
+
+/**
+ * 全局 API Key 权限检查中间件。
+ * 仅在请求携带 API Key 时生效，根据 tRPC 路由路径自动匹配所需权限。
+ * 浏览器 session 用户不受影响。
+ */
+const enforceApiKeyScope = t.middleware(async ({ ctx, next, path, type }) => {
+  if (!ctx.apiKeyScopes) return next();
+
+  const routerName = (path as string).split(".")[0];
+  const mapping = API_SCOPE_ROUTER_MAP[routerName];
+
+  if (!mapping || mapping === "block") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "此接口不支持 API Key 访问" });
+  }
+
+  if (mapping === "self") return next();
+
+  const requiredScope = (type as string) === "mutation" ? mapping.write : mapping.read;
+
+  if (!requiredScope) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "此操作不支持 API Key 写入" });
+  }
+
+  if (!ctx.apiKeyScopes.includes(requiredScope)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: `API Key 缺少权限: ${requiredScope}` });
+  }
+
+  return next();
+});
+
+// 带全局权限检查的基础 procedure（所有 procedure 均从此派生）
+const baseProcedure = t.procedure.use(enforceApiKeyScope);
+
+export const publicProcedure = baseProcedure;
+
+// ==================== 认证中间件 ====================
+
 const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -183,8 +267,7 @@ const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// 需要登录的 procedure
-export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
+export const protectedProcedure = baseProcedure.use(enforceUserIsAuthed);
 
 // 管理员中间件（ADMIN 或 OWNER），同时将 role 和 scopes 注入 context
 const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
@@ -212,7 +295,6 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// 站长中间件（仅 OWNER）
 const enforceUserIsOwner = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session?.user) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -236,7 +318,6 @@ const enforceUserIsOwner = t.middleware(async ({ ctx, next }) => {
 
 export function requireScope(scope: AdminScope) {
   return t.middleware(async ({ ctx, next }) => {
-    // adminScopes 由 enforceUserIsAdmin 注入 context
     const scopes = (ctx as Record<string, unknown>).adminScopes as string[] | undefined;
     if (!scopes?.includes(scope)) {
       throw new TRPCError({
@@ -248,8 +329,31 @@ export function requireScope(scope: AdminScope) {
   });
 }
 
-// 管理员 procedure（ADMIN 或 OWNER）
-export const adminProcedure = t.procedure.use(enforceUserIsAdmin);
+export const adminProcedure = baseProcedure.use(enforceUserIsAdmin);
 
-// 站长 procedure（仅 OWNER）
-export const ownerProcedure = t.procedure.use(enforceUserIsOwner);
+export const ownerProcedure = baseProcedure.use(enforceUserIsOwner);
+
+// ==================== 显式 API scope 检查（用于 openApi 等自管理路由）====================
+
+/**
+ * 显式 API Key scope 检查中间件工厂。
+ * 用于 openApi 等自行管理权限的路由，要求请求必须携带对应 scope。
+ * 浏览器 session 用户可直接访问。
+ */
+export function requireApiScope(scope: string) {
+  return t.middleware(async ({ ctx, next }) => {
+    if (!ctx.session?.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "需要认证：请提供 API Key 或登录" });
+    }
+
+    if (ctx.apiKeyScopes && !ctx.apiKeyScopes.includes(scope)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: `API Key 缺少权限: ${scope}` });
+    }
+
+    return next({
+      ctx: { session: { ...ctx.session, user: ctx.session.user } },
+    });
+  });
+}
+
+export const apiScopedProcedure = (scope: string) => baseProcedure.use(requireApiScope(scope));

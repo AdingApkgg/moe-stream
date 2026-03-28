@@ -32,6 +32,7 @@ export const adminConfigRouter = router({
 
   // 更新网站配置
   updateSiteConfig: adminProcedure
+    .use(requireScope("settings:manage"))
     .input(
       z.object({
         // 基本信息
@@ -623,9 +624,13 @@ export const adminConfigRouter = router({
         "commentsPerPage",
         "maxUploadSize",
         "allowedVideoFormats",
+        "adminBatchLimit",
         "uploadBatchLimit",
         "contactEmail",
         "socialLinks",
+        "privacyPolicy",
+        "termsOfService",
+        "aboutPage",
         "footerText",
         "footerLinks",
         "icpBeian",
