@@ -21,9 +21,17 @@ import { AdCard } from "@/components/ads/ad-card";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
+import { useSiteConfig } from "@/contexts/site-config";
 
 type ViewMode = "videos" | "series";
-type SortBy = "latest" | "views" | "likes";
+type SortBy = "latest" | "views" | "likes" | "title";
+
+const ALL_SORT_OPTIONS: { id: SortBy; label: string }[] = [
+  { id: "latest", label: "最新" },
+  { id: "views", label: "热门" },
+  { id: "likes", label: "高赞" },
+  { id: "title", label: "标题" },
+];
 
 interface Tag {
   id: string;
@@ -67,6 +75,7 @@ export default function VideoListClient({
   initialAds = [],
 }: VideoListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
+  const siteConfigCtx = useSiteConfig();
 
   // 记录用户访问了视频区
   useEffect(() => {
@@ -129,12 +138,10 @@ export default function VideoListClient({
     { id: "series", label: "作者" },
   ];
 
-  // 排序选项
-  const sortOptions: { id: SortBy; label: string }[] = [
-    { id: "latest", label: "最新" },
-    { id: "views", label: "热门" },
-    { id: "likes", label: "高赞" },
-  ];
+  const sortOptions = useMemo(() => {
+    const enabledKeys = (siteConfigCtx?.videoSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    return ALL_SORT_OPTIONS.filter((opt) => enabledKeys.includes(opt.id));
+  }, [siteConfigCtx?.videoSortOptions]);
 
   const handleViewModeClick = useCallback(
     (id: ViewMode) => {

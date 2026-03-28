@@ -26,7 +26,7 @@ interface SearchContentProps {
 }
 
 type SearchTab = "video" | "game" | "image" | "tag";
-type SortBy = "latest" | "views" | "likes";
+type SortBy = "latest" | "views" | "likes" | "title";
 type TimeRange = "all" | "today" | "week" | "month";
 
 const TAB_OPTIONS: { value: SearchTab; label: string; icon: LucideIcon }[] = [
@@ -40,6 +40,7 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "latest", label: "最新" },
   { value: "views", label: "最多播放" },
   { value: "likes", label: "最多点赞" },
+  { value: "title", label: "标题" },
 ];
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
@@ -182,7 +183,7 @@ export function SearchContent({ query }: SearchContentProps) {
   );
 
   const { data: imageData, isLoading: imageLoading } = trpc.image.list.useQuery(
-    { limit: 20, page: imagePage, search: query, sortBy: sortBy === "likes" ? "latest" : sortBy },
+    { limit: 20, page: imagePage, search: query, sortBy },
     { enabled: !!query && searchTab === "image", placeholderData: (prev) => prev },
   );
 

@@ -24,7 +24,7 @@ export const imageRouter = router({
         tagSlugs: z.array(z.string()).max(10).optional(),
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
-        sortBy: z.enum(["latest", "views"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "title"]).default("latest"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -59,7 +59,12 @@ export const imageRouter = router({
         ];
       }
 
-      const orderBy = sortBy === "views" ? { views: "desc" as const } : { createdAt: "desc" as const };
+      const orderBy = {
+        latest: { createdAt: "desc" as const },
+        views: { views: "desc" as const },
+        likes: { createdAt: "desc" as const },
+        title: { title: "asc" as const },
+      }[sortBy];
 
       const skip = (page - 1) * limit;
 

@@ -16,6 +16,7 @@ import { AdCard } from "@/components/ads/ad-card";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
+import { useSiteConfig } from "@/contexts/site-config";
 
 /** 游戏类型选项 */
 const GAME_TYPE_OPTIONS: { id: string; label: string }[] = [
@@ -31,7 +32,14 @@ const GAME_TYPE_OPTIONS: { id: string; label: string }[] = [
   { id: "OTHER", label: "其他" },
 ];
 
-type SortBy = "latest" | "views" | "likes";
+type SortBy = "latest" | "views" | "likes" | "title";
+
+const ALL_SORT_OPTIONS: { id: SortBy; label: string }[] = [
+  { id: "latest", label: "最新" },
+  { id: "views", label: "热门" },
+  { id: "likes", label: "高赞" },
+  { id: "title", label: "标题" },
+];
 
 interface Tag {
   id: string;
@@ -64,6 +72,7 @@ export function GameListClient({
   initialAds = [],
 }: GameListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
+  const siteConfigCtx = useSiteConfig();
 
   // 记录用户访问了游戏区
   useEffect(() => {
@@ -106,11 +115,10 @@ export function GameListClient({
     useInitialAds: isFirstPage && initialAds.length > 0,
   });
 
-  const sortOptions: { id: SortBy; label: string }[] = [
-    { id: "latest", label: "最新" },
-    { id: "views", label: "热门" },
-    { id: "likes", label: "高赞" },
-  ];
+  const sortOptions = useMemo(() => {
+    const enabledKeys = (siteConfigCtx?.gameSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    return ALL_SORT_OPTIONS.filter((opt) => enabledKeys.includes(opt.id));
+  }, [siteConfigCtx?.gameSortOptions]);
 
   const handleSortClick = useCallback(
     (id: SortBy) => {

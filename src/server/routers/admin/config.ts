@@ -64,6 +64,11 @@ export const adminConfigRouter = router({
         sectionImageEnabled: z.boolean().optional(),
         sectionGameEnabled: z.boolean().optional(),
 
+        // 分区排序选项（逗号分隔，可选值: latest,views,likes,title）
+        videoSortOptions: z.string().max(200).optional(),
+        gameSortOptions: z.string().max(200).optional(),
+        imageSortOptions: z.string().max(200).optional(),
+
         // 内容设置
         videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]).optional(),
         videosPerPage: z.number().int().min(5).max(100).optional(),
@@ -311,6 +316,9 @@ export const adminConfigRouter = router({
         "sectionVideoEnabled",
         "sectionImageEnabled",
         "sectionGameEnabled",
+        "videoSortOptions",
+        "gameSortOptions",
+        "imageSortOptions",
         "videoSelectorMode",
         "videosPerPage",
         "commentsPerPage",
@@ -619,6 +627,9 @@ export const adminConfigRouter = router({
         "sectionVideoEnabled",
         "sectionImageEnabled",
         "sectionGameEnabled",
+        "videoSortOptions",
+        "gameSortOptions",
+        "imageSortOptions",
         "videoSelectorMode",
         "videosPerPage",
         "commentsPerPage",

@@ -99,8 +99,13 @@ const configFormSchema = z.object({
   sectionImageEnabled: z.boolean(),
   sectionGameEnabled: z.boolean(),
 
+  // 分区排序选项
+  videoSortOptions: z.string().max(200),
+  gameSortOptions: z.string().max(200),
+  imageSortOptions: z.string().max(200),
+
   // 内容设置
-  videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]),
+  videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]).catch("series"),
   videosPerPage: z.number().int().min(5).max(100),
   commentsPerPage: z.number().int().min(5).max(100),
   maxUploadSize: z.number().int().min(10).max(10000),
@@ -123,10 +128,10 @@ const configFormSchema = z.object({
   publicSecurityBeian: z.string().max(100).optional().nullable(),
 
   // 验证码 / 人机验证
-  captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
-  captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
-  captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
-  captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]),
+  captchaLogin: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("math"),
+  captchaRegister: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
+  captchaComment: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
+  captchaForgotPassword: z.enum(["none", "math", "slider", "turnstile", "recaptcha", "hcaptcha"]).catch("none"),
   turnstileSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
   turnstileSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
   recaptchaSiteKey: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -135,7 +140,7 @@ const configFormSchema = z.object({
   hcaptchaSecretKey: z.string().max(500).optional().nullable().or(z.literal("")),
 
   // SMTP 邮件
-  mailSendMode: z.enum(["smtp", "http_api"]),
+  mailSendMode: z.enum(["smtp", "http_api"]).catch("smtp"),
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
   smtpPort: z.number().int().min(1).max(65535).optional().nullable(),
   smtpUser: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -155,7 +160,7 @@ const configFormSchema = z.object({
   googlePrivateKey: z.string().max(10000).optional().nullable().or(z.literal("")),
 
   // 对象存储
-  storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]),
+  storageProvider: z.enum(["local", "s3", "r2", "minio", "oss", "cos"]).catch("local"),
   storageEndpoint: z.string().max(500).optional().nullable().or(z.literal("")),
   storageBucket: z.string().max(200).optional().nullable().or(z.literal("")),
   storageRegion: z.string().max(100).optional().nullable().or(z.literal("")),
@@ -178,11 +183,11 @@ const configFormSchema = z.object({
   animationHover: z.boolean(),
   animationDialog: z.boolean(),
   animationTab: z.boolean(),
-  animationPreset: z.enum(["minimal", "standard", "rich"]),
+  animationPreset: z.enum(["minimal", "standard", "rich"]).catch("standard"),
 
   // 视觉效果
   effectEnabled: z.boolean(),
-  effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]),
+  effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]).catch("sakura"),
   effectDensity: z.number().int().min(1).max(100),
   effectSpeed: z.number().min(0.1).max(3.0),
   effectOpacity: z.number().min(0).max(1),
@@ -629,6 +634,9 @@ export default function AdminSettingsPage() {
       sectionVideoEnabled: true,
       sectionImageEnabled: true,
       sectionGameEnabled: true,
+      videoSortOptions: "latest,views,likes",
+      gameSortOptions: "latest,views,likes",
+      imageSortOptions: "latest,views",
       videoSelectorMode: "series" as const,
       videosPerPage: 20,
       commentsPerPage: 20,
@@ -749,6 +757,9 @@ export default function AdminSettingsPage() {
         sectionVideoEnabled: cfg.sectionVideoEnabled ?? true,
         sectionImageEnabled: cfg.sectionImageEnabled ?? true,
         sectionGameEnabled: cfg.sectionGameEnabled ?? true,
+        videoSortOptions: (cfg.videoSortOptions as string) || "latest,views,likes",
+        gameSortOptions: (cfg.gameSortOptions as string) || "latest,views,likes",
+        imageSortOptions: (cfg.imageSortOptions as string) || "latest,views",
         videoSelectorMode: (["series", "author", "uploader", "disabled"] as const).includes(
           cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled",
         )
@@ -919,7 +930,14 @@ export default function AdminSettingsPage() {
   const onFormError = (errors: Record<string, unknown>) => {
     const keys = Object.keys(errors);
     if (keys.length > 0) {
-      toast.error(`表单验证失败：${keys.join(", ")} 字段有误`);
+      const details = keys
+        .map((k) => {
+          const err = errors[k] as { message?: string } | undefined;
+          return err?.message ? `${k}: ${err.message}` : k;
+        })
+        .join("; ");
+      console.error("[设置表单验证失败]", errors);
+      toast.error(`表单验证失败：${details}`);
     }
   };
 
@@ -1422,6 +1440,89 @@ export default function AdminSettingsPage() {
                         </FormItem>
                       )}
                     />
+
+                    <Button type="submit" disabled={updateConfig.isPending}>
+                      {updateConfig.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      保存设置
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* 分区排序选项 */}
+                <Card className="mt-4">
+                  <CardHeader>
+                    <CardTitle>排序选项</CardTitle>
+                    <CardDescription>配置各分区列表页可用的排序方式，勾选的选项将在前台显示</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {(
+                      [
+                        { name: "videoSortOptions" as const, label: "视频分区" },
+                        { name: "gameSortOptions" as const, label: "游戏分区" },
+                        { name: "imageSortOptions" as const, label: "图片分区" },
+                      ] as const
+                    ).map((section) => (
+                      <FormField
+                        key={section.name}
+                        control={form.control}
+                        name={section.name}
+                        render={({ field }) => {
+                          const selected = new Set(
+                            field.value
+                              .split(",")
+                              .map((s: string) => s.trim())
+                              .filter(Boolean),
+                          );
+                          const allOptions = [
+                            { id: "latest", label: "最新" },
+                            { id: "views", label: "热门" },
+                            { id: "likes", label: "高赞" },
+                            { id: "title", label: "标题" },
+                          ];
+                          const toggle = (id: string) => {
+                            const next = new Set(selected);
+                            if (next.has(id)) {
+                              if (next.size > 1) next.delete(id);
+                            } else {
+                              next.add(id);
+                            }
+                            field.onChange(
+                              allOptions
+                                .map((o) => o.id)
+                                .filter((k) => next.has(k))
+                                .join(","),
+                            );
+                          };
+                          return (
+                            <FormItem>
+                              <FormLabel>{section.label}</FormLabel>
+                              <div className="flex flex-wrap gap-2 mt-1.5">
+                                {allOptions.map((opt) => (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => toggle(opt.id)}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
+                                      selected.has(opt.id)
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80",
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                    ))}
 
                     <Button type="submit" disabled={updateConfig.isPending}>
                       {updateConfig.isPending ? (

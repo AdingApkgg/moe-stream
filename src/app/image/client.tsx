@@ -15,8 +15,16 @@ import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import { useUIStore } from "@/stores/app";
+import { useSiteConfig } from "@/contexts/site-config";
 
-type SortBy = "latest" | "views";
+type SortBy = "latest" | "views" | "likes" | "title";
+
+const ALL_SORT_OPTIONS: { id: SortBy; label: string }[] = [
+  { id: "latest", label: "最新" },
+  { id: "views", label: "热门" },
+  { id: "likes", label: "高赞" },
+  { id: "title", label: "标题" },
+];
 
 interface Tag {
   id: string;
@@ -47,6 +55,7 @@ interface ImageListClientProps {
 
 export function ImageListClient({ initialTags, initialPosts }: ImageListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
+  const siteConfigCtx = useSiteConfig();
 
   useEffect(() => {
     setContentMode("image");
@@ -83,10 +92,10 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     seed: adSeed,
   });
 
-  const sortOptions: { id: SortBy; label: string }[] = [
-    { id: "latest", label: "最新" },
-    { id: "views", label: "热门" },
-  ];
+  const sortOptions = useMemo(() => {
+    const enabledKeys = (siteConfigCtx?.imageSortOptions ?? "latest,views").split(",").map((s) => s.trim());
+    return ALL_SORT_OPTIONS.filter((opt) => enabledKeys.includes(opt.id));
+  }, [siteConfigCtx?.imageSortOptions]);
 
   return (
     <MotionPage direction="none">
@@ -98,7 +107,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
               <button
                 key={option.id}
                 onClick={() => {
-                  setSortBy(option.id);
+                  setSortBy(option.id as SortBy);
                   setPage(1);
                 }}
                 className={cn(

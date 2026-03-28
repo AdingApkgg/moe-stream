@@ -270,7 +270,7 @@ export const videoRouter = router({
         tagSlugs: z.array(z.string()).max(10).optional(),
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
-        sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "title"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
       }),
     )
@@ -331,6 +331,7 @@ export const videoRouter = router({
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
         likes: { createdAt: "desc" as const }, // 简化处理
+        title: { title: "asc" as const },
       }[sortBy];
 
       // 计算偏移量
@@ -396,7 +397,7 @@ export const videoRouter = router({
         limit: z.number().min(1).max(100).default(50),
         status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-        sortBy: z.enum(["latest", "views", "likes"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "title"]).default("latest"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -413,7 +414,9 @@ export const videoRouter = router({
           ? { views: "desc" as const }
           : sortBy === "likes"
             ? { createdAt: "desc" as const } // 先按时间排序，前端再排序
-            : { createdAt: "desc" as const };
+            : sortBy === "title"
+              ? { title: "asc" as const }
+              : { createdAt: "desc" as const };
 
       const [videos, totalCount] = await Promise.all([
         ctx.prisma.video.findMany({

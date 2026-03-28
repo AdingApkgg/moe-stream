@@ -1046,6 +1046,11 @@ model SiteConfig {
   sectionVideoEnabled  Boolean @default(true)   // 视频分区
   sectionImageEnabled  Boolean @default(true)   // 图片分区
   sectionGameEnabled   Boolean @default(true)   // 游戏分区
+
+  // 分区排序选项（逗号分隔，可选值: latest,views,likes,title）
+  videoSortOptions     String  @default("latest,views,likes") /// 视频分区可用排序选项
+  gameSortOptions      String  @default("latest,views,likes") /// 游戏分区可用排序选项
+  imageSortOptions     String  @default("latest,views")       /// 图片分区可用排序选项
   
   // 内容设置
   videoSelectorMode   String  @default("series") /// 选集器模式: series | author | uploader | disabled

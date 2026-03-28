@@ -66,6 +66,9 @@ export interface PublicSiteConfig {
   sectionVideoEnabled: boolean;
   sectionImageEnabled: boolean;
   sectionGameEnabled: boolean;
+  videoSortOptions: string;
+  gameSortOptions: string;
+  imageSortOptions: string;
   analyticsGoogleId: string | null;
   analyticsGtmId: string | null;
   analyticsCfToken: string | null;
@@ -135,6 +138,9 @@ const selectFields = {
   sectionVideoEnabled: true,
   sectionImageEnabled: true,
   sectionGameEnabled: true,
+  videoSortOptions: true,
+  gameSortOptions: true,
+  imageSortOptions: true,
   analyticsGoogleId: true,
   analyticsGtmId: true,
   analyticsCfToken: true,
@@ -234,6 +240,9 @@ const defaultConfig: PublicSiteConfig = {
   sectionVideoEnabled: true,
   sectionImageEnabled: true,
   sectionGameEnabled: true,
+  videoSortOptions: "latest,views,likes",
+  gameSortOptions: "latest,views,likes",
+  imageSortOptions: "latest,views",
   analyticsGoogleId: null,
   analyticsGtmId: null,
   analyticsCfToken: null,
