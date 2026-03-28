@@ -198,7 +198,19 @@ export const openApiRouter = router({
   growthTrend: statsProcedure.input(dateRangeInput).query(async ({ ctx, input }) => {
     const since = new Date(input.from);
     const until = new Date(input.to);
-    const dateRange = { gte: since, lte: until };
+
+    type DailyCountRow = { day: string; count: number };
+
+    const dailyCounts = (table: string, extraWhere = ""): Promise<DailyCountRow[]> => {
+      const where = extraWhere
+        ? `WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND ${extraWhere}`
+        : `WHERE "createdAt" >= $1 AND "createdAt" <= $2`;
+      return ctx.prisma.$queryRawUnsafe<DailyCountRow[]>(
+        `SELECT to_char(DATE_TRUNC('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as count FROM "${table}" ${where} GROUP BY day`,
+        since,
+        until,
+      );
+    };
 
     const [
       users,
@@ -218,31 +230,22 @@ export const openApiRouter = router({
       gameComments,
       imageComments,
     ] = await Promise.all([
-      ctx.prisma.user.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.video.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
-      ctx.prisma.imagePost.findMany({
-        where: { createdAt: dateRange, status: "PUBLISHED" },
-        select: { createdAt: true },
-      }),
-      ctx.prisma.game.findMany({ where: { createdAt: dateRange, status: "PUBLISHED" }, select: { createdAt: true } }),
-      ctx.prisma.watchHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.gameViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.like.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.gameLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.imagePostLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.favorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.gameFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
-      ctx.prisma.comment.findMany({ where: { createdAt: dateRange, isDeleted: false }, select: { createdAt: true } }),
-      ctx.prisma.gameComment.findMany({
-        where: { createdAt: dateRange, isDeleted: false },
-        select: { createdAt: true },
-      }),
-      ctx.prisma.imagePostComment.findMany({
-        where: { createdAt: dateRange, isDeleted: false },
-        select: { createdAt: true },
-      }),
+      dailyCounts("User"),
+      dailyCounts("Video", `"status" = 'PUBLISHED'`),
+      dailyCounts("ImagePost", `"status" = 'PUBLISHED'`),
+      dailyCounts("Game", `"status" = 'PUBLISHED'`),
+      dailyCounts("WatchHistory"),
+      dailyCounts("GameViewHistory"),
+      dailyCounts("ImagePostViewHistory"),
+      dailyCounts("Like"),
+      dailyCounts("GameLike"),
+      dailyCounts("ImagePostLike"),
+      dailyCounts("Favorite"),
+      dailyCounts("GameFavorite"),
+      dailyCounts("ImagePostFavorite"),
+      dailyCounts("Comment", `"isDeleted" = false`),
+      dailyCounts("GameComment", `"isDeleted" = false`),
+      dailyCounts("ImagePostComment", `"isDeleted" = false`),
     ]);
 
     type DayData = {
@@ -276,21 +279,18 @@ export const openApiRouter = router({
       trend[toKey(date)] = empty();
     }
 
-    const inc = (rows: { createdAt: Date }[], field: keyof DayData) => {
-      for (const r of rows) {
-        const k = toKey(new Date(r.createdAt));
-        if (trend[k]) trend[k][field]++;
-      }
+    const merge = (rows: DailyCountRow[], field: keyof DayData) => {
+      for (const r of rows) if (trend[r.day]) trend[r.day][field] += r.count;
     };
 
-    inc(users, "users");
-    inc(videos, "videos");
-    inc(images, "images");
-    inc(games, "games");
-    inc([...videoViews, ...gameViews, ...imageViews], "views");
-    inc([...videoLikes, ...gameLikes, ...imageLikes], "likes");
-    inc([...videoFavs, ...gameFavs, ...imageFavs], "favorites");
-    inc([...videoComments, ...gameComments, ...imageComments], "comments");
+    merge(users, "users");
+    merge(videos, "videos");
+    merge(images, "images");
+    merge(games, "games");
+    for (const rows of [videoViews, gameViews, imageViews]) merge(rows, "views");
+    for (const rows of [videoLikes, gameLikes, imageLikes]) merge(rows, "likes");
+    for (const rows of [videoFavs, gameFavs, imageFavs]) merge(rows, "favorites");
+    for (const rows of [videoComments, gameComments, imageComments]) merge(rows, "comments");
 
     return Object.entries(trend)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -312,8 +312,15 @@ export const openApiRouter = router({
       if (type === "video") {
         const videos = await ctx.prisma.video.findMany({
           where: { status: "PUBLISHED" },
-          orderBy: metric === "views" ? { views: "desc" } : undefined,
-          take: metric === "views" ? limit : undefined,
+          orderBy:
+            metric === "views"
+              ? { views: "desc" }
+              : metric === "likes"
+                ? { likes: { _count: "desc" } }
+                : metric === "favorites"
+                  ? { favorites: { _count: "desc" } }
+                  : { comments: { _count: "desc" } },
+          take: limit,
           select: {
             id: true,
             title: true,
@@ -324,8 +331,7 @@ export const openApiRouter = router({
             _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
           },
         });
-        const items =
-          metric !== "views" ? videos.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : videos;
+        const items = videos;
         return {
           items: items.map((v) => ({
             id: v.id,
@@ -351,8 +357,15 @@ export const openApiRouter = router({
       if (type === "game") {
         const games = await ctx.prisma.game.findMany({
           where: { status: "PUBLISHED" },
-          orderBy: metric === "views" ? { views: "desc" } : undefined,
-          take: metric === "views" ? limit : undefined,
+          orderBy:
+            metric === "views"
+              ? { views: "desc" }
+              : metric === "likes"
+                ? { likes: { _count: "desc" } }
+                : metric === "favorites"
+                  ? { favorites: { _count: "desc" } }
+                  : { comments: { _count: "desc" } },
+          take: limit,
           select: {
             id: true,
             title: true,
@@ -363,8 +376,7 @@ export const openApiRouter = router({
             _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
           },
         });
-        const items =
-          metric !== "views" ? games.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : games;
+        const items = games;
         return {
           items: items.map((g) => ({
             id: g.id,
@@ -390,8 +402,15 @@ export const openApiRouter = router({
       // image
       const posts = await ctx.prisma.imagePost.findMany({
         where: { status: "PUBLISHED" },
-        orderBy: metric === "views" ? { views: "desc" } : undefined,
-        take: metric === "views" ? limit : undefined,
+        orderBy:
+          metric === "views"
+            ? { views: "desc" }
+            : metric === "likes"
+              ? { likes: { _count: "desc" } }
+              : metric === "favorites"
+                ? { favorites: { _count: "desc" } }
+                : { comments: { _count: "desc" } },
+        take: limit,
         select: {
           id: true,
           title: true,
@@ -402,8 +421,7 @@ export const openApiRouter = router({
           _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
         },
       });
-      const items =
-        metric !== "views" ? posts.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : posts;
+      const items = posts;
       return {
         items: items.map((p) => ({
           id: p.id,
@@ -446,38 +464,7 @@ export const openApiRouter = router({
         };
       }
 
-      if (type === "uploader") {
-        const uploaders = await ctx.prisma.user.findMany({
-          where: { isBanned: false },
-          select: {
-            id: true,
-            nickname: true,
-            username: true,
-            avatar: true,
-            _count: {
-              select: {
-                videos: { where: { status: "PUBLISHED" } },
-                games: { where: { status: "PUBLISHED" } },
-                imagePosts: { where: { status: "PUBLISHED" } },
-              },
-            },
-          },
-        });
-        const ranked = uploaders
-          .map((u) => ({
-            userId: u.id,
-            nickname: u.nickname || u.username,
-            avatar: u.avatar,
-            value: u._count.videos + u._count.games + u._count.imagePosts,
-            detail: { videos: u._count.videos, games: u._count.games, images: u._count.imagePosts },
-          }))
-          .filter((u) => u.value > 0)
-          .sort((a, b) => b.value - a.value)
-          .slice(0, limit);
-        return { items: ranked };
-      }
-
-      // commentator / collector / liker 共用聚合逻辑
+      // 各类型排行共用聚合逻辑
       const aggregateUserRanking = async (
         sources: { groupBy: () => Promise<{ userId: string | null; _count: number }[]> }[],
       ) => {
@@ -517,6 +504,41 @@ export const openApiRouter = router({
             }),
         };
       };
+
+      if (type === "uploader") {
+        return aggregateUserRanking([
+          {
+            groupBy: async () => {
+              const rows = await ctx.prisma.video.groupBy({
+                by: ["uploaderId"],
+                where: { status: "PUBLISHED" },
+                _count: true,
+              });
+              return rows.map((r) => ({ userId: r.uploaderId, _count: r._count }));
+            },
+          },
+          {
+            groupBy: async () => {
+              const rows = await ctx.prisma.game.groupBy({
+                by: ["uploaderId"],
+                where: { status: "PUBLISHED" },
+                _count: true,
+              });
+              return rows.map((r) => ({ userId: r.uploaderId, _count: r._count }));
+            },
+          },
+          {
+            groupBy: async () => {
+              const rows = await ctx.prisma.imagePost.groupBy({
+                by: ["uploaderId"],
+                where: { status: "PUBLISHED" },
+                _count: true,
+              });
+              return rows.map((r) => ({ userId: r.uploaderId, _count: r._count }));
+            },
+          },
+        ]);
+      }
 
       if (type === "commentator") {
         return aggregateUserRanking([
@@ -1233,8 +1255,13 @@ export const openApiRouter = router({
       if (types.includes("video")) {
         const videos = await ctx.prisma.video.findMany({
           where: { status: "PUBLISHED", ...dateWhere },
-          orderBy: metric === "views" ? { views: "desc" } : undefined,
-          take: metric === "views" ? limit : undefined,
+          orderBy:
+            metric === "views"
+              ? { views: "desc" }
+              : metric === "likes"
+                ? { likes: { _count: "desc" } }
+                : { favorites: { _count: "desc" } },
+          take: limit,
           select: {
             id: true,
             title: true,
@@ -1245,8 +1272,7 @@ export const openApiRouter = router({
             _count: { select: { likes: true, favorites: true } },
           },
         });
-        const sorted =
-          metric !== "views" ? videos.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : videos;
+        const sorted = videos;
         for (const v of sorted) {
           items.push({
             type: "video",
@@ -1268,8 +1294,13 @@ export const openApiRouter = router({
       if (types.includes("game")) {
         const games = await ctx.prisma.game.findMany({
           where: { status: "PUBLISHED", ...dateWhere },
-          orderBy: metric === "views" ? { views: "desc" } : undefined,
-          take: metric === "views" ? limit : undefined,
+          orderBy:
+            metric === "views"
+              ? { views: "desc" }
+              : metric === "likes"
+                ? { likes: { _count: "desc" } }
+                : { favorites: { _count: "desc" } },
+          take: limit,
           select: {
             id: true,
             title: true,
@@ -1280,8 +1311,7 @@ export const openApiRouter = router({
             _count: { select: { likes: true, favorites: true } },
           },
         });
-        const sorted =
-          metric !== "views" ? games.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : games;
+        const sorted = games;
         for (const g of sorted) {
           items.push({
             type: "game",
@@ -1303,8 +1333,13 @@ export const openApiRouter = router({
       if (types.includes("image")) {
         const posts = await ctx.prisma.imagePost.findMany({
           where: { status: "PUBLISHED", ...dateWhere },
-          orderBy: metric === "views" ? { views: "desc" } : undefined,
-          take: metric === "views" ? limit : undefined,
+          orderBy:
+            metric === "views"
+              ? { views: "desc" }
+              : metric === "likes"
+                ? { likes: { _count: "desc" } }
+                : { favorites: { _count: "desc" } },
+          take: limit,
           select: {
             id: true,
             title: true,
@@ -1315,8 +1350,7 @@ export const openApiRouter = router({
             _count: { select: { likes: true, favorites: true } },
           },
         });
-        const sorted =
-          metric !== "views" ? posts.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : posts;
+        const sorted = posts;
         for (const p of sorted) {
           items.push({
             type: "image",
