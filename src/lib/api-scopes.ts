@@ -58,8 +58,26 @@ export const API_SCOPE_GROUPS: readonly ApiScopeGroup[] = [
     label: "用户资料",
     description: "个人资料和账号信息",
     scopes: [
-      { id: "user:read", label: "读取", desc: "查看个人资料" },
-      { id: "user:write", label: "写入", desc: "修改昵称、头像等" },
+      { id: "user:read", label: "读取", desc: "查看个人资料、API Key 列表" },
+      { id: "user:write", label: "写入", desc: "修改昵称、头像、管理 API Key" },
+    ],
+  },
+  {
+    id: "referral",
+    label: "推广中心",
+    description: "推广链接、积分、签到、渠道统计",
+    scopes: [
+      { id: "referral:read", label: "读取", desc: "查询推广统计、链接列表、积分历史、签到状态" },
+      { id: "referral:write", label: "写入", desc: "创建/管理推广链接、签到、领取奖励" },
+    ],
+  },
+  {
+    id: "payment",
+    label: "支付与兑换",
+    description: "套餐购买、订单管理、兑换码",
+    scopes: [
+      { id: "payment:read", label: "读取", desc: "查询套餐列表、订单状态" },
+      { id: "payment:write", label: "写入", desc: "创建订单、取消订单、使用兑换码" },
     ],
   },
   {
@@ -168,5 +186,11 @@ export const API_SCOPE_TEMPLATES: readonly ApiScopeTemplate[] = [
     label: "数据分析",
     description: "统计数据 + 系统信息只读",
     scopes: ["stats:read", "system:read", "content:read"],
+  },
+  {
+    id: "promotion",
+    label: "推广运营",
+    description: "推广中心 + 支付 + 数据分析",
+    scopes: ["referral:read", "referral:write", "payment:read", "stats:read"],
   },
 ] as const;

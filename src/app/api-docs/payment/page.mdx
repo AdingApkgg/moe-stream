@@ -1,0 +1,98 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 支付与兑换
+
+套餐查询、订单管理、兑换码使用相关接口。
+
+---
+
+## 套餐列表（openApi）
+
+<Endpoint method="POST" path="openApi.paymentPackages" auth="payment:read" />
+
+获取当前启用的支付套餐列表。
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.paymentPackages' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{}'`}</CopyBlock>
+
+---
+
+## 支付订单管理（payment）
+
+以下端点通过 `payment` 路由提供，需要 `payment:read` / `payment:write` scope。
+
+### 获取支付配置
+
+<Endpoint method="POST" path="payment.getConfig" auth="payment:read" />
+
+获取当前支付系统配置（链类型、钱包地址等）。
+
+---
+
+### 创建支付订单
+
+<Endpoint method="POST" path="payment.createOrder" auth="payment:write" />
+
+<ParamTable>
+  <P name="packageId" type="string" required>套餐 ID</P>
+</ParamTable>
+
+---
+
+### 查询订单状态
+
+<Endpoint method="POST" path="payment.checkOrder" auth="payment:read" />
+
+<ParamTable>
+  <P name="orderId" type="string" required>订单 ID</P>
+</ParamTable>
+
+---
+
+### 取消订单
+
+<Endpoint method="POST" path="payment.cancelOrder" auth="payment:write" />
+
+<ParamTable>
+  <P name="orderId" type="string" required>订单 ID</P>
+</ParamTable>
+
+---
+
+## 兑换码（redeem）
+
+兑换码接口通过 `redeem` 路由提供，需要 `payment:read` / `payment:write` scope。
+
+### 使用兑换码
+
+<Endpoint method="POST" path="redeem.redeem" auth="payment:write" />
+
+<ParamTable>
+  <P name="code" type="string" required>兑换码</P>
+</ParamTable>
+
+---
+
+## 用户数据导出（openApi）
+
+以下端点通过 `openApi` 路由提供，需要 `user:read` scope。
+
+### 导出我的收藏
+
+<Endpoint method="POST" path="openApi.exportMyFavorites" auth="user:read" />
+
+<ParamTable>
+  <P name="type" type="string">筛选类型：`video` / `game` / `image`，不传则导出全部</P>
+</ParamTable>
+
+---
+
+### 导出我的浏览历史
+
+<Endpoint method="POST" path="openApi.exportMyHistory" auth="user:read" />
+
+<ParamTable>
+  <P name="limit" type="number">每类最多导出数量（1-1000，默认 500）</P>
+</ParamTable>

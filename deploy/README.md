@@ -160,7 +160,7 @@ cat /etc/containers/registries.conf
 # 手动拉取
 podman pull docker.io/library/postgres:18-alpine
 podman pull docker.io/library/redis:8-alpine
-podman pull docker.io/library/node:22-alpine
+podman pull docker.io/library/node:24-alpine
 ```
 
 ---

@@ -3,7 +3,7 @@
 # ============================================================
 
 # ---------- 基础镜像 ----------
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
@@ -37,7 +37,7 @@ COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
 # ---------- Socket.io 运行 ----------
-FROM node:22-alpine AS socket-runner
+FROM node:24-alpine AS socket-runner
 
 ENV NODE_ENV=production
 ENV SOCKET_PORT=3001
@@ -64,7 +64,7 @@ EXPOSE 3001
 CMD ["node", "node_modules/tsx/dist/cli.mjs", "src/socket/server.ts"]
 
 # ---------- Next.js 运行（standalone 模式，默认构建目标）----------
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

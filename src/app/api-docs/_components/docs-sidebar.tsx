@@ -18,6 +18,10 @@ import {
   Bell,
   KeyRound,
   AlertTriangle,
+  BarChart3,
+  Search,
+  Megaphone,
+  CreditCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -64,6 +68,15 @@ const docsNav: NavGroup[] = [
       { title: "用户", href: "/api-docs/user", icon: UserCircle },
       { title: "社交", href: "/api-docs/social", icon: Users },
       { title: "通知", href: "/api-docs/notification", icon: Bell },
+    ],
+  },
+  {
+    label: "开放接口",
+    items: [
+      { title: "统一搜索与 Feed", href: "/api-docs/search-feed", icon: Search },
+      { title: "数据统计", href: "/api-docs/data-stats", icon: BarChart3 },
+      { title: "推广中心", href: "/api-docs/referral", icon: Megaphone },
+      { title: "支付与兑换", href: "/api-docs/payment", icon: CreditCard },
     ],
   },
   {

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { router, apiScopedProcedure } from "../trpc";
+import { Prisma } from "@/generated/prisma/client";
+import { router, apiScopedProcedure, publicProcedure } from "../trpc";
 
 const MAX_RANGE_DAYS = 90;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -26,6 +27,9 @@ const dateRangeInput = z
 
 const statsProcedure = apiScopedProcedure("stats:read");
 const systemProcedure = apiScopedProcedure("system:read");
+const referralProcedure = apiScopedProcedure("referral:read");
+const paymentProcedure = apiScopedProcedure("payment:read");
+const contentProcedure = apiScopedProcedure("content:read");
 
 export const openApiRouter = router({
   // ==================== 数据统计 (stats:read) ====================
@@ -913,6 +917,660 @@ export const openApiRouter = router({
         tagCount: c._count.tags,
       })),
       uncategorizedCount: uncategorized,
+    };
+  }),
+
+  // ==================== 统一搜索 (content:read) ====================
+
+  /** 跨内容类型统一搜索 */
+  search: contentProcedure
+    .input(
+      z.object({
+        keyword: z.string().min(1).max(100),
+        types: z.array(z.enum(["video", "game", "image"])).optional(),
+        sortBy: z.enum(["latest", "views"]).default("latest"),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { keyword, sortBy, page, limit } = input;
+      const types = input.types ?? ["video", "game", "image"];
+      const skip = (page - 1) * limit;
+      const textFilter = { contains: keyword, mode: Prisma.QueryMode.insensitive };
+
+      type SearchItem = {
+        type: "video" | "game" | "image";
+        id: string;
+        title: string;
+        coverUrl: string | null;
+        views: number;
+        createdAt: Date;
+        uploader: { id: string; name: string; avatar: string | null };
+      };
+
+      const results: SearchItem[] = [];
+
+      if (types.includes("video")) {
+        const videos = await ctx.prisma.video.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [{ title: textFilter }, { description: textFilter }],
+          },
+          orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
+          take: limit,
+          skip,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const v of videos) {
+          results.push({
+            type: "video",
+            id: v.id,
+            title: v.title,
+            coverUrl: v.coverUrl,
+            views: v.views,
+            createdAt: v.createdAt,
+            uploader: {
+              id: v.uploader.id,
+              name: v.uploader.nickname || v.uploader.username,
+              avatar: v.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("game")) {
+        const games = await ctx.prisma.game.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [{ title: textFilter }, { description: textFilter }],
+          },
+          orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
+          take: limit,
+          skip,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const g of games) {
+          results.push({
+            type: "game",
+            id: g.id,
+            title: g.title,
+            coverUrl: g.coverUrl,
+            views: g.views,
+            createdAt: g.createdAt,
+            uploader: {
+              id: g.uploader.id,
+              name: g.uploader.nickname || g.uploader.username,
+              avatar: g.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("image")) {
+        const posts = await ctx.prisma.imagePost.findMany({
+          where: {
+            status: "PUBLISHED",
+            OR: [{ title: textFilter }, { description: textFilter }],
+          },
+          orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
+          take: limit,
+          skip,
+          select: {
+            id: true,
+            title: true,
+            images: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const p of posts) {
+          results.push({
+            type: "image",
+            id: p.id,
+            title: p.title,
+            coverUrl: (p.images as string[])?.[0] ?? null,
+            views: p.views,
+            createdAt: p.createdAt,
+            uploader: {
+              id: p.uploader.id,
+              name: p.uploader.nickname || p.uploader.username,
+              avatar: p.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (sortBy === "latest") {
+        results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      } else {
+        results.sort((a, b) => b.views - a.views);
+      }
+
+      return { items: results.slice(0, limit), page, limit };
+    }),
+
+  /** 混合内容时间线 */
+  feed: contentProcedure
+    .input(
+      z.object({
+        types: z.array(z.enum(["video", "game", "image"])).optional(),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const types = input.types ?? ["video", "game", "image"];
+      const { cursor, limit } = input;
+      const cursorDate = cursor ? new Date(cursor) : undefined;
+      const dateWhere = cursorDate ? { createdAt: { lt: cursorDate } } : {};
+
+      type FeedItem = {
+        type: "video" | "game" | "image";
+        id: string;
+        title: string;
+        coverUrl: string | null;
+        views: number;
+        createdAt: Date;
+        uploader: { id: string; name: string; avatar: string | null };
+      };
+
+      const items: FeedItem[] = [];
+      const perTypeLimit = limit + 1;
+
+      if (types.includes("video")) {
+        const videos = await ctx.prisma.video.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: { createdAt: "desc" },
+          take: perTypeLimit,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const v of videos) {
+          items.push({
+            type: "video",
+            id: v.id,
+            title: v.title,
+            coverUrl: v.coverUrl,
+            views: v.views,
+            createdAt: v.createdAt,
+            uploader: {
+              id: v.uploader.id,
+              name: v.uploader.nickname || v.uploader.username,
+              avatar: v.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("game")) {
+        const games = await ctx.prisma.game.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: { createdAt: "desc" },
+          take: perTypeLimit,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const g of games) {
+          items.push({
+            type: "game",
+            id: g.id,
+            title: g.title,
+            coverUrl: g.coverUrl,
+            views: g.views,
+            createdAt: g.createdAt,
+            uploader: {
+              id: g.uploader.id,
+              name: g.uploader.nickname || g.uploader.username,
+              avatar: g.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("image")) {
+        const posts = await ctx.prisma.imagePost.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: { createdAt: "desc" },
+          take: perTypeLimit,
+          select: {
+            id: true,
+            title: true,
+            images: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+          },
+        });
+        for (const p of posts) {
+          items.push({
+            type: "image",
+            id: p.id,
+            title: p.title,
+            coverUrl: (p.images as string[])?.[0] ?? null,
+            views: p.views,
+            createdAt: p.createdAt,
+            uploader: {
+              id: p.uploader.id,
+              name: p.uploader.nickname || p.uploader.username,
+              avatar: p.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const sliced = items.slice(0, limit);
+      const nextCursor = sliced.length === limit ? sliced[sliced.length - 1]?.createdAt.toISOString() : undefined;
+
+      return { items: sliced, nextCursor };
+    }),
+
+  /** 热门内容 */
+  trending: contentProcedure
+    .input(
+      z.object({
+        type: z.enum(["video", "game", "image"]).optional(),
+        metric: z.enum(["views", "likes", "favorites"]).default("views"),
+        timeRange: z.enum(["today", "week", "month", "all"]).default("week"),
+        limit: z.number().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { metric, timeRange, limit } = input;
+      const types = input.type ? [input.type] : (["video", "game", "image"] as const);
+
+      const now = new Date();
+      const sinceMap: Record<string, Date | undefined> = {
+        today: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        week: new Date(now.getTime() - 7 * DAY_MS),
+        month: new Date(now.getTime() - 30 * DAY_MS),
+        all: undefined,
+      };
+      const since = sinceMap[timeRange];
+      const dateWhere = since ? { createdAt: { gte: since } } : {};
+
+      type TrendItem = {
+        type: "video" | "game" | "image";
+        id: string;
+        title: string;
+        coverUrl: string | null;
+        value: number;
+        views: number;
+        createdAt: Date;
+        uploader: { id: string; name: string; avatar: string | null };
+      };
+
+      const items: TrendItem[] = [];
+
+      if (types.includes("video")) {
+        const videos = await ctx.prisma.video.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: metric === "views" ? { views: "desc" } : undefined,
+          take: metric === "views" ? limit : undefined,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+            _count: { select: { likes: true, favorites: true } },
+          },
+        });
+        const sorted =
+          metric !== "views" ? videos.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : videos;
+        for (const v of sorted) {
+          items.push({
+            type: "video",
+            id: v.id,
+            title: v.title,
+            coverUrl: v.coverUrl,
+            value: metric === "views" ? v.views : v._count[metric],
+            views: v.views,
+            createdAt: v.createdAt,
+            uploader: {
+              id: v.uploader.id,
+              name: v.uploader.nickname || v.uploader.username,
+              avatar: v.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("game")) {
+        const games = await ctx.prisma.game.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: metric === "views" ? { views: "desc" } : undefined,
+          take: metric === "views" ? limit : undefined,
+          select: {
+            id: true,
+            title: true,
+            coverUrl: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+            _count: { select: { likes: true, favorites: true } },
+          },
+        });
+        const sorted =
+          metric !== "views" ? games.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : games;
+        for (const g of sorted) {
+          items.push({
+            type: "game",
+            id: g.id,
+            title: g.title,
+            coverUrl: g.coverUrl,
+            value: metric === "views" ? g.views : g._count[metric],
+            views: g.views,
+            createdAt: g.createdAt,
+            uploader: {
+              id: g.uploader.id,
+              name: g.uploader.nickname || g.uploader.username,
+              avatar: g.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      if (types.includes("image")) {
+        const posts = await ctx.prisma.imagePost.findMany({
+          where: { status: "PUBLISHED", ...dateWhere },
+          orderBy: metric === "views" ? { views: "desc" } : undefined,
+          take: metric === "views" ? limit : undefined,
+          select: {
+            id: true,
+            title: true,
+            images: true,
+            views: true,
+            createdAt: true,
+            uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
+            _count: { select: { likes: true, favorites: true } },
+          },
+        });
+        const sorted =
+          metric !== "views" ? posts.sort((a, b) => b._count[metric] - a._count[metric]).slice(0, limit) : posts;
+        for (const p of sorted) {
+          items.push({
+            type: "image",
+            id: p.id,
+            title: p.title,
+            coverUrl: (p.images as string[])?.[0] ?? null,
+            value: metric === "views" ? p.views : p._count[metric],
+            views: p.views,
+            createdAt: p.createdAt,
+            uploader: {
+              id: p.uploader.id,
+              name: p.uploader.nickname || p.uploader.username,
+              avatar: p.uploader.avatar,
+            },
+          });
+        }
+      }
+
+      items.sort((a, b) => b.value - a.value);
+      return { items: items.slice(0, limit), metric, timeRange };
+    }),
+
+  // ==================== 推广中心 (referral:read) ====================
+
+  /** 推广数据总览 */
+  referralOverview: referralProcedure.query(async ({ ctx }) => {
+    const [totalLinks, totalReferrals, totalClicks, totalUniqueClicks, totalPayments] = await Promise.all([
+      ctx.prisma.referralLink.count(),
+      ctx.prisma.referralRecord.count(),
+      ctx.prisma.referralLink.aggregate({ _sum: { clicks: true } }),
+      ctx.prisma.referralLink.aggregate({ _sum: { uniqueClicks: true } }),
+      ctx.prisma.referralLink.aggregate({ _sum: { paymentCount: true, paymentAmount: true } }),
+    ]);
+
+    const [totalPointsAwarded, activeReferrers] = await Promise.all([
+      ctx.prisma.referralRecord.aggregate({ _sum: { pointsAwarded: true } }),
+      ctx.prisma.referralLink.groupBy({ by: ["userId"], _count: true }),
+    ]);
+
+    return {
+      links: totalLinks,
+      referrals: totalReferrals,
+      clicks: totalClicks._sum.clicks || 0,
+      uniqueClicks: totalUniqueClicks._sum.uniqueClicks || 0,
+      payments: {
+        count: totalPayments._sum.paymentCount || 0,
+        amount: totalPayments._sum.paymentAmount || 0,
+      },
+      pointsAwarded: totalPointsAwarded._sum.pointsAwarded || 0,
+      activeReferrers: activeReferrers.length,
+    };
+  }),
+
+  /** 推广排行榜 */
+  referralLeaderboard: referralProcedure
+    .input(
+      z.object({
+        metric: z.enum(["referrals", "clicks", "points"]).default("referrals"),
+        limit: z.number().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { metric, limit } = input;
+
+      if (metric === "points") {
+        const users = await ctx.prisma.user.findMany({
+          where: { isBanned: false, points: { gt: 0 } },
+          orderBy: { points: "desc" },
+          take: limit,
+          select: { id: true, nickname: true, username: true, avatar: true, points: true },
+        });
+        return {
+          items: users.map((u) => ({
+            userId: u.id,
+            name: u.nickname || u.username,
+            avatar: u.avatar,
+            value: u.points,
+          })),
+        };
+      }
+
+      const links = await ctx.prisma.referralLink.findMany({
+        orderBy: metric === "referrals" ? { registers: "desc" } : { uniqueClicks: "desc" },
+        take: limit * 3,
+        select: {
+          userId: true,
+          registers: true,
+          uniqueClicks: true,
+          user: { select: { id: true, nickname: true, username: true, avatar: true, isBanned: true } },
+        },
+      });
+
+      const userMap = new Map<string, { name: string; avatar: string | null; value: number }>();
+      for (const l of links) {
+        if (l.user.isBanned) continue;
+        const prev = userMap.get(l.userId);
+        const val = metric === "referrals" ? l.registers : l.uniqueClicks;
+        if (prev) {
+          prev.value += val;
+        } else {
+          userMap.set(l.userId, { name: l.user.nickname || l.user.username, avatar: l.user.avatar, value: val });
+        }
+      }
+
+      const sorted = [...userMap.entries()]
+        .map(([userId, d]) => ({ userId, ...d }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, limit);
+
+      return { items: sorted };
+    }),
+
+  /** 推广渠道统计 */
+  referralChannelStats: referralProcedure
+    .input(z.object({ limit: z.number().min(1).max(50).default(20) }))
+    .query(async ({ ctx, input }) => {
+      const links = await ctx.prisma.referralLink.findMany({
+        where: { channel: { not: null } },
+        select: { channel: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true },
+      });
+
+      const channelMap = new Map<
+        string,
+        { clicks: number; uniqueClicks: number; registers: number; payments: number }
+      >();
+      for (const l of links) {
+        const ch = l.channel || "未分类";
+        const prev = channelMap.get(ch) ?? { clicks: 0, uniqueClicks: 0, registers: 0, payments: 0 };
+        prev.clicks += l.clicks;
+        prev.uniqueClicks += l.uniqueClicks;
+        prev.registers += l.registers;
+        prev.payments += l.paymentCount;
+        channelMap.set(ch, prev);
+      }
+
+      const sorted = [...channelMap.entries()]
+        .map(([channel, stats]) => ({ channel, ...stats }))
+        .sort((a, b) => b.registers - a.registers)
+        .slice(0, input.limit);
+
+      return { items: sorted };
+    }),
+
+  // ==================== 支付 (payment:read) ====================
+
+  /** 公开套餐列表 */
+  paymentPackages: paymentProcedure.query(async ({ ctx }) => {
+    const packages = await ctx.prisma.paymentPackage.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        pointsAmount: true,
+        grantUpload: true,
+        description: true,
+      },
+    });
+    return { items: packages };
+  }),
+
+  // ==================== 用户数据导出 (user:read, 自管理) ====================
+
+  /** 导出当前用户的收藏列表 */
+  exportMyFavorites: apiScopedProcedure("user:read")
+    .input(z.object({ type: z.enum(["video", "game", "image"]).optional() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session!.user.id;
+      const result: Record<string, unknown[]> = {};
+
+      if (!input.type || input.type === "video") {
+        const favs = await ctx.prisma.favorite.findMany({
+          where: { userId },
+          select: { createdAt: true, video: { select: { id: true, title: true, coverUrl: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        result.videos = favs.map((f) => ({ ...f.video, favoritedAt: f.createdAt }));
+      }
+
+      if (!input.type || input.type === "game") {
+        const favs = await ctx.prisma.gameFavorite.findMany({
+          where: { userId },
+          select: { createdAt: true, game: { select: { id: true, title: true, coverUrl: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        result.games = favs.map((f) => ({ ...f.game, favoritedAt: f.createdAt }));
+      }
+
+      if (!input.type || input.type === "image") {
+        const favs = await ctx.prisma.imagePostFavorite.findMany({
+          where: { userId },
+          select: { createdAt: true, imagePost: { select: { id: true, title: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        result.images = favs.map((f) => ({ ...f.imagePost, favoritedAt: f.createdAt }));
+      }
+
+      return result;
+    }),
+
+  /** 导出当前用户的浏览历史 */
+  exportMyHistory: apiScopedProcedure("user:read")
+    .input(z.object({ limit: z.number().min(1).max(1000).default(500) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session!.user.id;
+
+      const [videoHistory, gameHistory, imageHistory] = await Promise.all([
+        ctx.prisma.watchHistory.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          select: { createdAt: true, video: { select: { id: true, title: true } } },
+        }),
+        ctx.prisma.gameViewHistory.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          select: { createdAt: true, game: { select: { id: true, title: true } } },
+        }),
+        ctx.prisma.imagePostViewHistory.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: input.limit,
+          select: { createdAt: true, imagePost: { select: { id: true, title: true } } },
+        }),
+      ]);
+
+      return {
+        videos: videoHistory.map((h) => ({ ...h.video, viewedAt: h.createdAt })),
+        games: gameHistory.map((h) => ({ ...h.game, viewedAt: h.createdAt })),
+        images: imageHistory.map((h) => ({ ...h.imagePost, viewedAt: h.createdAt })),
+      };
+    }),
+
+  // ==================== 站点公开信息 ====================
+
+  /** 面向第三方的站点元数据 */
+  siteInfo: publicProcedure.query(async ({ ctx }) => {
+    const [userCount, videoCount, gameCount, imageCount] = await Promise.all([
+      ctx.prisma.user.count(),
+      ctx.prisma.video.count({ where: { status: "PUBLISHED" } }),
+      ctx.prisma.game.count({ where: { status: "PUBLISHED" } }),
+      ctx.prisma.imagePost.count({ where: { status: "PUBLISHED" } }),
+    ]);
+
+    return {
+      contentCounts: {
+        users: userCount,
+        videos: videoCount,
+        games: gameCount,
+        images: imageCount,
+        total: videoCount + gameCount + imageCount,
+      },
     };
   }),
 });

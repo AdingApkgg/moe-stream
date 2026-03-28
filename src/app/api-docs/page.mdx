@@ -65,6 +65,15 @@ import { Endpoint, CopyBlock } from "@/components/mdx/api-doc-components"
 | [`follow.*` / `message.*` / `channel.*`](/api-docs/social) | 关注、私信、频道 | 部分公开 |
 | [`notification.*`](/api-docs/notification) | 通知查询、标记已读 | 需登录 |
 
+### 开放接口
+
+| 接口 | 说明 | 认证 |
+|------|------|------|
+| [`openApi.search` / `openApi.feed` / `openApi.trending`](/api-docs/search-feed) | 统一搜索、内容时间线、热门内容 | API Key |
+| [`openApi.overview` / `openApi.growth` / ...](/api-docs/data-stats) | 站点数据总览、增长趋势、排行榜 | API Key |
+| [`openApi.referralOverview` / ...](/api-docs/referral) | 推广数据、排行榜、渠道统计 | API Key |
+| [`openApi.paymentPackages`](/api-docs/payment) | 套餐列表、用户数据导出 | API Key |
+
 ### 开发者
 
 | 接口 | 说明 | 认证 |
@@ -87,9 +96,21 @@ import { Endpoint, CopyBlock } from "@/components/mdx/api-doc-components"
 | `social:write` | 关注用户、发送消息 |
 | `file:read` | 查询文件列表和存储用量 |
 | `file:write` | 上传、删除文件 |
-| `user:read` | 查看个人资料 |
+| `user:read` | 查看个人资料、导出收藏/历史 |
 | `user:write` | 修改昵称、头像等 |
+| `referral:read` | 查看推广统计、链接列表、积分历史 |
+| `referral:write` | 创建/管理推广链接、签到 |
+| `payment:read` | 查询套餐列表、订单状态 |
+| `payment:write` | 创建订单、使用兑换码 |
 | `notification:read` | 查询通知和未读数 |
 | `notification:write` | 标记已读、删除通知 |
+| `stats:read` | 数据总览、增长趋势、排行榜 |
+| `system:read` | 存储用量、热门标签、合集列表 |
+| `admin:read` | 后台数据查询（需管理员角色） |
+| `admin:write` | 后台管理操作（需管理员角色） |
 
 > 标注为「公开」的接口无需 API Key 即可调用。
+
+## 速率限制
+
+API Key 请求受到速率限制：**120 次/分钟**。超出限制将返回 `TOO_MANY_REQUESTS` 错误。

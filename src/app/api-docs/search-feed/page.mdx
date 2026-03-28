@@ -1,0 +1,77 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 统一搜索与 Feed
+
+跨内容类型的搜索、时间线和热门内容接口，适用于聚合展示和数据分析场景。
+
+---
+
+## 统一搜索
+
+<Endpoint method="POST" path="openApi.search" auth="content:read" />
+
+跨视频、游戏、图片的全文搜索，返回混合结果。
+
+<ParamTable>
+  <P name="keyword" type="string" required>搜索关键词（1-100 字符）</P>
+  <P name="types" type="string[]">内容类型筛选，可选 `video`、`game`、`image`，不传则搜索全部</P>
+  <P name="sortBy" type="string">排序方式：`latest`（默认）/ `views`</P>
+  <P name="page" type="number">页码（从 1 开始，默认 1）</P>
+  <P name="limit" type="number">每页数量（1-50，默认 20）</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.search' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"keyword":"原神","types":["video","game"],"limit":10}}'`}</CopyBlock>
+
+---
+
+## 内容时间线
+
+<Endpoint method="POST" path="openApi.feed" auth="content:read" />
+
+按时间倒序获取混合内容流，支持基于游标的分页。
+
+<ParamTable>
+  <P name="types" type="string[]">内容类型筛选，不传则返回全部</P>
+  <P name="cursor" type="string">分页游标（上一页返回的 `nextCursor`）</P>
+  <P name="limit" type="number">每页数量（1-50，默认 20）</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.feed' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"types":["video"],"limit":20}}'`}</CopyBlock>
+
+---
+
+## 热门内容
+
+<Endpoint method="POST" path="openApi.trending" auth="content:read" />
+
+获取指定时间范围和指标的热门内容，支持跨类型混合排行。
+
+<ParamTable>
+  <P name="type" type="string">限定类型：`video`、`game`、`image`，不传则混合排行</P>
+  <P name="metric" type="string">排行指标：`views`（默认）/ `likes` / `favorites`</P>
+  <P name="timeRange" type="string">时间范围：`today` / `week`（默认）/ `month` / `all`</P>
+  <P name="limit" type="number">数量（1-50，默认 20）</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.trending' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"json":{"metric":"likes","timeRange":"week","limit":10}}'`}</CopyBlock>
+
+---
+
+## 站点公开信息
+
+<Endpoint method="POST" path="openApi.siteInfo" auth="public" />
+
+获取面向第三方的站点元数据，包括各类内容的总量统计。无需认证。
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.siteInfo' \\
+  -H 'Content-Type: application/json' \\
+  -d '{}'`}</CopyBlock>

@@ -424,7 +424,7 @@ export default function DeveloperSettingsPage() {
             <code className="px-1 py-0.5 bg-muted rounded text-[11px] ml-1">GET /api/trpc/video.getById?input=...</code>
           </p>
           <p>
-            详细接口文档请前往{" "}
+            API Key 请求受到速率限制（120 次/分钟）。详细接口文档请前往{" "}
             <a href="/api-docs" className="text-primary underline underline-offset-2">
               API 文档
             </a>{" "}
@@ -461,9 +461,23 @@ export default function DeveloperSettingsPage() {
           <ScopeRouterEntry
             scope="user"
             label="用户"
-            read="查看个人资料、API Key 列表、推荐链接"
-            write="修改资料、管理 API Key、兑换码"
-            routers="user, apiKey, referral, redeem, payment"
+            read="查看个人资料、API Key 列表、导出收藏/历史"
+            write="修改资料、管理 API Key"
+            routers="user, apiKey, openApi.exportMy*"
+          />
+          <ScopeRouterEntry
+            scope="referral"
+            label="推广中心"
+            read="推广统计、链接列表、积分历史、签到状态"
+            write="创建/管理推广链接、签到、领取奖励"
+            routers="referral, openApi.referral*"
+          />
+          <ScopeRouterEntry
+            scope="payment"
+            label="支付与兑换"
+            read="查询套餐列表、订单状态"
+            write="创建/取消订单、使用兑换码"
+            routers="payment, redeem, openApi.paymentPackages"
           />
           <ScopeRouterEntry
             scope="notification"

@@ -1,0 +1,142 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 数据统计
+
+站点数据总览、增长趋势、排行榜等统计接口，所有端点均需 `stats:read` 或 `system:read` scope。
+
+---
+
+## 站点数据总览
+
+<Endpoint method="POST" path="openApi.overview" auth="stats:read" />
+
+获取全站关键指标一览，包含用户数、内容数、浏览量、互动统计等。
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.overview' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{}'`}</CopyBlock>
+
+---
+
+## 区间增长统计
+
+<Endpoint method="POST" path="openApi.growth" auth="stats:read" />
+
+查询指定日期范围内的新增数据。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期（ISO 8601 格式）</P>
+  <P name="to" type="string" required>结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+</ParamTable>
+
+---
+
+## 增长趋势
+
+<Endpoint method="POST" path="openApi.growthTrend" auth="stats:read" />
+
+按日聚合的趋势序列，返回每日的用户注册、内容发布、浏览、互动等数据。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期</P>
+  <P name="to" type="string" required>结束日期</P>
+</ParamTable>
+
+---
+
+## 内容排行榜
+
+<Endpoint method="POST" path="openApi.leaderboard" auth="stats:read" />
+
+<ParamTable>
+  <P name="type" type="string" required>内容类型：`video` / `game` / `image`</P>
+  <P name="metric" type="string" required>排行指标：`views` / `likes` / `favorites` / `comments`</P>
+  <P name="limit" type="number">数量（1-100，默认 20）</P>
+</ParamTable>
+
+---
+
+## 用户排行榜
+
+<Endpoint method="POST" path="openApi.userLeaderboard" auth="stats:read" />
+
+<ParamTable>
+  <P name="type" type="string" required>排行类型：`uploader` / `points` / `commentator` / `collector` / `liker`</P>
+  <P name="limit" type="number">数量（1-100，默认 20）</P>
+</ParamTable>
+
+---
+
+## 内容分布
+
+<Endpoint method="POST" path="openApi.contentDistribution" auth="stats:read" />
+
+各内容类型的总量与审核状态分布。
+
+---
+
+## 最近内容
+
+<Endpoint method="POST" path="openApi.recentContent" auth="stats:read" />
+
+<ParamTable>
+  <P name="type" type="string">内容类型：`video` / `game` / `image` / `all`（默认）</P>
+  <P name="limit" type="number">数量（1-50，默认 10）</P>
+</ParamTable>
+
+---
+
+## 用户注册统计
+
+<Endpoint method="POST" path="openApi.userStats" auth="stats:read" />
+
+返回总用户数、封禁数、上传权限数、今日/7日/30日新注册数。
+
+---
+
+## 热门标签
+
+<Endpoint method="POST" path="openApi.popularTags" auth="system:read" />
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-100，默认 30）</P>
+  <P name="sortBy" type="string">排序：`videoCount` / `gameCount` / `imagePostCount` / `total`（默认）</P>
+</ParamTable>
+
+---
+
+## 合集列表
+
+<Endpoint method="POST" path="openApi.seriesList" auth="system:read" />
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-100，默认 20）</P>
+  <P name="cursor" type="string">分页游标</P>
+</ParamTable>
+
+---
+
+## 存储用量摘要
+
+<Endpoint method="POST" path="openApi.storageUsage" auth="system:read" />
+
+返回总文件数、总大小、各存储策略的用量细分。
+
+---
+
+## 搜索热词
+
+<Endpoint method="POST" path="openApi.searchHotWords" auth="system:read" />
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-50，默认 20）</P>
+</ParamTable>
+
+---
+
+## 标签分类列表
+
+<Endpoint method="POST" path="openApi.tagCategories" auth="system:read" />
+
+返回所有标签分类及其标签数，含未分类标签计数。

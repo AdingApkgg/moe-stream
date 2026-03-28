@@ -204,9 +204,11 @@ const API_SCOPE_ROUTER_MAP: Record<string, ScopeMapping> = {
   // 用户
   user: { read: "user:read", write: "user:write" },
   apiKey: { read: "user:read", write: "user:write" },
-  referral: { read: "user:read" },
-  redeem: { read: "user:read", write: "user:write" },
-  payment: { read: "user:read", write: "user:write" },
+  // 推广中心
+  referral: { read: "referral:read", write: "referral:write" },
+  // 支付与兑换
+  payment: { read: "payment:read", write: "payment:write" },
+  redeem: { read: "payment:read", write: "payment:write" },
   // 通知
   notification: { read: "notification:read", write: "notification:write" },
   // 管理后台（仍需管理员角色）
@@ -249,8 +251,44 @@ const enforceApiKeyScope = t.middleware(async ({ ctx, next, path, type }) => {
   return next();
 });
 
-// 带全局权限检查的基础 procedure（所有 procedure 均从此派生）
-const baseProcedure = t.procedure.use(enforceApiKeyScope);
+/**
+ * API Key 请求速率限制中间件。
+ * 仅对 API Key 请求生效，使用 Redis 滑动窗口实现。
+ * 默认 120 请求/分钟/Key。
+ */
+const API_RATE_LIMIT = 120;
+const API_RATE_WINDOW_SECONDS = 60;
+
+const enforceApiKeyRateLimit = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.apiKeyScopes) return next();
+
+  const userId = ctx.session?.user?.id;
+  if (!userId) return next();
+
+  const key = `api_rate:${userId}`;
+  const now = Date.now();
+  const windowStart = now - API_RATE_WINDOW_SECONDS * 1000;
+
+  const pipeline = ctx.redis.pipeline();
+  pipeline.zremrangebyscore(key, 0, windowStart);
+  pipeline.zadd(key, now, `${now}:${Math.random().toString(36).slice(2, 8)}`);
+  pipeline.zcard(key);
+  pipeline.expire(key, API_RATE_WINDOW_SECONDS + 5);
+  const results = await pipeline.exec();
+
+  const count = (results?.[2]?.[1] as number) || 0;
+  if (count > API_RATE_LIMIT) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `API 请求过于频繁，限制 ${API_RATE_LIMIT} 次/${API_RATE_WINDOW_SECONDS}秒`,
+    });
+  }
+
+  return next();
+});
+
+// 带全局权限检查 + 速率限制的基础 procedure（所有 procedure 均从此派生）
+const baseProcedure = t.procedure.use(enforceApiKeyScope).use(enforceApiKeyRateLimit);
 
 export const publicProcedure = baseProcedure;
 

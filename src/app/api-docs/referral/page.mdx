@@ -1,0 +1,77 @@
+import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-components"
+
+# 推广中心
+
+推广数据查询、排行榜、渠道统计相关接口。通过 `openApi.*` 命名空间访问概览数据，通过 `referral.*` 命名空间管理自己的推广链接和签到。
+
+---
+
+## 概览数据（openApi）
+
+以下端点通过 `openApi` 路由提供，需要 `referral:read` scope。
+
+### 推广数据总览
+
+<Endpoint method="POST" path="openApi.referralOverview" auth="referral:read" />
+
+获取全站推广活动的汇总数据，包含总链接数、总邀请人数、点击量、付款统计等。
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralOverview' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{}'`}</CopyBlock>
+
+---
+
+### 推广排行榜
+
+<Endpoint method="POST" path="openApi.referralLeaderboard" auth="referral:read" />
+
+<ParamTable>
+  <P name="metric" type="string">排行指标：`referrals`（默认）/ `clicks` / `points`</P>
+  <P name="limit" type="number">数量（1-50，默认 20）</P>
+</ParamTable>
+
+---
+
+### 推广渠道统计
+
+<Endpoint method="POST" path="openApi.referralChannelStats" auth="referral:read" />
+
+按推广渠道（channel）聚合统计点击、注册、付款数据。
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-50，默认 20）</P>
+</ParamTable>
+
+---
+
+## 用户推广管理（referral）
+
+以下端点通过 `referral` 路由提供，需要 `referral:read` / `referral:write` scope。
+
+### 获取我的推广统计
+
+<Endpoint method="POST" path="referral.getMyStats" auth="referral:read" />
+
+查询当前用户的推广统计信息。
+
+---
+
+### 创建推广链接
+
+<Endpoint method="POST" path="referral.createLink" auth="referral:write" />
+
+<ParamTable>
+  <P name="label" type="string">链接备注名称</P>
+  <P name="channel" type="string">推广渠道标识</P>
+  <P name="targetUrl" type="string">目标落地页 URL</P>
+</ParamTable>
+
+---
+
+### 每日签到
+
+<Endpoint method="POST" path="referral.checkin" auth="referral:write" />
+
+执行每日签到领取积分奖励。
