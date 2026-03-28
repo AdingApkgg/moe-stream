@@ -69,6 +69,9 @@ export interface PublicSiteConfig {
   videoSortOptions: string;
   gameSortOptions: string;
   imageSortOptions: string;
+  videoDefaultSort: string;
+  gameDefaultSort: string;
+  imageDefaultSort: string;
   analyticsGoogleId: string | null;
   analyticsGtmId: string | null;
   analyticsCfToken: string | null;
@@ -141,6 +144,9 @@ const selectFields = {
   videoSortOptions: true,
   gameSortOptions: true,
   imageSortOptions: true,
+  videoDefaultSort: true,
+  gameDefaultSort: true,
+  imageDefaultSort: true,
   analyticsGoogleId: true,
   analyticsGtmId: true,
   analyticsCfToken: true,
@@ -243,6 +249,9 @@ const defaultConfig: PublicSiteConfig = {
   videoSortOptions: "latest,views,likes",
   gameSortOptions: "latest,views,likes",
   imageSortOptions: "latest,views",
+  videoDefaultSort: "latest",
+  gameDefaultSort: "latest",
+  imageDefaultSort: "latest",
   analyticsGoogleId: null,
   analyticsGtmId: null,
   analyticsCfToken: null,

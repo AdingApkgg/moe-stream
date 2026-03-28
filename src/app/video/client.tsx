@@ -24,13 +24,14 @@ import { useUIStore } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
 
 type ViewMode = "videos" | "series";
-type SortBy = "latest" | "views" | "likes" | "title";
+type SortBy = "latest" | "views" | "likes" | "titleAsc" | "titleDesc";
 
 const ALL_SORT_OPTIONS: { id: SortBy; label: string }[] = [
   { id: "latest", label: "最新" },
   { id: "views", label: "热门" },
   { id: "likes", label: "高赞" },
-  { id: "title", label: "标题" },
+  { id: "titleAsc", label: "标题 A→Z" },
+  { id: "titleDesc", label: "标题 Z→A" },
 ];
 
 interface Tag {
@@ -83,7 +84,11 @@ export default function VideoListClient({
   }, [setContentMode]);
 
   const [viewMode, setViewMode] = useState<ViewMode>("videos");
-  const [sortBy, setSortBy] = useState<SortBy>("latest");
+  const [sortBy, setSortBy] = useState<SortBy>(() => {
+    const enabled = (siteConfigCtx?.videoSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    const configured = (siteConfigCtx?.videoDefaultSort as SortBy) || "latest";
+    return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
+  });
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [showAnnouncement, setShowAnnouncement] = useState(true);
@@ -115,8 +120,8 @@ export default function VideoListClient({
 
   // 数据（用 useMemo 稳定引用，避免下游 useMemo 依赖在每次渲染时变化）
   const videos = useMemo(
-    () => videoData?.videos ?? (videoPage === 1 ? initialVideos : []),
-    [videoData?.videos, videoPage, initialVideos],
+    () => videoData?.videos ?? (videoPage === 1 && sortBy === "latest" ? initialVideos : []),
+    [videoData?.videos, videoPage, sortBy, initialVideos],
   );
   const videoTotalPages = videoData?.totalPages ?? 1;
   const series = seriesData?.items ?? [];

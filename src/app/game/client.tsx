@@ -32,13 +32,14 @@ const GAME_TYPE_OPTIONS: { id: string; label: string }[] = [
   { id: "OTHER", label: "其他" },
 ];
 
-type SortBy = "latest" | "views" | "likes" | "title";
+type SortBy = "latest" | "views" | "likes" | "titleAsc" | "titleDesc";
 
 const ALL_SORT_OPTIONS: { id: SortBy; label: string }[] = [
   { id: "latest", label: "最新" },
   { id: "views", label: "热门" },
   { id: "likes", label: "高赞" },
-  { id: "title", label: "标题" },
+  { id: "titleAsc", label: "标题 A→Z" },
+  { id: "titleDesc", label: "标题 Z→A" },
 ];
 
 interface Tag {
@@ -79,7 +80,11 @@ export function GameListClient({
     setContentMode("game");
   }, [setContentMode]);
 
-  const [sortBy, setSortBy] = useState<SortBy>("latest");
+  const [sortBy, setSortBy] = useState<SortBy>(() => {
+    const enabled = (siteConfigCtx?.gameSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    const configured = (siteConfigCtx?.gameDefaultSort as SortBy) || "latest";
+    return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
+  });
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");

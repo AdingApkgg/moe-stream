@@ -1047,10 +1047,13 @@ model SiteConfig {
   sectionImageEnabled  Boolean @default(true)   // 图片分区
   sectionGameEnabled   Boolean @default(true)   // 游戏分区
 
-  // 分区排序选项（逗号分隔，可选值: latest,views,likes,title）
+  // 分区排序选项（逗号分隔，可选值: latest,views,likes,titleAsc,titleDesc）
   videoSortOptions     String  @default("latest,views,likes") /// 视频分区可用排序选项
   gameSortOptions      String  @default("latest,views,likes") /// 游戏分区可用排序选项
   imageSortOptions     String  @default("latest,views")       /// 图片分区可用排序选项
+  videoDefaultSort     String  @default("latest")             /// 视频分区默认排序
+  gameDefaultSort      String  @default("latest")             /// 游戏分区默认排序
+  imageDefaultSort     String  @default("latest")             /// 图片分区默认排序
   
   // 内容设置
   videoSelectorMode   String  @default("series") /// 选集器模式: series | author | uploader | disabled

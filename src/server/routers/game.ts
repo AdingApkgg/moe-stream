@@ -32,7 +32,7 @@ export const gameRouter = router({
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         gameType: z.string().optional(),
-        sortBy: z.enum(["latest", "views", "likes", "title"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
       }),
     )
@@ -97,7 +97,8 @@ export const gameRouter = router({
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
         likes: { createdAt: "desc" as const },
-        title: { title: "asc" as const },
+        titleAsc: { title: "asc" as const },
+        titleDesc: { title: "desc" as const },
       }[sortBy];
 
       const skip = (page - 1) * limit;

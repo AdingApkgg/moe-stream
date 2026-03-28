@@ -31,7 +31,7 @@ export const adminVideosRouter = router({
         limit: z.number().min(1).max(100).default(50),
         status: z.enum(["ALL", "PENDING", "PUBLISHED", "REJECTED"]).default("ALL"),
         search: z.string().optional(),
-        sortBy: z.enum(["latest", "views", "likes", "title"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -54,9 +54,11 @@ export const adminVideosRouter = router({
           ? { views: "desc" as const }
           : sortBy === "likes"
             ? { createdAt: "desc" as const }
-            : sortBy === "title"
+            : sortBy === "titleAsc"
               ? { title: "asc" as const }
-              : { createdAt: "desc" as const };
+              : sortBy === "titleDesc"
+                ? { title: "desc" as const }
+                : { createdAt: "desc" as const };
 
       const [videos, totalCount] = await Promise.all([
         ctx.prisma.video.findMany({

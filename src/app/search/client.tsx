@@ -26,7 +26,7 @@ interface SearchContentProps {
 }
 
 type SearchTab = "video" | "game" | "image" | "tag";
-type SortBy = "latest" | "views" | "likes" | "title";
+type SortBy = "latest" | "views" | "likes" | "titleAsc" | "titleDesc";
 type TimeRange = "all" | "today" | "week" | "month";
 
 const TAB_OPTIONS: { value: SearchTab; label: string; icon: LucideIcon }[] = [
@@ -40,7 +40,8 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "latest", label: "最新" },
   { value: "views", label: "最多播放" },
   { value: "likes", label: "最多点赞" },
-  { value: "title", label: "标题" },
+  { value: "titleAsc", label: "标题 A→Z" },
+  { value: "titleDesc", label: "标题 Z→A" },
 ];
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [

@@ -103,6 +103,9 @@ const configFormSchema = z.object({
   videoSortOptions: z.string().max(200),
   gameSortOptions: z.string().max(200),
   imageSortOptions: z.string().max(200),
+  videoDefaultSort: z.string(),
+  gameDefaultSort: z.string(),
+  imageDefaultSort: z.string(),
 
   // 内容设置
   videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]).catch("series"),
@@ -637,6 +640,9 @@ export default function AdminSettingsPage() {
       videoSortOptions: "latest,views,likes",
       gameSortOptions: "latest,views,likes",
       imageSortOptions: "latest,views",
+      videoDefaultSort: "latest",
+      gameDefaultSort: "latest",
+      imageDefaultSort: "latest",
       videoSelectorMode: "series" as const,
       videosPerPage: 20,
       commentsPerPage: 20,
@@ -760,6 +766,9 @@ export default function AdminSettingsPage() {
         videoSortOptions: (cfg.videoSortOptions as string) || "latest,views,likes",
         gameSortOptions: (cfg.gameSortOptions as string) || "latest,views,likes",
         imageSortOptions: (cfg.imageSortOptions as string) || "latest,views",
+        videoDefaultSort: (cfg.videoDefaultSort as string) || "latest",
+        gameDefaultSort: (cfg.gameDefaultSort as string) || "latest",
+        imageDefaultSort: (cfg.imageDefaultSort as string) || "latest",
         videoSelectorMode: (["series", "author", "uploader", "disabled"] as const).includes(
           cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled",
         )
@@ -1456,73 +1465,128 @@ export default function AdminSettingsPage() {
                 <Card className="mt-4">
                   <CardHeader>
                     <CardTitle>排序选项</CardTitle>
-                    <CardDescription>配置各分区列表页可用的排序方式，勾选的选项将在前台显示</CardDescription>
+                    <CardDescription>配置各分区列表页可用的排序方式及默认排序</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-5">
                     {(
                       [
-                        { name: "videoSortOptions" as const, label: "视频分区" },
-                        { name: "gameSortOptions" as const, label: "游戏分区" },
-                        { name: "imageSortOptions" as const, label: "图片分区" },
+                        {
+                          optionsName: "videoSortOptions" as const,
+                          defaultName: "videoDefaultSort" as const,
+                          label: "视频分区",
+                        },
+                        {
+                          optionsName: "gameSortOptions" as const,
+                          defaultName: "gameDefaultSort" as const,
+                          label: "游戏分区",
+                        },
+                        {
+                          optionsName: "imageSortOptions" as const,
+                          defaultName: "imageDefaultSort" as const,
+                          label: "图片分区",
+                        },
                       ] as const
-                    ).map((section) => (
-                      <FormField
-                        key={section.name}
-                        control={form.control}
-                        name={section.name}
-                        render={({ field }) => {
-                          const selected = new Set(
-                            field.value
-                              .split(",")
-                              .map((s: string) => s.trim())
-                              .filter(Boolean),
-                          );
-                          const allOptions = [
-                            { id: "latest", label: "最新" },
-                            { id: "views", label: "热门" },
-                            { id: "likes", label: "高赞" },
-                            { id: "title", label: "标题" },
-                          ];
-                          const toggle = (id: string) => {
-                            const next = new Set(selected);
-                            if (next.has(id)) {
-                              if (next.size > 1) next.delete(id);
-                            } else {
-                              next.add(id);
-                            }
-                            field.onChange(
-                              allOptions
-                                .map((o) => o.id)
-                                .filter((k) => next.has(k))
-                                .join(","),
-                            );
-                          };
-                          return (
-                            <FormItem>
-                              <FormLabel>{section.label}</FormLabel>
-                              <div className="flex flex-wrap gap-2 mt-1.5">
-                                {allOptions.map((opt) => (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    onClick={() => toggle(opt.id)}
-                                    className={cn(
-                                      "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
-                                      selected.has(opt.id)
-                                        ? "bg-primary text-primary-foreground border-primary"
-                                        : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80",
-                                    )}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                              <FormMessage />
-                            </FormItem>
-                          );
-                        }}
-                      />
-                    ))}
+                    ).map((section) => {
+                      const allOptions = [
+                        { id: "latest", label: "最新" },
+                        { id: "views", label: "热门" },
+                        { id: "likes", label: "高赞" },
+                        { id: "titleAsc", label: "标题 A→Z" },
+                        { id: "titleDesc", label: "标题 Z→A" },
+                      ];
+                      return (
+                        <div key={section.optionsName} className="space-y-2">
+                          <FormField
+                            control={form.control}
+                            name={section.optionsName}
+                            render={({ field }) => {
+                              const selected = new Set(
+                                field.value
+                                  .split(",")
+                                  .map((s: string) => s.trim())
+                                  .filter(Boolean),
+                              );
+                              const toggle = (id: string) => {
+                                const next = new Set(selected);
+                                if (next.has(id)) {
+                                  if (next.size > 1) next.delete(id);
+                                } else {
+                                  next.add(id);
+                                }
+                                const newValue = allOptions
+                                  .map((o) => o.id)
+                                  .filter((k) => next.has(k))
+                                  .join(",");
+                                field.onChange(newValue);
+                                const currentDefault = form.getValues(section.defaultName);
+                                if (!next.has(currentDefault)) {
+                                  form.setValue(section.defaultName, [...next][0]);
+                                }
+                              };
+                              return (
+                                <FormItem>
+                                  <FormLabel>{section.label}</FormLabel>
+                                  <div className="flex flex-wrap gap-2 mt-1.5">
+                                    {allOptions.map((opt) => (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => toggle(opt.id)}
+                                        className={cn(
+                                          "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
+                                          selected.has(opt.id)
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80",
+                                        )}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={section.defaultName}
+                            render={({ field }) => {
+                              const enabledKeys = form
+                                .watch(section.optionsName)
+                                .split(",")
+                                .map((s: string) => s.trim())
+                                .filter(Boolean);
+                              const enabledOptions = allOptions.filter((o) => enabledKeys.includes(o.id));
+                              return (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                    <FormLabel className="text-xs text-muted-foreground whitespace-nowrap">
+                                      默认排序
+                                    </FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger className="w-32 h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {enabledOptions.map((opt) => (
+                                          <SelectItem key={opt.id} value={opt.id}>
+                                            {opt.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
 
                     <Button type="submit" disabled={updateConfig.isPending}>
                       {updateConfig.isPending ? (

@@ -15,6 +15,7 @@ const AUTH_LABELS: Record<string, { text: string; cls: string }> = {
   protected: { text: "需登录", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400" },
   admin: { text: "管理员", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400" },
   owner: { text: "站长", cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400" },
+  apiKey: { text: "API 密钥", cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400" },
 };
 
 export function Endpoint({
@@ -25,19 +26,21 @@ export function Endpoint({
 }: {
   method?: string;
   path: string;
-  auth?: "public" | "protected" | "admin" | "owner";
+  auth?: string;
   scope?: string;
 }) {
-  const a = AUTH_LABELS[auth];
+  const isScope = auth.includes(":");
+  const a = AUTH_LABELS[auth] ?? AUTH_LABELS.apiKey;
+  const displayScope = scope ?? (isScope ? auth : undefined);
 
   return (
     <div className="not-prose flex items-center gap-2 flex-wrap rounded-lg border bg-muted/30 px-3 py-2 my-3">
       <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-bold", METHOD_COLORS[method])}>{method}</span>
       <code className="text-sm font-mono">/api/trpc/{path}</code>
       <span className={cn("ml-auto inline-block rounded px-2 py-0.5 text-[11px] font-medium", a.cls)}>{a.text}</span>
-      {scope && (
+      {displayScope && (
         <span className="inline-block rounded bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400 px-2 py-0.5 text-[11px] font-medium">
-          {scope}
+          {displayScope}
         </span>
       )}
     </div>
