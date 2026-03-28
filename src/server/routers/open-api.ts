@@ -6,9 +6,9 @@ const MAX_RANGE_DAYS = 90;
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 function computeDayCount(from: Date, to: Date): number {
-  const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  return Math.round((toDay.getTime() - fromDay.getTime()) / DAY_MS) + 1;
+  const fromDay = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
+  return Math.round((toDay - fromDay) / DAY_MS) + 1;
 }
 
 const dateRangeInput = z
@@ -206,7 +206,7 @@ export const openApiRouter = router({
         ? `WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND ${extraWhere}`
         : `WHERE "createdAt" >= $1 AND "createdAt" <= $2`;
       return ctx.prisma.$queryRawUnsafe<DailyCountRow[]>(
-        `SELECT to_char(DATE_TRUNC('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as count FROM "${table}" ${where} GROUP BY day`,
+        `SELECT to_char(DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') as day, COUNT(*)::int as count FROM "${table}" ${where} GROUP BY day`,
         since,
         until,
       );
@@ -261,7 +261,7 @@ export const openApiRouter = router({
     const trend: Record<string, DayData> = {};
     const dayCount = computeDayCount(since, until);
     const toKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
     const empty = (): DayData => ({
       users: 0,
       videos: 0,
@@ -274,8 +274,7 @@ export const openApiRouter = router({
     });
 
     for (let i = 0; i < dayCount; i++) {
-      const date = new Date(since);
-      date.setDate(date.getDate() + i);
+      const date = new Date(since.getTime() + i * DAY_MS);
       trend[toKey(date)] = empty();
     }
 
@@ -959,6 +958,7 @@ export const openApiRouter = router({
       const { keyword, sortBy, page, limit } = input;
       const types = input.types ?? ["video", "game", "image"];
       const skip = (page - 1) * limit;
+      const fetchCount = skip + limit;
       const textFilter = { contains: keyword, mode: Prisma.QueryMode.insensitive };
 
       type SearchItem = {
@@ -980,8 +980,7 @@ export const openApiRouter = router({
             OR: [{ title: textFilter }, { description: textFilter }],
           },
           orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
-          take: limit,
-          skip,
+          take: fetchCount,
           select: {
             id: true,
             title: true,
@@ -1015,8 +1014,7 @@ export const openApiRouter = router({
             OR: [{ title: textFilter }, { description: textFilter }],
           },
           orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
-          take: limit,
-          skip,
+          take: fetchCount,
           select: {
             id: true,
             title: true,
@@ -1050,8 +1048,7 @@ export const openApiRouter = router({
             OR: [{ title: textFilter }, { description: textFilter }],
           },
           orderBy: sortBy === "views" ? { views: "desc" } : { createdAt: "desc" },
-          take: limit,
-          skip,
+          take: fetchCount,
           select: {
             id: true,
             title: true,
@@ -1084,7 +1081,7 @@ export const openApiRouter = router({
         results.sort((a, b) => b.views - a.views);
       }
 
-      return { items: results.slice(0, limit), page, limit };
+      return { items: results.slice(skip, skip + limit), page, limit };
     }),
 
   /** 混合内容时间线 */

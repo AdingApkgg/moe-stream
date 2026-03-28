@@ -35,7 +35,7 @@ log_ok() { echo -e "${GREEN}✓ $1${NC}"; }
 # ============================================================
 SERVICE_USER="moestream"
 INSTALL_DIR="/opt/moestream"
-APP_PORT="80"
+APP_PORT="3000"
 SOCKET_PORT="3001"
 UNINSTALL=false
 NODE_PATH=""
@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
             echo "选项:"
             echo "  --user USER       服务运行用户 (默认: moestream)"
             echo "  --dir PATH        安装目录 (默认: /opt/moestream)"
-            echo "  --port PORT       Next.js 端口 (默认: 80)"
+            echo "  --port PORT       Next.js 端口 (默认: 3000)"
             echo "  --socket-port PORT Socket.io 端口 (默认: 3001)"
             echo "  --node PATH       Node.js 可执行文件路径 (自动检测)"
             echo "  --uninstall       卸载 systemd 服务"
@@ -189,7 +189,7 @@ sed -i "s|EnvironmentFile=/opt/moestream/|EnvironmentFile=${INSTALL_DIR}/|g" /et
 sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-app.service
 sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-socket.service
 sed -i "s|ExecStart=/usr/bin/node|ExecStart=${DETECTED_NODE}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
-sed -i "s|Environment=PORT=80|Environment=PORT=${APP_PORT}|g" /etc/systemd/system/moestream-app.service
+sed -i "s|Environment=PORT=3000|Environment=PORT=${APP_PORT}|g" /etc/systemd/system/moestream-app.service
 sed -i "s|Environment=SOCKET_PORT=3001|Environment=SOCKET_PORT=${SOCKET_PORT}|g" /etc/systemd/system/moestream-socket.service
 
 systemctl daemon-reload
