@@ -85,8 +85,8 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   );
 
   const posts = useMemo(
-    () => postData?.posts ?? (page === 1 && sortBy === "latest" && !hasFilter ? initialPosts : []),
-    [postData?.posts, page, sortBy, hasFilter, initialPosts],
+    () => postData?.posts ?? (page === 1 && !hasFilter ? initialPosts : []),
+    [postData?.posts, page, hasFilter, initialPosts],
   );
   const totalPages = postData?.totalPages ?? 1;
 

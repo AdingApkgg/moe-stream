@@ -13,7 +13,19 @@ export const metadata: Metadata = {
 };
 
 const getInitialData = cache(async () => {
-  const [tags, games, typeStats, siteConfig, fullConfig] = await Promise.all([
+  const fullConfig = await getPublicSiteConfig();
+
+  const sortKey = fullConfig.gameDefaultSort;
+  const orderBy =
+    sortKey === "views"
+      ? { views: "desc" as const }
+      : sortKey === "titleAsc"
+        ? { title: "asc" as const }
+        : sortKey === "titleDesc"
+          ? { title: "desc" as const }
+          : { createdAt: "desc" as const };
+
+  const [tags, games, typeStats, siteConfig] = await Promise.all([
     // 获取热门游戏标签
     prisma.tag.findMany({
       where: {
@@ -23,11 +35,11 @@ const getInitialData = cache(async () => {
       orderBy: { games: { _count: "desc" } },
       select: { id: true, name: true, slug: true },
     }),
-    // 获取最新游戏（首屏数据）
+    // 获取首屏游戏（排序跟随站点配置的默认排序）
     prisma.game.findMany({
       take: 20,
       where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         uploader: {
           select: { id: true, username: true, nickname: true, avatar: true },
@@ -52,8 +64,6 @@ const getInitialData = cache(async () => {
         announcementEnabled: true,
       },
     }),
-    // 获取完整站点配置（含广告列表）
-    getPublicSiteConfig(),
   ]);
 
   // 服务端预选 4 条广告（SSR 直出）

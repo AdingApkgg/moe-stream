@@ -120,14 +120,14 @@ export default function VideoListClient({
 
   // 数据（用 useMemo 稳定引用，避免下游 useMemo 依赖在每次渲染时变化）
   const videos = useMemo(
-    () => videoData?.videos ?? (videoPage === 1 && sortBy === "latest" ? initialVideos : []),
-    [videoData?.videos, videoPage, sortBy, initialVideos],
+    () => videoData?.videos ?? (videoPage === 1 ? initialVideos : []),
+    [videoData?.videos, videoPage, initialVideos],
   );
   const videoTotalPages = videoData?.totalPages ?? 1;
   const series = seriesData?.items ?? [];
   const seriesTotalPages = seriesData?.totalPages ?? 1;
 
-  const isFirstPage = videoPage === 1 && sortBy === "latest" && !hasFilter;
+  const isFirstPage = videoPage === 1 && !hasFilter;
   const adSeed = `${videoPage}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { gridItems, pickedAds, hasAds } = useInlineAds<any>({

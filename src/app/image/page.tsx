@@ -12,6 +12,18 @@ export const metadata: Metadata = {
 };
 
 const getInitialData = cache(async () => {
+  const fullConfig = await getPublicSiteConfig();
+
+  const sortKey = fullConfig.imageDefaultSort;
+  const orderBy =
+    sortKey === "views"
+      ? { views: "desc" as const }
+      : sortKey === "titleAsc"
+        ? { title: "asc" as const }
+        : sortKey === "titleDesc"
+          ? { title: "desc" as const }
+          : { createdAt: "desc" as const };
+
   const [tags, posts] = await Promise.all([
     prisma.tag.findMany({
       where: {
@@ -24,7 +36,7 @@ const getInitialData = cache(async () => {
     prisma.imagePost.findMany({
       take: 20,
       where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         uploader: {
           select: { id: true, username: true, nickname: true, avatar: true },

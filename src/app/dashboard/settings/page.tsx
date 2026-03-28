@@ -103,9 +103,9 @@ const configFormSchema = z.object({
   videoSortOptions: z.string().max(200),
   gameSortOptions: z.string().max(200),
   imageSortOptions: z.string().max(200),
-  videoDefaultSort: z.string(),
-  gameDefaultSort: z.string(),
-  imageDefaultSort: z.string(),
+  videoDefaultSort: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).catch("latest"),
+  gameDefaultSort: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).catch("latest"),
+  imageDefaultSort: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).catch("latest"),
 
   // 内容设置
   videoSelectorMode: z.enum(["series", "author", "uploader", "disabled"]).catch("series"),
@@ -509,7 +509,6 @@ export default function AdminSettingsPage() {
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
   const {
     data: config,
-    isLoading: configLoading,
     isError: configError,
     refetch,
   } = trpc.admin.getSiteConfig.useQuery(undefined, {
@@ -766,9 +765,21 @@ export default function AdminSettingsPage() {
         videoSortOptions: (cfg.videoSortOptions as string) || "latest,views,likes",
         gameSortOptions: (cfg.gameSortOptions as string) || "latest,views,likes",
         imageSortOptions: (cfg.imageSortOptions as string) || "latest,views",
-        videoDefaultSort: (cfg.videoDefaultSort as string) || "latest",
-        gameDefaultSort: (cfg.gameDefaultSort as string) || "latest",
-        imageDefaultSort: (cfg.imageDefaultSort as string) || "latest",
+        videoDefaultSort: validEnum(
+          cfg.videoDefaultSort,
+          ["latest", "views", "likes", "titleAsc", "titleDesc"] as const,
+          "latest",
+        ),
+        gameDefaultSort: validEnum(
+          cfg.gameDefaultSort,
+          ["latest", "views", "likes", "titleAsc", "titleDesc"] as const,
+          "latest",
+        ),
+        imageDefaultSort: validEnum(
+          cfg.imageDefaultSort,
+          ["latest", "views", "likes", "titleAsc", "titleDesc"] as const,
+          "latest",
+        ),
         videoSelectorMode: (["series", "author", "uploader", "disabled"] as const).includes(
           cfg.videoSelectorMode as "series" | "author" | "uploader" | "disabled",
         )
@@ -950,11 +961,11 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (!permissions?.scopes.includes("settings:manage")) {
+  if (permissions && !permissions.scopes.includes("settings:manage")) {
     return <div className="flex items-center justify-center h-[400px] text-muted-foreground">您没有系统设置权限</div>;
   }
 
-  if (configLoading && !config) {
+  if (!config && !configError) {
     return (
       <div className="flex items-center justify-center h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1520,7 +1531,9 @@ export default function AdminSettingsPage() {
                                 field.onChange(newValue);
                                 const currentDefault = form.getValues(section.defaultName);
                                 if (!next.has(currentDefault)) {
-                                  form.setValue(section.defaultName, [...next][0]);
+                                  form.setValue(section.defaultName, [...next][0] as typeof currentDefault, {
+                                    shouldDirty: true,
+                                  });
                                 }
                               };
                               return (

@@ -34,7 +34,19 @@ function parseAds(raw: unknown): Ad[] {
 
 // 使用 React cache 避免重复查询
 const getInitialData = cache(async () => {
-  const [tags, videos, siteConfig, fullConfig] = await Promise.all([
+  const fullConfig = await getPublicSiteConfig();
+
+  const sortKey = fullConfig.videoDefaultSort;
+  const orderBy =
+    sortKey === "views"
+      ? { views: "desc" as const }
+      : sortKey === "titleAsc"
+        ? { title: "asc" as const }
+        : sortKey === "titleDesc"
+          ? { title: "desc" as const }
+          : { createdAt: "desc" as const };
+
+  const [tags, videos, siteConfig] = await Promise.all([
     // 获取热门标签
     prisma.tag.findMany({
       take: 30,
@@ -45,11 +57,11 @@ const getInitialData = cache(async () => {
         slug: true,
       },
     }),
-    // 获取最新视频（首屏数据）
+    // 获取首屏视频（排序跟随站点配置的默认排序）
     prisma.video.findMany({
       take: 20,
       where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         uploader: {
           select: { id: true, username: true, nickname: true, avatar: true },
@@ -67,8 +79,6 @@ const getInitialData = cache(async () => {
         announcementEnabled: true,
       },
     }),
-    // 获取完整站点配置（含广告列表，复用 Redis 缓存）
-    getPublicSiteConfig(),
   ]);
 
   // 服务端预选 4 条广告（SSR 直出，无需客户端等待）

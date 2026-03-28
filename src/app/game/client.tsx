@@ -106,12 +106,12 @@ export function GameListClient({
   );
 
   const games = useMemo(
-    () => gameData?.games ?? (page === 1 && sortBy === "latest" && !hasFilter && !selectedType ? initialGames : []),
-    [gameData?.games, page, sortBy, hasFilter, selectedType, initialGames],
+    () => gameData?.games ?? (page === 1 && !hasFilter && !selectedType ? initialGames : []),
+    [gameData?.games, page, hasFilter, selectedType, initialGames],
   );
   const totalPages = gameData?.totalPages ?? 1;
 
-  const isFirstPage = page === 1 && sortBy === "latest" && !hasFilter && selectedType === "";
+  const isFirstPage = page === 1 && !hasFilter && selectedType === "";
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const { gridItems, pickedAds, hasAds } = useInlineAds({
     items: games,
