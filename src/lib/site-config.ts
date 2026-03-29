@@ -1,9 +1,7 @@
-import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { getOrSet, setCache } from "@/lib/redis";
 import type { Ad } from "@/lib/ads";
 
-/** 公开站点配置的类型定义 */
+/** 公开站点配置（不含敏感字段，可安全传给客户端） */
 export interface PublicSiteConfig {
   siteName: string;
   siteUrl: string;
@@ -80,289 +78,160 @@ export interface PublicSiteConfig {
   fileUploadEnabled: boolean;
 }
 
-const selectFields = {
-  siteName: true,
-  siteUrl: true,
-  siteDescription: true,
-  siteLogo: true,
-  siteFavicon: true,
-  siteKeywords: true,
-  googleVerification: true,
-  githubUrl: true,
-  securityEmail: true,
-  announcement: true,
-  announcementEnabled: true,
-  allowRegistration: true,
-  allowUpload: true,
-  allowComment: true,
-  requireLoginToComment: true,
-  contactEmail: true,
-  socialLinks: true,
-  privacyPolicy: true,
-  termsOfService: true,
-  aboutPage: true,
-  footerText: true,
-  footerLinks: true,
-  icpBeian: true,
-  publicSecurityBeian: true,
-  adsEnabled: true,
-  adGateEnabled: true,
-  adGateViewsRequired: true,
-  adGateHours: true,
-  sponsorAds: true,
-  themeHue: true,
-  themeColorTemp: true,
-  themeBorderRadius: true,
-  themeGlassOpacity: true,
-  themeAnimations: true,
-  animationSpeed: true,
-  animationPageTransition: true,
-  animationStagger: true,
-  animationHover: true,
-  animationDialog: true,
-  animationTab: true,
-  animationPreset: true,
-  effectEnabled: true,
-  effectType: true,
-  effectDensity: true,
-  effectSpeed: true,
-  effectOpacity: true,
-  effectColor: true,
-  soundDefaultEnabled: true,
-  captchaLogin: true,
-  captchaRegister: true,
-  captchaComment: true,
-  captchaForgotPassword: true,
-  turnstileSiteKey: true,
-  recaptchaSiteKey: true,
-  hcaptchaSiteKey: true,
-  referralEnabled: true,
-  videoSelectorMode: true,
-  sectionVideoEnabled: true,
-  sectionImageEnabled: true,
-  sectionGameEnabled: true,
-  videoSortOptions: true,
-  gameSortOptions: true,
-  imageSortOptions: true,
-  videoDefaultSort: true,
-  gameDefaultSort: true,
-  imageDefaultSort: true,
-  analyticsGoogleId: true,
-  analyticsGtmId: true,
-  analyticsCfToken: true,
-  analyticsClarityId: true,
-  analyticsBingVerification: true,
-  fileUploadEnabled: true,
-  oauthGoogleClientId: true,
-  oauthGoogleClientSecret: true,
-  oauthGithubClientId: true,
-  oauthGithubClientSecret: true,
-  oauthDiscordClientId: true,
-  oauthDiscordClientSecret: true,
-  oauthAppleClientId: true,
-  oauthAppleClientSecret: true,
-  oauthTwitterClientId: true,
-  oauthTwitterClientSecret: true,
-  oauthFacebookClientId: true,
-  oauthFacebookClientSecret: true,
-  oauthMicrosoftClientId: true,
-  oauthMicrosoftClientSecret: true,
-  oauthTwitchClientId: true,
-  oauthTwitchClientSecret: true,
-  oauthSpotifyClientId: true,
-  oauthSpotifyClientSecret: true,
-  oauthLinkedinClientId: true,
-  oauthLinkedinClientSecret: true,
-  oauthGitlabClientId: true,
-  oauthGitlabClientSecret: true,
-  oauthRedditClientId: true,
-  oauthRedditClientSecret: true,
-} as const;
+// ---------------------------------------------------------------------------
+// globalThis 单例（dev 热重载保持引用，prod 整个进程生命周期有效）
+// ---------------------------------------------------------------------------
 
-/** 去除 URL 尾部斜杠，避免拼接时产生 "//" */
+const g = globalThis as unknown as { __publicSiteConfig?: PublicSiteConfig };
+let _inflight: Promise<PublicSiteConfig> | null = null;
+
+// ---------------------------------------------------------------------------
+// DB → PublicSiteConfig
+// ---------------------------------------------------------------------------
+
+const OAUTH_KEYS = [
+  "Google",
+  "Github",
+  "Discord",
+  "Apple",
+  "Twitter",
+  "Facebook",
+  "Microsoft",
+  "Twitch",
+  "Spotify",
+  "Linkedin",
+  "Gitlab",
+  "Reddit",
+] as const;
+
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-const defaultConfig: PublicSiteConfig = {
-  siteName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
-  siteUrl: stripTrailingSlash(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  siteDescription: null,
-  siteLogo: null,
-  siteFavicon: null,
-  siteKeywords: null,
-  googleVerification: null,
-  githubUrl: null,
-  securityEmail: null,
-  announcement: null,
-  announcementEnabled: false,
-  allowRegistration: true,
-  allowUpload: true,
-  allowComment: true,
-  requireLoginToComment: false,
-  contactEmail: null,
-  socialLinks: null,
-  privacyPolicy: null,
-  termsOfService: null,
-  aboutPage: null,
-  footerText: null,
-  footerLinks: null,
-  icpBeian: null,
-  publicSecurityBeian: null,
-  adsEnabled: false,
-  adGateEnabled: false,
-  adGateViewsRequired: 3,
-  adGateHours: 12,
-  sponsorAds: null,
-  themeHue: 285,
-  themeColorTemp: 0,
-  themeBorderRadius: 0.625,
-  themeGlassOpacity: 0.7,
-  themeAnimations: true,
-  animationSpeed: 1.0,
-  animationPageTransition: true,
-  animationStagger: true,
-  animationHover: true,
-  animationDialog: true,
-  animationTab: true,
-  animationPreset: "standard",
-  effectEnabled: true,
-  effectType: "sakura",
-  effectDensity: 50,
-  effectSpeed: 1.0,
-  effectOpacity: 0.8,
-  effectColor: "",
-  soundDefaultEnabled: true,
-  oauthProviders: [],
-  captchaLogin: "math",
-  captchaRegister: "none",
-  captchaComment: "none",
-  captchaForgotPassword: "none",
-  turnstileSiteKey: null,
-  recaptchaSiteKey: null,
-  hcaptchaSiteKey: null,
-  referralEnabled: false,
-  videoSelectorMode: "series",
-  sectionVideoEnabled: true,
-  sectionImageEnabled: true,
-  sectionGameEnabled: true,
-  videoSortOptions: "latest,views,likes",
-  gameSortOptions: "latest,views,likes",
-  imageSortOptions: "latest,views",
-  videoDefaultSort: "latest",
-  gameDefaultSort: "latest",
-  imageDefaultSort: "latest",
-  analyticsGoogleId: null,
-  analyticsGtmId: null,
-  analyticsCfToken: null,
-  analyticsClarityId: null,
-  analyticsBingVerification: null,
-  fileUploadEnabled: false,
-};
-
-// 上一次成功从 DB 加载的配置快照，作为 DB/Redis 完全不可用时的二级回退。
-// 比 defaultConfig 可靠：它反映管理员实际保存的值而非硬编码。
-let lastKnownGood: PublicSiteConfig | null = null;
-
-const OAUTH_PROVIDER_PAIRS = [
-  ["Google", "google"],
-  ["Github", "github"],
-  ["Discord", "discord"],
-  ["Apple", "apple"],
-  ["Twitter", "twitter"],
-  ["Facebook", "facebook"],
-  ["Microsoft", "microsoft"],
-  ["Twitch", "twitch"],
-  ["Spotify", "spotify"],
-  ["Linkedin", "linkedin"],
-  ["Gitlab", "gitlab"],
-  ["Reddit", "reddit"],
-] as const;
-
-function buildPublicConfig(config: Record<string, unknown>): PublicSiteConfig {
+function toPublic(c: Record<string, unknown>): PublicSiteConfig {
   const oauthProviders: string[] = [];
-  for (const [key, id] of OAUTH_PROVIDER_PAIRS) {
-    if (config[`oauth${key}ClientId`] && config[`oauth${key}ClientSecret`]) {
-      oauthProviders.push(id);
-    }
+  for (const k of OAUTH_KEYS) {
+    if (c[`oauth${k}ClientId`] && c[`oauth${k}ClientSecret`]) oauthProviders.push(k.toLowerCase());
   }
 
   return {
-    ...defaultConfig,
-    ...Object.fromEntries(Object.entries(config).filter(([key]) => key in defaultConfig)),
-    siteUrl: stripTrailingSlash(
-      (config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    ),
-    socialLinks: config.socialLinks as Record<string, string> | null,
-    footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
-    sponsorAds: config.sponsorAds as Ad[] | null,
+    siteName: (c.siteName as string) || "ACGN Site",
+    siteUrl: stripTrailingSlash((c.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+    siteDescription: (c.siteDescription as string) ?? null,
+    siteLogo: (c.siteLogo as string) ?? null,
+    siteFavicon: (c.siteFavicon as string) ?? null,
+    siteKeywords: (c.siteKeywords as string) ?? null,
+    googleVerification: (c.googleVerification as string) ?? null,
+    githubUrl: (c.githubUrl as string) ?? null,
+    securityEmail: (c.securityEmail as string) ?? null,
+    announcement: (c.announcement as string) ?? null,
+    announcementEnabled: (c.announcementEnabled as boolean) ?? false,
+    allowRegistration: (c.allowRegistration as boolean) ?? true,
+    allowUpload: (c.allowUpload as boolean) ?? true,
+    allowComment: (c.allowComment as boolean) ?? true,
+    requireLoginToComment: (c.requireLoginToComment as boolean) ?? false,
+    contactEmail: (c.contactEmail as string) ?? null,
+    socialLinks: c.socialLinks as Record<string, string> | null,
+    privacyPolicy: (c.privacyPolicy as string) ?? null,
+    termsOfService: (c.termsOfService as string) ?? null,
+    aboutPage: (c.aboutPage as string) ?? null,
+    footerText: (c.footerText as string) ?? null,
+    footerLinks: c.footerLinks as Array<{ label: string; url: string }> | null,
+    icpBeian: (c.icpBeian as string) ?? null,
+    publicSecurityBeian: (c.publicSecurityBeian as string) ?? null,
+    adsEnabled: (c.adsEnabled as boolean) ?? false,
+    adGateEnabled: (c.adGateEnabled as boolean) ?? false,
+    adGateViewsRequired: (c.adGateViewsRequired as number) ?? 3,
+    adGateHours: (c.adGateHours as number) ?? 12,
+    sponsorAds: c.sponsorAds as Ad[] | null,
+    themeHue: (c.themeHue as number) ?? 285,
+    themeColorTemp: (c.themeColorTemp as number) ?? 0,
+    themeBorderRadius: (c.themeBorderRadius as number) ?? 0.625,
+    themeGlassOpacity: (c.themeGlassOpacity as number) ?? 0.7,
+    themeAnimations: (c.themeAnimations as boolean) ?? true,
+    animationSpeed: (c.animationSpeed as number) ?? 1.0,
+    animationPageTransition: (c.animationPageTransition as boolean) ?? true,
+    animationStagger: (c.animationStagger as boolean) ?? true,
+    animationHover: (c.animationHover as boolean) ?? true,
+    animationDialog: (c.animationDialog as boolean) ?? true,
+    animationTab: (c.animationTab as boolean) ?? true,
+    animationPreset: (c.animationPreset as string) ?? "standard",
+    effectEnabled: (c.effectEnabled as boolean) ?? true,
+    effectType: (c.effectType as string) ?? "sakura",
+    effectDensity: (c.effectDensity as number) ?? 50,
+    effectSpeed: (c.effectSpeed as number) ?? 1.0,
+    effectOpacity: (c.effectOpacity as number) ?? 0.8,
+    effectColor: (c.effectColor as string) ?? "",
+    soundDefaultEnabled: (c.soundDefaultEnabled as boolean) ?? true,
     oauthProviders,
+    captchaLogin: (c.captchaLogin as string) ?? "math",
+    captchaRegister: (c.captchaRegister as string) ?? "none",
+    captchaComment: (c.captchaComment as string) ?? "none",
+    captchaForgotPassword: (c.captchaForgotPassword as string) ?? "none",
+    turnstileSiteKey: (c.turnstileSiteKey as string) ?? null,
+    recaptchaSiteKey: (c.recaptchaSiteKey as string) ?? null,
+    hcaptchaSiteKey: (c.hcaptchaSiteKey as string) ?? null,
+    referralEnabled: (c.referralEnabled as boolean) ?? false,
+    videoSelectorMode: (c.videoSelectorMode as string) ?? "series",
+    sectionVideoEnabled: (c.sectionVideoEnabled as boolean) ?? true,
+    sectionImageEnabled: (c.sectionImageEnabled as boolean) ?? true,
+    sectionGameEnabled: (c.sectionGameEnabled as boolean) ?? true,
+    videoSortOptions: (c.videoSortOptions as string) ?? "latest,views,likes",
+    gameSortOptions: (c.gameSortOptions as string) ?? "latest,views,likes",
+    imageSortOptions: (c.imageSortOptions as string) ?? "latest,views",
+    videoDefaultSort: (c.videoDefaultSort as string) ?? "latest",
+    gameDefaultSort: (c.gameDefaultSort as string) ?? "latest",
+    imageDefaultSort: (c.imageDefaultSort as string) ?? "latest",
+    analyticsGoogleId: (c.analyticsGoogleId as string) ?? null,
+    analyticsGtmId: (c.analyticsGtmId as string) ?? null,
+    analyticsCfToken: (c.analyticsCfToken as string) ?? null,
+    analyticsClarityId: (c.analyticsClarityId as string) ?? null,
+    analyticsBingVerification: (c.analyticsBingVerification as string) ?? null,
+    fileUploadEnabled: (c.fileUploadEnabled as boolean) ?? false,
   };
 }
 
-async function fetchConfigFromDB(): Promise<Record<string, unknown>> {
-  let config: Record<string, unknown> | null = null;
-
-  try {
-    config = (await prisma.siteConfig.findUnique({
+async function loadFromDB(): Promise<PublicSiteConfig> {
+  let row = await prisma.siteConfig.findUnique({ where: { id: "default" } });
+  if (!row) {
+    row = await prisma.siteConfig.upsert({
       where: { id: "default" },
-      select: selectFields,
-    })) as Record<string, unknown> | null;
-  } catch {
-    config = (await prisma.siteConfig.findUnique({
-      where: { id: "default" },
-    })) as Record<string, unknown> | null;
+      create: { id: "default" },
+      update: {},
+    });
   }
+  return toPublic(row as unknown as Record<string, unknown>);
+}
 
-  if (!config) {
-    throw new Error(
-      "[SiteConfig] 数据库中未找到 SiteConfig 记录（id=default）。" +
-        "请检查数据库是否被重置，或 instrumentation 是否正常执行。",
-    );
-  }
-  return config;
+// ---------------------------------------------------------------------------
+// 公开 API
+// ---------------------------------------------------------------------------
+
+/**
+ * 获取公开站点配置。
+ * 常驻内存，读取零开销。首次调用自动从 DB 加载（singleflight 防并发）。
+ */
+export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
+  if (g.__publicSiteConfig) return g.__publicSiteConfig;
+  if (_inflight) return _inflight;
+
+  _inflight = loadFromDB()
+    .then((c) => {
+      g.__publicSiteConfig = c;
+      _inflight = null;
+      return c;
+    })
+    .catch((e) => {
+      _inflight = null;
+      throw e;
+    });
+
+  return _inflight;
 }
 
 /**
- * 供 instrumentation 调用：从 DB 读取配置并写入 Redis 缓存。
- * 在服务器启动时执行，确保第一个请求直接命中缓存。
+ * 从 DB 重新加载到内存。管理员保存 / 导入配置 / 初始化向导后调用。
  */
-export async function warmPublicSiteConfig(): Promise<void> {
-  const config = await fetchConfigFromDB();
-  const result = buildPublicConfig(config);
-  lastKnownGood = result;
-  await setCache("site:config", result, CONFIG_TTL);
+export async function reloadPublicSiteConfig(): Promise<void> {
+  g.__publicSiteConfig = await loadFromDB();
 }
-
-const CONFIG_TTL = 300; // 5 minutes
-
-/**
- * 服务端获取公开站点配置（使用 Redis 5 分钟缓存 + React cache 请求去重）
- * 可在 layout.tsx / page.tsx 等 Server Component 中直接调用。
- *
- * 回退策略（按优先级）：
- * 1. Redis 缓存 → 2. DB 读取 → 3. lastKnownGood 内存快照 → 4. defaultConfig
- */
-export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => {
-  try {
-    const result = await getOrSet(
-      "site:config",
-      async () => {
-        const config = await fetchConfigFromDB();
-        const built = buildPublicConfig(config);
-        lastKnownGood = built;
-        return built;
-      },
-      CONFIG_TTL,
-    );
-    return result;
-  } catch (err) {
-    // DB 和 Redis 都不可用——优先使用上次成功加载的快照
-    if (lastKnownGood) {
-      console.warn("[SiteConfig] DB/Redis 不可用，使用内存快照（lastKnownGood）。", (err as Error)?.message);
-      return lastKnownGood;
-    }
-    console.error("[SiteConfig] DB/Redis 完全不可用且无内存快照，回退到硬编码默认值！", err);
-    return defaultConfig;
-  }
-});

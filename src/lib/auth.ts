@@ -4,7 +4,7 @@ import { username, customSession, twoFactor } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
-import { getOrSet, invalidateCache } from "@/lib/redis";
+
 import { send2faOtpEmail } from "@/lib/email";
 import { isPrivileged } from "@/lib/permissions";
 
@@ -42,49 +42,42 @@ interface OAuthAndSiteConfig {
 }
 
 // ---------------------------------------------------------------------------
-// OAuth config from DB (cached in Redis)
+// OAuth config — DB + globalThis 内存缓存
 // ---------------------------------------------------------------------------
 
-async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
-  try {
-    return await getOrSet<OAuthAndSiteConfig>(
-      "oauth:config",
-      async () => {
-        const select: Record<string, true> = { siteUrl: true };
-        for (const k of OAUTH_PROVIDER_KEYS) {
-          select[`oauth${k}ClientId`] = true;
-          select[`oauth${k}ClientSecret`] = true;
-        }
+const gOAuth = globalThis as unknown as { __oauthConfig?: OAuthAndSiteConfig };
 
-        const config = (await prisma.siteConfig.findUnique({
-          where: { id: "default" },
-          select,
-        })) as Record<string, string | null> | null;
-
-        if (!config) return { oauth: {}, siteUrl: null };
-
-        const oauth: OAuthConfig = {};
-        for (const key of OAUTH_PROVIDER_KEYS) {
-          const id = config[`oauth${key}ClientId`];
-          const secret = config[`oauth${key}ClientSecret`];
-          if (id && secret) {
-            oauth[key.toLowerCase()] = { clientId: id, clientSecret: secret };
-          }
-        }
-
-        const names = Object.keys(oauth);
-        if (names.length > 0) {
-          console.log(`[auth] OAuth providers loaded: ${names.join(", ")}`);
-        }
-
-        return { oauth, siteUrl: config.siteUrl || null };
-      },
-      300,
-    );
-  } catch (err) {
-    console.error("[auth] Failed to load OAuth config:", err);
-    return { oauth: {}, siteUrl: null };
+async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
+  const select: Record<string, true> = { siteUrl: true };
+  for (const k of OAUTH_PROVIDER_KEYS) {
+    select[`oauth${k}ClientId`] = true;
+    select[`oauth${k}ClientSecret`] = true;
   }
+
+  const config = (await prisma.siteConfig.findUnique({
+    where: { id: "default" },
+    select,
+  })) as Record<string, string | null> | null;
+
+  if (!config) return { oauth: {}, siteUrl: null };
+
+  const oauth: OAuthConfig = {};
+  for (const key of OAUTH_PROVIDER_KEYS) {
+    const id = config[`oauth${key}ClientId`];
+    const secret = config[`oauth${key}ClientSecret`];
+    if (id && secret) {
+      oauth[key.toLowerCase()] = { clientId: id, clientSecret: secret };
+    }
+  }
+
+  return { oauth, siteUrl: config.siteUrl || null };
+}
+
+async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
+  if (gOAuth.__oauthConfig) return gOAuth.__oauthConfig;
+  const result = await loadOAuthFromDB();
+  gOAuth.__oauthConfig = result;
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +286,7 @@ export async function getAuthWithOAuth(): Promise<AuthInstance> {
 export async function invalidateOAuthConfig() {
   _cached = null;
   _pending = null;
-  await invalidateCache("oauth:config");
+  gOAuth.__oauthConfig = undefined;
 }
 
 // ---------------------------------------------------------------------------

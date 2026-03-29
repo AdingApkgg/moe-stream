@@ -1,4 +1,4 @@
-import { getCache, setCache } from "@/lib/redis";
+import { memGet, memSet } from "@/lib/memory-cache";
 import { IPv4, IPv6, loadContentFromFile, newWithBuffer } from "ip2region.js";
 import path from "path";
 
@@ -15,24 +15,17 @@ interface Ip2RegionSearcher {
   close(): void;
 }
 
-const CACHE_TTL_SECONDS = 60 * 60 * 24;
+const CACHE_TTL_MS = 60 * 60 * 24 * 1000;
 
-// 初始化 ip2region 查询器（单例）
 let ip2regionV4Searcher: Ip2RegionSearcher | null = null;
 let ip2regionV6Searcher: Ip2RegionSearcher | null = null;
 let ip2regionV4Initialized = false;
 let ip2regionV6Initialized = false;
 
-/**
- * 判断是否为 IPv6 地址
- */
 function isIPv6(ip: string): boolean {
   return ip.includes(":");
 }
 
-/**
- * 获取 IPv4 查询器
- */
 function getIp2RegionV4Searcher(): Ip2RegionSearcher | null {
   if (ip2regionV4Initialized) {
     return ip2regionV4Searcher;
@@ -52,9 +45,6 @@ function getIp2RegionV4Searcher(): Ip2RegionSearcher | null {
   }
 }
 
-/**
- * 获取 IPv6 查询器
- */
 function getIp2RegionV6Searcher(): Ip2RegionSearcher | null {
   if (ip2regionV6Initialized) {
     return ip2regionV6Searcher;
@@ -74,9 +64,6 @@ function getIp2RegionV6Searcher(): Ip2RegionSearcher | null {
   }
 }
 
-/**
- * 获取对应的查询器
- */
 function getIp2RegionSearcher(ip: string): Ip2RegionSearcher | null {
   return isIPv6(ip) ? getIp2RegionV6Searcher() : getIp2RegionV4Searcher();
 }
@@ -97,19 +84,11 @@ function parseRegion(region: string): IpLocation {
   };
 }
 
-/**
- * 判断是否为私有 IP 地址
- */
 function isPrivateIp(ip: string): boolean {
-  // IPv6 私有地址
   if (isIPv6(ip)) {
-    // ::1 本地回环
     if (ip === "::1") return true;
-    // fe80:: 链路本地
     if (ip.toLowerCase().startsWith("fe80:")) return true;
-    // fc00:: 和 fd00:: 唯一本地地址
     if (ip.toLowerCase().startsWith("fc") || ip.toLowerCase().startsWith("fd")) return true;
-    // ::ffff:x.x.x.x IPv4 映射地址，检查内嵌的 IPv4
     const v4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
     if (v4Mapped) {
       return isPrivateIp(v4Mapped[1]);
@@ -117,7 +96,6 @@ function isPrivateIp(ip: string): boolean {
     return false;
   }
 
-  // IPv4 私有地址
   if (ip === "127.0.0.1") return true;
   if (ip.startsWith("10.")) return true;
   if (ip.startsWith("192.168.")) return true;
@@ -132,7 +110,6 @@ function isPrivateIp(ip: string): boolean {
 function formatLocation(location: IpLocation | null): string | null {
   if (!location) return null;
   const parts = [location.country, location.province, location.city].filter(Boolean);
-  // 去重（有时候省和市名称相同，如"香港"）
   const uniqueParts = parts.filter((part, index, arr) => arr.indexOf(part) === index);
   return uniqueParts.length > 0 ? uniqueParts.join(" ") : null;
 }
@@ -144,18 +121,15 @@ function formatLocation(location: IpLocation | null): string | null {
 export async function getIpLocation(ip: string | null): Promise<string | null> {
   if (!ip) return null;
 
-  // 开发环境：私有 IP 使用测试公网 IP
   if (process.env.NODE_ENV === "development" && isPrivateIp(ip)) {
-    ip = isIPv6(ip)
-      ? "2400:3200::1" // 阿里 IPv6 DNS（杭州）
-      : "1.1.1.1"; // 南京 IPv4 DNS
+    ip = isIPv6(ip) ? "2400:3200::1" : "1.1.1.1";
   }
 
   if (isPrivateIp(ip)) return null;
 
   const cacheKey = `ip-location:${ip}`;
-  const cached = await getCache<IpLocation>(cacheKey);
-  if (cached !== null) {
+  const cached = memGet<IpLocation>(cacheKey);
+  if (cached !== undefined) {
     return formatLocation(cached);
   }
 
@@ -176,17 +150,15 @@ export async function getIpLocation(ip: string | null): Promise<string | null> {
       return await getIpLocationFromApi(ip, cacheKey);
     }
 
-    // 解析 region 字符串: "中国|广东省|湛江市|移动|CN"
     const location = parseRegion(region);
 
-    // 如果 ip2region 没有有效结果，回退到在线 API
     if (!location.country && !location.province && !location.city) {
       console.log(`[IP Location] ip2region result empty, falling back to API for ${ip}`);
       return await getIpLocationFromApi(ip, cacheKey);
     }
 
     console.log(`[IP Location] ip2region ${ipVersion} result for ${ip}:`, formatLocation(location));
-    await setCache(cacheKey, location, CACHE_TTL_SECONDS);
+    memSet(cacheKey, location, CACHE_TTL_MS);
     return formatLocation(location);
   } catch (error) {
     console.error(`[IP Location] Error for ${ip}:`, error);
@@ -194,14 +166,9 @@ export async function getIpLocation(ip: string | null): Promise<string | null> {
   }
 }
 
-/**
- * 使用在线 API 获取 IP 地理位置（中文结果）
- * 支持 IPv4 和 IPv6
- */
 async function getIpLocationFromApi(ip: string, cacheKey: string): Promise<string | null> {
   try {
     console.log(`[IP Location] Fetching from ip-api.com for ${ip}`);
-    // 添加 lang=zh-CN 获取中文结果
     const response = await fetch(
       `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,regionName,city,isp,query&lang=zh-CN`,
       { headers: { "User-Agent": "moe-stream/1.0" } },
@@ -235,7 +202,7 @@ async function getIpLocationFromApi(ip: string, cacheKey: string): Promise<strin
 
     const formatted = formatLocation(location);
     console.log(`[IP Location] ip-api.com result for ${ip}:`, formatted);
-    await setCache(cacheKey, location, CACHE_TTL_SECONDS);
+    memSet(cacheKey, location, CACHE_TTL_MS);
     return formatted;
   } catch (error) {
     console.error(`[IP Location] ip-api.com error for ${ip}:`, error);

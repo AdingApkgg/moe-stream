@@ -31,11 +31,9 @@ export const userRouter = router({
         });
       }
 
-      // 基于浏览器指纹的注册频率限制（同设备 24h 内限 3 个账号）
       if (input.fingerprint) {
-        const regKey = `reg_fp:${input.fingerprint}`;
-        const count = await ctx.redis.incr(regKey);
-        if (count === 1) await ctx.redis.expire(regKey, 86400);
+        const { redisIncr } = await import("@/lib/redis");
+        const count = await redisIncr(`reg_fp:${input.fingerprint}`, 86400);
         if (count > 3) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",

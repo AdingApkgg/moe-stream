@@ -2,7 +2,8 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { getCache, setCache, getOrSet, deleteCache, deleteCacheKeys } from "@/lib/redis";
+import { memGet, memSet, memGetOrSet, memDelete } from "@/lib/memory-cache";
+import { redisSetNX } from "@/lib/redis";
 import { submitVideoToIndexNow, submitVideosToIndexNow } from "@/lib/indexnow";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { awardPoints } from "@/lib/points";
@@ -47,7 +48,7 @@ export const videoRouter = router({
 
       // 热搜缓存已有 30 分钟 TTL，单次搜索不需要立即失效
       // 仅清除精确的 search:hot 键即可（避免 SCAN 扫描）
-      await deleteCache("search:hot");
+      memDelete("search:hot");
 
       return { success: true };
     }),
@@ -56,7 +57,7 @@ export const videoRouter = router({
   getHotSearches: publicProcedure
     .input(z.object({ limit: z.number().min(1).max(20).default(10) }))
     .query(async ({ ctx, input }) => {
-      return getOrSet(
+      return memGetOrSet(
         "search:hot",
         async () => {
           // 获取最近 7 天的搜索记录
@@ -179,8 +180,8 @@ export const videoRouter = router({
 
           return hotSearches;
         },
-        1800,
-      ); // 缓存 30 分钟
+        1800 * 1000,
+      );
     }),
 
   // 搜索建议
@@ -195,10 +196,9 @@ export const videoRouter = router({
       const { query, limit } = input;
       const cacheKey = `search:suggestions:${query.toLowerCase()}`;
 
-      return getOrSet(
+      return memGetOrSet(
         cacheKey,
         async () => {
-          // 并行搜索视频标题、标签和游戏标题
           const [videos, tags, games] = await Promise.all([
             ctx.prisma.video.findMany({
               where: {
@@ -230,13 +230,13 @@ export const videoRouter = router({
 
           return { videos, tags, games };
         },
-        SEARCH_SUGGESTIONS_CACHE_TTL,
+        SEARCH_SUGGESTIONS_CACHE_TTL * 1000,
       );
     }),
 
   // 获取网站公开统计数据
   getPublicStats: publicProcedure.query(async ({ ctx }) => {
-    return getOrSet(
+    return memGetOrSet(
       "stats:public",
       async () => {
         const [videoCount, userCount, tagCount, viewsResult] = await Promise.all([
@@ -256,7 +256,7 @@ export const videoRouter = router({
           totalViews: viewsResult._sum.views || 0,
         };
       },
-      STATS_CACHE_TTL,
+      STATS_CACHE_TTL * 1000,
     );
   }),
 
@@ -366,7 +366,7 @@ export const videoRouter = router({
   // 获取单个视频
   getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
     const cacheKey = `video:${input.id}`;
-    const cached = await getCache<typeof video>(cacheKey);
+    const cached = memGet<typeof video>(cacheKey);
     if (cached) return cached;
 
     const video = await ctx.prisma.video.findUnique({
@@ -386,7 +386,7 @@ export const videoRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "视频不存在" });
     }
 
-    await setCache(cacheKey, video, VIDEO_CACHE_TTL);
+    memSet(cacheKey, video, VIDEO_CACHE_TTL * 1000);
     return video;
   }),
 
@@ -500,14 +500,14 @@ export const videoRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (input.visitorId) {
         const dedupKey = `view:video:${input.id}:${input.visitorId}`;
-        const already = await ctx.redis.set(dedupKey, "1", "EX", 3600, "NX");
-        if (!already) return { success: true, deduplicated: true };
+        const isNew = await redisSetNX(dedupKey, "1", 3600);
+        if (!isNew) return { success: true, deduplicated: true };
       }
       await ctx.prisma.video.update({
         where: { id: input.id },
         data: { views: { increment: 1 } },
       });
-      await deleteCache(`video:${input.id}`);
+      memDelete(`video:${input.id}`);
       return { success: true };
     }),
 
@@ -944,7 +944,7 @@ export const videoRouter = router({
         scheduleTagCountRefresh([...new Set([...oldTagIds, ...allTagIds])], "视频编辑");
       }
 
-      await deleteCache(`video:${id}`);
+      memDelete(`video:${id}`);
 
       submitVideoToIndexNow(id).catch(() => {});
 
@@ -997,7 +997,7 @@ export const videoRouter = router({
       });
     }
 
-    await deleteCache(`video:${input.id}`);
+    memDelete(`video:${input.id}`);
     return { success: true };
   }),
 
@@ -1049,8 +1049,7 @@ export const videoRouter = router({
       });
     }
 
-    // 清理缓存（批量 pipeline 删除，一次网络往返）
-    await deleteCacheKeys(videoIds.map((id) => `video:${id}`));
+    for (const id of videoIds) memDelete(`video:${id}`);
 
     return { success: true, count: videoIds.length };
   }),
@@ -1070,7 +1069,7 @@ export const videoRouter = router({
       await ctx.prisma.like.delete({
         where: { id: existing.id },
       });
-      await deleteCache(`video:${input.videoId}`);
+      memDelete(`video:${input.videoId}`);
       return { liked: false };
     }
 
@@ -1091,7 +1090,7 @@ export const videoRouter = router({
       },
     });
 
-    await deleteCache(`video:${input.videoId}`);
+    memDelete(`video:${input.videoId}`);
     const pointsAwarded = await awardPoints(ctx.session.user.id, "LIKE_VIDEO", undefined, input.videoId, {
       firstTimeOnly: true,
     });
@@ -1132,7 +1131,7 @@ export const videoRouter = router({
       await ctx.prisma.dislike.delete({
         where: { id: existing.id },
       });
-      await deleteCache(`video:${input.videoId}`);
+      memDelete(`video:${input.videoId}`);
       return { disliked: false };
     }
 
@@ -1153,7 +1152,7 @@ export const videoRouter = router({
       },
     });
 
-    await deleteCache(`video:${input.videoId}`);
+    memDelete(`video:${input.videoId}`);
     return { disliked: true };
   }),
 
@@ -1172,7 +1171,7 @@ export const videoRouter = router({
       await ctx.prisma.confused.delete({
         where: { id: existing.id },
       });
-      await deleteCache(`video:${input.videoId}`);
+      memDelete(`video:${input.videoId}`);
       return { confused: false };
     }
 
@@ -1193,7 +1192,7 @@ export const videoRouter = router({
       },
     });
 
-    await deleteCache(`video:${input.videoId}`);
+    memDelete(`video:${input.videoId}`);
     return { confused: true };
   }),
 
@@ -1212,7 +1211,7 @@ export const videoRouter = router({
       await ctx.prisma.favorite.delete({
         where: { id: existing.id },
       });
-      await deleteCache(`video:${input.videoId}`);
+      memDelete(`video:${input.videoId}`);
       return { favorited: false };
     }
 
@@ -1223,7 +1222,7 @@ export const videoRouter = router({
       },
     });
 
-    await deleteCache(`video:${input.videoId}`);
+    memDelete(`video:${input.videoId}`);
     const pointsAwarded = await awardPoints(ctx.session.user.id, "FAVORITE_VIDEO", undefined, input.videoId, {
       firstTimeOnly: true,
     });
@@ -1308,7 +1307,7 @@ export const videoRouter = router({
         data: { status: input.status },
       });
 
-      await deleteCache(`video:${input.id}`);
+      memDelete(`video:${input.id}`);
 
       // 审核通过时通知搜索引擎索引
       if (input.status === "PUBLISHED") {

@@ -295,8 +295,9 @@ export const commentRouter = router({
       // 基于 visitorId 的匿名评论频率限制（同设备 60 秒内限 1 条）
       const visitorId = deviceInfo?.visitorId;
       if (!userId && visitorId) {
+        const { redisExists } = await import("@/lib/redis");
         const rateKey = `comment_rate:vid:${visitorId}`;
-        const exists = await ctx.redis.exists(rateKey);
+        const exists = await redisExists(rateKey);
         if (exists) {
           throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "评论太频繁，请稍后再试" });
         }
@@ -402,7 +403,8 @@ export const commentRouter = router({
 
       // 评论成功后设置频率限制（60 秒冷却）
       if (!userId && visitorId) {
-        await ctx.redis.set(`comment_rate:vid:${visitorId}`, "1", "EX", 60);
+        const { redisSetEx } = await import("@/lib/redis");
+        await redisSetEx(`comment_rate:vid:${visitorId}`, "1", 60);
       }
 
       let pointsAwarded = 0;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, adminProcedure } from "../trpc";
-import { getOrSet, deleteCachePattern } from "@/lib/redis";
+import { memGetOrSet, memDeletePrefix } from "@/lib/memory-cache";
 
 const tagTypeSchema = z.enum(["video", "game", "image"]).optional();
 
@@ -60,7 +60,7 @@ export const tagRouter = router({
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string(), type: z.enum(["video", "game", "image"]).default("video") }))
     .query(async ({ ctx, input }) => {
-      return getOrSet(
+      return memGetOrSet(
         CACHE_KEYS.tagBySlug(input.slug, input.type),
         async () => {
           return ctx.prisma.tag.findUnique({
@@ -71,7 +71,7 @@ export const tagRouter = router({
             },
           });
         },
-        CACHE_TTL.tag,
+        CACHE_TTL.tag * 1000,
       );
     }),
 
@@ -108,7 +108,7 @@ export const tagRouter = router({
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
       };
 
-      return getOrSet(
+      return memGetOrSet(
         CACHE_KEYS.tagList(input.categoryId || "", input.limit, input.type),
         async () => {
           return ctx.prisma.tag.findMany({
@@ -118,7 +118,7 @@ export const tagRouter = router({
             orderBy: { name: "asc" },
           });
         },
-        CACHE_TTL.list,
+        CACHE_TTL.list * 1000,
       );
     }),
 
@@ -131,7 +131,7 @@ export const tagRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const h = tagQueryHelpers(input.type);
-      return getOrSet(
+      return memGetOrSet(
         CACHE_KEYS.popularTags(input.limit, input.type),
         async () => {
           return ctx.prisma.tag.findMany({
@@ -141,12 +141,12 @@ export const tagRouter = router({
             orderBy: h.orderByCount,
           });
         },
-        CACHE_TTL.popular,
+        CACHE_TTL.popular * 1000,
       );
     }),
 
   categories: publicProcedure.query(async ({ ctx }) => {
-    return getOrSet(
+    return memGetOrSet(
       CACHE_KEYS.categories,
       async () => {
         return ctx.prisma.tagCategory.findMany({
@@ -162,14 +162,14 @@ export const tagRouter = router({
           },
         });
       },
-      CACHE_TTL.categories,
+      CACHE_TTL.categories * 1000,
     );
   }),
 
   groupedByCategory: publicProcedure.input(z.object({ type: tagTypeSchema })).query(async ({ ctx, input }) => {
     const h = tagQueryHelpers(input.type);
 
-    return getOrSet(
+    return memGetOrSet(
       CACHE_KEYS.tagsByCategory(input.type),
       async () => {
         const [categories, tags] = await Promise.all([
@@ -205,7 +205,7 @@ export const tagRouter = router({
 
         return grouped;
       },
-      CACHE_TTL.categories,
+      CACHE_TTL.categories * 1000,
     );
   }),
 
@@ -228,7 +228,7 @@ export const tagRouter = router({
         },
       });
 
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return tag;
     }),
@@ -238,7 +238,7 @@ export const tagRouter = router({
       where: { id: input.id },
     });
 
-    await deleteCachePattern("tag:*");
+    memDeletePrefix("tag:");
 
     return { success: true };
   }),

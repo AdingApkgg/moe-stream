@@ -2,7 +2,8 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { getOrSet } from "@/lib/redis";
+import { memGetOrSet } from "@/lib/memory-cache";
+import { redisSetNX } from "@/lib/redis";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 import { awardPoints } from "@/lib/points";
 import {
@@ -164,7 +165,7 @@ export const gameRouter = router({
   getPopularTags: publicProcedure
     .input(z.object({ limit: z.number().min(1).max(50).default(30) }))
     .query(async ({ ctx, input }) => {
-      return getOrSet(
+      return memGetOrSet(
         `game:popular-tags:${input.limit}`,
         async () => {
           return ctx.prisma.tag.findMany({
@@ -176,13 +177,13 @@ export const gameRouter = router({
             select: { id: true, name: true, slug: true },
           });
         },
-        GAME_CACHE_TTL * 5,
+        GAME_CACHE_TTL * 5 * 1000,
       );
     }),
 
   /** 获取游戏类型统计 */
   getTypeStats: publicProcedure.query(async ({ ctx }) => {
-    return getOrSet(
+    return memGetOrSet(
       "game:type-stats",
       async () => {
         const stats = await ctx.prisma.game.groupBy({
@@ -196,7 +197,7 @@ export const gameRouter = router({
           count: s._count.id,
         }));
       },
-      GAME_CACHE_TTL * 5,
+      GAME_CACHE_TTL * 5 * 1000,
     );
   }),
 
@@ -611,8 +612,8 @@ export const gameRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (input.visitorId) {
         const dedupKey = `view:game:${input.id}:${input.visitorId}`;
-        const already = await ctx.redis.set(dedupKey, "1", "EX", 3600, "NX");
-        if (!already) return { success: true, deduplicated: true };
+        const isNew = await redisSetNX(dedupKey, "1", 3600);
+        if (!isNew) return { success: true, deduplicated: true };
       }
       await ctx.prisma.game.update({
         where: { id: input.id },

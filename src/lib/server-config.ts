@@ -1,6 +1,4 @@
-import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { getOrSet, setCache } from "@/lib/redis";
 
 export interface SmtpConfig {
   host: string;
@@ -32,44 +30,16 @@ export interface ServerConfig {
   hcaptchaSecretKey: string | null;
 }
 
-const selectFields = {
-  siteName: true,
-  siteUrl: true,
-  uploadDir: true,
-  smtpHost: true,
-  smtpPort: true,
-  smtpUser: true,
-  smtpPassword: true,
-  smtpFrom: true,
-  mailSendMode: true,
-  mailApiUrl: true,
-  mailApiKey: true,
-  mailApiFrom: true,
-  mailApiHeaders: true,
-  indexNowKey: true,
-  googleServiceAccountEmail: true,
-  googlePrivateKey: true,
-  turnstileSecretKey: true,
-  recaptchaSecretKey: true,
-  hcaptchaSecretKey: true,
-} as const;
+// ---------------------------------------------------------------------------
+// globalThis 单例
+// ---------------------------------------------------------------------------
 
-const defaultConfig: ServerConfig = {
-  siteUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  siteName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
-  uploadDir: process.env.UPLOAD_DIR || "./uploads",
-  mailSendMode: "smtp",
-  smtp: null,
-  httpEmailApi: null,
-  indexNowKey: null,
-  googleServiceAccountEmail: null,
-  googlePrivateKey: null,
-  turnstileSecretKey: null,
-  recaptchaSecretKey: null,
-  hcaptchaSecretKey: null,
-};
+const g = globalThis as unknown as { __serverConfig?: ServerConfig };
+let _inflight: Promise<ServerConfig> | null = null;
 
-let lastKnownGood: ServerConfig | null = null;
+// ---------------------------------------------------------------------------
+// DB → ServerConfig
+// ---------------------------------------------------------------------------
 
 function parseHttpHeaders(raw: unknown): Record<string, string> {
   if (typeof raw !== "string" || raw.trim() === "") return {};
@@ -87,107 +57,79 @@ function parseHttpHeaders(raw: unknown): Record<string, string> {
   }
 }
 
-function buildServerConfig(row: Record<string, unknown>): ServerConfig {
-  const smtpHost = row.smtpHost as string | null;
-  const smtpUser = row.smtpUser as string | null;
-  const smtpPassword = row.smtpPassword as string | null;
-  const smtpFrom = row.smtpFrom as string | null;
+function toServerConfig(c: Record<string, unknown>): ServerConfig {
+  const smtpHost = c.smtpHost as string | null;
+  const smtpUser = c.smtpUser as string | null;
+  const smtpPassword = c.smtpPassword as string | null;
+  const smtpFrom = c.smtpFrom as string | null;
   const hasSmtp = !!(smtpHost && smtpUser && smtpPassword && smtpFrom);
-  const mailApiUrl = row.mailApiUrl as string | null;
-  const mailApiFrom = row.mailApiFrom as string | null;
-  const mailApiKey = row.mailApiKey as string | null;
+  const mailApiUrl = c.mailApiUrl as string | null;
+  const mailApiFrom = c.mailApiFrom as string | null;
+  const mailApiKey = c.mailApiKey as string | null;
   const hasHttpApi = !!(mailApiUrl && mailApiFrom);
-  const mailSendMode = (row.mailSendMode as string) === "http_api" ? "http_api" : "smtp";
 
   return {
-    siteUrl: (row.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    siteName: (row.siteName as string) || process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
-    uploadDir: (row.uploadDir as string) || process.env.UPLOAD_DIR || "./uploads",
-    mailSendMode,
+    siteUrl: (c.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    siteName: (c.siteName as string) || process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
+    uploadDir: (c.uploadDir as string) || process.env.UPLOAD_DIR || "./uploads",
+    mailSendMode: (c.mailSendMode as string) === "http_api" ? "http_api" : "smtp",
     smtp: hasSmtp
       ? {
           host: smtpHost!,
-          port: (row.smtpPort as number) ?? 465,
+          port: (c.smtpPort as number) ?? 465,
           user: smtpUser!,
           password: smtpPassword!,
           from: smtpFrom!,
         }
       : null,
     httpEmailApi: hasHttpApi
-      ? {
-          url: mailApiUrl!,
-          key: mailApiKey || null,
-          from: mailApiFrom!,
-          headers: parseHttpHeaders(row.mailApiHeaders),
-        }
+      ? { url: mailApiUrl!, key: mailApiKey || null, from: mailApiFrom!, headers: parseHttpHeaders(c.mailApiHeaders) }
       : null,
-    indexNowKey: (row.indexNowKey as string) || null,
-    googleServiceAccountEmail: (row.googleServiceAccountEmail as string) || null,
-    googlePrivateKey: (row.googlePrivateKey as string) || null,
-    turnstileSecretKey: (row.turnstileSecretKey as string) || null,
-    recaptchaSecretKey: (row.recaptchaSecretKey as string) || null,
-    hcaptchaSecretKey: (row.hcaptchaSecretKey as string) || null,
+    indexNowKey: (c.indexNowKey as string) || null,
+    googleServiceAccountEmail: (c.googleServiceAccountEmail as string) || null,
+    googlePrivateKey: (c.googlePrivateKey as string) || null,
+    turnstileSecretKey: (c.turnstileSecretKey as string) || null,
+    recaptchaSecretKey: (c.recaptchaSecretKey as string) || null,
+    hcaptchaSecretKey: (c.hcaptchaSecretKey as string) || null,
   };
 }
 
-const CONFIG_TTL = 300; // 5 minutes
-
-async function fetchServerConfigFromDB(): Promise<Record<string, unknown>> {
-  let row: Record<string, unknown> | null = null;
-  try {
-    row = (await prisma.siteConfig.findUnique({
-      where: { id: "default" },
-      select: selectFields,
-    })) as Record<string, unknown> | null;
-  } catch {
-    row = (await prisma.siteConfig.findUnique({
-      where: { id: "default" },
-    })) as Record<string, unknown> | null;
-  }
-
+async function loadFromDB(): Promise<ServerConfig> {
+  let row = await prisma.siteConfig.findUnique({ where: { id: "default" } });
   if (!row) {
-    throw new Error(
-      "[ServerConfig] 数据库中未找到 SiteConfig 记录（id=default）。" +
-        "请检查数据库是否被重置，或 instrumentation 是否正常执行。",
-    );
+    row = await prisma.siteConfig.upsert({
+      where: { id: "default" },
+      create: { id: "default" },
+      update: {},
+    });
   }
-  return row;
+  return toServerConfig(row as unknown as Record<string, unknown>);
 }
 
-/**
- * 供 instrumentation 调用：从 DB 读取服务端配置并写入 Redis 缓存。
- */
-export async function warmServerConfig(): Promise<void> {
-  const row = await fetchServerConfigFromDB();
-  const result = buildServerConfig(row);
-  lastKnownGood = result;
-  await setCache("server:config", result, CONFIG_TTL);
+// ---------------------------------------------------------------------------
+// 公开 API
+// ---------------------------------------------------------------------------
+
+/** 获取服务端配置（含敏感信息）。常驻内存，读取零开销。 */
+export async function getServerConfig(): Promise<ServerConfig> {
+  if (g.__serverConfig) return g.__serverConfig;
+  if (_inflight) return _inflight;
+
+  _inflight = loadFromDB()
+    .then((c) => {
+      g.__serverConfig = c;
+      _inflight = null;
+      return c;
+    })
+    .catch((e) => {
+      _inflight = null;
+      throw e;
+    });
+
+  return _inflight;
 }
 
-/**
- * 服务端配置（Redis 5 分钟缓存 + React cache 请求去重）。
- *
- * 回退策略：Redis → DB → lastKnownGood → defaultConfig
- */
-export const getServerConfig = cache(async (): Promise<ServerConfig> => {
-  try {
-    const result = await getOrSet(
-      "server:config",
-      async () => {
-        const row = await fetchServerConfigFromDB();
-        const built = buildServerConfig(row);
-        lastKnownGood = built;
-        return built;
-      },
-      CONFIG_TTL,
-    );
-    return result;
-  } catch (err) {
-    if (lastKnownGood) {
-      console.warn("[ServerConfig] DB/Redis 不可用，使用内存快照（lastKnownGood）。", (err as Error)?.message);
-      return lastKnownGood;
-    }
-    console.error("[ServerConfig] DB/Redis 完全不可用且无内存快照，回退到硬编码默认值！", err);
-    return defaultConfig;
-  }
-});
+/** 从 DB 重新加载到内存。 */
+export async function reloadServerConfig(): Promise<void> {
+  g.__serverConfig = await loadFromDB();
+}

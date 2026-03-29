@@ -2,7 +2,7 @@ import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
-import { deleteCachePattern } from "@/lib/redis";
+import { memDeletePrefix } from "@/lib/memory-cache";
 
 export const adminTagsRouter = router({
   // ========== 标签分类管理 ==========
@@ -32,7 +32,7 @@ export const adminTagsRouter = router({
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "分类名称或 slug 已存在" });
 
       const cat = await ctx.prisma.tagCategory.create({ data: input });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true, category: cat };
     }),
 
@@ -51,7 +51,7 @@ export const adminTagsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const cat = await ctx.prisma.tagCategory.update({ where: { id }, data });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true, category: cat };
     }),
 
@@ -60,7 +60,7 @@ export const adminTagsRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.tagCategory.delete({ where: { id: input.id } });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true };
     }),
 
@@ -131,7 +131,7 @@ export const adminTagsRouter = router({
           description: input.description || null,
         },
       });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true, tag };
     }),
@@ -205,7 +205,7 @@ export const adminTagsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { tagId, ...data } = input;
       const tag = await ctx.prisma.tag.update({ where: { id: tagId }, data });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true, tag };
     }),
@@ -223,7 +223,7 @@ export const adminTagsRouter = router({
         where: { id: { in: input.tagIds } },
         data: { categoryId: input.categoryId },
       });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true, count: result.count };
     }),
@@ -233,7 +233,7 @@ export const adminTagsRouter = router({
     .input(z.object({ tagId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.tag.delete({ where: { id: input.tagId } });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true };
     }),
@@ -245,7 +245,7 @@ export const adminTagsRouter = router({
       const result = await ctx.prisma.tag.deleteMany({
         where: { id: { in: input.tagIds } },
       });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true, count: result.count };
     }),
@@ -359,7 +359,7 @@ export const adminTagsRouter = router({
       const { refreshTagCounts } = await import("@/lib/tag-counts");
       await refreshTagCounts([input.targetTagId]);
 
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
 
       return { success: true, mergedCount: sourceTagIds.length };
     }),
@@ -386,7 +386,7 @@ export const adminTagsRouter = router({
       const alias = await ctx.prisma.tagAlias.create({
         data: { tagId: input.tagId, name: input.name },
       });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true, alias };
     }),
 
@@ -395,7 +395,7 @@ export const adminTagsRouter = router({
     .input(z.object({ aliasId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.tagAlias.delete({ where: { id: input.aliasId } });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true };
     }),
 
@@ -445,7 +445,7 @@ export const adminTagsRouter = router({
       }
 
       const impl = await ctx.prisma.tagImplication.create({ data: input });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true, implication: impl };
     }),
 
@@ -454,7 +454,7 @@ export const adminTagsRouter = router({
     .input(z.object({ implicationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.tagImplication.delete({ where: { id: input.implicationId } });
-      await deleteCachePattern("tag:*");
+      memDeletePrefix("tag:");
       return { success: true };
     }),
 
@@ -480,7 +480,7 @@ export const adminTagsRouter = router({
   refreshAllCounts: adminProcedure.use(requireScope("tag:manage")).mutation(async () => {
     const { refreshAllTagCounts } = await import("@/lib/tag-counts");
     const count = await refreshAllTagCounts();
-    await deleteCachePattern("tag:*");
+    memDeletePrefix("tag:");
     return { success: true, tagCount: count };
   }),
 });

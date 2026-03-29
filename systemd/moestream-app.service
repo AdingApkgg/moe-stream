@@ -42,7 +42,7 @@ StartLimitBurst=15
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/moestream/uploads /opt/moestream/logs /opt/moestream/data /opt/moestream/.next/cache /opt/moestream/.backup-tmp
+ReadWritePaths=/opt/moestream/uploads /opt/moestream/logs /opt/moestream/.next/cache /opt/moestream/.backup-tmp
 PrivateTmp=yes
 
 # 日志

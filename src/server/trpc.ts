@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
-import { redis } from "@/lib/redis";
+import { redis, REDIS_AVAILABLE } from "@/lib/redis";
 import { getSession, type AppSession } from "@/lib/auth";
 import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
 import { isPrivileged } from "@/lib/permissions";
@@ -261,27 +261,32 @@ const API_RATE_WINDOW_SECONDS = 60;
 
 const enforceApiKeyRateLimit = t.middleware(async ({ ctx, next }) => {
   if (!ctx.apiKeyScopes) return next();
+  if (!REDIS_AVAILABLE) return next();
 
   const userId = ctx.session?.user?.id;
   if (!userId) return next();
 
-  const key = `api_rate:${userId}`;
-  const now = Date.now();
-  const windowStart = now - API_RATE_WINDOW_SECONDS * 1000;
+  try {
+    const key = `api_rate:${userId}`;
+    const now = Date.now();
+    const windowStart = now - API_RATE_WINDOW_SECONDS * 1000;
 
-  const pipeline = ctx.redis.pipeline();
-  pipeline.zremrangebyscore(key, 0, windowStart);
-  pipeline.zadd(key, now, `${now}:${Math.random().toString(36).slice(2, 8)}`);
-  pipeline.zcard(key);
-  pipeline.expire(key, API_RATE_WINDOW_SECONDS + 5);
-  const results = await pipeline.exec();
+    const pipeline = ctx.redis.pipeline();
+    pipeline.zremrangebyscore(key, 0, windowStart);
+    pipeline.zadd(key, now, `${now}:${Math.random().toString(36).slice(2, 8)}`);
+    pipeline.zcard(key);
+    pipeline.expire(key, API_RATE_WINDOW_SECONDS + 5);
+    const results = await pipeline.exec();
 
-  const count = (results?.[2]?.[1] as number) || 0;
-  if (count > API_RATE_LIMIT) {
-    throw new TRPCError({
-      code: "TOO_MANY_REQUESTS",
-      message: `API 请求过于频繁，限制 ${API_RATE_LIMIT} 次/${API_RATE_WINDOW_SECONDS}秒`,
-    });
+    const count = (results?.[2]?.[1] as number) || 0;
+    if (count > API_RATE_LIMIT) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: `API 请求过于频繁，限制 ${API_RATE_LIMIT} 次/${API_RATE_WINDOW_SECONDS}秒`,
+      });
+    }
+  } catch (err) {
+    if (err instanceof TRPCError) throw err;
   }
 
   return next();

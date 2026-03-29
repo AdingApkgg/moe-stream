@@ -1,14 +1,10 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { getOrSet, deleteCache } from "@/lib/redis";
+import { memGetOrSet, memDelete } from "@/lib/memory-cache";
 
-/**
- * Check if initial setup is complete (i.e., an OWNER user exists).
- * Cached in Redis for 5 minutes + React request-level cache.
- */
 export const isSetupComplete = cache(async (): Promise<boolean> => {
   try {
-    return await getOrSet(
+    return await memGetOrSet(
       "setup:complete",
       async () => {
         const owner = await prisma.user.findFirst({
@@ -17,13 +13,13 @@ export const isSetupComplete = cache(async (): Promise<boolean> => {
         });
         return !!owner;
       },
-      300,
+      300 * 1000,
     );
   } catch {
     return false;
   }
 });
 
-export async function invalidateSetupCache() {
-  await deleteCache("setup:complete");
+export function invalidateSetupCache() {
+  memDelete("setup:complete");
 }

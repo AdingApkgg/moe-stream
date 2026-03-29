@@ -441,8 +441,9 @@ export const imageRouter = router({
     .input(z.object({ id: z.string(), visitorId: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       if (input.visitorId) {
+        const { redisSetNX } = await import("@/lib/redis");
         const dedupKey = `view:image:${input.id}:${input.visitorId}`;
-        const already = await ctx.redis.set(dedupKey, "1", "EX", 3600, "NX");
+        const already = await redisSetNX(dedupKey, "1", 3600);
         if (!already) return { success: true, deduplicated: true };
       }
       await ctx.prisma.imagePost.update({
