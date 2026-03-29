@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export const alt = "Site OG Image";
 export const size = {
   width: 1200,
