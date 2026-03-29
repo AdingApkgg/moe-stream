@@ -29,9 +29,9 @@ KillMode=mixed
 Restart=always
 RestartSec=5
 
-# 资源限制（对应 PM2 max_memory_restart: 512M）
-MemoryMax=512M
-MemoryHigh=450M
+# 资源限制
+MemoryMax=1G
+MemoryHigh=896M
 
 # 重启速率限制
 StartLimitIntervalSec=300

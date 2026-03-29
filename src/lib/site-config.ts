@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
-import { getOrSet } from "@/lib/redis";
+import { getOrSet, setCache } from "@/lib/redis";
 import type { Ad } from "@/lib/ads";
 
 /** 公开站点配置的类型定义 */
@@ -260,88 +260,109 @@ const defaultConfig: PublicSiteConfig = {
   fileUploadEnabled: false,
 };
 
+// 上一次成功从 DB 加载的配置快照，作为 DB/Redis 完全不可用时的二级回退。
+// 比 defaultConfig 可靠：它反映管理员实际保存的值而非硬编码。
+let lastKnownGood: PublicSiteConfig | null = null;
+
+const OAUTH_PROVIDER_PAIRS = [
+  ["Google", "google"],
+  ["Github", "github"],
+  ["Discord", "discord"],
+  ["Apple", "apple"],
+  ["Twitter", "twitter"],
+  ["Facebook", "facebook"],
+  ["Microsoft", "microsoft"],
+  ["Twitch", "twitch"],
+  ["Spotify", "spotify"],
+  ["Linkedin", "linkedin"],
+  ["Gitlab", "gitlab"],
+  ["Reddit", "reddit"],
+] as const;
+
+function buildPublicConfig(config: Record<string, unknown>): PublicSiteConfig {
+  const oauthProviders: string[] = [];
+  for (const [key, id] of OAUTH_PROVIDER_PAIRS) {
+    if (config[`oauth${key}ClientId`] && config[`oauth${key}ClientSecret`]) {
+      oauthProviders.push(id);
+    }
+  }
+
+  return {
+    ...defaultConfig,
+    ...Object.fromEntries(Object.entries(config).filter(([key]) => key in defaultConfig)),
+    siteUrl: stripTrailingSlash(
+      (config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    ),
+    socialLinks: config.socialLinks as Record<string, string> | null,
+    footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
+    sponsorAds: config.sponsorAds as Ad[] | null,
+    oauthProviders,
+  };
+}
+
+async function fetchConfigFromDB(): Promise<Record<string, unknown>> {
+  let config: Record<string, unknown> | null = null;
+
+  try {
+    config = (await prisma.siteConfig.findUnique({
+      where: { id: "default" },
+      select: selectFields,
+    })) as Record<string, unknown> | null;
+  } catch {
+    config = (await prisma.siteConfig.findUnique({
+      where: { id: "default" },
+    })) as Record<string, unknown> | null;
+  }
+
+  if (!config) {
+    throw new Error(
+      "[SiteConfig] 数据库中未找到 SiteConfig 记录（id=default）。" +
+        "请检查数据库是否被重置，或 instrumentation 是否正常执行。",
+    );
+  }
+  return config;
+}
+
+/**
+ * 供 instrumentation 调用：从 DB 读取配置并写入 Redis 缓存。
+ * 在服务器启动时执行，确保第一个请求直接命中缓存。
+ */
+export async function warmPublicSiteConfig(): Promise<void> {
+  const config = await fetchConfigFromDB();
+  const result = buildPublicConfig(config);
+  lastKnownGood = result;
+  await setCache("site:config", result, CONFIG_TTL);
+}
+
+const CONFIG_TTL = 300; // 5 minutes
+
 /**
  * 服务端获取公开站点配置（使用 Redis 5 分钟缓存 + React cache 请求去重）
  * 可在 layout.tsx / page.tsx 等 Server Component 中直接调用。
+ *
+ * 回退策略（按优先级）：
+ * 1. Redis 缓存 → 2. DB 读取 → 3. lastKnownGood 内存快照 → 4. defaultConfig
  */
 export const getPublicSiteConfig = cache(async (): Promise<PublicSiteConfig> => {
   try {
-    return await getOrSet(
+    const result = await getOrSet(
       "site:config",
       async () => {
-        let config: Record<string, unknown> | null = null;
-
-        try {
-          config = (await prisma.siteConfig.findUnique({
-            where: { id: "default" },
-            select: selectFields,
-          })) as Record<string, unknown> | null;
-        } catch {
-          // 新字段尚未迁移时 select 可能失败，回退到全量查询
-          config = (await prisma.siteConfig.findUnique({
-            where: { id: "default" },
-          })) as Record<string, unknown> | null;
-        }
-
-        if (!config) {
-          console.warn(
-            "[SiteConfig] 数据库中未找到 SiteConfig 记录（id=default），将自动创建。" +
-              "如果你的后台设置丢失，请检查数据库是否被重置。",
-          );
-          try {
-            config = (await prisma.siteConfig.create({
-              data: { id: "default" },
-              select: selectFields,
-            })) as Record<string, unknown> | null;
-          } catch {
-            config = (await prisma.siteConfig.create({
-              data: { id: "default" },
-            })) as Record<string, unknown> | null;
-          }
-        }
-
-        if (!config) throw new Error("SiteConfig not available");
-
-        const oauthProviderPairs = [
-          ["Google", "google"],
-          ["Github", "github"],
-          ["Discord", "discord"],
-          ["Apple", "apple"],
-          ["Twitter", "twitter"],
-          ["Facebook", "facebook"],
-          ["Microsoft", "microsoft"],
-          ["Twitch", "twitch"],
-          ["Spotify", "spotify"],
-          ["Linkedin", "linkedin"],
-          ["Gitlab", "gitlab"],
-          ["Reddit", "reddit"],
-        ] as const;
-        const oauthProviders: string[] = [];
-        for (const [key, id] of oauthProviderPairs) {
-          if (
-            config[`oauth${key}ClientId` as keyof typeof config] &&
-            config[`oauth${key}ClientSecret` as keyof typeof config]
-          ) {
-            oauthProviders.push(id);
-          }
-        }
-
-        return {
-          ...defaultConfig,
-          ...Object.fromEntries(Object.entries(config).filter(([key]) => key in defaultConfig)),
-          siteUrl: stripTrailingSlash(
-            (config.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-          ),
-          socialLinks: config.socialLinks as Record<string, string> | null,
-          footerLinks: config.footerLinks as Array<{ label: string; url: string }> | null,
-          sponsorAds: config.sponsorAds as Ad[] | null,
-          oauthProviders,
-        };
+        const config = await fetchConfigFromDB();
+        const built = buildPublicConfig(config);
+        lastKnownGood = built;
+        return built;
       },
-      300, // 5 minutes TTL
+      CONFIG_TTL,
     );
-  } catch {
-    // 数据库或 Redis 完全不可用时返回默认配置，确保页面可渲染
+    return result;
+  } catch (err) {
+    // DB 和 Redis 都不可用——优先使用上次成功加载的快照
+    if (lastKnownGood) {
+      console.warn("[SiteConfig] DB/Redis 不可用，使用内存快照（lastKnownGood）。", (err as Error)?.message);
+      return lastKnownGood;
+    }
+    console.error("[SiteConfig] DB/Redis 完全不可用且无内存快照，回退到硬编码默认值！", err);
     return defaultConfig;
   }
 });

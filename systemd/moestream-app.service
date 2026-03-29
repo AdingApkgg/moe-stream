@@ -17,7 +17,7 @@ Group=moestream
 WorkingDirectory=/opt/moestream
 EnvironmentFile=/opt/moestream/.env.production
 Environment=NODE_ENV=production
-Environment=PORT=80
+Environment=PORT=3000
 
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start
 
@@ -30,9 +30,9 @@ KillMode=mixed
 Restart=always
 RestartSec=5
 
-# 资源限制（对应 PM2 max_memory_restart: 2G）
-MemoryMax=2G
-MemoryHigh=1800M
+# 资源限制
+MemoryMax=8G
+MemoryHigh=7G
 
 # 重启速率限制
 StartLimitIntervalSec=300
