@@ -31,7 +31,7 @@ function createRedis(): Redis {
     return new Redis({ lazyConnect: true, enableOfflineQueue: false });
   }
   return new Redis({
-    ...parseRedisUrl(REDIS_URL),
+    ...parseRedisUrl(REDIS_URL!),
     maxRetriesPerRequest: 3,
     lazyConnect: true,
     enableReadyCheck: true,
