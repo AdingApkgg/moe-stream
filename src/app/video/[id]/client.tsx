@@ -122,20 +122,23 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const switchToEpisode = useCallback((videoId: string) => {
     if (videoId === currentVideoIdRef.current) return;
     setCurrentVideoId(videoId);
-    window.history.pushState({}, "", `/video/${videoId}`);
+    setCurrentPage(1);
+    // 绕过 Next.js 对 pushState 的拦截，避免触发 soft navigation / Suspense 闪烁
+    History.prototype.pushState.call(window.history, {}, "", `/video/${videoId}`);
   }, []);
 
-  // 监听浏览器前进/后退
+  // 监听浏览器前进/后退（capture 阶段拦截，阻止 Next.js 将 popstate 当做路由导航）
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
       const match = window.location.pathname.match(/^\/video\/(.+)$/);
       if (match && match[1] !== currentVideoIdRef.current) {
+        e.stopImmediatePropagation();
         setCurrentVideoId(match[1]);
       }
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener("popstate", handlePopState, true);
+    return () => window.removeEventListener("popstate", handlePopState, true);
   }, []);
 
   // 分P状态管理
@@ -1161,16 +1164,16 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
             <Separator className="my-4 md:my-6" />
 
-            {/* 评论区 */}
+            {/* 评论区 - 使用 displayVideo.id，等新视频数据到达后再切换，避免闪烁 */}
             <div className="px-3 md:px-0">
-              <CommentSection videoId={currentVideoId} />
+              <CommentSection videoId={displayVideo.id} />
             </div>
 
             {/* 附件资源 */}
             <div className="px-3 md:px-0">
               <FileAttachmentPanel
                 contentType="video"
-                contentId={currentVideoId}
+                contentId={displayVideo.id}
                 uploaderId={displayVideo.uploader.id}
               />
             </div>
@@ -1368,8 +1371,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
               {/* 右侧栏广告位 */}
               <AdSlot slotId="video-sidebar" minHeight={100} className="w-full" />
 
-              {/* 相关推荐 */}
-              <SidebarRecommendations videoId={currentVideoId} />
+              {/* 相关推荐 - 同上，等数据到达再切换 */}
+              <SidebarRecommendations videoId={displayVideo.id} />
             </div>
           </div>
         </div>
