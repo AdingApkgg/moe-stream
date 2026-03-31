@@ -40,7 +40,7 @@ jobs:
         run: pnpm biome check .
 
       - name: ESLint
-        run: pnpm lint:eslint
+        run: pnpm lint
 
       - name: TypeScript 类型检查
         run: pnpm typecheck
