@@ -184,7 +184,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   }, [displayVideo?.videoUrl, hasPages, currentPage]);
 
   // 正在切换剧集（已选中但尚未加载完成）
-  const isEpisodeSwitching = currentVideoId !== displayVideo.id;
+  const isEpisodeSwitching = currentVideoId !== displayVideo?.id;
 
   // 选集器模式（后台可配置）
   const selectorMode = siteConfig?.videoSelectorMode ?? "series";
