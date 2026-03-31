@@ -246,12 +246,12 @@ function CreateKeyDialog() {
       {createdKey ? (
         <CreatedKeyDisplay apiKey={createdKey} onClose={handleClose} />
       ) : (
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>创建 API Key</DialogTitle>
             <DialogDescription>API Key 用于通过 HTTP 接口以编程方式访问平台 API。</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto -mx-4 px-4 sm:-mx-6 sm:px-6 min-h-0">
             <div className="space-y-2">
               <Label htmlFor="key-name">名称</Label>
               <Input
@@ -266,7 +266,7 @@ function CreateKeyDialog() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>权限范围</Label>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   {API_SCOPE_TEMPLATES.map((tpl) => (
                     <Button
                       key={tpl.id}
