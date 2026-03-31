@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getPublicSiteConfig } from "@/lib/site-config";
 
+export const dynamic = "force-dynamic";
+
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const config = await getPublicSiteConfig();
   const baseUrl = config.siteUrl;
