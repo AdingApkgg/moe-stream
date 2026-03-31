@@ -1,15 +1,26 @@
 # MoeStream 项目约定
 
+> **时效性提示**：本项目使用大量前沿版本的库，AI 训练数据很可能覆盖不到。遇到不确定的 API 用法时，务必查询最新文档（Cursor 中可用 Context7 MCP）。
+
 ## 技术栈
 
-- **Next.js 16** (App Router, Turbopack, `output: "standalone"`)、**React 19**、**TypeScript 5.9** (`strict`)
-- **tRPC 11** + **Zod 4** (API)、**TanStack Query 5** (数据获取)、**superjson** (序列化)
-- **Prisma 7** + **PostgreSQL** (ORM，适配器 `@prisma/adapter-pg`，客户端输出到 `src/generated/prisma`)
-- **Better Auth** (认证，JWT + 邮箱验证码 + 2FA/Passkey)
-- **Tailwind CSS v4** + **shadcn/ui** (new-york 风格, Radix 原语) + **Framer Motion**
-- **Zustand** (全局状态，`src/stores/`)、**React Context** (`src/contexts/`)
-- **Socket.io** (实时通信，独立进程)、**Redis** (`ioredis`)
-- **pnpm 10** (包管理)、**Biome** (格式化)、**ESLint** (lint)
+- **Next.js 16.2** (App Router, Turbopack, `output: "standalone"`)、**React 19.2**、**TypeScript 6.0** (`strict`)
+- **tRPC 11.15** + **Zod 4.3** (API)、**TanStack Query 5.95** (数据获取)、**superjson** (序列化)
+- **Prisma 7.6** + **PostgreSQL** (ORM，适配器 `@prisma/adapter-pg`，客户端输出到 `src/generated/prisma`)
+- **Better Auth 1.5** (认证，JWT + 邮箱验证码 + 2FA/Passkey)
+- **Tailwind CSS v4.2** + **shadcn/ui** (new-york 风格, Radix 原语) + **Framer Motion 12**
+- **Zustand 5** (全局状态，`src/stores/`)、**React Context** (`src/contexts/`)
+- **Socket.io 4.8** (实时通信，独立进程)、**Redis** (`ioredis 5`)
+- **pnpm 10** (包管理)、**Biome 2.4** (格式化)、**ESLint 9** (lint)、**Vitest 4** (测试)
+
+## 关键版本差异（AI 常见错误）
+
+- `params` / `searchParams` 在 Next.js 16 中是 **Promise**，服务端用 `await`，客户端用 `use()`
+- Tailwind v4 用 **CSS 配置**（`@import "tailwindcss"` + `@theme {}`），无 `tailwind.config.ts`
+- Prisma 7 generator 为 `"prisma-client"`（不是 `"prisma-client-js"`），导入路径 `@/generated/prisma/client`
+- Zod 4 导入 `import { z } from "zod"`（不是 `zod/v4`）
+- 日期用 `dayjs`，不用 `date-fns`
+- 认证用 Better Auth（`@/lib/auth-client`），不是 next-auth
 
 ## 路径别名
 

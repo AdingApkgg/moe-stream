@@ -518,12 +518,13 @@ export default function AdminSettingsPage() {
     refetchOnReconnect: false,
   });
 
-  const configInitRef = useRef(false);
+  const configResetRef = useRef<number>(0);
 
   const updateConfig = trpc.admin.updateSiteConfig.useMutation({
     onSuccess: (data) => {
       toast.success("配置已保存");
       resetFormFromConfig(data);
+      configResetRef.current = new Date(data.updatedAt).getTime();
       utils.admin.getSiteConfig.invalidate();
     },
     onError: (error) => {
@@ -903,11 +904,16 @@ export default function AdminSettingsPage() {
     [form],
   );
 
-  // 仅在首次加载配置时初始化表单，避免 query refetch 导致未保存的修改被清除
+  // 基于 updatedAt 时间戳决定是否重新初始化表单：
+  // - DB 数据更新时（其他管理员/页面修改）自动刷新表单
+  // - 同一版本数据的 refetch 不会清除未保存的编辑
   useEffect(() => {
-    if (config && !configInitRef.current) {
-      configInitRef.current = true;
-      resetFormFromConfig(config);
+    if (config) {
+      const ts = new Date(config.updatedAt).getTime();
+      if (configResetRef.current !== ts) {
+        configResetRef.current = ts;
+        resetFormFromConfig(config);
+      }
     }
   }, [config, resetFormFromConfig]);
 

@@ -1,0 +1,73 @@
+---
+description: Vitest 4 测试约定
+globs: src/**/*.test.{ts,tsx}
+alwaysApply: false
+---
+
+# 测试约定（Vitest 4）
+
+## 基本结构
+
+```ts
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+describe("模块名", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("应该做什么", () => {
+    expect(result).toBe(expected);
+  });
+});
+```
+
+## 配置要点
+
+- `globals: true`（`describe`/`it`/`expect` 无需导入也可用，但推荐显式导入）
+- `environment: "node"`（非 jsdom）
+- 路径别名 `@` → `src`（与主项目一致）
+- 运行：`pnpm test`（单次）、`pnpm test:watch`（监听）、`pnpm test:coverage`（覆盖率）
+
+## Mock
+
+```ts
+// Mock 模块
+vi.mock("@/lib/prisma", () => ({
+  prisma: { user: { findUnique: vi.fn() } },
+}));
+
+// Mock 函数
+const mockFn = vi.fn().mockResolvedValue({ id: "1" });
+
+// Spy
+const spy = vi.spyOn(object, "method").mockReturnValue(value);
+```
+
+## tRPC 路由测试模式
+
+本项目用内联 caller 测试 tRPC 路由：
+
+```ts
+import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
+import type { Context } from "../trpc";
+
+const t = initTRPC.context<Context>().create({ transformer: superjson });
+
+// 构造测试路由
+const testRouter = t.router({
+  myProcedure: t.procedure.query(({ ctx }) => { /* ... */ }),
+});
+
+// 创建 caller
+const caller = testRouter.createCaller(mockContext);
+const result = await caller.myProcedure();
+```
+
+## 文件组织
+
+- 测试文件放在对应模块的 `__tests__/` 目录下
+- 命名：`模块名.test.ts`（如 `referral-api.test.ts`）
+- 辅助函数放 `__tests__/helpers.ts`
+- 测试描述与注释用**中文**

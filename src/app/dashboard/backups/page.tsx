@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -174,9 +174,20 @@ export default function BackupsPage() {
     { enabled: !!permissions?.scopes.includes("settings:manage"), refetchInterval: 5000 },
   );
 
+  const configResetRef = useRef<number>(0);
+
   const updateConfig = trpc.admin.updateSiteConfig.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("备份设置已保存");
+      const c = data as unknown as Record<string, unknown>;
+      form.reset({
+        backupEnabled: (c.backupEnabled as boolean) ?? false,
+        backupIntervalHours: (c.backupIntervalHours as number) ?? 24,
+        backupRetentionDays: (c.backupRetentionDays as number) ?? 30,
+        backupIncludeUploads: (c.backupIncludeUploads as boolean) ?? true,
+        backupIncludeConfig: (c.backupIncludeConfig as boolean) ?? true,
+      });
+      configResetRef.current = new Date(data.updatedAt).getTime();
       refetchConfig();
     },
     onError: (error) => toast.error(error.message || "保存失败"),
@@ -226,14 +237,18 @@ export default function BackupsPage() {
 
   useEffect(() => {
     if (config) {
-      const c = config as Record<string, unknown>;
-      form.reset({
-        backupEnabled: (c.backupEnabled as boolean) ?? false,
-        backupIntervalHours: (c.backupIntervalHours as number) ?? 24,
-        backupRetentionDays: (c.backupRetentionDays as number) ?? 30,
-        backupIncludeUploads: (c.backupIncludeUploads as boolean) ?? true,
-        backupIncludeConfig: (c.backupIncludeConfig as boolean) ?? true,
-      });
+      const ts = new Date(config.updatedAt).getTime();
+      if (configResetRef.current !== ts) {
+        configResetRef.current = ts;
+        const c = config as Record<string, unknown>;
+        form.reset({
+          backupEnabled: (c.backupEnabled as boolean) ?? false,
+          backupIntervalHours: (c.backupIntervalHours as number) ?? 24,
+          backupRetentionDays: (c.backupRetentionDays as number) ?? 30,
+          backupIncludeUploads: (c.backupIncludeUploads as boolean) ?? true,
+          backupIncludeConfig: (c.backupIncludeConfig as boolean) ?? true,
+        });
+      }
     }
   }, [config, form]);
 
@@ -241,7 +256,14 @@ export default function BackupsPage() {
   const isStorageConfigured = storageProvider && storageProvider !== "local";
 
   const onSubmit = (values: BackupSettingsValues) => {
-    updateConfig.mutate(values);
+    const { dirtyFields } = form.formState;
+    const dirtyKeys = Object.keys(dirtyFields).filter((k) => dirtyFields[k as keyof typeof dirtyFields]);
+    if (dirtyKeys.length === 0) {
+      toast.info("没有修改");
+      return;
+    }
+    const dirtyValues = Object.fromEntries(dirtyKeys.map((k) => [k, (values as Record<string, unknown>)[k]]));
+    updateConfig.mutate(dirtyValues);
   };
 
   const handleDownload = async (id: string) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTabParam } from "@/hooks/use-tab-param";
 import { useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -273,13 +273,7 @@ function PointsSettingsForm() {
   const { data: config, isLoading } = trpc.admin.getSiteConfig.useQuery();
   const utils = trpc.useUtils();
 
-  const updateConfig = trpc.admin.updateSiteConfig.useMutation({
-    onSuccess: () => {
-      toast.success("积分设置已保存");
-      utils.admin.getSiteConfig.invalidate();
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const configResetRef = useRef<number>(0);
 
   const form = useForm<PointsConfigValues>({
     resolver: zodResolver(pointsConfigSchema),
@@ -294,22 +288,43 @@ function PointsSettingsForm() {
     },
   });
 
+  const resetFormFromConfig = useCallback(
+    (cfg: Record<string, unknown>) => {
+      form.reset({
+        referralEnabled: (cfg.referralEnabled as boolean) ?? false,
+        referralPointsPerUser: (cfg.referralPointsPerUser as number) ?? 100,
+        referralMaxLinksPerUser: (cfg.referralMaxLinksPerUser as number) ?? 20,
+        pointsRules: {
+          ...DEFAULT_POINTS_RULES,
+          ...((cfg.pointsRules as PointsConfigValues["pointsRules"]) || {}),
+        },
+        checkinEnabled: (cfg.checkinEnabled as boolean) ?? false,
+        checkinPointsMin: (cfg.checkinPointsMin as number) ?? 1,
+        checkinPointsMax: (cfg.checkinPointsMax as number) ?? 10,
+      });
+    },
+    [form],
+  );
+
+  const updateConfig = trpc.admin.updateSiteConfig.useMutation({
+    onSuccess: (data) => {
+      toast.success("积分设置已保存");
+      resetFormFromConfig(data as unknown as Record<string, unknown>);
+      configResetRef.current = new Date(data.updatedAt).getTime();
+      utils.admin.getSiteConfig.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   useEffect(() => {
-    if (!config) return;
-    const c = config as Record<string, unknown>;
-    form.reset({
-      referralEnabled: (c.referralEnabled as boolean) ?? false,
-      referralPointsPerUser: (c.referralPointsPerUser as number) ?? 100,
-      referralMaxLinksPerUser: (c.referralMaxLinksPerUser as number) ?? 20,
-      pointsRules: {
-        ...DEFAULT_POINTS_RULES,
-        ...((c.pointsRules as PointsConfigValues["pointsRules"]) || {}),
-      },
-      checkinEnabled: (c.checkinEnabled as boolean) ?? false,
-      checkinPointsMin: (c.checkinPointsMin as number) ?? 1,
-      checkinPointsMax: (c.checkinPointsMax as number) ?? 10,
-    });
-  }, [config, form]);
+    if (config) {
+      const ts = new Date(config.updatedAt).getTime();
+      if (configResetRef.current !== ts) {
+        configResetRef.current = ts;
+        resetFormFromConfig(config as unknown as Record<string, unknown>);
+      }
+    }
+  }, [config, resetFormFromConfig]);
 
   if (isLoading) {
     return (
@@ -326,7 +341,14 @@ function PointsSettingsForm() {
   }
 
   const onSubmit = (values: PointsConfigValues) => {
-    updateConfig.mutate(values);
+    const { dirtyFields } = form.formState;
+    const dirtyKeys = Object.keys(dirtyFields).filter((k) => dirtyFields[k as keyof typeof dirtyFields]);
+    if (dirtyKeys.length === 0) {
+      toast.info("没有修改");
+      return;
+    }
+    const dirtyValues = Object.fromEntries(dirtyKeys.map((k) => [k, (values as Record<string, unknown>)[k]]));
+    updateConfig.mutate(dirtyValues);
   };
 
   return (

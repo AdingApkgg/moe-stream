@@ -1,0 +1,109 @@
+---
+description: 核心库版本信息与 AI 时效性指引 — 防止 AI 使用过时 API
+alwaysApply: true
+---
+
+# 核心库版本 & AI 时效性指引
+
+本项目使用大量**前沿版本**的库，AI 训练数据很可能覆盖不到。遇到不确定的 API 用法时，**必须先用 Context7 MCP 查询最新文档**，不要凭记忆猜测。
+
+## 使用 Context7 查文档的流程
+
+1. 调用 `resolve-library-id`（MCP server: `user-context7`），传入库名
+2. 用返回的 library ID 调用 `query-docs`，传入具体问题
+3. 以文档结果为准编写代码
+
+**必须查文档的场景**：涉及下列库的 API 用法、配置方式、初始化模式、迁移变更时。
+
+## 版本清单与关键变更
+
+### Next.js 16 (v16.2.1)
+
+- `params` 和 `searchParams` 是 **`Promise`**，服务端用 `await`，客户端用 React `use()`
+- Turbopack 为默认打包器
+- App Router 为唯一路由模式
+
+```tsx
+// 服务端页面
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+}
+
+// 客户端页面
+"use client";
+import { use } from "react";
+export default function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+}
+```
+
+### React 19 (v19.2.4)
+
+- 新增 `use()` hook（用于解包 Promise 和 Context）
+- Server Components 为默认，`"use client"` 标记客户端组件
+
+### TypeScript 6 (v6.0.2)
+
+- `strict: true`，`moduleResolution: "bundler"`
+- 本项目未使用 TS6 实验性编译选项
+
+### tRPC 11 (v11.15.1)
+
+- 客户端：`createTRPCReact<AppRouter>()`（从 `@trpc/react-query`）
+- 链路：`httpBatchLink`（非 httpBatchStreamLink）+ `superjson` transformer
+- 服务端：`initTRPC.context<Context>().create({ transformer: superjson })`
+
+### Zod 4 (v4.3.6)
+
+- 导入：`import { z } from "zod"`（不是 `zod/v4` 或其他子路径）
+- 核心 API（`z.object`、`z.string`、`z.enum`、`.optional()`、`.default()`）与 Zod 3 基本兼容
+- 错误处理：`ZodError` + `.flatten()`
+
+### Prisma 7 (v7.6.0)
+
+- Generator：`provider = "prisma-client"`（不是 `prisma-client-js`）
+- 客户端输出到 `src/generated/prisma`，导入路径 `@/generated/prisma/client`
+- 驱动适配器：`PrismaPg` from `@prisma/adapter-pg` + `pg` 的 `Pool`
+- Schema 改动后执行 `pnpm db:generate` + `pnpm db:push`
+
+### Tailwind CSS v4 (v4.2.2)
+
+- **纯 CSS 配置**，无 `tailwind.config.ts`
+- 入口：`@import "tailwindcss"` + `@theme { }` + `@plugin` + `@custom-variant`
+- PostCSS 插件：`@tailwindcss/postcss`
+- 不要生成 `tailwind.config.ts` 或使用 `theme.extend` JS 语法
+
+### Zustand 5 (v5.0.12)
+
+- `create<State>()(...)` 双括号写法（支持 TypeScript 推导）
+- 持久化：`persist()` + `createJSONStorage(() => localStorage)`
+- 读取状态用 selector：`useStore((s) => s.field)`
+
+### Vitest 4 (v4.1.2)
+
+- 导入：`import { describe, it, expect, vi, beforeEach } from "vitest"`
+- 配置：`globals: true`、`environment: "node"`
+- 运行：`pnpm test`（单次）、`pnpm test:watch`（监听）
+
+### 其他重要依赖版本
+
+- **TanStack Query 5** (v5.95.2)
+- **Better Auth** (v1.5.6) — 认证框架，非 next-auth
+- **Framer Motion** (v12.38.0)
+- **react-hook-form** (v7.72.0) + **@hookform/resolvers** (v5.2.2)
+- **Socket.io** (v4.8.3)
+- **ioredis** (v5.10.1)
+- **dayjs** (v1.11.20) — 日期处理首选，不用 date-fns
+- **pnpm** (v10.33.0) — 包管理器
+- **Biome** (v2.4.9) — 格式化
+- **ESLint** (v9.39.3) — Lint
+
+## AI 常见错误提醒
+
+1. ❌ `params.id` → ✅ `(await params).id` 或 `use(params).id`
+2. ❌ `tailwind.config.ts` 的 `theme.extend` → ✅ `globals.css` 的 `@theme { }`
+3. ❌ `import { PrismaClient } from "@prisma/client"` → ✅ `import { PrismaClient } from "@/generated/prisma/client"`
+4. ❌ `provider = "prisma-client-js"` → ✅ `provider = "prisma-client"`
+5. ❌ `import { z } from "zod/v4"` → ✅ `import { z } from "zod"`
+6. ❌ 用 `date-fns` 处理日期 → ✅ 用 `dayjs`
+7. ❌ 用 `next-auth` API → ✅ 用 Better Auth（`@/lib/auth-client`）

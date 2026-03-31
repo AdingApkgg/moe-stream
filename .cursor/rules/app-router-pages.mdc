@@ -1,0 +1,77 @@
+---
+description: Next.js 16 App Router 页面与布局开发约定
+globs: src/app/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# App Router 页面约定（Next.js 16）
+
+## 页面拆分模式
+
+- **`page.tsx`**（Server Component）：数据获取、元数据生成、静态内容
+- **`client.tsx`**（Client Component）：交互逻辑，`"use client"` 写在首行
+- **`_components/`**：页面私有组件
+- **`_lib/`**：页面私有工具
+
+## params / searchParams 是 Promise
+
+Next.js 16 中 `params` 和 `searchParams` 都是 **`Promise`** 类型：
+
+```tsx
+// 服务端页面（page.tsx）— 用 await
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
+}
+
+export default async function Page({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const { q } = await searchParams;
+}
+
+// generateMetadata — 同样 await
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+}
+
+// 客户端页面 — 用 React use()
+"use client";
+import { use } from "react";
+
+export default function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+}
+```
+
+## Route Handler
+
+```ts
+// src/app/api/xxx/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+}
+```
+
+## 布局
+
+- 根布局在 `src/app/layout.tsx`，包含 Providers、主题、字体
+- 嵌套布局用 `layout.tsx`，公共布局用 `(group)/layout.tsx`
+- 布局是 Server Component，除非需要客户端状态
+
+## 元数据
+
+- 静态元数据：`export const metadata: Metadata = { ... }`
+- 动态元数据：`export async function generateMetadata({ params }): Promise<Metadata> { ... }`
+- 不存在时调用 `notFound()`（从 `next/navigation` 导入）
+
+## 常见路由模式
+
+- 动态路由：`[id]/page.tsx`
+- 分页路由：`page/[page]/page.tsx`
+- 可选捕获：`[...path]/route.ts`
+- 路由组：`(auth)/`、`(dashboard)/`

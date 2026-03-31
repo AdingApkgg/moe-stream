@@ -2,7 +2,7 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 # 推广中心
 
-推广数据查询、排行榜、渠道统计相关接口。通过 `openApi.*` 命名空间访问概览数据，通过 `referral.*` 命名空间管理自己的推广链接和签到。
+推广数据查询、排行榜、渠道统计相关接口。通过 `openApi.*` 命名空间访问全站推广概览数据，通过 `referral.*` 命名空间管理自己的推广链接、查看个人推广统计和签到领奖。
 
 ---
 
@@ -14,12 +14,61 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="openApi.referralOverview" auth="referral:read" />
 
-获取全站推广活动的汇总数据，包含总链接数、总邀请人数、点击量、付款统计等。
+获取全站推广活动的汇总数据，包含总链接数、总邀请人数、点击量、付款统计等。支持按日期范围和渠道筛选，不传参数则返回全量汇总。
+
+<ParamTable>
+  <P name="from" type="string">开始日期（ISO 8601 格式），与 `to` 一起使用，启用日期范围筛选</P>
+  <P name="to" type="string">结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="channel" type="string">渠道标识，仅统计指定渠道的链接数据</P>
+</ParamTable>
+
+**示例 1 — 全量汇总：**
 
 <CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralOverview' \\
   -H 'Content-Type: application/json' \\
   -H 'Authorization: Bearer sk-your-api-key' \\
   -d '{}'`}</CopyBlock>
+
+**示例 2 — 指定日期范围 + 渠道：**
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralOverview' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-31T23:59:59.999Z","channel":"twitter"}'`}</CopyBlock>
+
+**返回字段说明：**
+- `period` — 筛选的日期范围，未指定时为 `null`
+- `channel` — 筛选的渠道，未指定时为 `null`
+- `links` — 总链接数
+- `referrals` — 总邀请记录数
+- `clicks` / `uniqueClicks` — 总点击 / 去重点击
+- `payments.count` / `payments.amount` — 付款笔数 / 金额
+- `pointsAwarded` — 已发放推广积分
+- `activeReferrers` — 活跃推广者数
+
+---
+
+### 推广趋势统计
+
+<Endpoint method="POST" path="openApi.referralTrendStats" auth="referral:read" />
+
+按日聚合的全站推广数据时间序列，适用于趋势图表可视化。支持渠道筛选。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期（ISO 8601 格式）</P>
+  <P name="to" type="string" required>结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="channel" type="string">渠道标识，仅统计指定渠道的数据</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralTrendStats' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-15T23:59:59.999Z"}'`}</CopyBlock>
+
+**返回字段说明：**
+- `period.from` / `period.to` — 查询的日期范围
+- `channel` — 筛选的渠道，未指定时为 `null`
+- `trend[]` — 每日数据数组，每项包含 `date`、`clicks`、`uniqueClicks`、`registers`、`paymentCount`、`paymentAmount`
 
 ---
 
@@ -27,10 +76,24 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="openApi.referralLeaderboard" auth="referral:read" />
 
+按不同指标查看推广用户排行榜。支持渠道筛选（`points` 指标除外）。
+
 <ParamTable>
-  <P name="metric" type="string">排行指标：`referrals`（默认）/ `clicks` / `points`</P>
+  <P name="metric" type="string">排行指标：`referrals`（邀请人数，默认）/ `clicks`（点击量）/ `points`（积分）</P>
   <P name="limit" type="number">数量（1-50，默认 20）</P>
+  <P name="channel" type="string">渠道标识，仅统计指定渠道的链接数据（`points` 指标时无效）</P>
 </ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralLeaderboard' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"metric":"referrals","limit":10,"channel":"bilibili"}'`}</CopyBlock>
+
+**返回字段说明：**
+- `items[].userId` — 用户 ID
+- `items[].name` — 用户昵称
+- `items[].avatar` — 头像 URL
+- `items[].value` — 指标数值
 
 ---
 
@@ -38,23 +101,162 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="openApi.referralChannelStats" auth="referral:read" />
 
-按推广渠道（channel）聚合统计点击、注册、付款数据。
+按推广渠道（channel）聚合统计点击、注册、付款数据，包含转化率计算。支持日期范围筛选和自定义排序。
 
 <ParamTable>
   <P name="limit" type="number">数量（1-50，默认 20）</P>
+  <P name="from" type="string">开始日期（ISO 8601 格式），与 `to` 一起使用</P>
+  <P name="to" type="string">结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="sortBy" type="string">排序字段：`registers`（默认）/ `clicks` / `uniqueClicks` / `payments`</P>
 </ParamTable>
+
+**示例 — 查询本月各渠道表现：**
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralChannelStats' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-31T23:59:59.999Z","sortBy":"registers","limit":10}'`}</CopyBlock>
+
+**返回字段说明：**
+- `period` — 筛选的日期范围，未指定时为 `null`
+- `items[].channel` — 渠道名称
+- `items[].clicks` / `uniqueClicks` — 点击 / 去重点击
+- `items[].registers` — 注册数
+- `items[].payments` / `paymentAmount` — 付款笔数 / 金额
+- `items[].conversionRate` — 注册转化率（百分比）
+
+---
+
+### 推广链接排行
+
+<Endpoint method="POST" path="openApi.referralLinkRanking" auth="referral:read" />
+
+全站维度的推广链接表现排行，可按渠道筛选和自定义排序。
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-50，默认 20）</P>
+  <P name="channel" type="string">渠道标识，仅返回指定渠道的链接</P>
+  <P name="sortBy" type="string">排序字段：`registers`（默认）/ `uniqueClicks` / `paymentCount` / `paymentAmount`</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralLinkRanking' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"sortBy":"paymentCount","channel":"twitter","limit":5}'`}</CopyBlock>
+
+**返回字段说明：**
+- `items[].id` / `code` / `label` / `channel` — 链接基本信息
+- `items[].clicks` / `uniqueClicks` / `registers` — 点击与注册数据
+- `items[].paymentCount` / `paymentAmount` — 付款统计
+- `items[].conversionRate` — 注册转化率（百分比）
+- `items[].createdAt` — 创建时间
+- `items[].user` — 链接所属用户（`id`、`name`、`avatar`）
 
 ---
 
 ## 用户推广管理（referral）
 
-以下端点通过 `referral` 路由提供，需要 `referral:read` / `referral:write` scope。
+以下端点通过 `referral` 路由提供，操作当前登录用户自己的推广数据。查询类需要 `referral:read` scope，写入类需要 `referral:write` scope。
 
 ### 获取我的推广统计
 
 <Endpoint method="POST" path="referral.getMyStats" auth="referral:read" />
 
-查询当前用户的推广统计信息。
+查询当前用户的推广统计信息，包含指定日期、前一日、全量汇总和转化率。可选指定日期和链接 ID 筛选。
+
+<ParamTable>
+  <P name="date" type="string">查询日期（`YYYY-MM-DD` 格式，如 `2026-03-15`），不传则为今日</P>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，仅统计指定链接的数据</P>
+</ParamTable>
+
+**示例 — 查询指定日期的统计：**
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getMyStats' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"date":"2026-03-15"}'`}</CopyBlock>
+
+**返回字段说明：**
+- `date` — 查询的日期（`YYYY-MM-DD`）
+- `points` — 当前积分余额
+- `referralCode` — 个人推广码
+- `totalReferrals` / `totalLinks` — 总邀请人数 / 总链接数
+- `todayClicks` / `todayUniqueClicks` / `todayRegisters` / `todayPaymentCount` / `todayPaymentAmount` — 指定日期的数据
+- `yesterdayUniqueClicks` / `yesterdayRegisters` / `yesterdayPaymentCount` — 指定日期前一天的数据
+- `totalClicks` / `totalUniqueClicks` / `totalRegisters` / `totalPaymentCount` / `totalPaymentAmount` — 全量数据
+- `conversionRate` — 注册转化率（百分比）
+- `paymentConversionRate` — 付款转化率（百分比）
+- `earnedPoints` — 推广获得的总积分
+
+---
+
+### 推广趋势数据
+
+<Endpoint method="POST" path="referral.getMyTrendStats" auth="referral:read" />
+
+查询当前用户指定日期范围内按日聚合的推广数据趋势。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期（ISO 8601 格式）</P>
+  <P name="to" type="string" required>结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，仅统计指定链接的数据</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getMyTrendStats' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-15T23:59:59.999Z"}'`}</CopyBlock>
+
+---
+
+### 渠道统计
+
+<Endpoint method="POST" path="referral.getChannelStats" auth="referral:read" />
+
+按渠道（channel）聚合当前用户的推广数据，包含转化率。
+
+<ParamTable>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，仅统计指定链接的数据</P>
+</ParamTable>
+
+**返回每个渠道：** `channel`、`clicks`、`uniqueClicks`、`registers`、`paymentCount`、`paymentAmount`、`paymentUsers`、`linkCount`、`conversionRate`、`paymentConversionRate`
+
+---
+
+### Top 链接
+
+<Endpoint method="POST" path="referral.getTopLinks" auth="referral:read" />
+
+获取当前用户表现最好的推广链接。
+
+<ParamTable>
+  <P name="limit" type="number">数量（1-20，默认 5）</P>
+  <P name="sortBy" type="string">排序：`registers`（默认）/ `uniqueClicks` / `paymentCount` / `paymentConversionRate` / `conversionRate`</P>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，限定排行范围</P>
+</ParamTable>
+
+---
+
+### 推广链接列表
+
+<Endpoint method="POST" path="referral.getMyLinks" auth="referral:read" />
+
+分页查询当前用户的推广链接，支持搜索、渠道筛选、状态筛选和排序。
+
+<ParamTable>
+  <P name="limit" type="number">每页数量（1-50，默认 20）</P>
+  <P name="page" type="number">页码（默认 1）</P>
+  <P name="search" type="string">搜索关键词（匹配链接标签和推广码）</P>
+  <P name="channel" type="string">渠道筛选，传 `_none` 筛选无渠道的链接</P>
+  <P name="isActive" type="boolean">启用状态筛选</P>
+  <P name="sortBy" type="string">排序字段：`createdAt`（默认）/ `clicks` / `uniqueClicks` / `registers`</P>
+  <P name="sortDir" type="string">排序方向：`desc`（默认）/ `asc`</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getMyLinks' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"page":1,"limit":10,"channel":"twitter","sortBy":"registers","sortDir":"desc"}'`}</CopyBlock>
 
 ---
 
@@ -62,11 +264,107 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="referral.createLink" auth="referral:write" />
 
+创建新的推广链接，受站点推广开关和每用户链接上限约束。
+
 <ParamTable>
-  <P name="label" type="string">链接备注名称</P>
-  <P name="channel" type="string">推广渠道标识</P>
+  <P name="label" type="string">链接备注名称（最长 100 字符）</P>
+  <P name="channel" type="string">推广渠道标识（最长 50 字符，如 `twitter`、`bilibili`）</P>
   <P name="targetUrl" type="string">目标落地页 URL</P>
 </ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.createLink' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"label":"B 站简介区","channel":"bilibili","targetUrl":"https://example.com/promo"}'`}</CopyBlock>
+
+---
+
+### 更新推广链接
+
+<Endpoint method="POST" path="referral.updateLink" auth="referral:write" />
+
+更新自己的推广链接属性。
+
+<ParamTable>
+  <P name="id" type="string" required>链接 ID</P>
+  <P name="label" type="string">新的备注名称</P>
+  <P name="isActive" type="boolean">启用/停用链接</P>
+</ParamTable>
+
+---
+
+### 删除推广链接
+
+<Endpoint method="POST" path="referral.deleteLink" auth="referral:write" />
+
+删除自己的推广链接及关联数据。
+
+<ParamTable>
+  <P name="id" type="string" required>链接 ID</P>
+</ParamTable>
+
+---
+
+### 被推广用户列表
+
+<Endpoint method="POST" path="referral.getMyReferrals" auth="referral:read" />
+
+分页查询当前用户邀请的用户记录，支持搜索、按链接和渠道筛选。
+
+<ParamTable>
+  <P name="limit" type="number">每页数量（1-50，默认 20）</P>
+  <P name="page" type="number">页码（默认 1）</P>
+  <P name="search" type="string">搜索关键词（匹配被邀请用户的用户名或昵称）</P>
+  <P name="linkId" type="string">推广链接 ID，仅查看通过该链接邀请的用户</P>
+  <P name="channel" type="string">渠道筛选，传 `_none` 筛选无渠道的记录</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getMyReferrals' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"page":1,"limit":10,"channel":"twitter"}'`}</CopyBlock>
+
+---
+
+### 积分流水
+
+<Endpoint method="POST" path="referral.getPointsHistory" auth="referral:read" />
+
+分页查询当前用户的积分变动记录，支持按类型和收支方向筛选。
+
+<ParamTable>
+  <P name="limit" type="number">每页数量（1-50，默认 20）</P>
+  <P name="page" type="number">页码（默认 1）</P>
+  <P name="type" type="string">积分类型筛选：`REFERRAL_REWARD`（推广奖励）/ `DAILY_LOGIN`（每日登录）/ `CHECKIN`（签到）/ `ADMIN_ADJUST`（管理员调整）</P>
+  <P name="amountDir" type="string">收支方向：`income`（收入）/ `expense`（支出）</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getPointsHistory' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"page":1,"limit":20,"type":"REFERRAL_REWARD","amountDir":"income"}'`}</CopyBlock>
+
+---
+
+### 生成推广码
+
+<Endpoint method="POST" path="referral.ensureReferralCode" auth="referral:write" />
+
+为当前用户生成个人推广码（若已有则直接返回）。
+
+---
+
+### 签到状态
+
+<Endpoint method="POST" path="referral.getCheckinStatus" auth="referral:read" />
+
+获取签到系统的状态：是否启用、今日是否已签到、积分区间。
+
+**返回字段说明：**
+- `enabled` — 签到功能是否开启
+- `checkedInToday` — 今日是否已签到
+- `todayPoints` — 今日签到获得的积分（未签到为 0）
+- `pointsMin` / `pointsMax` — 签到积分随机区间
 
 ---
 
@@ -74,4 +372,20 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="referral.checkin" auth="referral:write" />
 
-执行每日签到领取积分奖励。
+执行每日签到领取积分奖励。每日限一次。
+
+**返回字段说明：**
+- `awarded` — 是否成功领取
+- `points` — 领取的积分数
+
+---
+
+### 每日登录奖励
+
+<Endpoint method="POST" path="referral.claimDailyLogin" auth="referral:write" />
+
+领取每日登录奖励积分。每日限一次，与签到独立。
+
+**返回字段说明：**
+- `awarded` — 是否成功领取
+- `points` — 领取的积分数

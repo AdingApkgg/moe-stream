@@ -78,17 +78,26 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const episodeListRef = useRef<HTMLDivElement | null>(null);
 
   // 当前播放的视频 ID（用于剧集切换，不触发路由导航）
-  const [currentVideoId, setCurrentVideoId] = useState(initialId);
+  // 从 URL 初始化而非 prop，防止 Suspense 重挂载时跳回 initialId
+  const [currentVideoId, setCurrentVideoId] = useState(() => {
+    if (typeof window !== "undefined") {
+      const match = window.location.pathname.match(/^\/video\/(.+)$/);
+      if (match) return match[1];
+    }
+    return initialId;
+  });
+  const currentVideoIdRef = useRef(currentVideoId);
+  currentVideoIdRef.current = currentVideoId;
 
   // 检测是否是从外部导航进入（URL 的 id 变化）
   useEffect(() => {
-    if (initialId !== currentVideoId) {
+    if (initialId !== currentVideoIdRef.current) {
       setCurrentVideoId(initialId);
     }
-  }, [initialId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialId]);
 
   // 客户端获取视频数据
-  const { data: video, isLoading: isVideoLoading } = trpc.video.getById.useQuery(
+  const { data: video } = trpc.video.getById.useQuery(
     { id: currentVideoId },
     {
       staleTime: 30000,
@@ -110,31 +119,24 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   }, [video]);
 
   // 剧集切换 - 只更新状态和 URL，不触发路由导航
-  const switchToEpisode = useCallback(
-    (videoId: string) => {
-      if (videoId === currentVideoId) return;
-
-      // 更新状态
-      setCurrentVideoId(videoId);
-
-      // 更新 URL（不触发导航）
-      window.history.pushState({}, "", `/video/${videoId}`);
-    },
-    [currentVideoId],
-  );
+  const switchToEpisode = useCallback((videoId: string) => {
+    if (videoId === currentVideoIdRef.current) return;
+    setCurrentVideoId(videoId);
+    window.history.pushState({}, "", `/video/${videoId}`);
+  }, []);
 
   // 监听浏览器前进/后退
   useEffect(() => {
     const handlePopState = () => {
       const match = window.location.pathname.match(/^\/video\/(.+)$/);
-      if (match && match[1] !== currentVideoId) {
+      if (match && match[1] !== currentVideoIdRef.current) {
         setCurrentVideoId(match[1]);
       }
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [currentVideoId]);
+  }, []);
 
   // 分P状态管理
   const searchParams = useSearchParams();
@@ -180,6 +182,9 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     const separator = baseUrl.includes("?") ? "&" : "?";
     return `${baseUrl}${separator}p=${currentPage}`;
   }, [displayVideo?.videoUrl, hasPages, currentPage]);
+
+  // 正在切换剧集（已选中但尚未加载完成）
+  const isEpisodeSwitching = currentVideoId !== displayVideo.id;
 
   // 选集器模式（后台可配置）
   const selectorMode = siteConfig?.videoSelectorMode ?? "series";
@@ -543,12 +548,20 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 md:gap-6 items-start">
           <div className="lg:col-span-2 space-y-0 md:space-y-4">
             {/* 播放器 - 只渲染一个实例 */}
-            <VideoPlayer
-              ref={playerRef}
-              url={currentVideoUrl || displayVideo.videoUrl}
-              poster={getCoverUrl(displayVideo.id, displayVideo.coverUrl)}
-              onProgress={handleProgress}
-            />
+            <div className="relative">
+              <VideoPlayer
+                ref={playerRef}
+                url={currentVideoUrl || displayVideo.videoUrl}
+                poster={getCoverUrl(displayVideo.id, displayVideo.coverUrl)}
+                onProgress={handleProgress}
+              />
+              {isEpisodeSwitching && (
+                <div className="absolute inset-0 z-10 bg-black/60 flex flex-col items-center justify-center gap-3 pointer-events-none">
+                  <div className="w-14 h-14 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+                  <span className="text-sm text-white/80 font-medium">切换中...</span>
+                </div>
+              )}
+            </div>
 
             {/* 移动端标题和元信息区 - 类似 YouTube/B站 可展开区域 */}
             <div className="md:hidden px-3 pt-3">
@@ -793,10 +806,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                 switchToEpisode(ep.video.id);
                                 setMobileSeriesExpanded(false);
                               }}
-                              disabled={isVideoLoading}
+                              disabled={isCurrentVideo}
                               className={`w-full text-left flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 ${
                                 isCurrentVideo ? "bg-primary/10" : ""
-                              } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
+                              }`}
                             >
                               <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -848,10 +861,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                                 switchToEpisode(v.id);
                                 setMobileSeriesExpanded(false);
                               }}
-                              disabled={isVideoLoading}
+                              disabled={isCurrent}
                               className={`w-full text-left flex items-center gap-2.5 px-3 py-2 border-b last:border-b-0 ${
                                 isCurrent ? "bg-primary/10" : ""
-                              } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
+                              }`}
                             >
                               <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1210,12 +1223,12 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                             <button
                               key={ep.video.id}
                               onClick={() => switchToEpisode(ep.video.id)}
-                              disabled={isVideoLoading}
+                              disabled={isCurrentVideo}
                               ref={isCurrentVideo ? currentEpisodeRef : null}
                               aria-current={isCurrentVideo ? "true" : undefined}
                               className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
                                 isCurrentVideo ? "bg-primary/10" : "hover:bg-muted/50"
-                              } ${isVideoLoading && !isCurrentVideo ? "opacity-70" : ""}`}
+                              }`}
                             >
                               <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1272,12 +1285,12 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                             <button
                               key={v.id}
                               onClick={() => switchToEpisode(v.id)}
-                              disabled={isVideoLoading}
+                              disabled={isCurrent}
                               ref={isCurrent ? currentEpisodeRef : null}
                               aria-current={isCurrent ? "true" : undefined}
                               className={`w-full text-left flex items-center gap-3 p-3 border-b last:border-b-0 transition-colors ${
                                 isCurrent ? "bg-primary/10" : "hover:bg-muted/50"
-                              } ${isVideoLoading && !isCurrent ? "opacity-70" : ""}`}
+                              }`}
                             >
                               <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { Prisma } from "@/generated/prisma/client";
 import { router, apiScopedProcedure, publicProcedure } from "../trpc";
 
@@ -1372,45 +1373,182 @@ export const openApiRouter = router({
 
   // ==================== 推广中心 (referral:read) ====================
 
-  /** 推广数据总览 */
-  referralOverview: referralProcedure.query(async ({ ctx }) => {
-    const [totalLinks, totalReferrals, totalClicks, totalUniqueClicks, totalPayments] = await Promise.all([
-      ctx.prisma.referralLink.count(),
-      ctx.prisma.referralRecord.count(),
-      ctx.prisma.referralLink.aggregate({ _sum: { clicks: true } }),
-      ctx.prisma.referralLink.aggregate({ _sum: { uniqueClicks: true } }),
-      ctx.prisma.referralLink.aggregate({ _sum: { paymentCount: true, paymentAmount: true } }),
-    ]);
+  /** 推广数据总览（支持可选日期范围与渠道筛选） */
+  referralOverview: referralProcedure
+    .input(
+      z
+        .object({
+          from: z.string().datetime().optional(),
+          to: z.string().datetime().optional(),
+          channel: z.string().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const channelFilter = input?.channel;
+      const hasDateRange = input?.from && input?.to;
 
-    const [totalPointsAwarded, activeReferrers] = await Promise.all([
-      ctx.prisma.referralRecord.aggregate({ _sum: { pointsAwarded: true } }),
-      ctx.prisma.referralLink.groupBy({ by: ["userId"], _count: true }),
-    ]);
+      if (hasDateRange) {
+        const from = new Date(input.from!);
+        const to = new Date(input.to!);
+        if (to < from) throw new TRPCError({ code: "BAD_REQUEST", message: "结束日期不能早于开始日期" });
+        if (computeDayCount(from, to) > MAX_RANGE_DAYS)
+          throw new TRPCError({ code: "BAD_REQUEST", message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` });
+      }
 
-    return {
-      links: totalLinks,
-      referrals: totalReferrals,
-      clicks: totalClicks._sum.clicks || 0,
-      uniqueClicks: totalUniqueClicks._sum.uniqueClicks || 0,
-      payments: {
-        count: totalPayments._sum.paymentCount || 0,
-        amount: totalPayments._sum.paymentAmount || 0,
-      },
-      pointsAwarded: totalPointsAwarded._sum.pointsAwarded || 0,
-      activeReferrers: activeReferrers.length,
-    };
-  }),
+      const linkWhere: Record<string, unknown> = {};
+      if (channelFilter !== undefined) linkWhere.channel = channelFilter || null;
 
-  /** 推广排行榜 */
+      const dailyStatWhere: Record<string, unknown> = {};
+      if (hasDateRange) dailyStatWhere.date = { gte: new Date(input!.from!), lte: new Date(input!.to!) };
+      if (channelFilter !== undefined) dailyStatWhere.referralLink = { channel: channelFilter || null };
+
+      const referralRecordWhere: Record<string, unknown> = {};
+      if (channelFilter !== undefined) referralRecordWhere.referralLink = { channel: channelFilter || null };
+      if (hasDateRange) referralRecordWhere.createdAt = { gte: new Date(input!.from!), lte: new Date(input!.to!) };
+
+      if (hasDateRange) {
+        const [dailyAgg, linkCount, referralCount, pointsAgg, activeReferrers] = await Promise.all([
+          ctx.prisma.referralDailyStat.aggregate({
+            where: dailyStatWhere,
+            _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
+          }),
+          ctx.prisma.referralLink.count({ where: linkWhere }),
+          ctx.prisma.referralRecord.count({ where: referralRecordWhere }),
+          ctx.prisma.referralRecord.aggregate({ where: referralRecordWhere, _sum: { pointsAwarded: true } }),
+          ctx.prisma.referralDailyStat.groupBy({ by: ["userId"], where: dailyStatWhere }),
+        ]);
+
+        return {
+          period: { from: input!.from!, to: input!.to! },
+          channel: channelFilter ?? null,
+          links: linkCount,
+          referrals: referralCount,
+          clicks: dailyAgg._sum.clicks || 0,
+          uniqueClicks: dailyAgg._sum.uniqueClicks || 0,
+          payments: {
+            count: dailyAgg._sum.paymentCount || 0,
+            amount: dailyAgg._sum.paymentAmount || 0,
+          },
+          pointsAwarded: pointsAgg._sum.pointsAwarded || 0,
+          activeReferrers: activeReferrers.length,
+        };
+      }
+
+      const [totalLinks, totalReferrals, totalClicks, totalUniqueClicks, totalPayments] = await Promise.all([
+        ctx.prisma.referralLink.count({ where: linkWhere }),
+        ctx.prisma.referralRecord.count({ where: referralRecordWhere }),
+        ctx.prisma.referralLink.aggregate({ where: linkWhere, _sum: { clicks: true } }),
+        ctx.prisma.referralLink.aggregate({ where: linkWhere, _sum: { uniqueClicks: true } }),
+        ctx.prisma.referralLink.aggregate({ where: linkWhere, _sum: { paymentCount: true, paymentAmount: true } }),
+      ]);
+
+      const [totalPointsAwarded, activeReferrers] = await Promise.all([
+        ctx.prisma.referralRecord.aggregate({ where: referralRecordWhere, _sum: { pointsAwarded: true } }),
+        ctx.prisma.referralLink.groupBy({ by: ["userId"], where: linkWhere }),
+      ]);
+
+      return {
+        period: null,
+        channel: channelFilter ?? null,
+        links: totalLinks,
+        referrals: totalReferrals,
+        clicks: totalClicks._sum.clicks || 0,
+        uniqueClicks: totalUniqueClicks._sum.uniqueClicks || 0,
+        payments: {
+          count: totalPayments._sum.paymentCount || 0,
+          amount: totalPayments._sum.paymentAmount || 0,
+        },
+        pointsAwarded: totalPointsAwarded._sum.pointsAwarded || 0,
+        activeReferrers: activeReferrers.length,
+      };
+    }),
+
+  /** 推广趋势统计：按日聚合的推广数据时间序列 */
+  referralTrendStats: referralProcedure
+    .input(
+      z
+        .object({
+          from: z.string().datetime(),
+          to: z.string().datetime(),
+          channel: z.string().optional(),
+        })
+        .refine((d) => new Date(d.to) >= new Date(d.from), { message: "结束日期不能早于开始日期" })
+        .refine(
+          (d) => {
+            const days = computeDayCount(new Date(d.from), new Date(d.to));
+            return days >= 1 && days <= MAX_RANGE_DAYS;
+          },
+          { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+        ),
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.from);
+      const endDate = new Date(input.to);
+      const { channel } = input;
+
+      const where: Record<string, unknown> = { date: { gte: startDate, lte: endDate } };
+      if (channel !== undefined) where.referralLink = { channel: channel || null };
+
+      const stats = await ctx.prisma.referralDailyStat.findMany({
+        where,
+        select: {
+          date: true,
+          clicks: true,
+          uniqueClicks: true,
+          registers: true,
+          paymentCount: true,
+          paymentAmount: true,
+        },
+        orderBy: { date: "asc" },
+      });
+
+      const dayCount = computeDayCount(startDate, endDate);
+      const toKey = (d: Date) =>
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      type DayEntry = {
+        clicks: number;
+        uniqueClicks: number;
+        registers: number;
+        paymentCount: number;
+        paymentAmount: number;
+      };
+      const dateMap = new Map<string, DayEntry>();
+      for (let i = 0; i < dayCount; i++) {
+        const d = new Date(startDate.getTime() + i * DAY_MS);
+        dateMap.set(toKey(d), { clicks: 0, uniqueClicks: 0, registers: 0, paymentCount: 0, paymentAmount: 0 });
+      }
+
+      for (const s of stats) {
+        const key = toKey(s.date);
+        const entry = dateMap.get(key);
+        if (entry) {
+          entry.clicks += s.clicks;
+          entry.uniqueClicks += s.uniqueClicks;
+          entry.registers += s.registers;
+          entry.paymentCount += s.paymentCount;
+          entry.paymentAmount += s.paymentAmount;
+        }
+      }
+
+      return {
+        period: { from: input.from, to: input.to },
+        channel: channel ?? null,
+        trend: Array.from(dateMap.entries()).map(([date, data]) => ({ date, ...data })),
+      };
+    }),
+
+  /** 推广排行榜（支持渠道筛选） */
   referralLeaderboard: referralProcedure
     .input(
       z.object({
         metric: z.enum(["referrals", "clicks", "points"]).default("referrals"),
         limit: z.number().min(1).max(50).default(20),
+        channel: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { metric, limit } = input;
+      const { metric, limit, channel } = input;
 
       if (metric === "points") {
         const users = await ctx.prisma.user.findMany({
@@ -1429,7 +1567,11 @@ export const openApiRouter = router({
         };
       }
 
+      const linkWhere: Record<string, unknown> = {};
+      if (channel !== undefined) linkWhere.channel = channel || null;
+
       const links = await ctx.prisma.referralLink.findMany({
+        where: linkWhere,
         orderBy: metric === "referrals" ? { registers: "desc" } : { uniqueClicks: "desc" },
         take: limit * 3,
         select: {
@@ -1460,35 +1602,163 @@ export const openApiRouter = router({
       return { items: sorted };
     }),
 
-  /** 推广渠道统计 */
+  /** 推广渠道统计（支持日期范围筛选） */
   referralChannelStats: referralProcedure
-    .input(z.object({ limit: z.number().min(1).max(50).default(20) }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(20),
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+        sortBy: z.enum(["registers", "clicks", "uniqueClicks", "payments"]).default("registers"),
+      }),
+    )
     .query(async ({ ctx, input }) => {
+      const hasDateRange = input.from && input.to;
+
+      if (hasDateRange) {
+        const from = new Date(input.from!);
+        const to = new Date(input.to!);
+        if (to < from) throw new TRPCError({ code: "BAD_REQUEST", message: "结束日期不能早于开始日期" });
+        if (computeDayCount(from, to) > MAX_RANGE_DAYS)
+          throw new TRPCError({ code: "BAD_REQUEST", message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` });
+      }
+
+      if (hasDateRange) {
+        const dailyStats = await ctx.prisma.referralDailyStat.findMany({
+          where: { date: { gte: new Date(input.from!), lte: new Date(input.to!) } },
+          select: {
+            clicks: true,
+            uniqueClicks: true,
+            registers: true,
+            paymentCount: true,
+            paymentAmount: true,
+            referralLink: { select: { channel: true } },
+          },
+        });
+
+        const channelMap = new Map<
+          string,
+          { clicks: number; uniqueClicks: number; registers: number; payments: number; paymentAmount: number }
+        >();
+        for (const s of dailyStats) {
+          const ch = s.referralLink?.channel || "未分类";
+          const prev = channelMap.get(ch) ?? {
+            clicks: 0,
+            uniqueClicks: 0,
+            registers: 0,
+            payments: 0,
+            paymentAmount: 0,
+          };
+          prev.clicks += s.clicks;
+          prev.uniqueClicks += s.uniqueClicks;
+          prev.registers += s.registers;
+          prev.payments += s.paymentCount;
+          prev.paymentAmount += s.paymentAmount;
+          channelMap.set(ch, prev);
+        }
+
+        const sorted = [...channelMap.entries()]
+          .map(([channel, stats]) => ({
+            channel,
+            ...stats,
+            conversionRate:
+              stats.uniqueClicks > 0 ? Math.round((stats.registers / stats.uniqueClicks) * 10000) / 100 : 0,
+          }))
+          .sort((a, b) => (b[input.sortBy] as number) - (a[input.sortBy] as number))
+          .slice(0, input.limit);
+
+        return { period: { from: input.from!, to: input.to! }, items: sorted };
+      }
+
       const links = await ctx.prisma.referralLink.findMany({
         where: { channel: { not: null } },
-        select: { channel: true, clicks: true, uniqueClicks: true, registers: true, paymentCount: true },
+        select: {
+          channel: true,
+          clicks: true,
+          uniqueClicks: true,
+          registers: true,
+          paymentCount: true,
+          paymentAmount: true,
+        },
       });
 
       const channelMap = new Map<
         string,
-        { clicks: number; uniqueClicks: number; registers: number; payments: number }
+        { clicks: number; uniqueClicks: number; registers: number; payments: number; paymentAmount: number }
       >();
       for (const l of links) {
         const ch = l.channel || "未分类";
-        const prev = channelMap.get(ch) ?? { clicks: 0, uniqueClicks: 0, registers: 0, payments: 0 };
+        const prev = channelMap.get(ch) ?? { clicks: 0, uniqueClicks: 0, registers: 0, payments: 0, paymentAmount: 0 };
         prev.clicks += l.clicks;
         prev.uniqueClicks += l.uniqueClicks;
         prev.registers += l.registers;
         prev.payments += l.paymentCount;
+        prev.paymentAmount += l.paymentAmount;
         channelMap.set(ch, prev);
       }
 
       const sorted = [...channelMap.entries()]
-        .map(([channel, stats]) => ({ channel, ...stats }))
-        .sort((a, b) => b.registers - a.registers)
+        .map(([channel, stats]) => ({
+          channel,
+          ...stats,
+          conversionRate: stats.uniqueClicks > 0 ? Math.round((stats.registers / stats.uniqueClicks) * 10000) / 100 : 0,
+        }))
+        .sort((a, b) => (b[input.sortBy] as number) - (a[input.sortBy] as number))
         .slice(0, input.limit);
 
-      return { items: sorted };
+      return { period: null, items: sorted };
+    }),
+
+  /** 推广链接排行（全站维度） */
+  referralLinkRanking: referralProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(20),
+        channel: z.string().optional(),
+        sortBy: z.enum(["uniqueClicks", "registers", "paymentCount", "paymentAmount"]).default("registers"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, channel, sortBy } = input;
+
+      const where: Record<string, unknown> = { isActive: true };
+      if (channel !== undefined) where.channel = channel || null;
+
+      const links = await ctx.prisma.referralLink.findMany({
+        where,
+        orderBy: { [sortBy]: "desc" },
+        take: limit,
+        select: {
+          id: true,
+          code: true,
+          label: true,
+          channel: true,
+          clicks: true,
+          uniqueClicks: true,
+          registers: true,
+          paymentCount: true,
+          paymentAmount: true,
+          createdAt: true,
+          user: { select: { id: true, nickname: true, username: true, avatar: true } },
+        },
+      });
+
+      return {
+        items: links.map((l) => ({
+          id: l.id,
+          code: l.code,
+          label: l.label,
+          channel: l.channel,
+          clicks: l.clicks,
+          uniqueClicks: l.uniqueClicks,
+          registers: l.registers,
+          paymentCount: l.paymentCount,
+          paymentAmount: l.paymentAmount,
+          conversionRate: l.uniqueClicks > 0 ? Math.round((l.registers / l.uniqueClicks) * 10000) / 100 : 0,
+          createdAt: l.createdAt,
+          user: { id: l.user.id, name: l.user.nickname || l.user.username, avatar: l.user.avatar },
+        })),
+      };
     }),
 
   // ==================== 支付 (payment:read) ====================

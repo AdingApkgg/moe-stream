@@ -36,13 +36,24 @@ export const referralRouter = router({
   // ========== 用户端 ==========
 
   getMyStats: protectedProcedure
-    .input(z.object({ linkIds: z.array(z.string()).optional() }).optional())
+    .input(
+      z
+        .object({
+          linkIds: z.array(z.string()).optional(),
+          date: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式须为 YYYY-MM-DD")
+            .optional(),
+        })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const linkIds = input?.linkIds?.length ? input.linkIds : undefined;
-      const today = getDateOnly();
-      const yesterdayStart = getDateOnly();
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+      const targetDate = input?.date ? getDateOnly(new Date(input.date + "T00:00:00")) : getDateOnly();
+      const prevDate = new Date(targetDate);
+      prevDate.setDate(prevDate.getDate() - 1);
 
       const linkWhere = linkIds ? { userId, id: { in: linkIds } } : { userId };
       const dailyStatWhere = linkIds ? { userId, referralLinkId: { in: linkIds } } : { userId };
@@ -50,7 +61,7 @@ export const referralRouter = router({
         ? { referrerId: userId, referralLinkId: { in: linkIds } }
         : { referrerId: userId };
 
-      const [user, linkAgg, todayDailyStat, yesterdayDailyStat, referralPoints, paymentUsers] = await Promise.all([
+      const [user, linkAgg, targetDailyStat, prevDailyStat, referralPoints, paymentUsers] = await Promise.all([
         ctx.prisma.user.findUnique({
           where: { id: userId },
           select: {
@@ -65,11 +76,11 @@ export const referralRouter = router({
           _count: true,
         }),
         ctx.prisma.referralDailyStat.aggregate({
-          where: { ...dailyStatWhere, date: today },
+          where: { ...dailyStatWhere, date: targetDate },
           _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
         }),
         ctx.prisma.referralDailyStat.aggregate({
-          where: { ...dailyStatWhere, date: yesterdayStart },
+          where: { ...dailyStatWhere, date: prevDate },
           _sum: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
         }),
         ctx.prisma.referralRecord.aggregate({
@@ -88,16 +99,17 @@ export const referralRouter = router({
       const totalRegisters = linkAgg._sum.registers || 0;
       const totalPaymentCount = linkAgg._sum.paymentCount || 0;
       const totalPaymentAmount = linkAgg._sum.paymentAmount || 0;
-      const todayClicks = todayDailyStat._sum.clicks || 0;
-      const todayUniqueClicks = todayDailyStat._sum.uniqueClicks || 0;
-      const todayRegisters = todayDailyStat._sum.registers || 0;
-      const todayPaymentCount = todayDailyStat._sum.paymentCount || 0;
-      const todayPaymentAmount = todayDailyStat._sum.paymentAmount || 0;
-      const yesterdayUniqueClicks = yesterdayDailyStat._sum.uniqueClicks || 0;
-      const yesterdayRegisters = yesterdayDailyStat._sum.registers || 0;
-      const yesterdayPaymentCount = yesterdayDailyStat._sum.paymentCount || 0;
+      const todayClicks = targetDailyStat._sum.clicks || 0;
+      const todayUniqueClicks = targetDailyStat._sum.uniqueClicks || 0;
+      const todayRegisters = targetDailyStat._sum.registers || 0;
+      const todayPaymentCount = targetDailyStat._sum.paymentCount || 0;
+      const todayPaymentAmount = targetDailyStat._sum.paymentAmount || 0;
+      const yesterdayUniqueClicks = prevDailyStat._sum.uniqueClicks || 0;
+      const yesterdayRegisters = prevDailyStat._sum.registers || 0;
+      const yesterdayPaymentCount = prevDailyStat._sum.paymentCount || 0;
 
       return {
+        date: input?.date ?? dateKey(targetDate),
         points: user.points,
         referralCode: user.referralCode,
         totalReferrals: linkIds

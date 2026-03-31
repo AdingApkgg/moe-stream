@@ -1,0 +1,67 @@
+---
+description: Zustand 5 状态管理约定
+globs: src/stores/**/*.ts
+alwaysApply: false
+---
+
+# Zustand Store 约定（v5）
+
+## 基本结构
+
+```ts
+import { create } from "zustand";
+
+interface FeatureState {
+  count: number;
+  increment: () => void;
+  reset: () => void;
+}
+
+export const useFeatureStore = create<FeatureState>()((set, get) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  reset: () => set({ count: 0 }),
+}));
+```
+
+注意 `create<State>()(...)` 的**双括号**写法，这是 Zustand 5 支持 TypeScript 类型推导所必需的。
+
+## 持久化
+
+```ts
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      theme: "dark",
+      setTheme: (theme) => set({ theme }),
+    }),
+    {
+      name: "settings-storage",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ theme: state.theme }),
+      version: 1,
+      migrate: (persisted, version) => { /* 迁移逻辑 */ },
+    },
+  ),
+);
+```
+
+## 使用方式
+
+```tsx
+// 用 selector 取单个字段（避免不必要的重渲染）
+const count = useFeatureStore((s) => s.count);
+const increment = useFeatureStore((s) => s.increment);
+
+// 不推荐：取整个 store（任何字段变化都会触发重渲染）
+// const store = useFeatureStore();
+```
+
+## 文件组织
+
+- Store 文件放 `src/stores/`，按功能命名（`app.ts`、`user.ts`、`socket.ts`）
+- 一个文件可包含多个相关的 store（如 `app.ts` 含搜索历史、UI、观看历史）
+- 导出命名：`useXxxStore`（PascalCase + `Store` 后缀）
