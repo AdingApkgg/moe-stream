@@ -38,12 +38,12 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
     staleTime: 60 * 1000,
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingType, setSubmittingType] = useState<"recent" | "all" | "site" | "sitemap" | null>(null);
   const [recentDays, setRecentDays] = useState(7);
   const [lastResult, setLastResult] = useState<{ type: string; message: string; time: Date } | null>(null);
 
   const handleSubmitIndex = async (type: "recent" | "all" | "site" | "sitemap") => {
-    setIsSubmitting(true);
+    setSubmittingType(type);
     try {
       const res = await fetch("/api/indexnow", {
         method: "POST",
@@ -60,7 +60,7 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
     } catch {
       toast.error("请求失败");
     } finally {
-      setIsSubmitting(false);
+      setSubmittingType(null);
     }
   };
 
@@ -233,8 +233,13 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
               <p className="text-sm font-medium">手动提交</p>
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleSubmitIndex("site")} disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSubmitIndex("site")}
+                  disabled={submittingType !== null}
+                >
+                  {submittingType === "site" ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                   ) : (
                     <Globe className="mr-1 h-4 w-4" />
@@ -247,9 +252,9 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
                     variant="outline"
                     size="sm"
                     onClick={() => handleSubmitIndex("recent")}
-                    disabled={isSubmitting}
+                    disabled={submittingType !== null}
                   >
-                    {isSubmitting ? (
+                    {submittingType === "recent" ? (
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                     ) : (
                       <Send className="mr-1 h-4 w-4" />
@@ -267,8 +272,17 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
                   <span className="text-sm text-muted-foreground">天</span>
                 </div>
 
-                <Button variant="outline" size="sm" onClick={() => handleSubmitIndex("all")} disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSubmitIndex("all")}
+                  disabled={submittingType !== null}
+                >
+                  {submittingType === "all" ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-1 h-4 w-4" />
+                  )}
                   提交全部视频
                 </Button>
 
@@ -277,9 +291,9 @@ export function TabSeo({ config }: { config: SiteConfig | undefined }) {
                     variant="outline"
                     size="sm"
                     onClick={() => handleSubmitIndex("sitemap")}
-                    disabled={isSubmitting}
+                    disabled={submittingType !== null}
                   >
-                    {isSubmitting ? (
+                    {submittingType === "sitemap" ? (
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                     ) : (
                       <Globe className="mr-1 h-4 w-4" />

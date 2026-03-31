@@ -106,7 +106,7 @@ export const contentTabSchema = z.object({
   videosPerPage: z.number().int().min(5).max(100),
   commentsPerPage: z.number().int().min(5).max(100),
   maxUploadSize: z.number().int().min(10).max(10000),
-  allowedVideoFormats: z.string().max(200),
+  allowedVideoFormats: z.string().min(1, "允许的视频格式不能为空").max(200),
   adminBatchLimit: z.number().int().min(100).max(100000),
 });
 
@@ -121,7 +121,7 @@ export const emailTabSchema = z.object({
   mailApiKey: z.string().max(1000).optional().nullable().or(z.literal("")),
   mailApiFrom: z.string().max(500).optional().nullable().or(z.literal("")),
   mailApiHeaders: z.string().max(10000).optional().nullable().or(z.literal("")),
-  uploadDir: z.string().max(500).optional(),
+  uploadDir: z.string().min(1, "上传目录不能为空").max(500),
 });
 
 export const storageTabSchema = z.object({
