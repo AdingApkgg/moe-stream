@@ -86,10 +86,7 @@ export interface ImageBatchResult {
 
 // ==================== 共享 ====================
 
-export interface TagItem {
-  id: string;
-  name: string;
-}
+export type { TagItem } from "@/lib/schemas/content";
 
 export interface BatchProgress {
   current: number;

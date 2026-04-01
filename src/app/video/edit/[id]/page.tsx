@@ -4,60 +4,14 @@ import { use, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { notFound, useRouter } from "next/navigation";
 import { useSiteConfig } from "@/contexts/site-config";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import {
-  Loader2,
-  ArrowLeft,
-  Plus,
-  X,
-  Eye,
-  EyeOff,
-  Image as ImageIcon,
-  FileVideo,
-  Tag,
-  Info,
-  ChevronDown,
-  Search,
-  Download,
-  User,
-  ListVideo,
-  AlertCircle,
-  Trash2,
-  Save,
-  Layers,
-} from "lucide-react";
-import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { VideoPlayer } from "@/components/video/video-player";
-import { cn } from "@/lib/utils";
-import type { VideoExtraInfo } from "@/lib/shortcode-parser";
-
-const editSchema = z.object({
-  title: z.string().min(1, "标题不能为空").max(100, "标题最多100个字符"),
-  description: z.string().max(5000, "简介最多5000个字符").optional().or(z.literal("")),
-  coverUrl: z.string().url("请输入有效的封面URL").optional().or(z.literal("")),
-  videoUrl: z.string().url("请输入有效的视频URL"),
-});
-
-type EditForm = z.infer<typeof editSchema>;
+import { VideoForm, type VideoSubmitData, type SeriesData, type SeriesItem } from "@/components/video/video-form";
+import type { TagItem } from "@/lib/schemas/content";
 
 interface EditVideoPageProps {
   params: Promise<{ id: string }>;
@@ -70,155 +24,38 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<{ id: string; name: string }[]>([]);
-  const [newTags, setNewTags] = useState<string[]>([]);
-  const [tagSearch, setTagSearch] = useState("");
-  const [newTagInput, setNewTagInput] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [isNsfw, setIsNsfw] = useState(false);
-
-  // 合集相关状态
-  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
-  const [episodeNum, setEpisodeNum] = useState<number>(1);
-  const [showCreateSeries, setShowCreateSeries] = useState(false);
-  const [newSeriesTitle, setNewSeriesTitle] = useState("");
   const [originalSeriesId, setOriginalSeriesId] = useState<string | null>(null);
-
-  // 扩展信息
-  const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
-  const [showExtraInfo, setShowExtraInfo] = useState(false);
+  const [initialSeriesData, setInitialSeriesData] = useState<{ seriesId: string; episodeNum: number } | undefined>();
 
   const { data: video, isLoading: videoLoading } = trpc.video.getForEdit.useQuery({ id }, { enabled: !!session });
-
-  const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
-
-  // 获取用户的合集列表
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery(
     { limit: 50 },
     { enabled: !!session },
   );
-
-  // 获取视频当前所在的合集
   const { data: videoSeries } = trpc.series.getByVideoId.useQuery({ videoId: id }, { enabled: !!session });
 
-  // 创建合集
   const createSeriesMutation = trpc.series.create.useMutation({
-    onSuccess: (newSeries) => {
-      setSelectedSeriesId(newSeries.id);
-      setShowCreateSeries(false);
-      setNewSeriesTitle("");
+    onSuccess: () => {
       refetchSeries();
       toast.success("合集创建成功");
     },
-    onError: (error) => {
-      toast.error("创建合集失败", { description: error.message });
-    },
+    onError: (error) => toast.error("创建合集失败", { description: error.message }),
   });
-
-  // 添加视频到合集
-  const addToSeriesMutation = trpc.series.addVideo.useMutation();
-
-  // 从合集中移除视频
-  const removeFromSeriesMutation = trpc.series.removeVideo.useMutation();
 
   const updateMutation = trpc.video.update.useMutation({
-    onSuccess: () => {
-      toast.success("视频更新成功");
-      router.push(`/video/${id}`);
-    },
-    onError: (error) => {
-      toast.error("更新失败", { description: error.message });
-    },
+    onError: (error) => toast.error("更新失败", { description: error.message }),
   });
 
-  const form = useForm<EditForm>({
-    resolver: zodResolver(editSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      coverUrl: "",
-      videoUrl: "",
-    },
-  });
+  const addToSeriesMutation = trpc.series.addVideo.useMutation();
+  const removeFromSeriesMutation = trpc.series.removeVideo.useMutation();
 
-  const coverUrl = form.watch("coverUrl");
-  const videoUrl = form.watch("videoUrl");
-
-  // 过滤标签
-  const filteredTags =
-    allTags?.filter((tag) => {
-      if (!tagSearch.trim()) return true;
-      return tag.name.toLowerCase().includes(tagSearch.toLowerCase());
-    }) || [];
-
-  const toggleTag = (tag: { id: string; name: string }) => {
-    const exists = selectedTags.find((t) => t.id === tag.id);
-    if (exists) {
-      setSelectedTags(selectedTags.filter((t) => t.id !== tag.id));
-    } else if (selectedTags.length + newTags.length < 10) {
-      setSelectedTags([...selectedTags, tag]);
-    }
-  };
-
-  const handleAddNewTag = () => {
-    const tag = newTagInput.trim();
-    if (!tag || newTags.length + selectedTags.length >= 10) return;
-    if (newTags.includes(tag)) return;
-    if (selectedTags.some((t) => t.name.toLowerCase() === tag.toLowerCase())) return;
-
-    const existingTag = allTags?.find((t) => t.name.toLowerCase() === tag.toLowerCase());
-    if (existingTag) {
-      toggleTag(existingTag);
-    } else {
-      setNewTags([...newTags, tag]);
-    }
-    setNewTagInput("");
-  };
-
-  // 检查 extraInfo 是否有内容
-  const hasExtraInfo = () => {
-    return (
-      extraInfo.intro ||
-      extraInfo.author ||
-      extraInfo.authorIntro ||
-      (extraInfo.keywords && extraInfo.keywords.length > 0) ||
-      (extraInfo.downloads && extraInfo.downloads.length > 0) ||
-      (extraInfo.episodes && extraInfo.episodes.length > 0) ||
-      (extraInfo.relatedVideos && extraInfo.relatedVideos.length > 0) ||
-      (extraInfo.notices && extraInfo.notices.length > 0)
-    );
-  };
-
-  // 加载视频数据
-  useEffect(() => {
-    if (video) {
-      form.reset({
-        title: video.title,
-        description: video.description || "",
-        coverUrl: video.coverUrl || "",
-        videoUrl: video.videoUrl,
-      });
-      setSelectedTags(video.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })));
-      setIsNsfw(video.isNsfw ?? false);
-
-      // 加载扩展信息
-      if (video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo)) {
-        setExtraInfo(video.extraInfo as VideoExtraInfo);
-        // 如果有扩展信息，自动展开
-        const info = video.extraInfo as VideoExtraInfo;
-        if (info.intro || info.author || info.downloads?.length || info.episodes?.length) {
-          setShowExtraInfo(true);
-        }
-      }
-    }
-  }, [video, form]);
-
-  // 加载视频所在合集
   useEffect(() => {
     if (videoSeries) {
-      setSelectedSeriesId(videoSeries.series.id);
       setOriginalSeriesId(videoSeries.series.id);
-      setEpisodeNum(videoSeries.currentEpisode);
+      setInitialSeriesData({
+        seriesId: videoSeries.series.id,
+        episodeNum: videoSeries.currentEpisode,
+      });
     }
   }, [videoSeries]);
 
@@ -228,67 +65,83 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
     }
   }, [authStatus, router, id]);
 
-  async function onSubmit(data: EditForm) {
+  const initialData = video
+    ? {
+        title: video.title,
+        description: video.description || "",
+        coverUrl: video.coverUrl || "",
+        videoUrl: video.videoUrl,
+        isNsfw: video.isNsfw ?? false,
+        tags: video.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })) as TagItem[],
+        extraInfo:
+          video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo)
+            ? (video.extraInfo as Parameters<typeof VideoForm>[0]["initialData"] extends { extraInfo?: infer E }
+                ? E
+                : never)
+            : undefined,
+      }
+    : undefined;
+
+  const seriesOptions: SeriesItem[] =
+    userSeries?.items.map((s) => ({
+      id: s.id,
+      title: s.title,
+      episodeCount: s.episodeCount,
+    })) || [];
+
+  const handleSubmit = async (data: VideoSubmitData, seriesData?: SeriesData) => {
     setIsSubmitting(true);
     try {
-      // 更新视频基本信息
       await updateMutation.mutateAsync({
         id,
         title: data.title,
-        description: data.description || undefined,
-        coverUrl: data.coverUrl || undefined,
+        description: data.description,
+        coverUrl: data.coverUrl,
         videoUrl: data.videoUrl,
-        isNsfw,
-        tagIds: selectedTags.map((t) => t.id),
-        tagNames: newTags,
-        ...(hasExtraInfo() ? { extraInfo } : { extraInfo: null }),
+        isNsfw: data.isNsfw,
+        tagIds: data.tagIds,
+        tagNames: data.tagNames,
+        extraInfo: data.extraInfo,
       });
 
-      // 处理合集变更
-      if (selectedSeriesId !== originalSeriesId) {
-        // 如果原来在合集中，先移除
-        if (originalSeriesId) {
-          try {
-            await removeFromSeriesMutation.mutateAsync({
-              seriesId: originalSeriesId,
-              videoId: id,
-            });
-          } catch (error) {
-            console.error("移除合集失败:", error);
+      if (seriesData) {
+        const { seriesId, episodeNum } = seriesData;
+        if (seriesId !== originalSeriesId) {
+          if (originalSeriesId) {
+            try {
+              await removeFromSeriesMutation.mutateAsync({ seriesId: originalSeriesId, videoId: id });
+            } catch (error) {
+              console.error("移除合集失败:", error);
+            }
           }
-        }
-        // 如果选择了新合集，添加进去
-        if (selectedSeriesId) {
-          try {
-            await addToSeriesMutation.mutateAsync({
-              seriesId: selectedSeriesId,
-              videoId: id,
-              episodeNum,
-            });
-          } catch (error) {
-            console.error("添加到合集失败:", error);
+          if (seriesId) {
+            try {
+              await addToSeriesMutation.mutateAsync({ seriesId, videoId: id, episodeNum });
+            } catch (error) {
+              console.error("添加到合集失败:", error);
+            }
           }
-        }
-      } else if (selectedSeriesId && videoSeries && episodeNum !== videoSeries.currentEpisode) {
-        // 如果合集没变但集数变了，更新集数
-        try {
-          await removeFromSeriesMutation.mutateAsync({
-            seriesId: selectedSeriesId,
-            videoId: id,
-          });
-          await addToSeriesMutation.mutateAsync({
-            seriesId: selectedSeriesId,
-            videoId: id,
-            episodeNum,
-          });
-        } catch (error) {
-          console.error("更新集数失败:", error);
+        } else if (seriesId && videoSeries && episodeNum !== videoSeries.currentEpisode) {
+          try {
+            await removeFromSeriesMutation.mutateAsync({ seriesId, videoId: id });
+            await addToSeriesMutation.mutateAsync({ seriesId, videoId: id, episodeNum });
+          } catch (error) {
+            console.error("更新集数失败:", error);
+          }
         }
       }
+
+      toast.success("视频更新成功");
+      router.push(`/video/${id}`);
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleCreateSeries = async (title: string) => {
+    const result = await createSeriesMutation.mutateAsync({ title });
+    return { id: result.id };
+  };
 
   if (authStatus === "loading" || videoLoading) {
     return (
@@ -310,9 +163,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
     );
   }
 
-  if (!session || !video) {
-    return null;
-  }
+  if (!session || !video) return null;
 
   if (!session.user.canUpload) {
     return (
@@ -331,7 +182,6 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
 
   return (
     <div className="container py-6 max-w-5xl">
-      {/* 页面标题 */}
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" asChild>
           <Link href={`/video/${id}`}>
@@ -344,707 +194,16 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 左侧：主要信息 */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* 基本信息卡片 */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileVideo className="h-5 w-5" />
-                    基本信息
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* 标题 */}
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>标题 *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="输入视频标题" {...field} className="text-base" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* 视频链接 */}
-                  <FormField
-                    control={form.control}
-                    name="videoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>视频 *</FormLabel>
-                        <div className="flex gap-2 items-start">
-                          <div className="flex-1">
-                            <UrlOrUploadInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              accept="video/*,.m3u8"
-                              placeholder="https://example.com/video.mp4"
-                              contentType="video"
-                              contentId={id}
-                            />
-                          </div>
-                          {field.value && (
-                            <Button
-                              type="button"
-                              variant={showPreview ? "default" : "outline"}
-                              size="icon"
-                              className="mt-0.5 shrink-0"
-                              onClick={() => setShowPreview(!showPreview)}
-                            >
-                              {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          )}
-                        </div>
-                        <FormDescription>支持 MP4, WebM, HLS (m3u8) 格式</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* 视频预览 */}
-                  {showPreview && videoUrl && (
-                    <div className="rounded-lg overflow-hidden border bg-black">
-                      <VideoPlayer url={videoUrl} poster={coverUrl || undefined} autoStart={false} />
-                    </div>
-                  )}
-
-                  {/* 简介 */}
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>简介</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="视频简介（可选）" className="min-h-[100px] resize-none" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* 标签选择卡片 */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Tag className="h-5 w-5" />
-                    标签
-                  </CardTitle>
-                  <CardDescription>选择或创建标签，最多 10 个</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* 已选标签 */}
-                  {(selectedTags.length > 0 || newTags.length > 0) && (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedTags.map((tag) => (
-                        <Badge
-                          key={tag.id}
-                          variant="default"
-                          className="cursor-pointer hover:bg-primary/80 transition-colors gap-1 px-3 py-1"
-                          onClick={() => toggleTag(tag)}
-                        >
-                          {tag.name}
-                          <X className="h-3 w-3" />
-                        </Badge>
-                      ))}
-                      {newTags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-secondary/80 transition-colors gap-1 px-3 py-1"
-                          onClick={() => setNewTags(newTags.filter((t) => t !== tag))}
-                        >
-                          <Plus className="h-3 w-3" />
-                          {tag}
-                          <X className="h-3 w-3" />
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 添加新标签 */}
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="输入新标签名称..."
-                        value={newTagInput}
-                        onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddNewTag();
-                          }
-                        }}
-                        disabled={selectedTags.length + newTags.length >= 10}
-                        className="pl-9"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleAddNewTag}
-                      disabled={selectedTags.length + newTags.length >= 10 || !newTagInput.trim()}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    已选择 {selectedTags.length + newTags.length} / 10 个标签
-                  </p>
-
-                  <Separator />
-
-                  {/* 标签搜索和列表 */}
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="搜索已有标签..."
-                        value={tagSearch}
-                        onChange={(e) => setTagSearch(e.target.value)}
-                        className="pl-9 h-9"
-                      />
-                    </div>
-
-                    <ScrollArea className="h-40 rounded-md border p-3 bg-muted/30">
-                      <div className="flex flex-wrap gap-1.5">
-                        {filteredTags.length > 0 ? (
-                          filteredTags.map((tag) => {
-                            const isSelected = selectedTags.some((t) => t.id === tag.id);
-                            return (
-                              <Badge
-                                key={tag.id}
-                                variant={isSelected ? "default" : "outline"}
-                                className={cn(
-                                  "cursor-pointer text-xs transition-all",
-                                  isSelected ? "hover:bg-primary/80" : "hover:bg-accent hover:text-accent-foreground",
-                                )}
-                                onClick={() => toggleTag(tag)}
-                              >
-                                {tag.name}
-                              </Badge>
-                            );
-                          })
-                        ) : (
-                          <p className="text-xs text-muted-foreground py-2">
-                            {tagSearch ? "未找到匹配的标签" : "暂无标签"}
-                          </p>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 扩展信息卡片 */}
-              <Collapsible open={showExtraInfo} onOpenChange={setShowExtraInfo}>
-                <Card>
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="pb-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Info className="h-5 w-5" />
-                          扩展信息
-                          {hasExtraInfo() && (
-                            <Badge variant="secondary" className="text-xs">
-                              已填写
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <ChevronDown className={cn("h-5 w-5 transition-transform", showExtraInfo && "rotate-180")} />
-                      </div>
-                      <CardDescription>添加作品介绍、作者信息、下载链接等（可选）</CardDescription>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent>
-                      <Tabs defaultValue="intro" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
-                          <TabsTrigger value="intro" className="text-xs">
-                            作品介绍
-                          </TabsTrigger>
-                          <TabsTrigger value="author" className="text-xs">
-                            作者信息
-                          </TabsTrigger>
-                          <TabsTrigger value="downloads" className="text-xs">
-                            下载链接
-                          </TabsTrigger>
-                          <TabsTrigger value="related" className="text-xs">
-                            相关内容
-                          </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="intro" className="space-y-4 mt-4">
-                          <div className="space-y-2">
-                            <FormLabel>作品介绍</FormLabel>
-                            <Textarea
-                              placeholder="详细的作品介绍..."
-                              value={extraInfo.intro || ""}
-                              onChange={(e) => setExtraInfo({ ...extraInfo, intro: e.target.value })}
-                              className="min-h-[100px]"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <FormLabel>剧集介绍</FormLabel>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  setExtraInfo({
-                                    ...extraInfo,
-                                    episodes: [...(extraInfo.episodes || []), { title: "", content: "" }],
-                                  })
-                                }
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                添加剧集
-                              </Button>
-                            </div>
-                            {extraInfo.episodes?.map((episode, index) => (
-                              <div key={index} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                                <div className="flex-1 space-y-2">
-                                  <Input
-                                    placeholder={`第 ${index + 1} 集标题`}
-                                    value={episode.title}
-                                    onChange={(e) => {
-                                      const newEpisodes = [...(extraInfo.episodes || [])];
-                                      newEpisodes[index].title = e.target.value;
-                                      setExtraInfo({ ...extraInfo, episodes: newEpisodes });
-                                    }}
-                                  />
-                                  <Textarea
-                                    placeholder="剧集介绍..."
-                                    value={episode.content}
-                                    onChange={(e) => {
-                                      const newEpisodes = [...(extraInfo.episodes || [])];
-                                      newEpisodes[index].content = e.target.value;
-                                      setExtraInfo({ ...extraInfo, episodes: newEpisodes });
-                                    }}
-                                    className="min-h-[60px]"
-                                  />
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const newEpisodes = extraInfo.episodes?.filter((_, i) => i !== index);
-                                    setExtraInfo({ ...extraInfo, episodes: newEpisodes });
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="author" className="space-y-4 mt-4">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <FormLabel className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                原作者
-                              </FormLabel>
-                              <Input
-                                placeholder="原作者名称"
-                                value={extraInfo.author || ""}
-                                onChange={(e) => setExtraInfo({ ...extraInfo, author: e.target.value })}
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <FormLabel>作者介绍</FormLabel>
-                            <Textarea
-                              placeholder="作者介绍..."
-                              value={extraInfo.authorIntro || ""}
-                              onChange={(e) => setExtraInfo({ ...extraInfo, authorIntro: e.target.value })}
-                              className="min-h-[80px]"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <FormLabel>搜索关键词</FormLabel>
-                            <Input
-                              placeholder="用逗号分隔多个关键词"
-                              value={extraInfo.keywords?.join(", ") || ""}
-                              onChange={(e) =>
-                                setExtraInfo({
-                                  ...extraInfo,
-                                  keywords: e.target.value
-                                    .split(",")
-                                    .map((k) => k.trim())
-                                    .filter(Boolean),
-                                })
-                              }
-                            />
-                            <p className="text-xs text-muted-foreground">帮助用户找到这个视频的关键词</p>
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="downloads" className="space-y-4 mt-4">
-                          <div className="flex items-center justify-between">
-                            <FormLabel className="flex items-center gap-2">
-                              <Download className="h-4 w-4" />
-                              下载链接
-                            </FormLabel>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setExtraInfo({
-                                  ...extraInfo,
-                                  downloads: [...(extraInfo.downloads || []), { name: "", url: "", password: "" }],
-                                })
-                              }
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              添加链接
-                            </Button>
-                          </div>
-                          {extraInfo.downloads?.map((download, index) => (
-                            <div key={index} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                              <div className="flex-1 grid gap-2 md:grid-cols-3">
-                                <Input
-                                  placeholder="网盘名称"
-                                  value={download.name}
-                                  onChange={(e) => {
-                                    const newDownloads = [...(extraInfo.downloads || [])];
-                                    newDownloads[index].name = e.target.value;
-                                    setExtraInfo({ ...extraInfo, downloads: newDownloads });
-                                  }}
-                                />
-                                <Input
-                                  placeholder="下载链接"
-                                  value={download.url}
-                                  onChange={(e) => {
-                                    const newDownloads = [...(extraInfo.downloads || [])];
-                                    newDownloads[index].url = e.target.value;
-                                    setExtraInfo({ ...extraInfo, downloads: newDownloads });
-                                  }}
-                                />
-                                <Input
-                                  placeholder="提取码（可选）"
-                                  value={download.password || ""}
-                                  onChange={(e) => {
-                                    const newDownloads = [...(extraInfo.downloads || [])];
-                                    newDownloads[index].password = e.target.value;
-                                    setExtraInfo({ ...extraInfo, downloads: newDownloads });
-                                  }}
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  const newDownloads = extraInfo.downloads?.filter((_, i) => i !== index);
-                                  setExtraInfo({ ...extraInfo, downloads: newDownloads });
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                          {(!extraInfo.downloads || extraInfo.downloads.length === 0) && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              暂无下载链接，点击上方按钮添加
-                            </p>
-                          )}
-                        </TabsContent>
-
-                        <TabsContent value="related" className="space-y-4 mt-4">
-                          <div className="flex items-center justify-between">
-                            <FormLabel className="flex items-center gap-2">
-                              <ListVideo className="h-4 w-4" />
-                              相关视频
-                            </FormLabel>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setExtraInfo({
-                                  ...extraInfo,
-                                  relatedVideos: [...(extraInfo.relatedVideos || []), ""],
-                                })
-                              }
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              添加
-                            </Button>
-                          </div>
-                          {extraInfo.relatedVideos?.map((video, index) => (
-                            <div key={index} className="flex gap-2">
-                              <Input
-                                placeholder="相关视频标题"
-                                value={video}
-                                onChange={(e) => {
-                                  const newRelated = [...(extraInfo.relatedVideos || [])];
-                                  newRelated[index] = e.target.value;
-                                  setExtraInfo({ ...extraInfo, relatedVideos: newRelated });
-                                }}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  const newRelated = extraInfo.relatedVideos?.filter((_, i) => i !== index);
-                                  setExtraInfo({ ...extraInfo, relatedVideos: newRelated });
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            </div>
-
-            {/* 右侧：封面 */}
-            <div className="space-y-6">
-              {/* 封面卡片 */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5" />
-                    封面
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="coverUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <UrlOrUploadInput
-                          value={field.value ?? ""}
-                          onChange={field.onChange}
-                          accept="image/*"
-                          placeholder="封面图片链接（可选）"
-                          contentType="video"
-                          contentId={id}
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* 封面预览 */}
-                  <div
-                    className={cn(
-                      "relative aspect-video rounded-lg border-2 border-dashed overflow-hidden transition-colors group",
-                      coverUrl ? "border-transparent" : "border-muted-foreground/25",
-                    )}
-                  >
-                    {coverUrl ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={coverUrl}
-                          alt="封面预览"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => form.setValue("coverUrl", "")}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-                        <ImageIcon className="h-12 w-12 mb-2 opacity-50" />
-                        <span className="text-sm">输入链接或上传预览</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 合集卡片 */}
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Layers className="h-5 w-5" />
-                      合集
-                    </CardTitle>
-                    {selectedSeriesId && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedSeriesId(null);
-                          setEpisodeNum(1);
-                        }}
-                      >
-                        取消
-                      </Button>
-                    )}
-                  </div>
-                  <CardDescription>将视频添加到合集（可选）</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {!showCreateSeries ? (
-                    <>
-                      <Select
-                        value={selectedSeriesId || ""}
-                        onValueChange={(value) => {
-                          setSelectedSeriesId(value || null);
-                          const series = userSeries?.items.find((s) => s.id === value);
-                          if (series) {
-                            setEpisodeNum(series.episodeCount + 1);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="选择合集..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {userSeries?.items.map((series) => (
-                            <SelectItem key={series.id} value={series.id}>
-                              <div className="flex items-center gap-2">
-                                <span>{series.title}</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {series.episodeCount}集
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                          {(!userSeries?.items || userSeries.items.length === 0) && (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">暂无合集</div>
-                          )}
-                        </SelectContent>
-                      </Select>
-
-                      {selectedSeriesId && (
-                        <div className="flex items-center gap-2">
-                          <FormLabel className="shrink-0">第</FormLabel>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={episodeNum}
-                            onChange={(e) => setEpisodeNum(parseInt(e.target.value) || 1)}
-                            className="w-20"
-                          />
-                          <FormLabel className="shrink-0">集</FormLabel>
-                        </div>
-                      )}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCreateSeries(true)}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        创建新合集
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <Input
-                        placeholder="合集名称"
-                        value={newSeriesTitle}
-                        onChange={(e) => setNewSeriesTitle(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            setShowCreateSeries(false);
-                            setNewSeriesTitle("");
-                          }}
-                        >
-                          取消
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="flex-1"
-                          disabled={!newSeriesTitle.trim() || createSeriesMutation.isPending}
-                          onClick={() => {
-                            if (newSeriesTitle.trim()) {
-                              createSeriesMutation.mutate({ title: newSeriesTitle.trim() });
-                            }
-                          }}
-                        >
-                          {createSeriesMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                          创建
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
-                  NSFW
-                </Label>
-                <Switch
-                  id="nsfw-toggle"
-                  checked={isNsfw}
-                  onCheckedChange={setIsNsfw}
-                  className="data-[state=checked]:bg-red-500"
-                />
-              </div>
-
-              {/* 操作按钮 */}
-              <div className="space-y-3">
-                <Button type="submit" className="w-full h-12 text-base" disabled={isSubmitting} size="lg">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      保存中...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-5 w-5" />
-                      保存更改
-                    </>
-                  )}
-                </Button>
-                <Button type="button" variant="outline" className="w-full" asChild>
-                  <Link href={`/video/${id}`}>取消</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </Form>
+      <VideoForm
+        mode="edit"
+        initialData={initialData}
+        videoId={id}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        seriesOptions={seriesOptions}
+        initialSeries={initialSeriesData}
+        onCreateSeries={handleCreateSeries}
+      />
     </div>
   );
 }
