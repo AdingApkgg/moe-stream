@@ -19,7 +19,7 @@ import type { TagItem } from "../_lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { FolderOpen, Image as ImageIcon, Link2, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import { FolderOpen, Image as ImageIcon, Link2, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { FileUploader, type UploadedFile } from "@/components/files/file-uploader";
 import { FilePickerDialog } from "@/components/shared/file-picker-dialog";
 import { cn } from "@/lib/utils";

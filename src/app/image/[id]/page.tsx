@@ -73,6 +73,7 @@ function serializePost(post: NonNullable<Awaited<ReturnType<typeof getImagePost>
     description: post.description,
     images: post.images as string[],
     views: post.views,
+    isNsfw: post.isNsfw,
     status: post.status,
     createdAt: post.createdAt.toISOString(),
     updatedAt: post.updatedAt.toISOString(),

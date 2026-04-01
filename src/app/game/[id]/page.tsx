@@ -125,6 +125,7 @@ function serializeGame(game: NonNullable<Awaited<ReturnType<typeof getGame>>>) {
     isFree: game.isFree,
     version: game.version,
     views: game.views,
+    isNsfw: game.isNsfw,
     status: game.status,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),

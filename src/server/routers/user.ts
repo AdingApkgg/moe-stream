@@ -863,11 +863,11 @@ export const userRouter = router({
 
     const [gameAuthors, videoAuthors] = await Promise.all([
       ctx.prisma.game.findMany({
-        where: { uploaderId: userId, extraInfo: { not: null } },
+        where: { uploaderId: userId, extraInfo: { not: Prisma.DbNull } },
         select: { extraInfo: true },
       }),
       ctx.prisma.video.findMany({
-        where: { uploaderId: userId, extraInfo: { not: null } },
+        where: { uploaderId: userId, extraInfo: { not: Prisma.DbNull } },
         select: { extraInfo: true },
       }),
     ]);

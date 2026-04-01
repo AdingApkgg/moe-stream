@@ -248,6 +248,7 @@ export const imageRouter = router({
               data: {
                 description: postInput.description || null,
                 images: postInput.images,
+                isNsfw: postInput.isNsfw,
                 tags: { create: tagIds.map((tagId) => ({ tagId })) },
               },
             });
