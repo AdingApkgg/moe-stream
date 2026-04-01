@@ -1709,6 +1709,136 @@ export const openApiRouter = router({
       return { period: null, items: sorted };
     }),
 
+  /** 推广每日报表：按日期×渠道聚合，含累计值和积分，支持按链接筛选 */
+  referralDailyReport: referralProcedure
+    .input(
+      z
+        .object({
+          from: z.string().datetime(),
+          to: z.string().datetime(),
+          linkIds: z.array(z.string()).optional(),
+          channel: z.string().optional(),
+        })
+        .refine((d) => new Date(d.to) >= new Date(d.from), { message: "结束日期不能早于开始日期" })
+        .refine(
+          (d) => {
+            const days = computeDayCount(new Date(d.from), new Date(d.to));
+            return days >= 1 && days <= MAX_RANGE_DAYS;
+          },
+          { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+        ),
+    )
+    .query(async ({ ctx, input }) => {
+      const startDate = new Date(input.from);
+      const endDate = new Date(input.to);
+      const { linkIds, channel } = input;
+      const toKey = (d: Date) =>
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+
+      const dailyStatWhere: Record<string, unknown> = { date: { gte: startDate, lte: endDate } };
+      if (linkIds?.length) dailyStatWhere.referralLinkId = { in: linkIds };
+      if (channel !== undefined) dailyStatWhere.referralLink = { channel: channel || null };
+
+      const referralRecordWhere: Record<string, unknown> = { createdAt: { gte: startDate, lte: endDate } };
+      if (linkIds?.length) referralRecordWhere.referralLinkId = { in: linkIds };
+      if (channel !== undefined) referralRecordWhere.referralLink = { channel: channel || null };
+
+      const [dailyStats, referralRecords] = await Promise.all([
+        ctx.prisma.referralDailyStat.findMany({
+          where: dailyStatWhere,
+          select: {
+            date: true,
+            clicks: true,
+            uniqueClicks: true,
+            registers: true,
+            referralLink: { select: { channel: true } },
+          },
+          orderBy: { date: "asc" },
+        }),
+        ctx.prisma.referralRecord.findMany({
+          where: referralRecordWhere,
+          select: {
+            pointsAwarded: true,
+            createdAt: true,
+            referralLink: { select: { channel: true } },
+          },
+        }),
+      ]);
+
+      type RowData = {
+        date: string;
+        channel: string;
+        clicks: number;
+        uniqueClicks: number;
+        registers: number;
+        points: number;
+      };
+      const rowMap = new Map<string, RowData>();
+      const getRowKey = (d: string, ch: string) => `${d}|${ch}`;
+
+      for (const s of dailyStats) {
+        const ch = s.referralLink?.channel || "";
+        const d = toKey(s.date);
+        const key = getRowKey(d, ch);
+        if (!rowMap.has(key)) {
+          rowMap.set(key, { date: d, channel: ch, clicks: 0, uniqueClicks: 0, registers: 0, points: 0 });
+        }
+        const row = rowMap.get(key)!;
+        row.clicks += s.clicks;
+        row.uniqueClicks += s.uniqueClicks;
+        row.registers += s.registers;
+      }
+
+      for (const r of referralRecords) {
+        const ch = r.referralLink?.channel || "";
+        const d = toKey(r.createdAt);
+        const key = getRowKey(d, ch);
+        if (!rowMap.has(key)) {
+          rowMap.set(key, { date: d, channel: ch, clicks: 0, uniqueClicks: 0, registers: 0, points: 0 });
+        }
+        rowMap.get(key)!.points += r.pointsAwarded;
+      }
+
+      const rows = Array.from(rowMap.values())
+        .filter((r) => r.clicks > 0 || r.registers > 0 || r.points > 0)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.channel.localeCompare(b.channel));
+
+      const dailyTotals = new Map<string, { clicks: number; registers: number }>();
+      for (const row of rows) {
+        const prev = dailyTotals.get(row.date) || { clicks: 0, registers: 0 };
+        prev.clicks += row.clicks;
+        prev.registers += row.registers;
+        dailyTotals.set(row.date, prev);
+      }
+
+      const sortedDates = Array.from(dailyTotals.keys()).sort();
+      const cumulativeByDate = new Map<string, { clicks: number; registers: number }>();
+      let cumClicks = 0;
+      let cumRegisters = 0;
+      for (const date of sortedDates) {
+        const daily = dailyTotals.get(date)!;
+        cumClicks += daily.clicks;
+        cumRegisters += daily.registers;
+        cumulativeByDate.set(date, { clicks: cumClicks, registers: cumRegisters });
+      }
+
+      return {
+        period: { from: input.from, to: input.to },
+        rows: rows.map((r) => {
+          const cum = cumulativeByDate.get(r.date)!;
+          return {
+            date: r.date,
+            channel: r.channel || null,
+            clicks: r.clicks,
+            registers: r.registers,
+            cumulativeClicks: cum.clicks,
+            cumulativeRegisters: cum.registers,
+            points: r.points,
+          };
+        }),
+      };
+    }),
+
   /** 推广链接排行（全站维度） */
   referralLinkRanking: referralProcedure
     .input(

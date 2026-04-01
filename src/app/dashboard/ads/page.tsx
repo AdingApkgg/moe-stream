@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import type { Ad, AdPosition } from "@/lib/ads";
-import { AD_POSITIONS, isAdInSchedule } from "@/lib/ads";
+import { AD_POSITIONS, AD_POSITION_SPECIFIC, isAdInSchedule, normalizePositions, getPositionsLabel } from "@/lib/ads";
 import { AdCard } from "@/components/ads/ad-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,7 @@ const emptyForm: AdFormData = {
   imageUrl: "",
   weight: 1,
   enabled: true,
-  position: "all",
+  positions: ["all"],
   startDate: null,
   endDate: null,
 };
@@ -120,7 +120,7 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
-    position: item.position ?? "all",
+    positions: normalizePositions(item),
     startDate: item.startDate ?? null,
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,
@@ -190,7 +190,9 @@ export default function AdsManagementPage() {
   const filteredAds = useMemo(() => {
     let result = allAds;
     if (filterPosition !== "all-filter") {
-      result = result.filter((ad) => ad.position === filterPosition);
+      result = result.filter(
+        (ad) => ad.positions.includes("all") || ad.positions.includes(filterPosition as AdPosition),
+      );
     }
     if (filterPlatform !== "all") {
       result = result.filter((ad) => ad.platform === filterPlatform);
@@ -300,7 +302,7 @@ export default function AdsManagementPage() {
             imageUrl: a.imageUrl || "",
             weight: a.weight,
             enabled: a.enabled,
-            position: a.position || "all",
+            positions: a.positions.length > 0 ? a.positions : ["all"],
             startDate: a.startDate || null,
             endDate: a.endDate || null,
             createdAt: a.createdAt,
@@ -349,7 +351,7 @@ export default function AdsManagementPage() {
       imageUrl: ad.imageUrl || "",
       weight: ad.weight,
       enabled: ad.enabled,
-      position: ad.position,
+      positions: ad.positions,
       startDate: ad.startDate || null,
       endDate: ad.endDate || null,
     });
@@ -440,7 +442,7 @@ export default function AdsManagementPage() {
       imageUrl: form.imageUrl || undefined,
       weight: form.weight,
       enabled: true,
-      position: form.position,
+      positions: form.positions,
     }),
     [form],
   );
@@ -849,7 +851,7 @@ export default function AdsManagementPage() {
               {filteredAds.map((ad) => {
                 const status = getAdStatus(ad);
                 const StatusIcon = status.icon;
-                const posLabel = AD_POSITIONS.find((p) => p.value === ad.position)?.label ?? "全部位置";
+                const posLabel = getPositionsLabel(ad.positions);
                 const isSelected = selectedIds.has(ad.id);
                 return (
                   <Card
@@ -1100,24 +1102,38 @@ export default function AdsManagementPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">广告位</label>
-                <Select
-                  value={form.position}
-                  onValueChange={(v) => setForm((f) => ({ ...f, position: v as AdPosition }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AD_POSITIONS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>
-                        {p.label}
-                      </SelectItem>
+                <label className="text-sm font-medium">展示位置</label>
+                <div className="rounded-lg border p-3 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={form.positions.includes("all")}
+                      onCheckedChange={(checked) => {
+                        setForm((f) => ({ ...f, positions: checked ? ["all"] : [] }));
+                      }}
+                    />
+                    <span className="text-sm font-medium">全部位置</span>
+                  </label>
+                  <div className="border-t pt-2 grid grid-cols-2 gap-2">
+                    {AD_POSITION_SPECIFIC.map((p) => (
+                      <label key={p.value} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={form.positions.includes("all") || form.positions.includes(p.value)}
+                          disabled={form.positions.includes("all")}
+                          onCheckedChange={(checked) => {
+                            setForm((f) => {
+                              const without = f.positions.filter((v) => v !== "all" && v !== p.value);
+                              const next = checked ? [...without, p.value] : without;
+                              return { ...f, positions: next.length > 0 ? next : ["all"] };
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{p.label}</span>
+                      </label>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </div>
                 <p className="text-[11px] text-muted-foreground">
-                  选择「全部位置」将在所有广告位展示，选择特定位置则仅在对应位置展示
+                  选择「全部位置」将在所有广告位展示，也可选择多个具体位置
                 </p>
               </div>
 

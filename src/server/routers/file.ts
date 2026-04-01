@@ -231,6 +231,7 @@ export const fileRouter = router({
         contentType: z.enum(["video", "game", "imagePost"]).optional(),
         contentId: z.string().optional(),
         mimePrefix: z.string().optional(),
+        search: z.string().max(100).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -241,6 +242,7 @@ export const fileRouter = router({
       if (input.contentType) where.contentType = input.contentType;
       if (input.contentId) where.contentId = input.contentId;
       if (input.mimePrefix) where.mimeType = { startsWith: input.mimePrefix };
+      if (input.search) where.filename = { contains: input.search, mode: "insensitive" };
 
       const items = await ctx.prisma.userFile.findMany({
         where,

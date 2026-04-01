@@ -205,6 +205,97 @@ export const referralRouter = router({
       }));
     }),
 
+  getMyDailyHistory: protectedProcedure
+    .input(
+      z
+        .object({
+          from: z.string().datetime(),
+          to: z.string().datetime(),
+          linkIds: z.array(z.string()).optional(),
+        })
+        .refine((d) => new Date(d.to) >= new Date(d.from), { message: "结束日期不能早于开始日期" })
+        .refine(
+          (d) => {
+            const days = computeDayCount(new Date(d.from), new Date(d.to));
+            return days >= 1 && days <= MAX_RANGE_DAYS;
+          },
+          { message: `日期范围不能超过 ${MAX_RANGE_DAYS} 天` },
+        ),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const startDate = new Date(input.from);
+      const endDate = new Date(input.to);
+      const { linkIds } = input;
+
+      const linkFilter: Record<string, unknown> = {};
+      if (linkIds?.length) linkFilter.referralLinkId = { in: linkIds };
+
+      const [dailyStats, referralRecords] = await Promise.all([
+        ctx.prisma.referralDailyStat.findMany({
+          where: { userId, date: { gte: startDate, lte: endDate }, ...linkFilter },
+          select: {
+            date: true,
+            clicks: true,
+            uniqueClicks: true,
+            registers: true,
+            referralLink: { select: { channel: true } },
+          },
+          orderBy: { date: "asc" },
+        }),
+        ctx.prisma.referralRecord.findMany({
+          where: {
+            referrerId: userId,
+            createdAt: { gte: startDate, lte: endDate },
+            ...(linkIds?.length ? { referralLinkId: { in: linkIds } } : {}),
+          },
+          select: {
+            pointsAwarded: true,
+            createdAt: true,
+            referralLink: { select: { channel: true } },
+          },
+        }),
+      ]);
+
+      type RowData = {
+        date: string;
+        channel: string;
+        clicks: number;
+        uniqueClicks: number;
+        registers: number;
+        points: number;
+      };
+      const rowMap = new Map<string, RowData>();
+      const getRowKey = (d: string, ch: string) => `${d}|${ch}`;
+
+      for (const s of dailyStats) {
+        const ch = s.referralLink?.channel || "";
+        const d = dateKey(s.date);
+        const key = getRowKey(d, ch);
+        if (!rowMap.has(key)) {
+          rowMap.set(key, { date: d, channel: ch, clicks: 0, uniqueClicks: 0, registers: 0, points: 0 });
+        }
+        const row = rowMap.get(key)!;
+        row.clicks += s.clicks;
+        row.uniqueClicks += s.uniqueClicks;
+        row.registers += s.registers;
+      }
+
+      for (const r of referralRecords) {
+        const ch = r.referralLink?.channel || "";
+        const d = dateKey(r.createdAt);
+        const key = getRowKey(d, ch);
+        if (!rowMap.has(key)) {
+          rowMap.set(key, { date: d, channel: ch, clicks: 0, uniqueClicks: 0, registers: 0, points: 0 });
+        }
+        rowMap.get(key)!.points += r.pointsAwarded;
+      }
+
+      return Array.from(rowMap.values())
+        .filter((r) => r.clicks > 0 || r.registers > 0 || r.points > 0)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.channel.localeCompare(b.channel));
+    }),
+
   getChannelStats: protectedProcedure
     .input(z.object({ linkIds: z.array(z.string()).optional() }).optional())
     .query(async ({ ctx, input }) => {

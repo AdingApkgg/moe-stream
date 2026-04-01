@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
@@ -21,19 +20,7 @@ import { TagPicker } from "./tag-picker";
 import { CoverInput } from "./cover-input";
 import type { TagItem } from "../_lib/types";
 import type { VideoExtraInfo } from "@/lib/shortcode-parser";
-import {
-  ChevronDown,
-  Download,
-  Eye,
-  EyeOff,
-  Layers,
-  ListVideo,
-  Loader2,
-  Plus,
-  Trash2,
-  Upload,
-  User,
-} from "lucide-react";
+import { ChevronDown, Download, Eye, EyeOff, Loader2, Plus, Trash2, Upload, User } from "lucide-react";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import { cn } from "@/lib/utils";
 
@@ -44,27 +31,12 @@ export function VideoSingleUpload() {
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
   const [newTags, setNewTags] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
-  const [episodeNum, setEpisodeNum] = useState(1);
-  const [showCreateSeries, setShowCreateSeries] = useState(false);
-  const [newSeriesTitle, setNewSeriesTitle] = useState("");
   const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
   const [extraOpen, setExtraOpen] = useState(false);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
-  const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery({ limit: 50 });
+  const { data: usedAuthors } = trpc.user.usedAuthors.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
-  const createSeriesMutation = trpc.series.create.useMutation({
-    onSuccess: (s) => {
-      setSelectedSeriesId(s.id);
-      setShowCreateSeries(false);
-      setNewSeriesTitle("");
-      refetchSeries();
-      toast.success("合集创建成功");
-    },
-    onError: (e) => toast.error("创建合集失败", { description: e.message }),
-  });
-  const addToSeriesMutation = trpc.series.addVideo.useMutation();
   const createMutation = trpc.video.create.useMutation({
     onError: (e) => toast.error("发布失败", { description: e.message }),
   });
@@ -84,24 +56,15 @@ export function VideoSingleUpload() {
   };
 
   const hasExtraInfo = () =>
-    extraInfo.intro ||
     extraInfo.author ||
     extraInfo.authorIntro ||
-    (extraInfo.keywords?.length ?? 0) > 0 ||
     (extraInfo.downloads?.length ?? 0) > 0 ||
-    (extraInfo.episodes?.length ?? 0) > 0 ||
-    (extraInfo.relatedVideos?.length ?? 0) > 0 ||
     (extraInfo.notices?.length ?? 0) > 0;
 
   const extraFilledCount = useMemo(() => {
     let count = 0;
-    if (extraInfo.intro) count++;
     if (extraInfo.author || extraInfo.authorIntro) count++;
-    if (extraInfo.keywords?.length) count++;
     if (extraInfo.downloads?.length) count++;
-    if (extraInfo.episodes?.length) count++;
-    if (extraInfo.relatedVideos?.length) count++;
-    if (extraInfo.notices?.length) count++;
     return count;
   }, [extraInfo]);
 
@@ -117,14 +80,6 @@ export function VideoSingleUpload() {
         tagNames: newTags,
         ...(hasExtraInfo() ? { extraInfo } : {}),
       });
-
-      if (selectedSeriesId) {
-        try {
-          await addToSeriesMutation.mutateAsync({ seriesId: selectedSeriesId, videoId: result.id, episodeNum });
-        } catch (error) {
-          console.error("添加到合集失败:", error);
-        }
-      }
 
       toast.success("发布成功");
       router.push(`/video/${result.id}`);
@@ -254,90 +209,15 @@ export function VideoSingleUpload() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="pt-0">
-                    <Tabs defaultValue="intro" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="intro" className="text-xs">
-                          作品介绍
-                        </TabsTrigger>
+                    <Tabs defaultValue="author" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="author" className="text-xs">
                           作者信息
                         </TabsTrigger>
                         <TabsTrigger value="downloads" className="text-xs">
                           下载链接
                         </TabsTrigger>
-                        <TabsTrigger value="related" className="text-xs">
-                          相关内容
-                        </TabsTrigger>
                       </TabsList>
-
-                      <TabsContent value="intro" className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <FormLabel>作品介绍</FormLabel>
-                          <Textarea
-                            placeholder="详细的作品介绍..."
-                            value={extraInfo.intro || ""}
-                            onChange={(e) => setExtraInfo({ ...extraInfo, intro: e.target.value })}
-                            className="min-h-[100px]"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <FormLabel>剧集介绍</FormLabel>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setExtraInfo({
-                                  ...extraInfo,
-                                  episodes: [...(extraInfo.episodes || []), { title: "", content: "" }],
-                                })
-                              }
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              添加剧集
-                            </Button>
-                          </div>
-                          {extraInfo.episodes?.map((ep, i) => (
-                            <div key={i} className="flex gap-2 items-start p-3 border rounded-lg bg-muted/30">
-                              <div className="flex-1 space-y-2">
-                                <Input
-                                  placeholder={`第 ${i + 1} 集标题`}
-                                  value={ep.title}
-                                  onChange={(e) => {
-                                    const eps = [...(extraInfo.episodes || [])];
-                                    eps[i] = { ...eps[i], title: e.target.value };
-                                    setExtraInfo({ ...extraInfo, episodes: eps });
-                                  }}
-                                />
-                                <Textarea
-                                  placeholder="剧集介绍..."
-                                  value={ep.content}
-                                  onChange={(e) => {
-                                    const eps = [...(extraInfo.episodes || [])];
-                                    eps[i] = { ...eps[i], content: e.target.value };
-                                    setExtraInfo({ ...extraInfo, episodes: eps });
-                                  }}
-                                  className="min-h-[60px]"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  setExtraInfo({
-                                    ...extraInfo,
-                                    episodes: extraInfo.episodes?.filter((_, j) => j !== i),
-                                  })
-                                }
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </TabsContent>
 
                       <TabsContent value="author" className="space-y-4 mt-4">
                         <div className="grid gap-4 sm:grid-cols-2">
@@ -348,9 +228,17 @@ export function VideoSingleUpload() {
                             </FormLabel>
                             <Input
                               placeholder="原作者名称"
+                              list="used-authors"
                               value={extraInfo.author || ""}
                               onChange={(e) => setExtraInfo({ ...extraInfo, author: e.target.value })}
                             />
+                            {usedAuthors && usedAuthors.length > 0 && (
+                              <datalist id="used-authors">
+                                {usedAuthors.map((a) => (
+                                  <option key={a} value={a} />
+                                ))}
+                              </datalist>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -361,23 +249,6 @@ export function VideoSingleUpload() {
                             onChange={(e) => setExtraInfo({ ...extraInfo, authorIntro: e.target.value })}
                             className="min-h-[80px]"
                           />
-                        </div>
-                        <div className="space-y-2">
-                          <FormLabel>搜索关键词</FormLabel>
-                          <Input
-                            placeholder="用逗号分隔多个关键词"
-                            value={extraInfo.keywords?.join(", ") || ""}
-                            onChange={(e) =>
-                              setExtraInfo({
-                                ...extraInfo,
-                                keywords: e.target.value
-                                  .split(",")
-                                  .map((k) => k.trim())
-                                  .filter(Boolean),
-                              })
-                            }
-                          />
-                          <p className="text-xs text-muted-foreground">帮助用户找到这个视频的关键词</p>
                         </div>
                       </TabsContent>
 
@@ -454,52 +325,6 @@ export function VideoSingleUpload() {
                           </p>
                         )}
                       </TabsContent>
-
-                      <TabsContent value="related" className="space-y-4 mt-4">
-                        <div className="flex items-center justify-between">
-                          <FormLabel className="flex items-center gap-2">
-                            <ListVideo className="h-4 w-4" />
-                            相关视频
-                          </FormLabel>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setExtraInfo({ ...extraInfo, relatedVideos: [...(extraInfo.relatedVideos || []), ""] })
-                            }
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            添加
-                          </Button>
-                        </div>
-                        {extraInfo.relatedVideos?.map((v, i) => (
-                          <div key={i} className="flex gap-2">
-                            <Input
-                              placeholder="相关视频标题"
-                              value={v}
-                              onChange={(e) => {
-                                const rv = [...(extraInfo.relatedVideos || [])];
-                                rv[i] = e.target.value;
-                                setExtraInfo({ ...extraInfo, relatedVideos: rv });
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                setExtraInfo({
-                                  ...extraInfo,
-                                  relatedVideos: extraInfo.relatedVideos?.filter((_, j) => j !== i),
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </TabsContent>
                     </Tabs>
                   </CardContent>
                 </CollapsibleContent>
@@ -515,124 +340,6 @@ export function VideoSingleUpload() {
               </CardHeader>
               <CardContent>
                 <CoverInput form={form} watchValue={coverUrl} contentType="video" />
-              </CardContent>
-            </Card>
-
-            {/* 合集 */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium flex items-center gap-1.5">
-                    <Layers className="h-4 w-4" />
-                    合集
-                  </CardTitle>
-                  {selectedSeriesId && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs px-2"
-                      onClick={() => {
-                        setSelectedSeriesId(null);
-                        setEpisodeNum(1);
-                      }}
-                    >
-                      取消
-                    </Button>
-                  )}
-                </div>
-                <CardDescription className="text-xs">将视频添加到合集（可选）</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {!showCreateSeries ? (
-                  <>
-                    <Select
-                      value={selectedSeriesId || ""}
-                      onValueChange={(v) => {
-                        setSelectedSeriesId(v || null);
-                        const s = userSeries?.items.find((x) => x.id === v);
-                        if (s) setEpisodeNum(s.episodeCount + 1);
-                      }}
-                    >
-                      <SelectTrigger className="text-xs">
-                        <SelectValue placeholder="选择合集..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userSeries?.items.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            <div className="flex items-center gap-2">
-                              <span>{s.title}</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {s.episodeCount}集
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                        {(!userSeries?.items || userSeries.items.length === 0) && (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">暂无合集</div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {selectedSeriesId && (
-                      <div className="flex items-center gap-2">
-                        <FormLabel className="shrink-0 text-xs">第</FormLabel>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={episodeNum}
-                          onChange={(e) => setEpisodeNum(parseInt(e.target.value) || 1)}
-                          className="w-16 h-8 text-xs"
-                        />
-                        <FormLabel className="shrink-0 text-xs">集</FormLabel>
-                      </div>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCreateSeries(true)}
-                      className="w-full text-xs h-8"
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      创建新合集
-                    </Button>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="合集名称"
-                      value={newSeriesTitle}
-                      onChange={(e) => setNewSeriesTitle(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        onClick={() => {
-                          setShowCreateSeries(false);
-                          setNewSeriesTitle("");
-                        }}
-                      >
-                        取消
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        disabled={!newSeriesTitle.trim() || createSeriesMutation.isPending}
-                        onClick={() => {
-                          if (newSeriesTitle.trim()) createSeriesMutation.mutate({ title: newSeriesTitle.trim() });
-                        }}
-                      >
-                        {createSeriesMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                        创建
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 

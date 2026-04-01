@@ -5,7 +5,7 @@ import { useSession } from "@/lib/auth-client";
 import { useSiteConfig } from "@/contexts/site-config";
 import { trpc } from "@/lib/trpc";
 import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds } from "@/lib/ads";
+import { pickWeightedRandomAds, normalizePositions } from "@/lib/ads";
 
 /** 从 JSON 解析广告列表（兼容旧格式） */
 function parseAds(raw: unknown): Ad[] {
@@ -19,7 +19,7 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
-    position: item.position ?? "all",
+    positions: normalizePositions(item),
     startDate: item.startDate ?? null,
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,

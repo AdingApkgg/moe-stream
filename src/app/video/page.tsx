@@ -4,7 +4,7 @@ import VideoListClient from "./client";
 import { WebsiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
-import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
+import { pickWeightedRandomAds, normalizePositions, type Ad } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
-    position: item.position ?? "all",
+    positions: normalizePositions(item),
     startDate: item.startDate ?? null,
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,

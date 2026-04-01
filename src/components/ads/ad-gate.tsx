@@ -6,7 +6,7 @@ import { useSiteConfigForAds } from "@/hooks/use-ads";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds, getActiveAds } from "@/lib/ads";
+import { pickWeightedRandomAds, getActiveAds, normalizePositions } from "@/lib/ads";
 
 const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
 const STORAGE_VIEW_COUNT = "acgn_ad_gate_view_count";
@@ -26,7 +26,7 @@ function parseAds(raw: unknown): Ad[] {
     imageUrl: item.imageUrl ?? undefined,
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
-    position: item.position ?? "all",
+    positions: normalizePositions(item),
     startDate: item.startDate ?? null,
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,

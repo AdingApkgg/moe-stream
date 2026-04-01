@@ -127,6 +127,46 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 ---
 
+### 推广每日报表
+
+<Endpoint method="POST" path="openApi.referralDailyReport" auth="referral:read" />
+
+按日期×渠道聚合的推广数据报表，每行代表一个日期和渠道的组合，包含当日数据、累计值和积分。适合导出到表格或构建数据看板。支持按链接 ID 和渠道筛选。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期（ISO 8601 格式）</P>
+  <P name="to" type="string" required>结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，仅统计指定链接的数据</P>
+  <P name="channel" type="string">渠道标识，仅统计指定渠道的数据</P>
+</ParamTable>
+
+**示例 — 查询 3 月全量报表：**
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralDailyReport' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-31T23:59:59.999Z"}'`}</CopyBlock>
+
+**示例 — 按链接筛选：**
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/openApi.referralDailyReport' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-31T23:59:59.999Z","linkIds":["link_id_1","link_id_2"]}'`}</CopyBlock>
+
+**返回字段说明：**
+- `period.from` / `period.to` — 查询的日期范围
+- `rows[]` — 每日×渠道数据行，每项包含：
+  - `date` — 日期（`YYYY-MM-DD`）
+  - `channel` — 渠道标识，无渠道时为 `null`
+  - `clicks` — 当日点击数
+  - `registers` — 当日注册数
+  - `cumulativeClicks` — 截至该日的累计总点击
+  - `cumulativeRegisters` — 截至该日的累计总注册
+  - `points` — 当日推广积分奖励
+
+---
+
 ### 推广链接排行
 
 <Endpoint method="POST" path="openApi.referralLinkRanking" auth="referral:read" />
@@ -206,6 +246,33 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
   -H 'Content-Type: application/json' \\
   -H 'Authorization: Bearer sk-your-api-key' \\
   -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-15T23:59:59.999Z"}'`}</CopyBlock>
+
+---
+
+### 每日历史数据
+
+<Endpoint method="POST" path="referral.getMyDailyHistory" auth="referral:read" />
+
+按日期×渠道聚合的个人推广历史数据，包含每日点击、注册和积分。适合表格展示。
+
+<ParamTable>
+  <P name="from" type="string" required>开始日期（ISO 8601 格式）</P>
+  <P name="to" type="string" required>结束日期（ISO 8601 格式，范围不超过 90 天）</P>
+  <P name="linkIds" type="string[]">推广链接 ID 数组，仅统计指定链接的数据</P>
+</ParamTable>
+
+<CopyBlock>{`curl -X POST 'https://your-domain.com/api/trpc/referral.getMyDailyHistory' \\
+  -H 'Content-Type: application/json' \\
+  -H 'Authorization: Bearer sk-your-api-key' \\
+  -d '{"from":"2026-03-01T00:00:00.000Z","to":"2026-03-31T23:59:59.999Z"}'`}</CopyBlock>
+
+**返回字段说明：**
+
+每行代表一个日期×渠道的组合（仅返回有数据的行）：
+- `date` — 日期（`YYYY-MM-DD`）
+- `channel` — 渠道标识，无渠道为空字符串
+- `clicks` / `uniqueClicks` / `registers` — 当日数据
+- `points` — 当日推广积分奖励
 
 ---
 

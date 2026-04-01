@@ -856,4 +856,35 @@ export const userRouter = router({
 
       return { users };
     }),
+
+  usedAuthors: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    const [gameAuthors, videoAuthors] = await Promise.all([
+      ctx.prisma.game.findMany({
+        where: { uploaderId: userId, extraInfo: { not: null } },
+        select: { extraInfo: true },
+      }),
+      ctx.prisma.video.findMany({
+        where: { uploaderId: userId, extraInfo: { not: null } },
+        select: { extraInfo: true },
+      }),
+    ]);
+
+    const authors = new Set<string>();
+    for (const g of gameAuthors) {
+      const info = g.extraInfo as Record<string, unknown> | null;
+      if (info?.originalAuthor && typeof info.originalAuthor === "string") {
+        authors.add(info.originalAuthor);
+      }
+    }
+    for (const v of videoAuthors) {
+      const info = v.extraInfo as Record<string, unknown> | null;
+      if (info?.author && typeof info.author === "string") {
+        authors.add(info.author);
+      }
+    }
+
+    return [...authors].sort();
+  }),
 });

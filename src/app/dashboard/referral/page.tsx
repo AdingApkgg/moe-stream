@@ -61,6 +61,7 @@ import {
 import { useSiteConfig } from "@/contexts/site-config";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const CHANNEL_OPTIONS = [
   { value: "", label: "无渠道" },
@@ -1200,6 +1201,7 @@ const TREND_PRESETS = [
   { label: "7天", days: 7 },
   { label: "14天", days: 14 },
   { label: "30天", days: 30 },
+  { label: "90天", days: 90 },
 ];
 
 const trendChartConfig = {
@@ -1291,8 +1293,120 @@ function TrendSummary({ data }: { data: { uniqueClicks: number; registers: numbe
   );
 }
 
+function DailyHistoryTable({ linkIds, dateRange }: { linkIds?: string[]; dateRange: DateRangeValue }) {
+  const { data, isLoading } = trpc.referral.getMyDailyHistory.useQuery({
+    ...dateRangeToApi(dateRange),
+    linkIds,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="h-5 w-5 text-amber-500" />
+            历史数据
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[200px] w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data?.length) return null;
+
+  const dailyTotals = new Map<string, { clicks: number; registers: number }>();
+  for (const row of data) {
+    const prev = dailyTotals.get(row.date) || { clicks: 0, registers: 0 };
+    prev.clicks += row.clicks;
+    prev.registers += row.registers;
+    dailyTotals.set(row.date, prev);
+  }
+
+  const sortedDates = Array.from(dailyTotals.keys()).sort();
+  const cumulativeByDate = new Map<string, { clicks: number; registers: number }>();
+  let cumClicks = 0;
+  let cumRegisters = 0;
+  for (const date of sortedDates) {
+    const daily = dailyTotals.get(date)!;
+    cumClicks += daily.clicks;
+    cumRegisters += daily.registers;
+    cumulativeByDate.set(date, { clicks: cumClicks, registers: cumRegisters });
+  }
+
+  const totalClicks = data.reduce((sum, r) => sum + r.clicks, 0);
+  const totalRegisters = data.reduce((sum, r) => sum + r.registers, 0);
+  const totalPoints = data.reduce((sum, r) => sum + r.points, 0);
+  const rows = [...data].reverse();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <History className="h-5 w-5 text-amber-500" />
+          历史数据
+        </CardTitle>
+        <CardDescription>按日期和渠道汇总的推广数据（共 {data.length} 条记录）</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>日期</TableHead>
+              <TableHead>渠道</TableHead>
+              <TableHead className="text-right">今日点击</TableHead>
+              <TableHead className="text-right">今日注册</TableHead>
+              <TableHead className="text-right">累计点击</TableHead>
+              <TableHead className="text-right">累计注册</TableHead>
+              <TableHead className="text-right">积分</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, idx) => {
+              const cum = cumulativeByDate.get(row.date) || { clicks: 0, registers: 0 };
+              return (
+                <TableRow key={idx}>
+                  <TableCell className="tabular-nums">{row.date}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="text-xs">
+                      {CHANNEL_LABELS[row.channel] || row.channel || "直接访问"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{row.clicks}</TableCell>
+                  <TableCell className="text-right tabular-nums">{row.registers}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{cum.clicks}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{cum.registers}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {row.points > 0 ? <span className="text-green-600">+{row.points}</span> : "-"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2} className="font-medium">
+                合计
+              </TableCell>
+              <TableCell className="text-right font-medium tabular-nums">{totalClicks}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums">{totalRegisters}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums">{cumClicks}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums">{cumRegisters}</TableCell>
+              <TableCell className="text-right font-medium tabular-nums text-green-600">
+                {totalPoints > 0 ? `+${totalPoints}` : "-"}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
-  const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(14));
+  const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(30));
   const [linkSortBy, setLinkSortBy] = useState<"uniqueClicks" | "registers" | "conversionRate">("registers");
   const { data: trendData, isLoading: trendLoading } = trpc.referral.getMyTrendStats.useQuery({
     ...dateRangeToApi(trendRange),
@@ -1375,6 +1489,9 @@ function AnalyticsPanel({ linkIds }: { linkIds?: string[] }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Daily History Table */}
+      <DailyHistoryTable linkIds={linkIds} dateRange={trendRange} />
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Channel Stats */}

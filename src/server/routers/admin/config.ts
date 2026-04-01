@@ -289,11 +289,12 @@ export const adminConfigRouter = router({
               imageUrl: z.string().max(2000).optional().default(""),
               weight: z.number().int().min(1).max(100).optional().default(1),
               enabled: z.boolean().optional().default(true),
-              position: z
-                .enum(["all", "sidebar", "header", "in-feed", "ad-gate", "video-page"])
+              positions: z
+                .array(z.enum(["all", "sidebar", "header", "in-feed", "ad-gate"]))
                 .optional()
-                .default("all")
-                .transform((v) => (v === "video-page" ? ("all" as const) : v)),
+                .default(["all"]),
+              /** @deprecated 兼容旧数据，读取时由客户端 normalizePositions 处理 */
+              position: z.enum(["all", "sidebar", "header", "in-feed", "ad-gate", "video-page"]).optional(),
               startDate: z.string().nullable().optional(),
               endDate: z.string().nullable().optional(),
               createdAt: z.string().optional(),

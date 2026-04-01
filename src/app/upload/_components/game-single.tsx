@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { MdxEditor } from "@/components/ui/mdx-editor";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   Download,
   FileVideo,
+  FolderOpen,
   Gamepad2,
   Image as ImageIcon,
   Link2,
@@ -32,28 +34,42 @@ import {
   Monitor,
   Plus,
   Trash2,
+  Upload,
   GitBranch,
   GripVertical,
   LayoutGrid,
+  X,
 } from "lucide-react";
 import { TAB_ICON_OPTIONS } from "@/lib/game-tab-icons";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
+import { FileUploader, type UploadedFile } from "@/components/files/file-uploader";
+import { FilePickerDialog } from "@/components/shared/file-picker-dialog";
+import { useSiteConfig } from "@/contexts/site-config";
 import { cn } from "@/lib/utils";
 
 export function GameSingleUpload() {
   const router = useRouter();
+  const siteConfig = useSiteConfig();
+  const uploadEnabled = siteConfig?.fileUploadEnabled ?? false;
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
   const [newTags, setNewTags] = useState<string[]>([]);
-  const [screenshots, setScreenshots] = useState<string[]>([""]);
-  const [videos, setVideos] = useState<string[]>([""]);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [screenshotTab, setScreenshotTab] = useState<string>(uploadEnabled ? "upload" : "link");
+  const [screenshotLinkInput, setScreenshotLinkInput] = useState("");
+  const [screenshotPickerOpen, setScreenshotPickerOpen] = useState(false);
+  const [videos, setVideos] = useState<string[]>([]);
+  const [videoTab, setVideoTab] = useState<string>(uploadEnabled ? "upload" : "link");
+  const [videoLinkInput, setVideoLinkInput] = useState("");
+  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
   const [downloads, setDownloads] = useState<{ name: string; url: string; password?: string }[]>([]);
   const [versions, setVersions] = useState<{ label: string; description: string }[]>([]);
   const [customTabs, setCustomTabs] = useState<{ title: string; icon: string; content: string }[]>([]);
   const [extraOpen, setExtraOpen] = useState(false);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
+  const { data: usedAuthors } = trpc.user.usedAuthors.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const createMutation = trpc.game.create.useMutation({
     onError: (e) => toast.error("发布失败", { description: e.message }),
   });
@@ -88,8 +104,8 @@ export function GameSingleUpload() {
   const extraFilledCount = useMemo(() => {
     let count = 0;
     if (watchedOriginalName || watchedOriginalAuthor) count++;
-    if (screenshots.some((s) => s.trim())) count++;
-    if (videos.some((v) => v.trim())) count++;
+    if (screenshots.length > 0) count++;
+    if (videos.length > 0) count++;
     if (downloads.length > 0) count++;
     if (versions.length > 0) count++;
     if (customTabs.length > 0) count++;
@@ -328,7 +344,16 @@ export function GameSingleUpload() {
                               <FormItem>
                                 <FormLabel>原作作者</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="开发者/社团名称" {...field} />
+                                  <>
+                                    <Input placeholder="开发者/社团名称" list="used-authors" {...field} />
+                                    {usedAuthors && usedAuthors.length > 0 && (
+                                      <datalist id="used-authors">
+                                        {usedAuthors.map((a) => (
+                                          <option key={a} value={a} />
+                                        ))}
+                                      </datalist>
+                                    )}
+                                  </>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -404,58 +429,119 @@ export function GameSingleUpload() {
                       </TabsContent>
 
                       <TabsContent value="screenshots" className="space-y-4 mt-4">
-                        <div className="flex items-center justify-between">
-                          <FormLabel className="flex items-center gap-2">
-                            <ImageIcon className="h-4 w-4" />
-                            截图
-                          </FormLabel>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setScreenshots([...screenshots.filter(Boolean), ""])}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            添加截图
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {screenshots.map((url, i) => (
-                            <div key={i} className="flex gap-2 items-start">
-                              <div className="flex-1">
-                                <UrlOrUploadInput
-                                  value={url}
-                                  onChange={(v) => {
-                                    const s = [...screenshots];
-                                    s[i] = v;
-                                    setScreenshots(s);
-                                  }}
-                                  accept="image/*"
-                                  placeholder="https://example.com/screenshot.jpg"
-                                  contentType="game"
-                                />
-                              </div>
+                        <FormLabel className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          截图
+                        </FormLabel>
+
+                        <Tabs value={screenshotTab} onValueChange={setScreenshotTab}>
+                          <TabsList className="h-8 p-0.5">
+                            {uploadEnabled && (
+                              <TabsTrigger value="upload" className="text-xs h-7 gap-1 px-2.5">
+                                <Upload className="h-3.5 w-3.5" />
+                                上传
+                              </TabsTrigger>
+                            )}
+                            <TabsTrigger value="link" className="text-xs h-7 gap-1 px-2.5">
+                              <Link2 className="h-3.5 w-3.5" />
+                              外链
+                            </TabsTrigger>
+                            {uploadEnabled && (
+                              <TabsTrigger value="files" className="text-xs h-7 gap-1 px-2.5">
+                                <FolderOpen className="h-3.5 w-3.5" />
+                                我的文件
+                              </TabsTrigger>
+                            )}
+                          </TabsList>
+
+                          {uploadEnabled && (
+                            <TabsContent value="upload" className="mt-2">
+                              <FileUploader
+                                contentType="game"
+                                accept="image/*"
+                                maxFiles={20}
+                                onFileUploaded={(file: UploadedFile) => {
+                                  setScreenshots((prev) => [...prev, file.url]);
+                                }}
+                                compact
+                              />
+                            </TabsContent>
+                          )}
+
+                          <TabsContent value="link" className="mt-2 space-y-2">
+                            <Textarea
+                              placeholder={
+                                "粘贴图片链接，每行一个\nhttps://example.com/screenshot1.jpg\nhttps://example.com/screenshot2.jpg"
+                              }
+                              value={screenshotLinkInput}
+                              onChange={(e) => setScreenshotLinkInput(e.target.value)}
+                              rows={3}
+                              className="text-sm resize-none"
+                            />
+                            <div className="flex justify-end">
                               <Button
                                 type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="mt-0.5 shrink-0"
-                                onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}
+                                variant="outline"
+                                size="sm"
+                                disabled={!screenshotLinkInput.trim()}
+                                onClick={() => {
+                                  const urls = screenshotLinkInput
+                                    .split("\n")
+                                    .map((l) => l.trim())
+                                    .filter(Boolean);
+                                  if (urls.length > 0) {
+                                    setScreenshots((prev) => [...prev, ...urls]);
+                                    setScreenshotLinkInput("");
+                                  }
+                                }}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Plus className="h-4 w-4 mr-1" />
+                                添加
+                                {screenshotLinkInput.split("\n").filter((l) => l.trim()).length > 1
+                                  ? `（${screenshotLinkInput.split("\n").filter((l) => l.trim()).length} 条）`
+                                  : ""}
                               </Button>
                             </div>
-                          ))}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          已添加 {screenshots.filter((s) => s.trim()).length} 张截图
-                        </p>
-                        {screenshots.some((s) => s.trim()) && (
-                          <div className="flex gap-2 flex-wrap">
-                            {screenshots
-                              .filter((s) => s.trim())
-                              .map((url, i) => (
-                                <div key={i} className="w-24 h-16 rounded border overflow-hidden bg-muted">
+                          </TabsContent>
+
+                          {uploadEnabled && (
+                            <TabsContent value="files" className="mt-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-16 border-dashed flex flex-col gap-1"
+                                onClick={() => setScreenshotPickerOpen(true)}
+                              >
+                                <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">从我的文件中选择（可多选）</span>
+                              </Button>
+                              <FilePickerDialog
+                                open={screenshotPickerOpen}
+                                onOpenChange={setScreenshotPickerOpen}
+                                onSelect={(url) => {
+                                  setScreenshots((prev) => [...prev, url]);
+                                  setScreenshotPickerOpen(false);
+                                }}
+                                onSelectMultiple={(urls) => {
+                                  setScreenshots((prev) => [...prev, ...urls]);
+                                  setScreenshotPickerOpen(false);
+                                }}
+                                multiple
+                                mimePrefix="image/"
+                              />
+                            </TabsContent>
+                          )}
+                        </Tabs>
+
+                        {screenshots.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">已添加 {screenshots.length} 张截图</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {screenshots.map((url, i) => (
+                                <div
+                                  key={i}
+                                  className="relative group w-24 h-16 rounded border overflow-hidden bg-muted"
+                                >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={url}
@@ -465,59 +551,145 @@ export function GameSingleUpload() {
                                       e.currentTarget.style.display = "none";
                                     }}
                                   />
+                                  <button
+                                    type="button"
+                                    className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}
+                                  >
+                                    <X className="h-3 w-3 text-white" />
+                                  </button>
                                 </div>
                               ))}
+                            </div>
                           </div>
                         )}
                       </TabsContent>
 
                       <TabsContent value="videos" className="space-y-4 mt-4">
-                        <div className="flex items-center justify-between">
-                          <FormLabel className="flex items-center gap-2">
-                            <FileVideo className="h-4 w-4" />
-                            预览视频
-                          </FormLabel>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setVideos([...videos.filter(Boolean), ""])}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            添加视频
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {videos.map((url, i) => (
-                            <div key={i} className="flex gap-2 items-start">
-                              <div className="flex-1">
-                                <UrlOrUploadInput
-                                  value={url}
-                                  onChange={(v) => {
-                                    const vs = [...videos];
-                                    vs[i] = v;
-                                    setVideos(vs);
-                                  }}
-                                  accept="video/*,.m3u8"
-                                  placeholder="https://example.com/preview.mp4"
-                                  contentType="game"
-                                />
-                              </div>
+                        <FormLabel className="flex items-center gap-2">
+                          <FileVideo className="h-4 w-4" />
+                          预览视频
+                        </FormLabel>
+
+                        <Tabs value={videoTab} onValueChange={setVideoTab}>
+                          <TabsList className="h-8 p-0.5">
+                            {uploadEnabled && (
+                              <TabsTrigger value="upload" className="text-xs h-7 gap-1 px-2.5">
+                                <Upload className="h-3.5 w-3.5" />
+                                上传
+                              </TabsTrigger>
+                            )}
+                            <TabsTrigger value="link" className="text-xs h-7 gap-1 px-2.5">
+                              <Link2 className="h-3.5 w-3.5" />
+                              外链
+                            </TabsTrigger>
+                            {uploadEnabled && (
+                              <TabsTrigger value="files" className="text-xs h-7 gap-1 px-2.5">
+                                <FolderOpen className="h-3.5 w-3.5" />
+                                我的文件
+                              </TabsTrigger>
+                            )}
+                          </TabsList>
+
+                          {uploadEnabled && (
+                            <TabsContent value="upload" className="mt-2">
+                              <FileUploader
+                                contentType="game"
+                                accept="video/*,.m3u8"
+                                maxFiles={10}
+                                onFileUploaded={(file: UploadedFile) => {
+                                  setVideos((prev) => [...prev, file.url]);
+                                }}
+                                compact
+                              />
+                            </TabsContent>
+                          )}
+
+                          <TabsContent value="link" className="mt-2 space-y-2">
+                            <Textarea
+                              placeholder={
+                                "粘贴视频链接，每行一个\nhttps://example.com/preview1.mp4\nhttps://example.com/preview2.mp4"
+                              }
+                              value={videoLinkInput}
+                              onChange={(e) => setVideoLinkInput(e.target.value)}
+                              rows={3}
+                              className="text-sm resize-none"
+                            />
+                            <div className="flex justify-end">
                               <Button
                                 type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="mt-0.5 shrink-0"
-                                onClick={() => setVideos(videos.filter((_, j) => j !== i))}
+                                variant="outline"
+                                size="sm"
+                                disabled={!videoLinkInput.trim()}
+                                onClick={() => {
+                                  const urls = videoLinkInput
+                                    .split("\n")
+                                    .map((l) => l.trim())
+                                    .filter(Boolean);
+                                  if (urls.length > 0) {
+                                    setVideos((prev) => [...prev, ...urls]);
+                                    setVideoLinkInput("");
+                                  }
+                                }}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Plus className="h-4 w-4 mr-1" />
+                                添加
+                                {videoLinkInput.split("\n").filter((l) => l.trim()).length > 1
+                                  ? `（${videoLinkInput.split("\n").filter((l) => l.trim()).length} 条）`
+                                  : ""}
                               </Button>
                             </div>
-                          ))}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          已添加 {videos.filter((s) => s.trim()).length} 个视频
-                        </p>
+                          </TabsContent>
+
+                          {uploadEnabled && (
+                            <TabsContent value="files" className="mt-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-16 border-dashed flex flex-col gap-1"
+                                onClick={() => setVideoPickerOpen(true)}
+                              >
+                                <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">从我的文件中选择（可多选）</span>
+                              </Button>
+                              <FilePickerDialog
+                                open={videoPickerOpen}
+                                onOpenChange={setVideoPickerOpen}
+                                onSelect={(url) => {
+                                  setVideos((prev) => [...prev, url]);
+                                  setVideoPickerOpen(false);
+                                }}
+                                onSelectMultiple={(urls) => {
+                                  setVideos((prev) => [...prev, ...urls]);
+                                  setVideoPickerOpen(false);
+                                }}
+                                multiple
+                                mimePrefix="video/"
+                              />
+                            </TabsContent>
+                          )}
+                        </Tabs>
+
+                        {videos.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">已添加 {videos.length} 个视频</p>
+                            <div className="space-y-1">
+                              {videos.map((url, i) => (
+                                <div key={i} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+                                  <FileVideo className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="flex-1 truncate text-muted-foreground">{url}</span>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                                    onClick={() => setVideos(videos.filter((_, j) => j !== i))}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </TabsContent>
 
                       <TabsContent value="downloads" className="space-y-4 mt-4">

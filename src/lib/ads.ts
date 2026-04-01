@@ -13,6 +13,11 @@ export const AD_POSITIONS: { value: AdPosition; label: string }[] = [
   { value: "ad-gate", label: "仅广告门" },
 ];
 
+/** 具体广告位选项（不含"全部位置"），用于多选 UI */
+export const AD_POSITION_SPECIFIC: { value: AdPosition; label: string }[] = AD_POSITIONS.filter(
+  (p) => p.value !== "all",
+);
+
 const SLOT_ID_TO_POSITION: Record<string, AdPosition> = {
   sidebar: "sidebar",
   header: "header",
@@ -25,6 +30,8 @@ const SLOT_ID_TO_POSITION: Record<string, AdPosition> = {
 export function resolveSlotPosition(slotId: string): AdPosition | undefined {
   return SLOT_ID_TO_POSITION[slotId];
 }
+
+const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
 
 /** 单条广告的数据结构（存储在 SiteConfig.sponsorAds JSON 中） */
 export interface Ad {
@@ -44,14 +51,30 @@ export interface Ad {
   weight: number;
   /** 是否启用（false 时不展示） */
   enabled: boolean;
-  /** 广告位（默认 "all" 表示所有位置） */
-  position: AdPosition;
+  /** 展示位置列表（包含 "all" 表示所有位置） */
+  positions: AdPosition[];
   /** 投放开始时间（ISO string，为空表示立即开始） */
   startDate?: string | null;
   /** 投放结束时间（ISO string，为空表示长期有效） */
   endDate?: string | null;
   /** 创建时间 */
   createdAt?: string;
+}
+
+/** 将旧版单一 position 字段规范化为 positions 数组（兼容旧数据） */
+export function normalizePositions(item: { position?: string; positions?: string[] }): AdPosition[] {
+  if (Array.isArray(item.positions) && item.positions.length > 0) {
+    return item.positions.filter((p): p is AdPosition => VALID_POSITIONS.has(p));
+  }
+  const pos = item.position;
+  if (!pos || !VALID_POSITIONS.has(pos)) return ["all"];
+  return [pos as AdPosition];
+}
+
+/** 获取广告位置的显示文本 */
+export function getPositionsLabel(positions: AdPosition[]): string {
+  if (positions.length === 0 || positions.includes("all")) return "全部位置";
+  return positions.map((p) => AD_POSITIONS.find((ap) => ap.value === p)?.label ?? p).join("、");
 }
 
 /** 检查广告是否在投放时间范围内 */
@@ -67,13 +90,12 @@ export function isAdInSchedule(ad: Ad, now = new Date()): boolean {
   return true;
 }
 
-const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
-
-/** 检查广告是否匹配指定广告位（未知的遗留位置值视为 "all"） */
+/** 检查广告是否匹配指定广告位 */
 export function isAdForPosition(ad: Ad, slotPosition?: string): boolean {
-  if (!ad.position || ad.position === "all" || !VALID_POSITIONS.has(ad.position)) return true;
+  const positions = ad.positions;
+  if (!positions || positions.length === 0 || positions.includes("all")) return true;
   if (!slotPosition) return false;
-  return ad.position === slotPosition;
+  return positions.includes(slotPosition as AdPosition);
 }
 
 /**

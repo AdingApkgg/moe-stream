@@ -16,8 +16,10 @@ import { trpc } from "@/lib/trpc";
 import { imageUploadSchema, type ImageUploadForm } from "../_lib/schemas";
 import { TagPicker } from "./tag-picker";
 import type { TagItem } from "../_lib/types";
-import { Image as ImageIcon, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FolderOpen, Image as ImageIcon, Link2, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
 import { FileUploader, type UploadedFile } from "@/components/files/file-uploader";
+import { FilePickerDialog } from "@/components/shared/file-picker-dialog";
 
 export function ImageSingleUpload() {
   const router = useRouter();
@@ -28,8 +30,9 @@ export function ImageSingleUpload() {
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
   const [newTags, setNewTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlInputValue, setUrlInputValue] = useState("");
+  const [imageTab, setImageTab] = useState<string>(uploadEnabled ? "upload" : "link");
+  const [linkInput, setLinkInput] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data: allTags } = trpc.tag.list.useQuery({ limit: 100 }, { staleTime: 10 * 60 * 1000 });
   const createMutation = trpc.image.create.useMutation({
@@ -47,28 +50,9 @@ export function ImageSingleUpload() {
     else if (selectedTags.length + newTags.length < 10) setSelectedTags([...selectedTags, tag]);
   };
 
-  const addImageUrl = useCallback(
-    (url: string) => {
-      if (url.trim() && !imageUrls.includes(url.trim())) {
-        setImageUrls((prev) => [...prev, url.trim()]);
-      }
-    },
-    [imageUrls],
-  );
-
   const removeImageUrl = useCallback((index: number) => {
     setImageUrls((prev) => prev.filter((_, i) => i !== index));
   }, []);
-
-  const handleBatchUploaded = useCallback(
-    (files: UploadedFile[]) => {
-      const newUrls = files.map((f) => f.url).filter((url) => !imageUrls.includes(url));
-      if (newUrls.length > 0) {
-        setImageUrls((prev) => [...prev, ...newUrls]);
-      }
-    },
-    [imageUrls],
-  );
 
   const handleFileUploaded = useCallback(
     (file: UploadedFile) => {
@@ -78,14 +62,6 @@ export function ImageSingleUpload() {
     },
     [imageUrls],
   );
-
-  const handleAddUrlSubmit = useCallback(() => {
-    if (urlInputValue.trim()) {
-      addImageUrl(urlInputValue);
-      setUrlInputValue("");
-      setShowUrlInput(false);
-    }
-  }, [urlInputValue, addImageUrl]);
 
   const validImages = imageUrls.filter((url) => url.trim());
 
@@ -169,70 +145,118 @@ export function ImageSingleUpload() {
 
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <ImageIcon className="h-5 w-5" />
-                      图片
-                      {validImages.length > 0 && (
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {validImages.length} 张
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription className="mt-1">上传图片或添加外链，至少一张</CardDescription>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShowUrlInput(!showUrlInput)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    外链
-                  </Button>
-                </div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  图片
+                  {validImages.length > 0 && (
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {validImages.length} 张
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription className="mt-1">上传图片或添加外链，至少一张</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {showUrlInput && (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://example.com/image.jpg"
-                      value={urlInputValue}
-                      onChange={(e) => setUrlInputValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddUrlSubmit();
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleAddUrlSubmit}
-                      disabled={!urlInputValue.trim()}
-                    >
-                      添加
-                    </Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setShowUrlInput(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+                <Tabs value={imageTab} onValueChange={setImageTab}>
+                  <TabsList className="h-8 p-0.5">
+                    {uploadEnabled && (
+                      <TabsTrigger value="upload" className="text-xs h-7 gap-1 px-2.5">
+                        <Upload className="h-3.5 w-3.5" />
+                        上传
+                      </TabsTrigger>
+                    )}
+                    <TabsTrigger value="link" className="text-xs h-7 gap-1 px-2.5">
+                      <Link2 className="h-3.5 w-3.5" />
+                      外链
+                    </TabsTrigger>
+                    {uploadEnabled && (
+                      <TabsTrigger value="files" className="text-xs h-7 gap-1 px-2.5">
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        我的文件
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
 
-                {uploadEnabled ? (
-                  <FileUploader
-                    contentType="imagePost"
-                    accept="image/*"
-                    maxFiles={20}
-                    onFileUploaded={handleFileUploaded}
-                    onAllComplete={handleBatchUploaded}
-                  />
-                ) : (
-                  !showUrlInput && (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      点击右上角「外链」按钮添加图片链接
+                  {uploadEnabled && (
+                    <TabsContent value="upload" className="mt-2">
+                      <FileUploader
+                        contentType="imagePost"
+                        accept="image/*"
+                        maxFiles={20}
+                        onFileUploaded={handleFileUploaded}
+                      />
+                    </TabsContent>
+                  )}
+
+                  <TabsContent value="link" className="mt-2 space-y-2">
+                    <Textarea
+                      placeholder={
+                        "粘贴图片链接，每行一个\nhttps://example.com/image1.jpg\nhttps://example.com/image2.jpg"
+                      }
+                      value={linkInput}
+                      onChange={(e) => setLinkInput(e.target.value)}
+                      rows={3}
+                      className="text-sm resize-none"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!linkInput.trim()}
+                        onClick={() => {
+                          const urls = linkInput
+                            .split("\n")
+                            .map((l) => l.trim())
+                            .filter((u) => u && !imageUrls.includes(u));
+                          if (urls.length > 0) {
+                            setImageUrls((prev) => [...prev, ...urls]);
+                            setLinkInput("");
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        添加
+                        {linkInput.split("\n").filter((l) => l.trim()).length > 1
+                          ? `（${linkInput.split("\n").filter((l) => l.trim()).length} 条）`
+                          : ""}
+                      </Button>
                     </div>
-                  )
-                )}
+                  </TabsContent>
+
+                  {uploadEnabled && (
+                    <TabsContent value="files" className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-16 border-dashed flex flex-col gap-1"
+                        onClick={() => setPickerOpen(true)}
+                      >
+                        <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">从我的文件中选择（可多选）</span>
+                      </Button>
+                      <FilePickerDialog
+                        open={pickerOpen}
+                        onOpenChange={setPickerOpen}
+                        onSelect={(url) => {
+                          if (!imageUrls.includes(url)) {
+                            setImageUrls((prev) => [...prev, url]);
+                          }
+                          setPickerOpen(false);
+                        }}
+                        onSelectMultiple={(urls) => {
+                          const newUrls = urls.filter((u) => !imageUrls.includes(u));
+                          if (newUrls.length > 0) {
+                            setImageUrls((prev) => [...prev, ...newUrls]);
+                          }
+                          setPickerOpen(false);
+                        }}
+                        multiple
+                        mimePrefix="image/"
+                      />
+                    </TabsContent>
+                  )}
+                </Tabs>
 
                 {validImages.length > 0 && (
                   <div className="space-y-3">
