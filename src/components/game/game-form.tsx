@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { gameFormSchema, type GameFormData, type TagItem } from "@/lib/schemas/content";
@@ -153,17 +153,22 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
 
   const gameCoverUrl = useWatch({ control: form.control, name: "coverUrl" });
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title,
+        description: initialData.description || "",
+        coverUrl: initialData.coverUrl || "",
+        gameType: initialData.gameType || "",
+        version: initialData.version || "",
+        isFree: initialData.isFree,
+      });
+    }
+  }, [initialData, form]);
+
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   if (initialData && initialData !== prevInitialData) {
     setPrevInitialData(initialData);
-    form.reset({
-      title: initialData.title,
-      description: initialData.description || "",
-      coverUrl: initialData.coverUrl || "",
-      gameType: initialData.gameType || "",
-      version: initialData.version || "",
-      isFree: initialData.isFree,
-    });
     setSelectedTags(initialData.tags);
     setIsNsfw(initialData.isNsfw);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { videoFormSchema, type VideoFormData, type TagItem } from "@/lib/schemas/content";
@@ -113,15 +113,20 @@ export function VideoForm({
   const coverUrl = useWatch({ control: form.control, name: "coverUrl" });
   const videoUrl = useWatch({ control: form.control, name: "videoUrl" });
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title,
+        description: initialData.description || "",
+        coverUrl: initialData.coverUrl || "",
+        videoUrl: initialData.videoUrl,
+      });
+    }
+  }, [initialData, form]);
+
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   if (initialData && initialData !== prevInitialData) {
     setPrevInitialData(initialData);
-    form.reset({
-      title: initialData.title,
-      description: initialData.description || "",
-      coverUrl: initialData.coverUrl || "",
-      videoUrl: initialData.videoUrl,
-    });
     setSelectedTags(initialData.tags);
     setIsNsfw(initialData.isNsfw);
     if (initialData.extraInfo && typeof initialData.extraInfo === "object") {
