@@ -578,6 +578,11 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                 >
                   <h1 className={`text-base font-bold leading-snug ${!descExpanded ? "line-clamp-2" : ""}`}>
                     {displayVideo.title}
+                    {displayVideo.isNsfw && (
+                      <Badge className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0 hover:bg-red-500 border-0 font-bold align-middle">
+                        NSFW
+                      </Badge>
+                    )}
                   </h1>
                   <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                     <span>{formatViews(displayVideo.views)}次观看</span>
@@ -975,7 +980,14 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
             {/* 桌面端标题和信息区 */}
             <div className="hidden md:block">
               <div className="flex items-start justify-between gap-2">
-                <h1 className="text-lg sm:text-xl font-bold">{displayVideo.title}</h1>
+                <h1 className="text-lg sm:text-xl font-bold">
+                  {displayVideo.title}
+                  {displayVideo.isNsfw && (
+                    <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0 hover:bg-red-500 border-0 font-bold align-middle">
+                      NSFW
+                    </Badge>
+                  )}
+                </h1>
 
                 {isOwner && (
                   <DropdownMenu>

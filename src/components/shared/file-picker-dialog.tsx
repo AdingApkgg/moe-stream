@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,24 +67,19 @@ export function FilePickerDialog({
 }: FilePickerDialogProps) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const isImageMode = mimePrefix?.startsWith("image") ?? false;
   const [viewMode, setViewMode] = useState<"grid" | "list">(isImageMode ? "grid" : "list");
 
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearch(value);
-      if (debounceTimer) clearTimeout(debounceTimer);
-      setDebounceTimer(
-        setTimeout(() => {
-          setDebouncedSearch(value.trim());
-        }, 300),
-      );
-    },
-    [debounceTimer],
-  );
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value.trim());
+    }, 300);
+  }, []);
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = trpc.file.list.useInfiniteQuery(
     {

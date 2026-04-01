@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/lib/toast-with-sound";
 import { trpc } from "@/lib/trpc";
@@ -31,6 +33,7 @@ export function VideoSingleUpload() {
   const [selectedTags, setSelectedTags] = useState<TagItem[]>([]);
   const [newTags, setNewTags] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [isNsfw, setIsNsfw] = useState(false);
   const [extraInfo, setExtraInfo] = useState<VideoExtraInfo>({});
   const [extraOpen, setExtraOpen] = useState(false);
 
@@ -76,6 +79,7 @@ export function VideoSingleUpload() {
         description: data.description,
         coverUrl: data.coverUrl || "",
         videoUrl: data.videoUrl,
+        isNsfw,
         tagIds: selectedTags.map((t) => t.id),
         tagNames: newTags,
         ...(hasExtraInfo() ? { extraInfo } : {}),
@@ -351,6 +355,18 @@ export function VideoSingleUpload() {
               onAddNewTag={(name) => setNewTags([...newTags, name])}
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                NSFW
+              </Label>
+              <Switch
+                id="nsfw-toggle"
+                checked={isNsfw}
+                onCheckedChange={setIsNsfw}
+                className="data-[state=checked]:bg-red-500"
+              />
+            </div>
 
             <div className="hidden lg:block">{submitButton}</div>
           </div>

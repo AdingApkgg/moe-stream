@@ -15,6 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -73,6 +75,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const [tagSearch, setTagSearch] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [isNsfw, setIsNsfw] = useState(false);
 
   // 合集相关状态
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
@@ -196,6 +199,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
         videoUrl: video.videoUrl,
       });
       setSelectedTags(video.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })));
+      setIsNsfw(video.isNsfw ?? false);
 
       // 加载扩展信息
       if (video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo)) {
@@ -234,6 +238,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
         description: data.description || undefined,
         coverUrl: data.coverUrl || undefined,
         videoUrl: data.videoUrl,
+        isNsfw,
         tagIds: selectedTags.map((t) => t.id),
         tagNames: newTags,
         ...(hasExtraInfo() ? { extraInfo } : { extraInfo: null }),
@@ -1004,6 +1009,18 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                  NSFW
+                </Label>
+                <Switch
+                  id="nsfw-toggle"
+                  checked={isNsfw}
+                  onCheckedChange={setIsNsfw}
+                  className="data-[state=checked]:bg-red-500"
+                />
+              </div>
 
               {/* 操作按钮 */}
               <div className="space-y-3">

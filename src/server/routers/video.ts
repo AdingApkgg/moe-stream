@@ -540,6 +540,7 @@ export const videoRouter = router({
             }),
           )
           .optional(), // B站分P信息
+        isNsfw: z.boolean().default(false),
         skipIndexNow: z.boolean().optional(), // 批量导入时跳过 IndexNow
         // 扩展信息
         extraInfo: z
@@ -579,7 +580,7 @@ export const videoRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { customId, tagIds, tagNames, coverUrl, pages, skipIndexNow, extraInfo, ...data } = input;
+      const { customId, tagIds, tagNames, coverUrl, pages, skipIndexNow, extraInfo, isNsfw, ...data } = input;
       const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
       if (customId) {
@@ -605,6 +606,7 @@ export const videoRouter = router({
           description: data.description,
           videoUrl: data.videoUrl,
           duration: data.duration,
+          isNsfw,
           status,
           ...(coverUrl ? { coverUrl } : {}),
           ...(pages && pages.length > 1 ? { pages } : {}),
@@ -641,6 +643,7 @@ export const videoRouter = router({
               description: z.string().max(5000).optional(),
               coverUrl: z.string().optional(),
               videoUrl: z.string().url(),
+              isNsfw: z.boolean().default(false),
               tagNames: z.array(z.string()).optional(),
               extraInfo: z
                 .object({
@@ -756,6 +759,7 @@ export const videoRouter = router({
                 title: v.title,
                 description: v.description,
                 videoUrl: v.videoUrl,
+                isNsfw: v.isNsfw,
                 status,
                 ...(v.coverUrl ? { coverUrl: v.coverUrl } : {}),
                 ...(v.extraInfo ? { extraInfo: v.extraInfo } : {}),
@@ -849,6 +853,7 @@ export const videoRouter = router({
         description: z.string().max(5000).optional(),
         coverUrl: z.string().url().optional().or(z.literal("")),
         videoUrl: z.string().url().optional(),
+        isNsfw: z.boolean().optional(),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(), // 新建标签名称
         // 扩展信息
@@ -1731,6 +1736,7 @@ export const videoRouter = router({
             coverUrl: true,
             duration: true,
             views: true,
+            isNsfw: true,
             createdAt: true,
             _count: { select: { likes: true } },
           },
@@ -1767,6 +1773,7 @@ export const videoRouter = router({
             coverUrl: true,
             duration: true,
             views: true,
+            isNsfw: true,
             createdAt: true,
             _count: { select: { likes: true } },
           },
@@ -1794,6 +1801,7 @@ export const videoRouter = router({
         coverBlurHash: true,
         duration: true,
         views: true,
+        isNsfw: true,
         createdAt: true,
         extraInfo: true,
         uploader: {

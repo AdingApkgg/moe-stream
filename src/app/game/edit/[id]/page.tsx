@@ -17,6 +17,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/lib/toast-with-sound";
@@ -79,6 +81,7 @@ export default function EditGamePage({ params }: Props) {
   const [originalAuthorUrl, setOriginalAuthorUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [isNsfw, setIsNsfw] = useState(false);
   const [versions, setVersions] = useState<{ id?: string; label: string; description: string }[]>([]);
   const [customTabs, setCustomTabs] = useState<{ id?: string; title: string; icon: string; content: string }[]>([]);
 
@@ -127,6 +130,7 @@ export default function EditGamePage({ params }: Props) {
         name: t.tag.name,
       })) || [];
     setSelectedTags(gameTags);
+    setIsNsfw(game.isNsfw ?? false);
 
     const extra = (game.extraInfo || {}) as Record<string, unknown>;
     setScreenshots((extra.screenshots as string[]) || [""]);
@@ -231,6 +235,7 @@ export default function EditGamePage({ params }: Props) {
         coverUrl: data.coverUrl || undefined,
         gameType: data.gameType || undefined,
         isFree: data.isFree,
+        isNsfw,
         version: data.version || undefined,
         extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
         tagNames: tagNames.length > 0 ? tagNames : undefined,
@@ -896,6 +901,18 @@ export default function EditGamePage({ params }: Props) {
                   <p className="text-xs text-muted-foreground">已选 {selectedTags.length + newTags.length}/10</p>
                 </CardContent>
               </Card>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                  NSFW
+                </Label>
+                <Switch
+                  id="nsfw-toggle"
+                  checked={isNsfw}
+                  onCheckedChange={setIsNsfw}
+                  className="data-[state=checked]:bg-red-500"
+                />
+              </div>
 
               {/* 操作按钮 */}
               <div className="flex flex-col gap-2">

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -63,6 +64,7 @@ export function GameSingleUpload() {
   const [videoTab, setVideoTab] = useState<string>(uploadEnabled ? "upload" : "link");
   const [videoLinkInput, setVideoLinkInput] = useState("");
   const [videoPickerOpen, setVideoPickerOpen] = useState(false);
+  const [isNsfw, setIsNsfw] = useState(false);
   const [downloads, setDownloads] = useState<{ name: string; url: string; password?: string }[]>([]);
   const [versions, setVersions] = useState<{ label: string; description: string }[]>([]);
   const [customTabs, setCustomTabs] = useState<{ title: string; icon: string; content: string }[]>([]);
@@ -142,6 +144,7 @@ export function GameSingleUpload() {
         coverUrl: data.coverUrl || undefined,
         gameType: data.gameType || undefined,
         isFree: data.isFree,
+        isNsfw,
         version: data.version || undefined,
         tagIds: selectedTags.map((t) => t.id),
         tagNames: newTags,
@@ -344,17 +347,15 @@ export function GameSingleUpload() {
                               <FormItem>
                                 <FormLabel>原作作者</FormLabel>
                                 <FormControl>
-                                  <>
-                                    <Input placeholder="开发者/社团名称" list="used-authors" {...field} />
-                                    {usedAuthors && usedAuthors.length > 0 && (
-                                      <datalist id="used-authors">
-                                        {usedAuthors.map((a) => (
-                                          <option key={a} value={a} />
-                                        ))}
-                                      </datalist>
-                                    )}
-                                  </>
+                                  <Input placeholder="开发者/社团名称" list="used-authors" {...field} />
                                 </FormControl>
+                                {usedAuthors && usedAuthors.length > 0 && (
+                                  <datalist id="used-authors">
+                                    {usedAuthors.map((a) => (
+                                      <option key={a} value={a} />
+                                    ))}
+                                  </datalist>
+                                )}
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -927,6 +928,18 @@ export function GameSingleUpload() {
               onAddNewTag={(name) => setNewTags([...newTags, name])}
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                NSFW
+              </Label>
+              <Switch
+                id="nsfw-toggle"
+                checked={isNsfw}
+                onCheckedChange={setIsNsfw}
+                className="data-[state=checked]:bg-red-500"
+              />
+            </div>
 
             <div className="hidden lg:block">{submitButton}</div>
           </div>

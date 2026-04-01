@@ -27,6 +27,7 @@ interface VideoCardProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     extraInfo?: any;
     tags?: { tag: { id: string; name: string; slug: string } }[];
+    isNsfw?: boolean;
     _count: {
       likes: number;
       dislikes?: number;
@@ -79,6 +80,12 @@ function VideoCardComponent({ video }: VideoCardProps) {
           {video.duration && (
             <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium tabular-nums">
               {formatDuration(video.duration)}
+            </div>
+          )}
+
+          {video.isNsfw && (
+            <div className="absolute top-1.5 right-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
+              NSFW
             </div>
           )}
 

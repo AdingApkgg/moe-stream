@@ -381,6 +381,11 @@ export function GamePageClient({
                     免费
                   </Badge>
                 )}
+                {initialGame.isNsfw && (
+                  <Badge className="bg-red-500 text-white text-[10px] sm:text-xs font-bold border-0 hover:bg-red-500 shadow-lg">
+                    NSFW
+                  </Badge>
+                )}
               </div>
 
               {hasScreenshots && (
@@ -401,7 +406,14 @@ export function GamePageClient({
             <div className="max-w-4xl mx-auto mt-3 sm:mt-5 space-y-2 sm:space-y-3">
               {/* 标题 + 编辑 */}
               <div className="flex items-start justify-between gap-2">
-                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold leading-tight">{initialGame.title}</h1>
+                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold leading-tight">
+                  {initialGame.title}
+                  {initialGame.isNsfw && (
+                    <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0 hover:bg-red-500 border-0 font-bold align-middle">
+                      NSFW
+                    </Badge>
+                  )}
+                </h1>
                 {isOwner && (
                   <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" asChild>
                     <Link href={`/game/edit/${id}`} aria-label="编辑游戏">

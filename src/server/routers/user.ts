@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure, ownerProcedure, adminProcedure } from "../trpc";
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";

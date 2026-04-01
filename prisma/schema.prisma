@@ -279,6 +279,7 @@ model Video {
   videoUrl      String
   duration    Int?
   views       Int         @default(0)
+  isNsfw      Boolean     @default(false) /// NSFW 标记
   status      VideoStatus @default(PENDING)
   pages       Json?       // B站分P信息 [{ page: number, title: string, cid?: number }]
   
@@ -393,6 +394,7 @@ model Game {
                           // }
 
   views       Int         @default(0)
+  isNsfw      Boolean     @default(false) /// NSFW 标记
   status      VideoStatus @default(PENDING) // 复用审核状态枚举
 
   tags        TagOnGame[]
@@ -661,6 +663,7 @@ model ImagePost {
   description String?     @db.Text
   images      Json        // string[] — 图片 URL 列表
   views       Int         @default(0)
+  isNsfw      Boolean     @default(false) /// NSFW 标记
   status      VideoStatus @default(PENDING)
 
   tags        TagOnImagePost[]

@@ -129,7 +129,14 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
 
         {/* Title & description */}
         <MotionPage>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{post.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+            {post.title}
+            {post.isNsfw && (
+              <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0 hover:bg-red-500 border-0 font-bold align-middle">
+                NSFW
+              </Badge>
+            )}
+          </h1>
           {post.description && (
             <p className="text-muted-foreground text-sm sm:text-base mb-3 whitespace-pre-line">{post.description}</p>
           )}

@@ -17,9 +17,12 @@ import { imageUploadSchema, type ImageUploadForm } from "../_lib/schemas";
 import { TagPicker } from "./tag-picker";
 import type { TagItem } from "../_lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { FolderOpen, Image as ImageIcon, Link2, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
 import { FileUploader, type UploadedFile } from "@/components/files/file-uploader";
 import { FilePickerDialog } from "@/components/shared/file-picker-dialog";
+import { cn } from "@/lib/utils";
 
 export function ImageSingleUpload() {
   const router = useRouter();
@@ -31,6 +34,7 @@ export function ImageSingleUpload() {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageTab, setImageTab] = useState<string>(uploadEnabled ? "upload" : "link");
+  const [isNsfw, setIsNsfw] = useState(false);
   const [linkInput, setLinkInput] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -77,6 +81,7 @@ export function ImageSingleUpload() {
         title: data.title,
         description: data.description || undefined,
         images: validImages,
+        isNsfw,
         tagIds: selectedTags.map((t) => t.id),
         tagNames: newTags,
       });
@@ -321,6 +326,18 @@ export function ImageSingleUpload() {
               onAddNewTag={(name) => setNewTags([...newTags, name])}
               onRemoveNewTag={(name) => setNewTags(newTags.filter((t) => t !== name))}
             />
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                NSFW
+              </Label>
+              <Switch
+                id="nsfw-toggle"
+                checked={isNsfw}
+                onCheckedChange={setIsNsfw}
+                className="data-[state=checked]:bg-red-500"
+              />
+            </div>
 
             <div className="hidden lg:block">{submitButton}</div>
           </div>

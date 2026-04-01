@@ -18,6 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft, Plus, X, Image as ImageIcon, Tag, Search, AlertCircle, Trash2, Save } from "lucide-react";
 import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import Link from "next/link";
@@ -45,6 +47,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
+  const [isNsfw, setIsNsfw] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([""]);
 
   const { data: post, isLoading: postLoading } = trpc.image.getForEdit.useQuery({ id }, { enabled: !!session });
@@ -105,6 +108,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
         description: post.description || "",
       });
       setSelectedTags(post.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })));
+      setIsNsfw(post.isNsfw ?? false);
       const imgs = (post.images as string[]) ?? [];
       setImageUrls(imgs.length > 0 ? imgs : [""]);
     }
@@ -129,6 +133,7 @@ export default function EditImagePage({ params }: EditImagePageProps) {
         title: data.title,
         description: data.description || undefined,
         images: validImages,
+        isNsfw,
         tagIds: selectedTags.map((t) => t.id),
         tagNames: newTags,
       });
@@ -416,6 +421,18 @@ export default function EditImagePage({ params }: EditImagePageProps) {
 
             {/* Right: actions */}
             <div className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label htmlFor="nsfw-toggle" className={cn("text-sm font-medium", isNsfw && "text-red-500")}>
+                  NSFW
+                </Label>
+                <Switch
+                  id="nsfw-toggle"
+                  checked={isNsfw}
+                  onCheckedChange={setIsNsfw}
+                  className="data-[state=checked]:bg-red-500"
+                />
+              </div>
+
               <div className="space-y-3">
                 <Button type="submit" className="w-full h-12 text-base" disabled={isSubmitting} size="lg">
                   {isSubmitting ? (

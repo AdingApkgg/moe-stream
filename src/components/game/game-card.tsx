@@ -45,6 +45,7 @@ export interface GameCardData {
   isFree?: boolean;
   version?: string | null;
   views: number;
+  isNsfw?: boolean;
   createdAt: Date | string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraInfo?: any;
@@ -138,14 +139,24 @@ function GameCardComponent({ game }: GameCardProps) {
             </div>
           )}
 
-          {game.isFree && (
-            <Badge
-              variant="secondary"
-              className="absolute top-1.5 right-1.5 bg-green-500/80 text-white text-[9px] sm:text-[10px] px-1 py-0 hover:bg-green-500/80 border-0"
-            >
-              免费
-            </Badge>
-          )}
+          <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 items-end">
+            {game.isNsfw && (
+              <Badge
+                variant="secondary"
+                className="bg-red-500/90 text-white text-[9px] sm:text-[10px] px-1 py-0 hover:bg-red-500/90 border-0 font-bold"
+              >
+                NSFW
+              </Badge>
+            )}
+            {game.isFree && (
+              <Badge
+                variant="secondary"
+                className="bg-green-500/80 text-white text-[9px] sm:text-[10px] px-1 py-0 hover:bg-green-500/80 border-0"
+              >
+                免费
+              </Badge>
+            )}
+          </div>
 
           <div className="absolute bottom-0 left-0 right-0 p-2 space-y-1">
             <div className="flex items-center gap-2 text-[10px] sm:text-xs">

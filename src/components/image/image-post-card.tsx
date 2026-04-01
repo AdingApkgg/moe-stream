@@ -15,6 +15,7 @@ interface ImagePostCardProps {
     description?: string | null;
     images: unknown;
     views: number;
+    isNsfw?: boolean;
     createdAt: Date | string;
     uploader: {
       id: string;
@@ -81,6 +82,12 @@ function ImagePostCardComponent({ post }: ImagePostCardProps) {
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+          {post.isNsfw && (
+            <div className="absolute top-1.5 left-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
+              NSFW
+            </div>
+          )}
 
           {imageCount > 1 && (
             <div className="absolute top-1.5 right-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1">

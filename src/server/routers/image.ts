@@ -168,6 +168,7 @@ export const imageRouter = router({
         title: z.string().min(1, "请输入标题").max(200),
         description: z.string().max(5000).optional(),
         images: z.array(z.string().url()).min(1, "至少上传一张图片"),
+        isNsfw: z.boolean().default(false),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
       }),
@@ -186,6 +187,7 @@ export const imageRouter = router({
           title: data.title,
           description: data.description || null,
           images: data.images,
+          isNsfw: data.isNsfw,
           status,
           uploaderId: ctx.session.user.id,
           tags: { create: allTagIds.map((tagId) => ({ tagId })) },
@@ -205,6 +207,7 @@ export const imageRouter = router({
               title: z.string().min(1).max(200),
               description: z.string().max(5000).optional(),
               images: z.array(z.string().url()).min(1),
+              isNsfw: z.boolean().default(false),
               tagNames: z.array(z.string()).optional(),
             }),
           )
@@ -257,6 +260,7 @@ export const imageRouter = router({
                 title: postInput.title,
                 description: postInput.description || null,
                 images: postInput.images,
+                isNsfw: postInput.isNsfw,
                 status,
                 uploaderId: ctx.session.user.id,
                 tags: { create: tagIds.map((tagId) => ({ tagId })) },
@@ -307,6 +311,7 @@ export const imageRouter = router({
         title: z.string().min(1).max(200).optional(),
         description: z.string().max(5000).optional(),
         images: z.array(z.string().url()).min(1).optional(),
+        isNsfw: z.boolean().optional(),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
       }),
@@ -328,6 +333,7 @@ export const imageRouter = router({
       if (data.title !== undefined) updateData.title = data.title;
       if (data.description !== undefined) updateData.description = data.description || null;
       if (data.images !== undefined) updateData.images = data.images;
+      if (data.isNsfw !== undefined) updateData.isNsfw = data.isNsfw;
 
       await ctx.prisma.imagePost.update({
         where: { id },

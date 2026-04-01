@@ -444,6 +444,7 @@ export const adminVideosRouter = router({
               coverUrl: z.string().url().optional().or(z.literal("")),
               description: z.string().max(5000).optional(),
               shortcodeContent: z.string().optional(), // 原始短代码内容
+              isNsfw: z.boolean().default(false),
               tagNames: z.array(z.string()).optional(),
               customId: z.string().optional(),
             }),
@@ -501,6 +502,7 @@ export const adminVideosRouter = router({
               description: videoData.description,
               videoUrl: videoData.videoUrl,
               coverUrl: videoData.coverUrl || null,
+              isNsfw: videoData.isNsfw,
               status: "PUBLISHED",
               extraInfo: extraInfo ? JSON.parse(JSON.stringify(extraInfo)) : undefined,
               uploader: { connect: { id: ctx.session.user.id } },

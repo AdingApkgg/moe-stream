@@ -514,6 +514,13 @@ export function FileUploader({
               hash: item.hash,
             });
           }
+          updateItem(item.id, { status: "completing", progress: 100 });
+          return await completeUploadMut.mutateAsync({
+            fileId: item.fileId,
+            uploadId: prog.s3UploadId,
+            parts: clientParts.sort((a, b) => a.partNumber - b.partNumber),
+            hash: item.hash,
+          });
         } else {
           return uploadFile(item, item.hash);
         }
