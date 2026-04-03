@@ -76,6 +76,8 @@ export interface PublicSiteConfig {
   analyticsClarityId: string | null;
   analyticsBingVerification: string | null;
   fileUploadEnabled: boolean;
+  channelEnabled: boolean;
+  dmEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +190,8 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     analyticsClarityId: (c.analyticsClarityId as string) ?? null,
     analyticsBingVerification: (c.analyticsBingVerification as string) ?? null,
     fileUploadEnabled: (c.fileUploadEnabled as boolean) ?? false,
+    channelEnabled: (c.channelEnabled as boolean) ?? true,
+    dmEnabled: (c.dmEnabled as boolean) ?? true,
   };
 }
 

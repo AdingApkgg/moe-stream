@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { notFound, useRouter } from "next/navigation";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -44,67 +44,59 @@ export default function EditGamePage({ params }: Props) {
     }
   }, [authLoading, session, router, id]);
 
-  const initialData = game
-    ? (() => {
-        const extra = (game.extraInfo || {}) as Record<string, unknown>;
-        const extraInfo: GameExtraInfo = {
-          originalName: (extra.originalName as string) || undefined,
-          originalAuthor: (extra.originalAuthor as string) || undefined,
-          originalAuthorUrl: (extra.originalAuthorUrl as string) || undefined,
-          fileSize: (extra.fileSize as string) || undefined,
-          platforms: (extra.platforms as string[]) || undefined,
-          screenshots: (extra.screenshots as string[]) || undefined,
-          videos: (extra.videos as string[]) || undefined,
-          downloads: (extra.downloads as { name: string; url: string; password?: string }[]) || undefined,
-        };
+  const initialData = useMemo(() => {
+    if (!game) return undefined;
 
-        const gameVersions: GameVersion[] =
-          game.versions?.map((v: { id: string; label: string; description: string | null }) => ({
-            id: v.id,
-            label: v.label,
-            description: v.description || "",
-          })) || [];
+    const extra = (game.extraInfo || {}) as Record<string, unknown>;
+    const extraInfo: GameExtraInfo = {
+      originalName: (extra.originalName as string) || undefined,
+      originalAuthor: (extra.originalAuthor as string) || undefined,
+      originalAuthorUrl: (extra.originalAuthorUrl as string) || undefined,
+      fileSize: (extra.fileSize as string) || undefined,
+      platforms: (extra.platforms as string[]) || undefined,
+      screenshots: (extra.screenshots as string[]) || undefined,
+      videos: (extra.videos as string[]) || undefined,
+      downloads: (extra.downloads as { name: string; url: string; password?: string }[]) || undefined,
+    };
 
-        const gameCustomTabs: GameCustomTab[] =
-          game.customTabs?.map((t: { id: string; title: string; icon: string | null; content: string }) => ({
-            id: t.id,
-            title: t.title,
-            icon: t.icon || "file-text",
-            content: t.content,
-          })) || [];
+    const gameVersions: GameVersion[] =
+      game.versions?.map((v: { id: string; label: string; description: string | null }) => ({
+        id: v.id,
+        label: v.label,
+        description: v.description || "",
+      })) || [];
 
-        return {
-          title: game.title,
-          description: game.description || "",
-          coverUrl: game.coverUrl || "",
-          gameType: game.gameType || "",
-          version: game.version || "",
-          isFree: game.isFree,
-          isNsfw: game.isNsfw ?? false,
-          tags:
-            (game.tags?.map((t: { tag: { id: string; name: string } }) => ({
-              id: t.tag.id,
-              name: t.tag.name,
-            })) as TagItem[]) || [],
-          extraInfo,
-          versions: gameVersions,
-          customTabs: gameCustomTabs,
-        };
-      })()
-    : undefined;
+    const gameCustomTabs: GameCustomTab[] =
+      game.customTabs?.map((t: { id: string; title: string; icon: string | null; content: string }) => ({
+        id: t.id,
+        title: t.title,
+        icon: t.icon || "file-text",
+        content: t.content,
+      })) || [];
+
+    return {
+      title: game.title,
+      description: game.description || "",
+      coverUrl: game.coverUrl || "",
+      gameType: game.gameType || "",
+      version: game.version || "",
+      isFree: game.isFree,
+      isNsfw: game.isNsfw ?? false,
+      tags:
+        (game.tags?.map((t: { tag: { id: string; name: string } }) => ({
+          id: t.tag.id,
+          name: t.tag.name,
+        })) as TagItem[]) || [],
+      extraInfo,
+      versions: gameVersions,
+      customTabs: gameCustomTabs,
+    };
+  }, [game]);
 
   const handleSubmit = async (data: GameSubmitData) => {
     setIsSubmitting(true);
     try {
-      const tagNames = [
-        ...data.tagIds
-          .map((tid) => {
-            const tag = initialData?.tags.find((t) => t.id === tid);
-            return tag?.name || "";
-          })
-          .filter(Boolean),
-        ...data.tagNames,
-      ];
+      const tagNames = [...data.existingTagNames, ...data.tagNames];
 
       await updateMutation.mutateAsync({
         gameId: id,

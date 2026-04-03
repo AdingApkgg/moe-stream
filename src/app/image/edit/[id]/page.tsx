@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { notFound, useRouter } from "next/navigation";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -37,15 +37,16 @@ export default function EditImagePage({ params }: EditImagePageProps) {
     }
   }, [authStatus, router, id]);
 
-  const initialData = post
-    ? {
-        title: post.title,
-        description: post.description || "",
-        isNsfw: post.isNsfw ?? false,
-        tags: post.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })) as TagItem[],
-        imageUrls: (post.images as string[]) ?? [],
-      }
-    : undefined;
+  const initialData = useMemo(() => {
+    if (!post) return undefined;
+    return {
+      title: post.title,
+      description: post.description || "",
+      isNsfw: post.isNsfw ?? false,
+      tags: post.tags.map((t) => ({ id: t.tag.id, name: t.tag.name })) as TagItem[],
+      imageUrls: (post.images as string[]) ?? [],
+    };
+  }, [post]);
 
   const handleSubmit = async (data: ImageSubmitData) => {
     setIsSubmitting(true);

@@ -183,6 +183,16 @@ export const seoTabSchema = z.object({
   googlePrivateKey: z.string().max(10000).optional().nullable().or(z.literal("")),
 });
 
+export const messagingTabSchema = z.object({
+  channelEnabled: z.boolean(),
+  channelMaxPerUser: z.number().int().min(1).max(100),
+  channelMaxMembers: z.number().int().min(2).max(10000),
+  channelMessageMaxLength: z.number().int().min(1).max(10000),
+  dmEnabled: z.boolean(),
+  dmMessageMaxLength: z.number().int().min(1).max(10000),
+  dmRateLimit: z.number().int().min(1).max(300),
+});
+
 export const analyticsTabSchema = z.object({
   analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
   analyticsGtmId: z.string().max(200).optional().nullable().or(z.literal("")),
@@ -207,6 +217,7 @@ export type PagesTabValues = z.infer<typeof pagesTabSchema>;
 export type FooterTabValues = z.infer<typeof footerTabSchema>;
 export type OAuthTabValues = z.infer<typeof oauthTabSchema>;
 export type SeoTabValues = z.infer<typeof seoTabSchema>;
+export type MessagingTabValues = z.infer<typeof messagingTabSchema>;
 export type AnalyticsTabValues = z.infer<typeof analyticsTabSchema>;
 
 // ---------------------------------------------------------------------------
@@ -386,6 +397,18 @@ export function pickSeoValues(cfg: SiteConfig): SeoTabValues {
     indexNowKey: s(cfg.indexNowKey),
     googleServiceAccountEmail: s(cfg.googleServiceAccountEmail),
     googlePrivateKey: s(cfg.googlePrivateKey),
+  };
+}
+
+export function pickMessagingValues(cfg: SiteConfig): MessagingTabValues {
+  return {
+    channelEnabled: b(cfg.channelEnabled, true),
+    channelMaxPerUser: n(cfg.channelMaxPerUser, 5),
+    channelMaxMembers: n(cfg.channelMaxMembers, 200),
+    channelMessageMaxLength: n(cfg.channelMessageMaxLength, 2000),
+    dmEnabled: b(cfg.dmEnabled, true),
+    dmMessageMaxLength: n(cfg.dmMessageMaxLength, 2000),
+    dmRateLimit: n(cfg.dmRateLimit, 30),
   };
 }
 

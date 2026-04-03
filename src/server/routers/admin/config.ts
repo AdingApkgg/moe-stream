@@ -155,6 +155,13 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "oauthGitlabClientSecret",
   "oauthRedditClientId",
   "oauthRedditClientSecret",
+  "channelEnabled",
+  "channelMaxPerUser",
+  "channelMaxMembers",
+  "channelMessageMaxLength",
+  "dmEnabled",
+  "dmMessageMaxLength",
+  "dmRateLimit",
 ]);
 
 const NON_NULLABLE_KEYS = new Set([
@@ -425,6 +432,17 @@ export const adminConfigRouter = router({
         effectOpacity: z.number().min(0).max(1).optional(),
         effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
         soundDefaultEnabled: z.boolean().optional(),
+
+        // 频道
+        channelEnabled: z.boolean().optional(),
+        channelMaxPerUser: z.number().int().min(1).max(100).optional(),
+        channelMaxMembers: z.number().int().min(2).max(10000).optional(),
+        channelMessageMaxLength: z.number().int().min(1).max(10000).optional(),
+
+        // 私信
+        dmEnabled: z.boolean().optional(),
+        dmMessageMaxLength: z.number().int().min(1).max(10000).optional(),
+        dmRateLimit: z.number().int().min(1).max(300).optional(),
 
         // 统计分析
         analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),

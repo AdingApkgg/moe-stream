@@ -1220,6 +1220,17 @@ model SiteConfig {
   usdtMinAmount         Float?
   usdtMaxAmount         Float?
 
+  // 频道（聊天频道）
+  channelEnabled          Boolean @default(true)    /// 是否启用频道功能
+  channelMaxPerUser       Int     @default(5)       /// 每个用户最多可创建的频道数
+  channelMaxMembers       Int     @default(200)     /// 单个频道最大成员数
+  channelMessageMaxLength Int     @default(2000)    /// 频道消息最大字符数
+
+  // 私信
+  dmEnabled               Boolean @default(true)    /// 是否启用私信功能
+  dmMessageMaxLength      Int     @default(2000)    /// 私信消息最大字符数
+  dmRateLimit             Int     @default(30)      /// 私信频率限制（每分钟条数）
+
   // 统计分析
   analyticsGoogleId       String?  // Google Analytics 4 Measurement ID (G-XXXXXXXXXX)
   analyticsGtmId          String?  // Google Tag Manager Container ID (GTM-XXXXXXX)

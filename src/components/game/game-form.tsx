@@ -80,6 +80,7 @@ export interface GameSubmitData {
   isNsfw: boolean;
   tagIds: string[];
   tagNames: string[];
+  existingTagNames: string[];
   extraInfo?: Record<string, unknown>;
   versions?: { id?: string; label: string; description?: string }[];
   customTabs?: { id?: string; title: string; icon?: string; content: string }[];
@@ -244,6 +245,7 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
       isNsfw,
       tagIds: selectedTags.map((t) => t.id),
       tagNames: newTags,
+      existingTagNames: selectedTags.map((t) => t.name),
       extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
       versions: validVersions.length > 0 ? validVersions : undefined,
       customTabs: validCustomTabs.length > 0 ? validCustomTabs : undefined,

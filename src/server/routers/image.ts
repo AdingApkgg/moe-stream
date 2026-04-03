@@ -365,6 +365,145 @@ export const imageRouter = router({
       return { success: true };
     }),
 
+  /** 获取当前用户的图片帖子列表（含所有状态） */
+  getMyPosts: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(20),
+        status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+        sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit, status, search, sortBy } = input;
+
+      const where: Prisma.ImagePostWhereInput = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: Prisma.QueryMode.insensitive } }),
+      };
+
+      const orderBy = {
+        latest: { createdAt: "desc" as const },
+        views: { views: "desc" as const },
+        likes: { createdAt: "desc" as const },
+        titleAsc: { title: "asc" as const },
+        titleDesc: { title: "desc" as const },
+      }[sortBy];
+
+      const [posts, totalCount] = await Promise.all([
+        ctx.prisma.imagePost.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy,
+          include: {
+            uploader: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+            tags: {
+              include: { tag: { select: { id: true, name: true, slug: true } } },
+            },
+          },
+        }),
+        ctx.prisma.imagePost.count({ where }),
+      ]);
+
+      return {
+        posts,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  /** 获取当前用户所有图片帖子 ID（用于全选） */
+  getMyPostIds: protectedProcedure
+    .input(
+      z.object({
+        status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { status, search } = input;
+
+      const where: Prisma.ImagePostWhereInput = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: Prisma.QueryMode.insensitive } }),
+      };
+
+      const posts = await ctx.prisma.imagePost.findMany({
+        where,
+        select: { id: true },
+      });
+
+      return posts.map((p) => p.id);
+    }),
+
+  /** 删除图片帖子（仅限上传者） */
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const post = await ctx.prisma.imagePost.findUnique({
+      where: { id: input.id },
+      select: { uploaderId: true, tags: { select: { tagId: true } } },
+    });
+
+    if (!post) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "图片帖不存在" });
+    }
+
+    if (post.uploaderId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此图片帖" });
+    }
+
+    const tagIds = post.tags.map((t) => t.tagId);
+
+    await ctx.prisma.imagePost.delete({ where: { id: input.id } });
+
+    if (tagIds.length > 0) {
+      const { refreshTagCounts } = await import("@/lib/tag-counts");
+      refreshTagCounts(tagIds).catch((err) => {
+        console.error("[tag-counts] 图片删除后刷新失败", err);
+      });
+    }
+
+    return { success: true };
+  }),
+
+  /** 批量删除图片帖子（仅限上传者） */
+  batchDelete: protectedProcedure.input(z.object({ ids: z.array(z.string()) })).mutation(async ({ ctx, input }) => {
+    const posts = await ctx.prisma.imagePost.findMany({
+      where: {
+        id: { in: input.ids },
+        uploaderId: ctx.session.user.id,
+      },
+      select: { id: true, tags: { select: { tagId: true } } },
+    });
+
+    if (posts.length === 0) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "没有找到可删除的图片帖" });
+    }
+
+    const postIds = posts.map((p) => p.id);
+    const tagIds = [...new Set(posts.flatMap((p) => p.tags.map((t) => t.tagId)))];
+
+    await ctx.prisma.imagePost.deleteMany({
+      where: { id: { in: postIds } },
+    });
+
+    if (tagIds.length > 0) {
+      const { refreshTagCounts } = await import("@/lib/tag-counts");
+      refreshTagCounts(tagIds).catch((err) => {
+        console.error("[tag-counts] 图片批量删除后刷新失败", err);
+      });
+    }
+
+    return { success: true, count: postIds.length };
+  }),
+
   // ==================== 用户交互 ====================
 
   toggleReaction: protectedProcedure

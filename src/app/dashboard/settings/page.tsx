@@ -43,6 +43,7 @@ import {
   ShieldCheck,
   ScrollText,
   BarChart3,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 
@@ -58,6 +59,7 @@ const TabOAuth = lazy(() => import("./_components/tab-oauth").then((m) => ({ def
 const TabEmail = lazy(() => import("./_components/tab-email").then((m) => ({ default: m.TabEmail })));
 const TabStorage = lazy(() => import("./_components/tab-storage").then((m) => ({ default: m.TabStorage })));
 const TabSeo = lazy(() => import("./_components/tab-seo").then((m) => ({ default: m.TabSeo })));
+const TabMessaging = lazy(() => import("./_components/tab-messaging").then((m) => ({ default: m.TabMessaging })));
 const TabAnalytics = lazy(() => import("./_components/tab-analytics").then((m) => ({ default: m.TabAnalytics })));
 
 function TabLoading() {
@@ -236,6 +238,9 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="content" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <FileText className="h-3.5 w-3.5" /> 内容设置
             </TabsTrigger>
+            <TabsTrigger value="messaging" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <MessageSquare className="h-3.5 w-3.5" /> 通讯
+            </TabsTrigger>
 
             <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">外观</span>
             <TabsTrigger value="theme" className="justify-start gap-2 px-3 h-8 text-[13px]">
@@ -291,6 +296,7 @@ export default function AdminSettingsPage() {
                 <SelectItem value="basic">基本信息</SelectItem>
                 <SelectItem value="features">功能开关</SelectItem>
                 <SelectItem value="content">内容设置</SelectItem>
+                <SelectItem value="messaging">通讯</SelectItem>
               </SelectGroup>
               <SelectSeparator />
               <SelectGroup>
@@ -334,6 +340,10 @@ export default function AdminSettingsPage() {
 
             <TabsContent value="content">
               <TabContent config={config} />
+            </TabsContent>
+
+            <TabsContent value="messaging">
+              <TabMessaging config={config} />
             </TabsContent>
 
             <TabsContent value="theme">

@@ -4,6 +4,14 @@ import { TRPCError } from "@trpc/server";
 import { type Prisma } from "@/generated/prisma/client";
 import { socketEmitter } from "@/lib/socket-emitter";
 import { createNotification } from "@/lib/notification";
+import { getPublicSiteConfig } from "@/lib/site-config";
+
+async function assertDmEnabled() {
+  const cfg = await getPublicSiteConfig();
+  if (!cfg.dmEnabled) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "私信功能已关闭" });
+  }
+}
 
 export const messageRouter = router({
   conversations: protectedProcedure
@@ -14,6 +22,7 @@ export const messageRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertDmEnabled();
       const userId = ctx.session.user.id;
       const { cursor, limit } = input;
 
@@ -128,6 +137,7 @@ export const messageRouter = router({
   }),
 
   getOrCreate: protectedProcedure.input(z.object({ userId: z.string() })).mutation(async ({ ctx, input }) => {
+    await assertDmEnabled();
     const myId = ctx.session.user.id;
     if (myId === input.userId) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "不能与自己对话" });
@@ -211,6 +221,7 @@ export const messageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertDmEnabled();
       const userId = ctx.session.user.id;
 
       const participant = await ctx.prisma.conversationParticipant.findUnique({

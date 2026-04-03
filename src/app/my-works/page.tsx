@@ -62,8 +62,6 @@ import Image from "next/image";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCoverUrl } from "@/lib/cover";
 import { cn } from "@/lib/utils";
-import { GameCard, type GameCardData } from "@/components/game/game-card";
-import { ImagePostCard } from "@/components/image/image-post-card";
 import { Pagination } from "@/components/ui/pagination";
 import { useSound } from "@/hooks/use-sound";
 import MySeriesClient from "@/app/my-series/client";
@@ -112,12 +110,29 @@ function MyVideosContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAllLoading, setSelectAllLoading] = useState(false);
 
-  // Game/Image tab state
+  // Game tab state
   const [gamePage, setGamePage] = useState(1);
+  const [gameStatusFilter, setGameStatusFilter] = useState<StatusFilter>("ALL");
+  const [gameSortBy, setGameSortBy] = useState<SortBy>("latest");
+  const [gameSearchQuery, setGameSearchQuery] = useState("");
+  const [gameSearchInput, setGameSearchInput] = useState("");
+  const [gameDeletingId, setGameDeletingId] = useState<string | null>(null);
+  const [gameSelectMode, setGameSelectMode] = useState(false);
+  const [gameSelectedIds, setGameSelectedIds] = useState<Set<string>>(new Set());
+  const [gameSelectAllLoading, setGameSelectAllLoading] = useState(false);
+
+  // Image tab state
   const [imagePage, setImagePage] = useState(1);
+  const [imageStatusFilter, setImageStatusFilter] = useState<StatusFilter>("ALL");
+  const [imageSortBy, setImageSortBy] = useState<SortBy>("latest");
+  const [imageSearchQuery, setImageSearchQuery] = useState("");
+  const [imageSearchInput, setImageSearchInput] = useState("");
+  const [imageDeletingId, setImageDeletingId] = useState<string | null>(null);
+  const [imageSelectMode, setImageSelectMode] = useState(false);
+  const [imageSelectedIds, setImageSelectedIds] = useState<Set<string>>(new Set());
+  const [imageSelectAllLoading, setImageSelectAllLoading] = useState(false);
 
   const utils = trpc.useUtils();
-  const userId = session?.user?.id;
   const limit = 50;
 
   const { data, isLoading, isFetching } = trpc.video.getMyVideos.useQuery(
@@ -125,14 +140,28 @@ function MyVideosContent() {
     { enabled: !!session && activeTab === "video" },
   );
 
-  const { data: gameData, isLoading: gameLoading } = trpc.user.getGames.useQuery(
-    { userId: userId!, limit: 20, page: gamePage },
-    { enabled: !!userId && activeTab === "game" },
+  const {
+    data: gameData,
+    isLoading: gameLoading,
+    isFetching: gameFetching,
+  } = trpc.game.getMyGames.useQuery(
+    { page: gamePage, limit: 20, status: gameStatusFilter, search: gameSearchQuery || undefined, sortBy: gameSortBy },
+    { enabled: !!session && activeTab === "game" },
   );
 
-  const { data: imageData, isLoading: imageLoading } = trpc.image.getUserPosts.useQuery(
-    { userId: userId!, limit: 20, page: imagePage },
-    { enabled: !!userId && activeTab === "image" },
+  const {
+    data: imageData,
+    isLoading: imageLoading,
+    isFetching: imageFetching,
+  } = trpc.image.getMyPosts.useQuery(
+    {
+      page: imagePage,
+      limit: 20,
+      status: imageStatusFilter,
+      search: imageSearchQuery || undefined,
+      sortBy: imageSortBy,
+    },
+    { enabled: !!session && activeTab === "image" },
   );
 
   const deleteMutation = trpc.video.delete.useMutation({
@@ -154,6 +183,58 @@ function MyVideosContent() {
       setSelectedIds(new Set());
       setSelectMode(false);
       utils.video.getMyVideos.invalidate();
+    },
+    onError: (error) => {
+      toast.error("删除失败", { description: error.message });
+    },
+  });
+
+  // Game mutations
+  const gameDeleteMutation = trpc.game.delete.useMutation({
+    onSuccess: () => {
+      toast.success("游戏已删除");
+      utils.game.getMyGames.invalidate();
+    },
+    onError: (error) => {
+      toast.error("删除失败", { description: error.message });
+    },
+    onSettled: () => {
+      setGameDeletingId(null);
+    },
+  });
+
+  const gameBatchDeleteMutation = trpc.game.batchDelete.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已删除 ${data.count} 个游戏`);
+      setGameSelectedIds(new Set());
+      setGameSelectMode(false);
+      utils.game.getMyGames.invalidate();
+    },
+    onError: (error) => {
+      toast.error("删除失败", { description: error.message });
+    },
+  });
+
+  // Image mutations
+  const imageDeleteMutation = trpc.image.delete.useMutation({
+    onSuccess: () => {
+      toast.success("图片帖已删除");
+      utils.image.getMyPosts.invalidate();
+    },
+    onError: (error) => {
+      toast.error("删除失败", { description: error.message });
+    },
+    onSettled: () => {
+      setImageDeletingId(null);
+    },
+  });
+
+  const imageBatchDeleteMutation = trpc.image.batchDelete.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已删除 ${data.count} 个图片帖`);
+      setImageSelectedIds(new Set());
+      setImageSelectMode(false);
+      utils.image.getMyPosts.invalidate();
     },
     onError: (error) => {
       toast.error("删除失败", { description: error.message });
@@ -192,11 +273,35 @@ function MyVideosContent() {
     return () => clearTimeout(timer);
   }, [searchInput, searchQuery, statusFilter, sortBy, updateUrl]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (gameSearchInput !== gameSearchQuery) {
+        setGameSearchQuery(gameSearchInput);
+        setGamePage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [gameSearchInput, gameSearchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (imageSearchInput !== imageSearchQuery) {
+        setImageSearchQuery(imageSearchInput);
+        setImagePage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [imageSearchInput, imageSearchQuery]);
+
   const handleTabChange = (tab: ContentTab) => {
     if (tab === activeTab) return;
     setActiveTab(tab);
     setSelectMode(false);
     setSelectedIds(new Set());
+    setGameSelectMode(false);
+    setGameSelectedIds(new Set());
+    setImageSelectMode(false);
+    setImageSelectedIds(new Set());
     play("navigate");
   };
 
@@ -722,13 +827,184 @@ function MyVideosContent() {
         {/* ===== Game Tab ===== */}
         {activeTab === "game" && (
           <>
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索游戏..."
+                  value={gameSearchInput}
+                  onChange={(e) => setGameSearchInput(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select
+                  value={gameStatusFilter}
+                  onValueChange={(v) => {
+                    setGameStatusFilter(v as StatusFilter);
+                    setGamePage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">全部状态</SelectItem>
+                    <SelectItem value="PUBLISHED">已发布</SelectItem>
+                    <SelectItem value="PENDING">待审核</SelectItem>
+                    <SelectItem value="REJECTED">已拒绝</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={gameSortBy}
+                  onValueChange={(v) => {
+                    setGameSortBy(v as SortBy);
+                    setGamePage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">最新发布</SelectItem>
+                    <SelectItem value="views">浏览最多</SelectItem>
+                    <SelectItem value="likes">点赞最多</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {gameSelectMode ? (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const games = gameData?.games ?? [];
+                          const pageIds = new Set(games.map((g) => g.id));
+                          const allSelected = games.every((g) => gameSelectedIds.has(g.id));
+                          if (allSelected) {
+                            const newSet = new Set(gameSelectedIds);
+                            pageIds.forEach((id) => newSet.delete(id));
+                            setGameSelectedIds(newSet);
+                          } else {
+                            const newSet = new Set(gameSelectedIds);
+                            pageIds.forEach((id) => newSet.add(id));
+                            setGameSelectedIds(newSet);
+                          }
+                        }}
+                        title="选择/取消本页"
+                      >
+                        {(gameData?.games ?? []).length > 0 &&
+                        (gameData?.games ?? []).every((g) => gameSelectedIds.has(g.id)) ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                        本页
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          setGameSelectAllLoading(true);
+                          try {
+                            const result = await utils.game.getMyGameIds.fetch({
+                              status: gameStatusFilter,
+                              search: gameSearchQuery || undefined,
+                            });
+                            setGameSelectedIds(new Set(result));
+                            toast.success(`已选择全部 ${result.length} 个游戏`);
+                          } catch {
+                            toast.error("获取游戏列表失败");
+                          } finally {
+                            setGameSelectAllLoading(false);
+                          }
+                        }}
+                        disabled={gameSelectAllLoading}
+                        title="选择所有游戏"
+                      >
+                        {gameSelectAllLoading ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <ChevronsRight className="h-4 w-4 mr-1" />
+                        )}
+                        全选 ({gameData?.totalCount ?? 0})
+                      </Button>
+                      {gameSelectedIds.size > 0 && (
+                        <Button variant="ghost" size="sm" onClick={() => setGameSelectedIds(new Set())}>
+                          取消全选
+                        </Button>
+                      )}
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={gameSelectedIds.size === 0 || gameBatchDeleteMutation.isPending}
+                        >
+                          {gameBatchDeleteMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-1" />
+                          )}
+                          删除 ({gameSelectedIds.size})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>批量删除游戏</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            确定要删除选中的 {gameSelectedIds.size} 个游戏吗？此操作不可撤销。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>取消</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => gameBatchDeleteMutation.mutate({ ids: Array.from(gameSelectedIds) })}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            确定删除
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setGameSelectMode(false);
+                        setGameSelectedIds(new Set());
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setGameSelectMode(true)}>
+                    管理
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {gameSelectMode && gameSelectedIds.size > 0 && (
+              <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
+                <span className="text-sm">
+                  已选择 <strong>{gameSelectedIds.size}</strong> 个游戏
+                </span>
+              </div>
+            )}
+
             {gameLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="space-y-3">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="aspect-video rounded-lg" />
+                  <Skeleton key={i} className="h-24 w-full rounded-lg" />
                 ))}
               </div>
-            ) : (gameData?.games ?? []).length === 0 ? (
+            ) : (gameData?.games ?? []).length === 0 && (gameData?.totalCount ?? 0) === 0 ? (
               <EmptyState
                 icon={Gamepad2}
                 title="还没有上传任何游戏"
@@ -738,21 +1014,185 @@ function MyVideosContent() {
                   onClick: () => router.push("/upload"),
                 }}
               />
+            ) : (gameData?.games ?? []).length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>没有找到匹配的游戏</p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setGameSearchInput("");
+                    setGameSearchQuery("");
+                  }}
+                >
+                  清除搜索
+                </Button>
+              </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {(gameData?.games ?? [])
-                    .filter((g): g is NonNullable<typeof g> => g?.id != null)
-                    .map((game, index) => (
-                      <GameCard key={game.id} game={game as GameCardData} index={index} />
-                    ))}
+                <div className="space-y-3">
+                  {(gameData?.games ?? []).map((game) => (
+                    <div
+                      key={game.id}
+                      className={cn(
+                        "flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group",
+                        gameSelectedIds.has(game.id) && "bg-primary/5 border-primary/30",
+                      )}
+                    >
+                      {gameSelectMode && (
+                        <Checkbox
+                          checked={gameSelectedIds.has(game.id)}
+                          onCheckedChange={() => {
+                            const newSet = new Set(gameSelectedIds);
+                            if (newSet.has(game.id)) newSet.delete(game.id);
+                            else newSet.add(game.id);
+                            setGameSelectedIds(newSet);
+                          }}
+                          className="mt-1 shrink-0"
+                        />
+                      )}
+
+                      <Link
+                        href={`/game/${game.id}`}
+                        className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
+                      >
+                        {game.coverUrl ? (
+                          <Image
+                            src={getCoverUrl(game.id, game.coverUrl, { w: 320 })}
+                            alt={game.title}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Gamepad2 className="h-8 w-8 text-muted-foreground/50" />
+                          </div>
+                        )}
+                      </Link>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <Link href={`/game/${game.id}`} className="font-medium hover:text-primary line-clamp-2">
+                              {game.title}
+                            </Link>
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <Badge
+                                variant={statusMap[game.status as keyof typeof statusMap]?.variant || "outline"}
+                                className="text-xs"
+                              >
+                                {statusMap[game.status as keyof typeof statusMap]?.label || game.status}
+                              </Badge>
+                              {game.gameType && (
+                                <Badge variant="outline" className="text-xs">
+                                  {game.gameType}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Eye className="h-3 w-3" />
+                                {formatViews(game.views)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Heart className="h-3 w-3" />
+                                {game._count.likes}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3" />
+                                {game._count.comments ?? 0}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatRelativeTime(game.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {!gameSelectMode && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/game/${game.id}`} target="_blank">
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    查看游戏
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/game/edit/${game.id}`}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    编辑游戏
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      删除游戏
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>确定要删除这个游戏吗？</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        游戏「{game.title}」将被删除，此操作不可撤销。
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>取消</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => {
+                                          setGameDeletingId(game.id);
+                                          gameDeleteMutation.mutate({ id: game.id });
+                                        }}
+                                        disabled={gameDeletingId === game.id}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        {gameDeletingId === game.id && (
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        )}
+                                        删除
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Pagination
-                  currentPage={gamePage}
-                  totalPages={gameData?.totalPages ?? 1}
-                  onPageChange={setGamePage}
-                  className="mt-8"
-                />
+
+                {(gameData?.totalPages ?? 1) > 1 && (
+                  <Pagination
+                    currentPage={gamePage}
+                    totalPages={gameData?.totalPages ?? 1}
+                    onPageChange={(p) => {
+                      setGamePage(p);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="mt-6"
+                  />
+                )}
+
+                {gameFetching && !gameLoading && (
+                  <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                )}
               </>
             )}
           </>
@@ -761,13 +1201,184 @@ function MyVideosContent() {
         {/* ===== Image Tab ===== */}
         {activeTab === "image" && (
           <>
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索图片..."
+                  value={imageSearchInput}
+                  onChange={(e) => setImageSearchInput(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select
+                  value={imageStatusFilter}
+                  onValueChange={(v) => {
+                    setImageStatusFilter(v as StatusFilter);
+                    setImagePage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">全部状态</SelectItem>
+                    <SelectItem value="PUBLISHED">已发布</SelectItem>
+                    <SelectItem value="PENDING">待审核</SelectItem>
+                    <SelectItem value="REJECTED">已拒绝</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={imageSortBy}
+                  onValueChange={(v) => {
+                    setImageSortBy(v as SortBy);
+                    setImagePage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">最新发布</SelectItem>
+                    <SelectItem value="views">浏览最多</SelectItem>
+                    <SelectItem value="likes">点赞最多</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {imageSelectMode ? (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const posts = imageData?.posts ?? [];
+                          const pageIds = new Set(posts.map((p) => p.id));
+                          const allSelected = posts.every((p) => imageSelectedIds.has(p.id));
+                          if (allSelected) {
+                            const newSet = new Set(imageSelectedIds);
+                            pageIds.forEach((id) => newSet.delete(id));
+                            setImageSelectedIds(newSet);
+                          } else {
+                            const newSet = new Set(imageSelectedIds);
+                            pageIds.forEach((id) => newSet.add(id));
+                            setImageSelectedIds(newSet);
+                          }
+                        }}
+                        title="选择/取消本页"
+                      >
+                        {(imageData?.posts ?? []).length > 0 &&
+                        (imageData?.posts ?? []).every((p) => imageSelectedIds.has(p.id)) ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                        本页
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          setImageSelectAllLoading(true);
+                          try {
+                            const result = await utils.image.getMyPostIds.fetch({
+                              status: imageStatusFilter,
+                              search: imageSearchQuery || undefined,
+                            });
+                            setImageSelectedIds(new Set(result));
+                            toast.success(`已选择全部 ${result.length} 个图片帖`);
+                          } catch {
+                            toast.error("获取图片列表失败");
+                          } finally {
+                            setImageSelectAllLoading(false);
+                          }
+                        }}
+                        disabled={imageSelectAllLoading}
+                        title="选择所有图片"
+                      >
+                        {imageSelectAllLoading ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <ChevronsRight className="h-4 w-4 mr-1" />
+                        )}
+                        全选 ({imageData?.totalCount ?? 0})
+                      </Button>
+                      {imageSelectedIds.size > 0 && (
+                        <Button variant="ghost" size="sm" onClick={() => setImageSelectedIds(new Set())}>
+                          取消全选
+                        </Button>
+                      )}
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={imageSelectedIds.size === 0 || imageBatchDeleteMutation.isPending}
+                        >
+                          {imageBatchDeleteMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-1" />
+                          )}
+                          删除 ({imageSelectedIds.size})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>批量删除图片帖</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            确定要删除选中的 {imageSelectedIds.size} 个图片帖吗？此操作不可撤销。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>取消</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => imageBatchDeleteMutation.mutate({ ids: Array.from(imageSelectedIds) })}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            确定删除
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setImageSelectMode(false);
+                        setImageSelectedIds(new Set());
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setImageSelectMode(true)}>
+                    管理
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {imageSelectMode && imageSelectedIds.size > 0 && (
+              <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
+                <span className="text-sm">
+                  已选择 <strong>{imageSelectedIds.size}</strong> 个图片帖
+                </span>
+              </div>
+            )}
+
             {imageLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="space-y-3">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="aspect-square rounded-lg" />
+                  <Skeleton key={i} className="h-24 w-full rounded-lg" />
                 ))}
               </div>
-            ) : (imageData?.posts ?? []).length === 0 ? (
+            ) : (imageData?.posts ?? []).length === 0 && (imageData?.totalCount ?? 0) === 0 ? (
               <EmptyState
                 icon={Images}
                 title="还没有上传任何图片"
@@ -777,25 +1388,190 @@ function MyVideosContent() {
                   onClick: () => router.push("/upload"),
                 }}
               />
+            ) : (imageData?.posts ?? []).length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>没有找到匹配的图片</p>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setImageSearchInput("");
+                    setImageSearchQuery("");
+                  }}
+                >
+                  清除搜索
+                </Button>
+              </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {(imageData?.posts ?? [])
-                    .filter((p): p is NonNullable<typeof p> => p?.id != null)
-                    .map((post, index) => (
-                      <ImagePostCard
+                <div className="space-y-3">
+                  {(imageData?.posts ?? []).map((post) => {
+                    const imageUrls = (post.images ?? []) as string[];
+                    const firstImage = imageUrls[0];
+                    return (
+                      <div
                         key={post.id}
-                        post={post as Parameters<typeof ImagePostCard>[0]["post"]}
-                        index={index}
-                      />
-                    ))}
+                        className={cn(
+                          "flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group",
+                          imageSelectedIds.has(post.id) && "bg-primary/5 border-primary/30",
+                        )}
+                      >
+                        {imageSelectMode && (
+                          <Checkbox
+                            checked={imageSelectedIds.has(post.id)}
+                            onCheckedChange={() => {
+                              const newSet = new Set(imageSelectedIds);
+                              if (newSet.has(post.id)) newSet.delete(post.id);
+                              else newSet.add(post.id);
+                              setImageSelectedIds(newSet);
+                            }}
+                            className="mt-1 shrink-0"
+                          />
+                        )}
+
+                        <Link
+                          href={`/image/${post.id}`}
+                          className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
+                        >
+                          {firstImage ? (
+                            <Image
+                              src={`/api/cover/${encodeURIComponent(firstImage)}?w=200&h=200&q=60`}
+                              alt={post.title}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <Images className="h-8 w-8 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          {imageUrls.length > 1 && (
+                            <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/80 text-white text-xs rounded">
+                              {imageUrls.length}张
+                            </div>
+                          )}
+                        </Link>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Link href={`/image/${post.id}`} className="font-medium hover:text-primary line-clamp-2">
+                                {post.title}
+                              </Link>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <Badge
+                                  variant={statusMap[post.status as keyof typeof statusMap]?.variant || "outline"}
+                                  className="text-xs"
+                                >
+                                  {statusMap[post.status as keyof typeof statusMap]?.label || post.status}
+                                </Badge>
+                                {imageUrls.length > 1 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Images className="h-3 w-3 mr-1" />
+                                    {imageUrls.length} 张
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Eye className="h-3 w-3" />
+                                  {formatViews(post.views)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatRelativeTime(post.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {!imageSelectMode && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/image/${post.id}`} target="_blank">
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      查看图片
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/image/edit/${post.id}`}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      编辑图片
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onSelect={(e) => e.preventDefault()}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        删除图片
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>确定要删除这个图片帖吗？</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          图片帖「{post.title}」将被删除，此操作不可撤销。
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>取消</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => {
+                                            setImageDeletingId(post.id);
+                                            imageDeleteMutation.mutate({ id: post.id });
+                                          }}
+                                          disabled={imageDeletingId === post.id}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          {imageDeletingId === post.id && (
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          )}
+                                          删除
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <Pagination
-                  currentPage={imagePage}
-                  totalPages={imageData?.totalPages ?? 1}
-                  onPageChange={setImagePage}
-                  className="mt-8"
-                />
+
+                {(imageData?.totalPages ?? 1) > 1 && (
+                  <Pagination
+                    currentPage={imagePage}
+                    totalPages={imageData?.totalPages ?? 1}
+                    onPageChange={(p) => {
+                      setImagePage(p);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="mt-6"
+                  />
+                )}
+
+                {imageFetching && !imageLoading && (
+                  <div className="fixed inset-0 bg-background/50 flex items-center justify-center z-50">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                )}
               </>
             )}
           </>

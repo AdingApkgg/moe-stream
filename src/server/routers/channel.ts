@@ -3,6 +3,14 @@ import { router, protectedProcedure, publicProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { type Prisma } from "@/generated/prisma/client";
 import { socketEmitter } from "@/lib/socket-emitter";
+import { getPublicSiteConfig } from "@/lib/site-config";
+
+async function assertChannelEnabled() {
+  const cfg = await getPublicSiteConfig();
+  if (!cfg.channelEnabled) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "频道功能已关闭" });
+  }
+}
 
 export const channelRouter = router({
   list: publicProcedure
@@ -13,6 +21,7 @@ export const channelRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await assertChannelEnabled();
       const userId = ctx.session?.user?.id;
       const { cursor, limit } = input;
 
@@ -45,6 +54,7 @@ export const channelRouter = router({
     }),
 
   getBySlug: publicProcedure.input(z.object({ slug: z.string() })).query(async ({ ctx, input }) => {
+    await assertChannelEnabled();
     const channel = await ctx.prisma.channel.findUnique({
       where: { slug: input.slug },
       include: {
@@ -89,6 +99,7 @@ export const channelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertChannelEnabled();
       const userId = ctx.session.user.id;
 
       const existing = await ctx.prisma.channel.findUnique({
@@ -153,6 +164,7 @@ export const channelRouter = router({
   }),
 
   join: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
+    await assertChannelEnabled();
     const userId = ctx.session.user.id;
 
     const channel = await ctx.prisma.channel.findUnique({
@@ -336,6 +348,7 @@ export const channelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertChannelEnabled();
       const userId = ctx.session.user.id;
 
       const membership = await ctx.prisma.channelMember.findUnique({

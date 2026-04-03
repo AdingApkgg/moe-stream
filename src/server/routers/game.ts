@@ -453,6 +453,143 @@ export const gameRouter = router({
       return result;
     }),
 
+  /** 获取当前用户的游戏列表（含所有状态） */
+  getMyGames: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(20),
+        status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+        sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, limit, status, search, sortBy } = input;
+
+      const where: Prisma.GameWhereInput = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: Prisma.QueryMode.insensitive } }),
+      };
+
+      const orderBy = {
+        latest: { createdAt: "desc" as const },
+        views: { views: "desc" as const },
+        likes: { createdAt: "desc" as const },
+        titleAsc: { title: "asc" as const },
+        titleDesc: { title: "desc" as const },
+      }[sortBy];
+
+      const [games, totalCount] = await Promise.all([
+        ctx.prisma.game.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy,
+          include: {
+            tags: {
+              include: { tag: { select: { id: true, name: true, slug: true } } },
+            },
+            _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+          },
+        }),
+        ctx.prisma.game.count({ where }),
+      ]);
+
+      return {
+        games,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
+    }),
+
+  /** 获取当前用户所有游戏 ID（用于全选） */
+  getMyGameIds: protectedProcedure
+    .input(
+      z.object({
+        status: z.enum(["ALL", "PUBLISHED", "PENDING", "REJECTED"]).default("ALL"),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { status, search } = input;
+
+      const where: Prisma.GameWhereInput = {
+        uploaderId: ctx.session.user.id,
+        ...(status !== "ALL" && { status: status as "PUBLISHED" | "PENDING" | "REJECTED" }),
+        ...(search && { title: { contains: search, mode: Prisma.QueryMode.insensitive } }),
+      };
+
+      const games = await ctx.prisma.game.findMany({
+        where,
+        select: { id: true },
+      });
+
+      return games.map((g) => g.id);
+    }),
+
+  /** 删除游戏（仅限上传者） */
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    const game = await ctx.prisma.game.findUnique({
+      where: { id: input.id },
+      select: { uploaderId: true, tags: { select: { tagId: true } } },
+    });
+
+    if (!game) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
+    }
+
+    if (game.uploaderId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "无权删除此游戏" });
+    }
+
+    const tagIds = game.tags.map((t) => t.tagId);
+
+    await ctx.prisma.game.delete({ where: { id: input.id } });
+
+    if (tagIds.length > 0) {
+      const { refreshTagCounts } = await import("@/lib/tag-counts");
+      refreshTagCounts(tagIds).catch((err) => {
+        console.error("[tag-counts] 游戏删除后刷新失败", err);
+      });
+    }
+
+    return { success: true };
+  }),
+
+  /** 批量删除游戏（仅限上传者） */
+  batchDelete: protectedProcedure.input(z.object({ ids: z.array(z.string()) })).mutation(async ({ ctx, input }) => {
+    const games = await ctx.prisma.game.findMany({
+      where: {
+        id: { in: input.ids },
+        uploaderId: ctx.session.user.id,
+      },
+      select: { id: true, tags: { select: { tagId: true } } },
+    });
+
+    if (games.length === 0) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "没有找到可删除的游戏" });
+    }
+
+    const gameIds = games.map((g) => g.id);
+    const tagIds = [...new Set(games.flatMap((g) => g.tags.map((t) => t.tagId)))];
+
+    await ctx.prisma.game.deleteMany({
+      where: { id: { in: gameIds } },
+    });
+
+    if (tagIds.length > 0) {
+      const { refreshTagCounts } = await import("@/lib/tag-counts");
+      refreshTagCounts(tagIds).catch((err) => {
+        console.error("[tag-counts] 游戏批量删除后刷新失败", err);
+      });
+    }
+
+    return { success: true, count: gameIds.length };
+  }),
+
   /** 切换收藏 */
   toggleFavorite: protectedProcedure.input(z.object({ gameId: z.string() })).mutation(async ({ ctx, input }) => {
     const userId = ctx.session.user.id;
