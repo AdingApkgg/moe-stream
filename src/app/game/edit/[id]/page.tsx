@@ -32,9 +32,9 @@ export default function EditGamePage({ params }: Props) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: game, isLoading: gameLoading } = trpc.admin.getGameForEdit.useQuery({ id }, { enabled: !!session });
+  const { data: game, isLoading: gameLoading } = trpc.game.getEditData.useQuery({ id }, { enabled: !!session });
 
-  const updateMutation = trpc.admin.updateGame.useMutation({
+  const updateMutation = trpc.game.update.useMutation({
     onError: (error) => toast.error("更新失败", { description: error.message }),
   });
 

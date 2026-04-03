@@ -10,6 +10,7 @@ async function assertChannelEnabled() {
   if (!cfg.channelEnabled) {
     throw new TRPCError({ code: "FORBIDDEN", message: "频道功能已关闭" });
   }
+  return cfg;
 }
 
 export const channelRouter = router({
@@ -99,8 +100,16 @@ export const channelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertChannelEnabled();
+      const cfg = await assertChannelEnabled();
       const userId = ctx.session.user.id;
+
+      const ownedCount = await ctx.prisma.channel.count({ where: { creatorId: userId } });
+      if (ownedCount >= cfg.channelMaxPerUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `每个用户最多可创建 ${cfg.channelMaxPerUser} 个频道`,
+        });
+      }
 
       const existing = await ctx.prisma.channel.findUnique({
         where: { slug: input.slug },
@@ -164,12 +173,12 @@ export const channelRouter = router({
   }),
 
   join: protectedProcedure.input(z.object({ channelId: z.string() })).mutation(async ({ ctx, input }) => {
-    await assertChannelEnabled();
+    const cfg = await assertChannelEnabled();
     const userId = ctx.session.user.id;
 
     const channel = await ctx.prisma.channel.findUnique({
       where: { id: input.channelId },
-      select: { type: true },
+      select: { type: true, _count: { select: { members: true } } },
     });
     if (!channel) {
       throw new TRPCError({ code: "NOT_FOUND", message: "频道不存在" });
@@ -182,6 +191,13 @@ export const channelRouter = router({
       where: { channelId_userId: { channelId: input.channelId, userId } },
     });
     if (existing) return { joined: true };
+
+    if (channel._count.members >= cfg.channelMaxMembers) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `该频道成员已达上限（${cfg.channelMaxMembers}）`,
+      });
+    }
 
     await ctx.prisma.channelMember.create({
       data: { channelId: input.channelId, userId },
@@ -348,7 +364,7 @@ export const channelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertChannelEnabled();
+      const cfg = await assertChannelEnabled();
       const userId = ctx.session.user.id;
 
       const membership = await ctx.prisma.channelMember.findUnique({
@@ -360,6 +376,13 @@ export const channelRouter = router({
 
       if (input.type === "TEXT" && (!input.content || !input.content.trim())) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "消息不能为空" });
+      }
+
+      if (input.content && input.content.length > cfg.channelMessageMaxLength) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `消息长度不能超过 ${cfg.channelMessageMaxLength} 个字符`,
+        });
       }
 
       const message = await ctx.prisma.channelMessage.create({

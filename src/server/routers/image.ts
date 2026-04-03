@@ -330,7 +330,9 @@ export const imageRouter = router({
       }
       assertOwnership(post.uploaderId, ctx.session.user.id, user.role, "只能编辑自己的图片帖");
 
-      const updateData: Prisma.ImagePostUpdateInput = {};
+      const status = resolvePublishStatus(user.role);
+
+      const updateData: Prisma.ImagePostUpdateInput = { status };
       if (data.title !== undefined) updateData.title = data.title;
       if (data.description !== undefined) updateData.description = data.description || null;
       if (data.images !== undefined) updateData.images = data.images;

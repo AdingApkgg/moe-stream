@@ -11,6 +11,7 @@ async function assertDmEnabled() {
   if (!cfg.dmEnabled) {
     throw new TRPCError({ code: "FORBIDDEN", message: "私信功能已关闭" });
   }
+  return cfg;
 }
 
 export const messageRouter = router({
@@ -221,7 +222,7 @@ export const messageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertDmEnabled();
+      const cfg = await assertDmEnabled();
       const userId = ctx.session.user.id;
 
       const participant = await ctx.prisma.conversationParticipant.findUnique({
@@ -235,6 +236,25 @@ export const messageRouter = router({
 
       if (input.type === "TEXT" && (!input.content || !input.content.trim())) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "消息不能为空" });
+      }
+
+      if (input.content && input.content.length > cfg.dmMessageMaxLength) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `消息长度不能超过 ${cfg.dmMessageMaxLength} 个字符`,
+        });
+      }
+
+      const rateLimitKey = `dm:rate:${userId}`;
+      const currentCount = await ctx.redis.incr(rateLimitKey);
+      if (currentCount === 1) {
+        await ctx.redis.expire(rateLimitKey, 60);
+      }
+      if (currentCount > cfg.dmRateLimit) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `发送过于频繁，每分钟最多 ${cfg.dmRateLimit} 条`,
+        });
       }
 
       const message = await ctx.prisma.directMessage.create({

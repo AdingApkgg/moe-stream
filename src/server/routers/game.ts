@@ -13,6 +13,7 @@ import {
   resolvePublishStatus,
   assertCanUpload,
   assertBatchLimit,
+  assertOwnership,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
 
@@ -528,6 +529,138 @@ export const gameRouter = router({
       });
 
       return games.map((g) => g.id);
+    }),
+
+  /** 获取游戏编辑数据（上传者可编辑自己的游戏） */
+  getEditData: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const game = await ctx.prisma.game.findUnique({
+      where: { id: input.id },
+      include: {
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+        versions: {
+          orderBy: { sortOrder: "asc" },
+        },
+        customTabs: {
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+
+    if (!game) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
+    }
+
+    if (game.uploaderId !== ctx.session.user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "只能编辑自己的游戏" });
+    }
+
+    return game;
+  }),
+
+  /** 更新游戏（上传者可编辑自己的游戏，编辑后普通用户重新进入审核） */
+  update: protectedProcedure
+    .input(
+      z.object({
+        gameId: z.string(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(5000).optional(),
+        coverUrl: z.string().url().optional().or(z.literal("")),
+        gameType: z.string().optional(),
+        isFree: z.boolean().optional(),
+        isNsfw: z.boolean().optional(),
+        version: z.string().optional(),
+        extraInfo: z.any().optional(),
+        tagNames: z.array(z.string()).optional(),
+        versions: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              label: z.string().min(1).max(100),
+              description: z.string().max(10000).optional(),
+            }),
+          )
+          .optional(),
+        customTabs: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              title: z.string().min(1).max(100),
+              icon: z.string().max(50).optional(),
+              content: z.string().max(50000),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { gameId, tagNames, versions, customTabs, ...updateFields } = input;
+      const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
+
+      const game = await ctx.prisma.game.findUnique({
+        where: { id: gameId },
+        select: { uploaderId: true, tags: { select: { tagId: true } } },
+      });
+      if (!game) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "游戏不存在" });
+      }
+      assertOwnership(game.uploaderId, ctx.session.user.id, user.role, "只能编辑自己的游戏");
+
+      const status = resolvePublishStatus(user.role);
+      const previousTagIds = game.tags.map((t) => t.tagId);
+
+      await ctx.prisma.game.update({
+        where: { id: gameId },
+        data: {
+          ...updateFields,
+          coverUrl: updateFields.coverUrl || null,
+          status,
+        },
+      });
+
+      if (tagNames) {
+        await ctx.prisma.tagOnGame.deleteMany({ where: { gameId } });
+        const allTagIds = await resolveAllTagIds(ctx.prisma, undefined, tagNames);
+        if (allTagIds.length > 0) {
+          await ctx.prisma.tagOnGame.createMany({
+            data: allTagIds.map((tagId) => ({ gameId, tagId })),
+            skipDuplicates: true,
+          });
+        }
+        scheduleTagCountRefresh([...new Set([...previousTagIds, ...allTagIds])], "游戏编辑");
+      }
+
+      if (versions !== undefined) {
+        await ctx.prisma.gameVersion.deleteMany({ where: { gameId } });
+        if (versions.length > 0) {
+          await ctx.prisma.gameVersion.createMany({
+            data: versions.map((v, i) => ({
+              gameId,
+              label: v.label,
+              description: v.description || null,
+              sortOrder: i,
+            })),
+          });
+        }
+      }
+
+      if (customTabs !== undefined) {
+        await ctx.prisma.gameCustomTab.deleteMany({ where: { gameId } });
+        if (customTabs.length > 0) {
+          await ctx.prisma.gameCustomTab.createMany({
+            data: customTabs.map((t, i) => ({
+              gameId,
+              title: t.title,
+              icon: t.icon || null,
+              content: t.content,
+              sortOrder: i,
+            })),
+          });
+        }
+      }
+
+      return { success: true };
     }),
 
   /** 删除游戏（仅限上传者） */

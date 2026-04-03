@@ -77,7 +77,12 @@ export interface PublicSiteConfig {
   analyticsBingVerification: string | null;
   fileUploadEnabled: boolean;
   channelEnabled: boolean;
+  channelMaxPerUser: number;
+  channelMaxMembers: number;
+  channelMessageMaxLength: number;
   dmEnabled: boolean;
+  dmMessageMaxLength: number;
+  dmRateLimit: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +196,12 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     analyticsBingVerification: (c.analyticsBingVerification as string) ?? null,
     fileUploadEnabled: (c.fileUploadEnabled as boolean) ?? false,
     channelEnabled: (c.channelEnabled as boolean) ?? true,
+    channelMaxPerUser: (c.channelMaxPerUser as number) ?? 5,
+    channelMaxMembers: (c.channelMaxMembers as number) ?? 200,
+    channelMessageMaxLength: (c.channelMessageMaxLength as number) ?? 2000,
     dmEnabled: (c.dmEnabled as boolean) ?? true,
+    dmMessageMaxLength: (c.dmMessageMaxLength as number) ?? 2000,
+    dmRateLimit: (c.dmRateLimit as number) ?? 30,
   };
 }
 

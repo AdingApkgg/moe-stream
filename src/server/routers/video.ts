@@ -911,8 +911,11 @@ export const videoRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "只能编辑自己的视频" });
       }
 
+      const status = resolvePublishStatus(user.role);
+
       const updateData: Prisma.VideoUpdateInput = {
         ...data,
+        status,
         ...(extraInfo !== undefined
           ? {
               extraInfo: extraInfo ? JSON.parse(JSON.stringify(extraInfo)) : Prisma.JsonNull,
