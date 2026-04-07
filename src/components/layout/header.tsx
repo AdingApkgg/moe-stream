@@ -644,7 +644,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             {!isLoading && session?.user && <MessageButton />}
 
             {/* Notification Bell */}
-            <NotificationBell />
+            {!isLoading && session?.user && <NotificationBell />}
 
             {isLoading ? (
               <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
