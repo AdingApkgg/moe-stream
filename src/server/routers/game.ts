@@ -614,7 +614,7 @@ export const gameRouter = router({
         where: { id: gameId },
         data: {
           ...updateFields,
-          coverUrl: updateFields.coverUrl || null,
+          coverUrl: updateFields.coverUrl === undefined ? undefined : updateFields.coverUrl || null,
           status,
         },
       });
