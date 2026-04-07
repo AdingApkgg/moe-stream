@@ -126,6 +126,10 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "effectOpacity",
   "effectColor",
   "soundDefaultEnabled",
+  "entrySoundUrl",
+  "entrySoundVolume",
+  "entrySoundMode",
+  "entrySoundIntervalHours",
   "analyticsGoogleId",
   "analyticsGtmId",
   "analyticsCfToken",
@@ -432,6 +436,10 @@ export const adminConfigRouter = router({
         effectOpacity: z.number().min(0).max(1).optional(),
         effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
         soundDefaultEnabled: z.boolean().optional(),
+        entrySoundUrl: z.string().max(2000).optional().nullable().or(z.literal("")),
+        entrySoundVolume: z.number().min(0).max(1).optional(),
+        entrySoundMode: z.enum(["session", "once", "interval"]).optional(),
+        entrySoundIntervalHours: z.number().int().min(1).max(8760).optional(),
 
         // 频道
         channelEnabled: z.boolean().optional(),

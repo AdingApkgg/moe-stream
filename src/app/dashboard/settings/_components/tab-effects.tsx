@@ -7,7 +7,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Volume2 } from "lucide-react";
+import { Loader2, Save, Volume2, Music } from "lucide-react";
+import { UrlOrUploadInput } from "@/components/shared/url-or-upload-input";
 import { effectsTabSchema, pickEffectsValues } from "../_lib/schema";
 import { useTabForm } from "../_lib/use-tab-form";
 
@@ -164,21 +165,129 @@ export function TabEffects({ config }: { config: SiteConfig | undefined }) {
                 <Volume2 className="h-4 w-4" />
                 音效设置
               </h3>
-              <FormField
-                control={form.control}
-                name="soundDefaultEnabled"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>新用户默认开启音效</FormLabel>
-                      <FormDescription>首次访问的用户是否自动启用 UI 音效</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="soundDefaultEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>新用户默认开启音效</FormLabel>
+                        <FormDescription>首次访问的用户是否自动启用 UI 音效</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="rounded-lg border p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Music className="h-4 w-4" />
+                    <h4 className="text-sm font-medium">进站音效</h4>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="entrySoundUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>音效文件</FormLabel>
+                        <FormControl>
+                          <UrlOrUploadInput
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            accept="audio/*"
+                            placeholder="https://example.com/entry-sound.mp3"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          用户进入网站时播放的音效，留空则不播放。支持 MP3、WAV、OGG 等格式
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="entrySoundVolume"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel>音效音量</FormLabel>
+                          <span className="text-sm text-muted-foreground">{Math.round(field.value * 100)}%</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={field.value}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            className="w-full accent-primary"
+                          />
+                        </FormControl>
+                        <FormDescription>进站音效的播放音量</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="entrySoundMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>播放模式</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择播放模式" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="session">每次会话播放一次</SelectItem>
+                            <SelectItem value="once">永久只播放一次</SelectItem>
+                            <SelectItem value="interval">定时过期重新播放</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {field.value === "session"
+                            ? "关闭浏览器后下次访问会再次播放"
+                            : field.value === "once"
+                              ? "每个用户只会听到一次，不再重复"
+                              : "超过设定时间后再次进站会重新播放"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("entrySoundMode") === "interval" && (
+                    <FormField
+                      control={form.control}
+                      name="entrySoundIntervalHours"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>过期时长（小时）</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={8760}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormDescription>上次播放后经过多少小时再次播放（1-8760，即最长约 1 年）</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
             <Button type="submit" disabled={isPending}>

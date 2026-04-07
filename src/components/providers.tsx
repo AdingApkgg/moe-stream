@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useState, useEffect, type ReactNode, type ErrorInfo } from "react";
+import { Component, useState, useEffect, useRef, type ReactNode, type ErrorInfo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { trpc } from "@/lib/trpc";
@@ -98,6 +98,68 @@ function ServiceWorkerRegistration() {
   return null;
 }
 
+function EntrySound({
+  url,
+  volume,
+  mode,
+  intervalHours,
+}: {
+  url: string;
+  volume: number;
+  mode: string;
+  intervalHours: number;
+}) {
+  const playedRef = useRef(false);
+
+  useEffect(() => {
+    if (playedRef.current) return;
+
+    const SESSION_KEY = "entry-sound-session";
+    const LOCAL_KEY = "entry-sound-ts";
+
+    const shouldSkip = () => {
+      if (mode === "session") {
+        return !!sessionStorage.getItem(SESSION_KEY);
+      }
+      const ts = localStorage.getItem(LOCAL_KEY);
+      if (!ts) return false;
+      if (mode === "once") return true;
+      // interval
+      return Date.now() - Number(ts) < intervalHours * 3600_000;
+    };
+
+    if (shouldSkip()) return;
+
+    const tryPlay = () => {
+      if (playedRef.current) return;
+      playedRef.current = true;
+      if (mode === "session") {
+        sessionStorage.setItem(SESSION_KEY, "1");
+      } else {
+        localStorage.setItem(LOCAL_KEY, String(Date.now()));
+      }
+      const audio = new Audio(url);
+      audio.volume = volume;
+      audio.play().catch(() => {});
+      cleanup();
+    };
+
+    const cleanup = () => {
+      for (const evt of ["click", "keydown", "touchstart", "scroll"] as const) {
+        document.removeEventListener(evt, tryPlay, true);
+      }
+    };
+
+    for (const evt of ["click", "keydown", "touchstart", "scroll"] as const) {
+      document.addEventListener(evt, tryPlay, { capture: true, once: true, passive: true });
+    }
+
+    return cleanup;
+  }, [url, volume, mode, intervalHours]);
+
+  return null;
+}
+
 function getBaseUrl() {
   if (typeof window !== "undefined") return "";
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
@@ -134,6 +196,14 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SiteConfigProvider value={siteConfig}>
             <ServiceWorkerRegistration />
+            {siteConfig.entrySoundUrl && (
+              <EntrySound
+                url={siteConfig.entrySoundUrl}
+                volume={siteConfig.entrySoundVolume}
+                mode={siteConfig.entrySoundMode}
+                intervalHours={siteConfig.entrySoundIntervalHours}
+              />
+            )}
             {siteConfig.effectEnabled && siteConfig.effectType !== "none" && (
               <EffectErrorBoundary>
                 <ParticleBackground

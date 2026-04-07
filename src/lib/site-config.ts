@@ -51,6 +51,10 @@ export interface PublicSiteConfig {
   effectOpacity: number;
   effectColor: string;
   soundDefaultEnabled: boolean;
+  entrySoundUrl: string | null;
+  entrySoundVolume: number;
+  entrySoundMode: string;
+  entrySoundIntervalHours: number;
   oauthProviders: string[];
   captchaLogin: string;
   captchaRegister: string;
@@ -170,6 +174,10 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     effectOpacity: (c.effectOpacity as number) ?? 0.8,
     effectColor: (c.effectColor as string) ?? "",
     soundDefaultEnabled: (c.soundDefaultEnabled as boolean) ?? true,
+    entrySoundUrl: (c.entrySoundUrl as string) ?? null,
+    entrySoundVolume: (c.entrySoundVolume as number) ?? 0.5,
+    entrySoundMode: (c.entrySoundMode as string) ?? "session",
+    entrySoundIntervalHours: (c.entrySoundIntervalHours as number) ?? 24,
     oauthProviders,
     captchaLogin: (c.captchaLogin as string) ?? "math",
     captchaRegister: (c.captchaRegister as string) ?? "none",

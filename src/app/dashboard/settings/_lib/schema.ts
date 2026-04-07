@@ -23,6 +23,7 @@ export const videoSelectorModeEnum = z.enum(["series", "author", "uploader", "di
 export const mailSendModeEnum = z.enum(["smtp", "http_api"]);
 export const animationPresetEnum = z.enum(["minimal", "standard", "rich"]);
 export const effectTypeEnum = z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]);
+export const entrySoundModeEnum = z.enum(["session", "once", "interval"]);
 
 // ---------------------------------------------------------------------------
 // Per-tab Schemas（严格校验，不使用 .catch()）
@@ -99,6 +100,10 @@ export const effectsTabSchema = z.object({
   effectOpacity: z.number().min(0).max(1),
   effectColor: z.string().max(50).optional().nullable().or(z.literal("")),
   soundDefaultEnabled: z.boolean(),
+  entrySoundUrl: z.string().max(2000).optional().nullable().or(z.literal("")),
+  entrySoundVolume: z.number().min(0).max(1),
+  entrySoundMode: entrySoundModeEnum,
+  entrySoundIntervalHours: z.number().int().min(1).max(8760),
 });
 
 export const contentTabSchema = z.object({
@@ -320,6 +325,10 @@ export function pickEffectsValues(cfg: SiteConfig): EffectsTabValues {
     effectOpacity: n(cfg.effectOpacity, 0.8),
     effectColor: s(cfg.effectColor),
     soundDefaultEnabled: b(cfg.soundDefaultEnabled, true),
+    entrySoundUrl: s(cfg.entrySoundUrl),
+    entrySoundVolume: n(cfg.entrySoundVolume, 0.5),
+    entrySoundMode: validEnum(cfg.entrySoundMode, ["session", "once", "interval"], "session"),
+    entrySoundIntervalHours: n(cfg.entrySoundIntervalHours, 24),
   };
 }
 

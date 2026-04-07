@@ -1140,6 +1140,10 @@ model SiteConfig {
   effectOpacity       Float   @default(0.8)        // 透明度 0-1
   effectColor         String? @default("")         // 自定义颜色（空/null=使用预设）
   soundDefaultEnabled Boolean @default(true)       // 新用户音效默认开启
+  entrySoundUrl           String?                       // 进站音效 URL（为空则不播放）
+  entrySoundVolume        Float   @default(0.5)         // 进站音效音量 0-1
+  entrySoundMode          String  @default("session")   // 播放模式: session(每次会话) | once(仅一次) | interval(定时过期)
+  entrySoundIntervalHours Int     @default(24)          // interval 模式下的过期时长（小时）
 
   // OAuth 社交登录
   oauthGoogleClientId      String?
