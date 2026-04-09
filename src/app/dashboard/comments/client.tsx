@@ -53,6 +53,28 @@ import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
 import { cn } from "@/lib/utils";
 
+function useAdminPrivacyConfig() {
+  const { data } = trpc.admin.getSiteConfig.useQuery(undefined, {
+    select: (c) => ({
+      adminShowFullIp: c.adminShowFullIp ?? true,
+      adminShowUserAgent: c.adminShowUserAgent ?? false,
+      adminShowDeviceDetail: c.adminShowDeviceDetail ?? true,
+    }),
+    staleTime: 60_000,
+  });
+  return data ?? { adminShowFullIp: true, adminShowUserAgent: false, adminShowDeviceDetail: true };
+}
+
+function maskIp(ip: string | null | undefined): string {
+  if (!ip) return "-";
+  if (ip.includes(":")) {
+    const parts = ip.split(":");
+    return parts.length >= 4 ? `${parts.slice(0, 4).join(":")}:****` : ip;
+  }
+  const parts = ip.split(".");
+  return parts.length === 4 ? `${parts[0]}.${parts[1]}.*.*` : ip;
+}
+
 type StatusFilter = "ALL" | "VISIBLE" | "HIDDEN" | "DELETED";
 
 function DeviceIcon({ deviceType, className }: { deviceType?: string | null; className?: string }) {
@@ -124,6 +146,7 @@ function CommentCard({
   onRestore,
   onHardDelete,
 }: CommentCardProps) {
+  const privacyConfig = useAdminPrivacyConfig();
   const deviceInfo = comment.deviceInfo as DeviceInfoType | null;
   const isGuest = !comment.user;
   const displayName = isGuest ? comment.guestName || "访客" : comment.user!.nickname || comment.user!.username;
@@ -282,11 +305,13 @@ function CommentCard({
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">IPv4 地址</div>
-                  {comment.ipv4Address || "-"}
+                  {privacyConfig.adminShowFullIp ? comment.ipv4Address || "-" : maskIp(comment.ipv4Address)}
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">IPv6 地址</div>
-                  <span className="break-all">{comment.ipv6Address || "-"}</span>
+                  <span className="break-all">
+                    {privacyConfig.adminShowFullIp ? comment.ipv6Address || "-" : maskIp(comment.ipv6Address)}
+                  </span>
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">创建时间</div>
@@ -294,7 +319,7 @@ function CommentCard({
                 </div>
               </div>
 
-              {deviceInfo && (
+              {privacyConfig.adminShowDeviceDetail && deviceInfo && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
                   <div>
                     <div className="font-medium text-foreground mb-1">设备类型</div>
@@ -331,7 +356,7 @@ function CommentCard({
                 </div>
               )}
 
-              {comment.userAgent && (
+              {privacyConfig.adminShowUserAgent && comment.userAgent && (
                 <div className="mt-3">
                   <div className="font-medium text-foreground mb-1">User-Agent</div>
                   <code className="text-xs bg-muted px-2 py-1 rounded block break-all">{comment.userAgent}</code>
@@ -1155,6 +1180,7 @@ function GuestbookCard({
   onRestore,
   onHardDelete,
 }: GuestbookCardProps) {
+  const privacyConfig = useAdminPrivacyConfig();
   const deviceInfo = message.deviceInfo as DeviceInfoType | null;
   const isGuest = !message.user;
   const displayName = isGuest ? message.guestName || "访客" : message.user!.nickname || message.user!.username;
@@ -1312,11 +1338,13 @@ function GuestbookCard({
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">IPv4 地址</div>
-                  {message.ipv4Address || "-"}
+                  {privacyConfig.adminShowFullIp ? message.ipv4Address || "-" : maskIp(message.ipv4Address)}
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">IPv6 地址</div>
-                  <span className="break-all">{message.ipv6Address || "-"}</span>
+                  <span className="break-all">
+                    {privacyConfig.adminShowFullIp ? message.ipv6Address || "-" : maskIp(message.ipv6Address)}
+                  </span>
                 </div>
                 <div>
                   <div className="font-medium text-foreground mb-1">创建时间</div>
@@ -1324,7 +1352,7 @@ function GuestbookCard({
                 </div>
               </div>
 
-              {deviceInfo && (
+              {privacyConfig.adminShowDeviceDetail && deviceInfo && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
                   <div>
                     <div className="font-medium text-foreground mb-1">设备类型</div>
@@ -1361,7 +1389,7 @@ function GuestbookCard({
                 </div>
               )}
 
-              {message.userAgent && (
+              {privacyConfig.adminShowUserAgent && message.userAgent && (
                 <div className="mt-3">
                   <div className="font-medium text-foreground mb-1">User-Agent</div>
                   <code className="text-xs bg-muted px-2 py-1 rounded block break-all">{message.userAgent}</code>

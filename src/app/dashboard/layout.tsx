@@ -35,6 +35,7 @@ import {
   HardDrive,
   FolderCog,
   BarChart3,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,7 @@ const menuGroups: MenuGroup[] = [
     label: "社区",
     items: [
       { href: "/dashboard/users", label: "用户", icon: Users, scope: "user:view" },
+      { href: "/dashboard/groups", label: "用户组", icon: UsersRound, scope: "user:manage" },
       { href: "/dashboard/tags", label: "标签", icon: Tag, scope: "tag:manage" },
       { href: "/dashboard/comments", label: "评论", icon: MessageSquare, scope: "comment:manage" },
       { href: "/dashboard/stickers", label: "贴图", icon: Sticker, scope: "settings:manage" },

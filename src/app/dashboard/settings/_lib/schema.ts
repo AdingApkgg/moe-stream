@@ -198,6 +198,15 @@ export const messagingTabSchema = z.object({
   dmRateLimit: z.number().int().min(1).max(300),
 });
 
+export const privacyTabSchema = z.object({
+  showIpLocation: z.boolean(),
+  showDeviceInfo: z.boolean(),
+  showCommentExtraMeta: z.boolean(),
+  adminShowFullIp: z.boolean(),
+  adminShowUserAgent: z.boolean(),
+  adminShowDeviceDetail: z.boolean(),
+});
+
 export const analyticsTabSchema = z.object({
   analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
   analyticsGtmId: z.string().max(200).optional().nullable().or(z.literal("")),
@@ -223,6 +232,7 @@ export type FooterTabValues = z.infer<typeof footerTabSchema>;
 export type OAuthTabValues = z.infer<typeof oauthTabSchema>;
 export type SeoTabValues = z.infer<typeof seoTabSchema>;
 export type MessagingTabValues = z.infer<typeof messagingTabSchema>;
+export type PrivacyTabValues = z.infer<typeof privacyTabSchema>;
 export type AnalyticsTabValues = z.infer<typeof analyticsTabSchema>;
 
 // ---------------------------------------------------------------------------
@@ -418,6 +428,17 @@ export function pickMessagingValues(cfg: SiteConfig): MessagingTabValues {
     dmEnabled: b(cfg.dmEnabled, true),
     dmMessageMaxLength: n(cfg.dmMessageMaxLength, 2000),
     dmRateLimit: n(cfg.dmRateLimit, 30),
+  };
+}
+
+export function pickPrivacyValues(cfg: SiteConfig): PrivacyTabValues {
+  return {
+    showIpLocation: b(cfg.showIpLocation, true),
+    showDeviceInfo: b(cfg.showDeviceInfo, true),
+    showCommentExtraMeta: b(cfg.showCommentExtraMeta, false),
+    adminShowFullIp: b(cfg.adminShowFullIp, true),
+    adminShowUserAgent: b(cfg.adminShowUserAgent, false),
+    adminShowDeviceDetail: b(cfg.adminShowDeviceDetail, true),
   };
 }
 

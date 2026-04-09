@@ -15,6 +15,7 @@ import { adminSeriesRouter } from "./series";
 import { adminStickersRouter } from "./stickers";
 import { adminFilesRouter } from "./files";
 import { adminStoragePoliciesRouter } from "./storage-policies";
+import { adminGroupsRouter } from "./groups";
 
 export const adminRouter = mergeRouters(
   adminStatsRouter,
@@ -33,4 +34,5 @@ export const adminRouter = mergeRouters(
   adminStickersRouter,
   adminFilesRouter,
   adminStoragePoliciesRouter,
+  adminGroupsRouter,
 );

@@ -26,6 +26,8 @@ model User {
   location      String?   // 所在地
   socialLinks   Json?     // 社交账号 { twitter?: string, github?: string, ... }
   role          Role      @default(USER)
+  groupId       String?
+  group         UserGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   canUpload     Boolean   @default(false)  // 是否可以投稿（ADMIN/OWNER 默认可以）
   adminScopes   Json?     // 管理员权限范围 ["video:moderate", "user:manage", ...]
   isBanned      Boolean   @default(false)  // 是否被封禁
@@ -112,12 +114,34 @@ model User {
 
   @@index([email])
   @@index([username])
+  @@index([groupId])
 }
 
 enum Role {
   USER
   ADMIN
   OWNER  // 站长，拥有最高权限
+}
+
+/// 用户组，定义功能权限和管理员权限模板
+model UserGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique         /// 用户组名称
+  description String?                  /// 用户组描述
+
+  permissions Json     @default("{}")  /// 功能权限配置 { canUpload, canComment, canDanmaku, canChat, canDownload, adsEnabled }
+  adminScopes Json?                    /// 管理员权限范围 ["video:moderate", ...]
+
+  storageQuota BigInt  @default(5368709120) /// 组默认存储配额（字节），5GB
+
+  isDefault   Boolean  @default(false) /// 新用户自动加入此组（仅一个组可为 true）
+  isSystem    Boolean  @default(false) /// 系统内置组，不可删除
+  color       String?                  /// 显示颜色（如 #3B82F6）
+  sortOrder   Int      @default(0)     /// 排序
+
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Account {
@@ -1234,6 +1258,14 @@ model SiteConfig {
   dmEnabled               Boolean @default(true)    /// 是否启用私信功能
   dmMessageMaxLength      Int     @default(2000)    /// 私信消息最大字符数
   dmRateLimit             Int     @default(30)      /// 私信频率限制（每分钟条数）
+
+  // 隐私与信息展示
+  showIpLocation         Boolean @default(true)   // 公开页面（评论区、用户主页）是否显示 IP 属地
+  showDeviceInfo         Boolean @default(true)   // 评论区是否显示设备信息（操作系统、浏览器）
+  showCommentExtraMeta   Boolean @default(false)  // 评论区是否显示额外元信息（语言、时区）
+  adminShowFullIp        Boolean @default(true)   // 管理后台是否显示完整 IP 地址
+  adminShowUserAgent     Boolean @default(false)  // 管理后台是否显示完整 User-Agent
+  adminShowDeviceDetail  Boolean @default(true)   // 管理后台是否显示详细设备信息（品牌、型号等）
 
   // 统计分析
   analyticsGoogleId       String?  // Google Analytics 4 Measurement ID (G-XXXXXXXXXX)

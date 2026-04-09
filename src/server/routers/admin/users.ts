@@ -31,6 +31,7 @@ export const adminUsersRouter = router({
         search: z.string().optional(),
         role: z.enum(["ALL", "USER", "ADMIN", "OWNER"]).default("ALL"),
         banned: z.enum(["ALL", "BANNED", "ACTIVE"]).default("ALL"),
+        groupId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -39,6 +40,7 @@ export const adminUsersRouter = router({
         ...(input.role !== "ALL" && { role: input.role }),
         ...(input.banned === "BANNED" && { isBanned: true }),
         ...(input.banned === "ACTIVE" && { isBanned: false }),
+        ...(input.groupId && { groupId: input.groupId }),
         ...(input.search && {
           OR: [
             { username: { contains: input.search, mode: "insensitive" as const } },
@@ -62,6 +64,8 @@ export const adminUsersRouter = router({
             avatar: true,
             role: true,
             adminScopes: true,
+            groupId: true,
+            group: { select: { id: true, name: true, color: true } },
             isBanned: true,
             banReason: true,
             lastIpLocation: true,

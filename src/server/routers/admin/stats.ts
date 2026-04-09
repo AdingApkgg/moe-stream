@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { ADMIN_SCOPES } from "@/lib/constants";
 import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
+import { resolveAdminScopes } from "@/lib/group-permissions";
 
 const MAX_RANGE_DAYS = 90;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -32,7 +33,11 @@ export const adminStatsRouter = router({
   getMyPermissions: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.session.user.id },
-      select: { role: true, adminScopes: true },
+      select: {
+        role: true,
+        adminScopes: true,
+        group: { select: { adminScopes: true } },
+      },
     });
 
     if (!user) {
@@ -41,13 +46,15 @@ export const adminStatsRouter = router({
 
     const isOwner = isOwnerRole(user.role);
     const isAdmin = isPrivileged(user.role);
-    const scopes = isOwner ? Object.keys(ADMIN_SCOPES) : (user.adminScopes as string[]) || [];
+    const groupAdminScopes = (user.group?.adminScopes as string[] | null) ?? null;
+    const userAdminScopes = (user.adminScopes as string[] | null) ?? null;
+    const scopes = resolveAdminScopes(user.role, groupAdminScopes ?? userAdminScopes);
 
     return {
       role: user.role,
       isOwner,
       isAdmin,
-      scopes,
+      scopes: scopes as string[],
       allScopes: ADMIN_SCOPES,
     };
   }),

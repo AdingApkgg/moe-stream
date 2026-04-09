@@ -48,6 +48,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAvatarUrl } from "@/lib/avatar";
+import { useSiteConfig } from "@/contexts/site-config";
 import { CommentContent } from "./comment-content";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 
@@ -102,6 +103,7 @@ export function GameCommentItem({
   onReplyToComment,
 }: GameCommentItemProps) {
   const { data: session } = useSession();
+  const siteConfig = useSiteConfig();
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [replyContent, setReplyContent] = useState("");
@@ -317,19 +319,23 @@ export function GameCommentItem({
   })();
 
   const osInfo = (() => {
+    if (siteConfig?.showDeviceInfo === false) return null;
     if (!normalizedDeviceInfo?.os) return null;
     return [normalizedDeviceInfo.os, normalizedDeviceInfo.osVersion].filter(Boolean).join(" ");
   })();
 
   const browserInfo = (() => {
+    if (siteConfig?.showDeviceInfo === false) return null;
     if (!normalizedDeviceInfo?.browser) return null;
     return [normalizedDeviceInfo.browser, normalizedDeviceInfo.browserVersion].filter(Boolean).join(" ");
   })();
 
-  const languageInfo = normalizedDeviceInfo?.language || null;
-  const timezoneInfo = normalizedDeviceInfo?.timezone || null;
-  const locationInfo = comment.ipv6Location || comment.ipv4Location || null;
-  const locationLabel = comment.ipv6Location ? "IPv6" : comment.ipv4Location ? "IPv4" : null;
+  const languageInfo = siteConfig?.showCommentExtraMeta ? normalizedDeviceInfo?.language || null : null;
+  const timezoneInfo = siteConfig?.showCommentExtraMeta ? normalizedDeviceInfo?.timezone || null : null;
+  const locationInfo =
+    siteConfig?.showIpLocation === false ? null : comment.ipv6Location || comment.ipv4Location || null;
+  const locationLabel =
+    siteConfig?.showIpLocation === false ? null : comment.ipv6Location ? "IPv6" : comment.ipv4Location ? "IPv4" : null;
   const hasMetaInfo = osInfo || browserInfo || languageInfo || timezoneInfo || locationInfo;
 
   return (

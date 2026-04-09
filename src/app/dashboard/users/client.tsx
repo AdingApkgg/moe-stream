@@ -54,6 +54,7 @@ import {
   UserX,
   UserCheck,
   Megaphone,
+  UsersRound,
 } from "lucide-react";
 import { ADMIN_SCOPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,8 @@ interface UserItem {
   lastIpLocation: string | null;
   adsEnabled: boolean;
   createdAt: Date;
+  groupId: string | null;
+  group: { id: string; name: string; color: string | null } | null;
   _count: { videos: number; comments: number; likes: number };
 }
 
@@ -88,6 +91,8 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [banningUser, setBanningUser] = useState<UserItem | null>(null);
   const [banReason, setBanReason] = useState("");
+  const [groupFilter, setGroupFilter] = useState<string>("ALL");
+  const [assignGroupId, setAssignGroupId] = useState<string>("");
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -101,6 +106,10 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
     setBannedFilter(value);
     setCurrentPage(1);
   };
+  const handleGroupFilterChange = (value: string) => {
+    setGroupFilter(value);
+    setCurrentPage(1);
+  };
 
   const utils = trpc.useUtils();
 
@@ -109,8 +118,19 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
     enabled: permissions?.scopes.includes("user:view"),
   });
 
+  const { data: groups } = trpc.admin.listGroups.useQuery(undefined, {
+    enabled: !!permissions?.scopes.includes("user:manage"),
+  });
+
   const { data, isLoading } = trpc.admin.listUsers.useQuery(
-    { limit: 20, page: currentPage, search: search || undefined, role: roleFilter, banned: bannedFilter },
+    {
+      limit: 20,
+      page: currentPage,
+      search: search || undefined,
+      role: roleFilter,
+      banned: bannedFilter,
+      groupId: groupFilter !== "ALL" ? groupFilter : undefined,
+    },
     { enabled: permissions?.scopes.includes("user:view") },
   );
 
@@ -179,6 +199,17 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
       utils.admin.listUsers.invalidate();
     },
     onError: (error) => toast.error(error.message || "更新失败"),
+  });
+
+  const assignGroupMutation = trpc.admin.assignUsersToGroup.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已将 ${result.count} 个用户分配到用户组`);
+      utils.admin.listUsers.invalidate();
+      utils.admin.listGroups.invalidate();
+      setSelectedIds(new Set());
+      setAssignGroupId("");
+    },
+    onError: (error) => toast.error(error.message || "分配失败"),
   });
 
   const users = useMemo(() => data?.users || [], [data?.users]);
@@ -331,6 +362,24 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
             <SelectItem value="BANNED">已封禁</SelectItem>
           </SelectContent>
         </Select>
+        {groups && groups.length > 0 && (
+          <Select value={groupFilter} onValueChange={handleGroupFilterChange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="用户组" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">全部用户组</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  <span className="flex items-center gap-1.5">
+                    {g.color && <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />}
+                    {g.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* 批量操作栏 */}
@@ -363,6 +412,34 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                   <UserCheck className="h-4 w-4 mr-1" />
                   批量解封
                 </Button>
+                {permissions?.isOwner && groups && groups.length > 0 && (
+                  <Select
+                    value={assignGroupId}
+                    onValueChange={(groupId) => {
+                      setAssignGroupId(groupId);
+                      assignGroupMutation.mutate({ userIds: Array.from(selectedIds), groupId });
+                    }}
+                  >
+                    <SelectTrigger className="w-[160px] h-8">
+                      <div className="flex items-center gap-1">
+                        <UsersRound className="h-3.5 w-3.5" />
+                        <span className="text-sm">分配用户组</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          <span className="flex items-center gap-1.5">
+                            {g.color && (
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                            )}
+                            {g.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </>
           )}
@@ -409,6 +486,17 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                           {user.nickname || user.username}
                         </Link>
                         {getRoleBadge(user.role)}
+                        {user.group && (
+                          <Badge variant="outline" className="text-[11px] gap-1">
+                            {user.group.color && (
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: user.group.color }}
+                              />
+                            )}
+                            {user.group.name}
+                          </Badge>
+                        )}
                         {user.isBanned && (
                           <Badge variant="destructive" className="text-xs">
                             <Ban className="h-3 w-3 mr-1" />
@@ -528,6 +616,13 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                           <div>
                             <div className="font-medium text-foreground mb-1">角色</div>
                             {user.role === "OWNER" ? "站长" : user.role === "ADMIN" ? "管理员" : "普通用户"}
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground mb-1 flex items-center gap-1">
+                              <UsersRound className="h-3 w-3" />
+                              用户组
+                            </div>
+                            {user.group ? user.group.name : "未分配"}
                           </div>
                         </div>
 

@@ -48,6 +48,7 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAvatarUrl } from "@/lib/avatar";
+import { useSiteConfig } from "@/contexts/site-config";
 import { CommentContent } from "./comment-content";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 
@@ -97,6 +98,7 @@ interface CommentItemProps {
 
 export function CommentItem({ comment, videoId, parentId, isReply = false, onReplyToComment }: CommentItemProps) {
   const { data: session } = useSession();
+  const siteConfig = useSiteConfig();
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [replyContent, setReplyContent] = useState("");
@@ -331,27 +333,31 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
     }
   })();
 
-  // 系统信息
+  // 系统信息（受 showDeviceInfo 控制）
   const osInfo = (() => {
+    if (siteConfig?.showDeviceInfo === false) return null;
     if (!normalizedDeviceInfo?.os) return null;
     return [normalizedDeviceInfo.os, normalizedDeviceInfo.osVersion].filter(Boolean).join(" ");
   })();
 
-  // 浏览器信息
+  // 浏览器信息（受 showDeviceInfo 控制）
   const browserInfo = (() => {
+    if (siteConfig?.showDeviceInfo === false) return null;
     if (!normalizedDeviceInfo?.browser) return null;
     return [normalizedDeviceInfo.browser, normalizedDeviceInfo.browserVersion].filter(Boolean).join(" ");
   })();
 
-  // 语言信息
-  const languageInfo = normalizedDeviceInfo?.language || null;
+  // 语言信息（受 showCommentExtraMeta 控制，默认隐藏）
+  const languageInfo = siteConfig?.showCommentExtraMeta ? normalizedDeviceInfo?.language || null : null;
 
-  // 时区信息
-  const timezoneInfo = normalizedDeviceInfo?.timezone || null;
+  // 时区信息（受 showCommentExtraMeta 控制，默认隐藏）
+  const timezoneInfo = siteConfig?.showCommentExtraMeta ? normalizedDeviceInfo?.timezone || null : null;
 
-  // IP 定位（优先 IPv6，其次 IPv4）
-  const locationInfo = comment.ipv6Location || comment.ipv4Location || null;
-  const locationLabel = comment.ipv6Location ? "IPv6" : comment.ipv4Location ? "IPv4" : null;
+  // IP 定位（受 showIpLocation 控制）
+  const locationInfo =
+    siteConfig?.showIpLocation === false ? null : comment.ipv6Location || comment.ipv4Location || null;
+  const locationLabel =
+    siteConfig?.showIpLocation === false ? null : comment.ipv6Location ? "IPv6" : comment.ipv4Location ? "IPv4" : null;
 
   // 是否有元信息需要显示
   const hasMetaInfo = osInfo || browserInfo || languageInfo || timezoneInfo || locationInfo;

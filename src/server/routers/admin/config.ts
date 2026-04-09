@@ -166,6 +166,12 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "dmEnabled",
   "dmMessageMaxLength",
   "dmRateLimit",
+  "showIpLocation",
+  "showDeviceInfo",
+  "showCommentExtraMeta",
+  "adminShowFullIp",
+  "adminShowUserAgent",
+  "adminShowDeviceDetail",
 ]);
 
 const NON_NULLABLE_KEYS = new Set([
@@ -451,6 +457,14 @@ export const adminConfigRouter = router({
         dmEnabled: z.boolean().optional(),
         dmMessageMaxLength: z.number().int().min(1).max(10000).optional(),
         dmRateLimit: z.number().int().min(1).max(300).optional(),
+
+        // 隐私与信息展示
+        showIpLocation: z.boolean().optional(),
+        showDeviceInfo: z.boolean().optional(),
+        showCommentExtraMeta: z.boolean().optional(),
+        adminShowFullIp: z.boolean().optional(),
+        adminShowUserAgent: z.boolean().optional(),
+        adminShowDeviceDetail: z.boolean().optional(),
 
         // 统计分析
         analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),

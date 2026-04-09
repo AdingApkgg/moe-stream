@@ -7,6 +7,7 @@ import { hash, compare } from "@/lib/bcrypt-wasm";
 
 import { send2faOtpEmail } from "@/lib/email";
 import { isPrivileged } from "@/lib/permissions";
+import { resolvePermissions, type GroupPermissions } from "@/lib/group-permissions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -172,10 +173,17 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             username: true,
             avatar: true,
             twoFactorEnabled: true,
+            groupId: true,
+            group: {
+              select: { id: true, name: true, permissions: true },
+            },
           },
         });
         if (!dbUser) return { user, session };
-        const canUpload = isPrivileged(dbUser.role) || dbUser.canUpload === true;
+
+        const perms = resolvePermissions(dbUser.role, dbUser.group?.permissions as Partial<GroupPermissions> | null);
+        const canUpload = isPrivileged(dbUser.role) || perms.canUpload || dbUser.canUpload === true;
+
         return {
           session,
           user: {
@@ -184,8 +192,10 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             image: dbUser.avatar || user.image,
             role: dbUser.role,
             canUpload,
-            adsEnabled: dbUser.adsEnabled ?? true,
+            adsEnabled: perms.adsEnabled,
             twoFactorEnabled: dbUser.twoFactorEnabled,
+            groupId: dbUser.groupId,
+            groupName: dbUser.group?.name,
           },
         };
       }),
@@ -303,6 +313,8 @@ export interface AppSession {
     canUpload?: boolean;
     adsEnabled?: boolean;
     twoFactorEnabled?: boolean;
+    groupId?: string | null;
+    groupName?: string | null;
   };
   jti?: string;
   session: { id: string; token: string; expiresAt: Date };
@@ -331,6 +343,8 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
       canUpload?: boolean;
       adsEnabled?: boolean;
       twoFactorEnabled?: boolean;
+      groupId?: string | null;
+      groupName?: string | null;
     };
     session: { id: string; token: string; expiresAt: Date };
   };
@@ -349,6 +363,8 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
       canUpload,
       adsEnabled: user.adsEnabled ?? true,
       twoFactorEnabled: user.twoFactorEnabled ?? false,
+      groupId: user.groupId ?? null,
+      groupName: user.groupName ?? null,
     },
     session: session
       ? { id: session.id, token: session.token, expiresAt: session.expiresAt }

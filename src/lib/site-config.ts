@@ -87,6 +87,9 @@ export interface PublicSiteConfig {
   dmEnabled: boolean;
   dmMessageMaxLength: number;
   dmRateLimit: number;
+  showIpLocation: boolean;
+  showDeviceInfo: boolean;
+  showCommentExtraMeta: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +213,9 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     dmEnabled: (c.dmEnabled as boolean) ?? true,
     dmMessageMaxLength: (c.dmMessageMaxLength as number) ?? 2000,
     dmRateLimit: (c.dmRateLimit as number) ?? 30,
+    showIpLocation: (c.showIpLocation as boolean) ?? true,
+    showDeviceInfo: (c.showDeviceInfo as boolean) ?? true,
+    showCommentExtraMeta: (c.showCommentExtraMeta as boolean) ?? false,
   };
 }
 

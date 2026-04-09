@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "@/lib/auth-client";
+import { useSiteConfig } from "@/contexts/site-config";
 import { trpc } from "@/lib/trpc";
 import { VideoCard } from "@/components/video/video-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -380,6 +381,7 @@ interface UserPageClientProps {
 
 export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: UserPageClientProps) {
   const { data: session, status } = useSession();
+  const siteConfig = useSiteConfig();
   const { play } = useSound();
   const [activeZone, setActiveZone] = useState<ContentZone>("all");
   const [videoSubTab, setVideoSubTab] = useState<VideoSubTab>("uploads");
@@ -942,7 +944,7 @@ export function UserPageClient({ id, initialUser, isOwnProfile: serverIsOwn }: U
                     {displayUser.location}
                   </span>
                 )}
-                {displayUser.lastIpLocation && (
+                {siteConfig?.showIpLocation !== false && displayUser.lastIpLocation && (
                   <span className="flex items-center gap-1" title="基于 IP 地址的大致位置">
                     <Globe className="h-3.5 w-3.5" />
                     IP 属地：{displayUser.lastIpLocation}

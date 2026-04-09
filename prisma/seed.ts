@@ -638,6 +638,112 @@ async function main() {
     const totalTags = Object.keys(tagRecords).length;
     console.log(`   ✓ 创建 ${TAG_CATEGORIES.length} 个分类、${totalTags} 个标签`);
 
+    // ============================== 用户组 ==============================
+    console.log("👥 创建用户组...");
+    const GROUP_SEEDS = [
+      {
+        name: "默认用户组",
+        description: "新注册用户的默认组",
+        permissions: {
+          canUpload: false,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: false,
+          adsEnabled: true,
+        },
+        adminScopes: undefined,
+        storageQuota: BigInt(5368709120), // 5GB
+        isDefault: true,
+        isSystem: true,
+        color: "#6B7280",
+        sortOrder: 0,
+      },
+      {
+        name: "投稿用户组",
+        description: "具有投稿权限的用户",
+        permissions: {
+          canUpload: true,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: true,
+          adsEnabled: true,
+        },
+        adminScopes: undefined,
+        storageQuota: BigInt(21474836480), // 20GB
+        isDefault: false,
+        isSystem: true,
+        color: "#3B82F6",
+        sortOrder: 1,
+      },
+      {
+        name: "内容审核组",
+        description: "负责内容审核的管理员",
+        permissions: {
+          canUpload: true,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: true,
+          adsEnabled: false,
+        },
+        adminScopes: ["video:moderate", "comment:manage"],
+        storageQuota: BigInt(21474836480), // 20GB
+        isDefault: false,
+        isSystem: true,
+        color: "#F59E0B",
+        sortOrder: 2,
+      },
+      {
+        name: "全权管理组",
+        description: "拥有所有管理权限的管理员",
+        permissions: {
+          canUpload: true,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: true,
+          adsEnabled: false,
+        },
+        adminScopes: [
+          "video:moderate",
+          "video:manage",
+          "user:view",
+          "user:manage",
+          "tag:manage",
+          "settings:manage",
+          "comment:manage",
+        ],
+        storageQuota: BigInt(53687091200), // 50GB
+        isDefault: false,
+        isSystem: true,
+        color: "#EF4444",
+        sortOrder: 3,
+      },
+    ];
+
+    const groupRecords: Record<string, string> = {};
+    for (const g of GROUP_SEEDS) {
+      const group = await prisma.userGroup.upsert({
+        where: { name: g.name },
+        update: {},
+        create: {
+          name: g.name,
+          description: g.description,
+          permissions: g.permissions,
+          adminScopes: g.adminScopes ?? undefined,
+          storageQuota: g.storageQuota,
+          isDefault: g.isDefault,
+          isSystem: g.isSystem,
+          color: g.color,
+          sortOrder: g.sortOrder,
+        },
+      });
+      groupRecords[g.name] = group.id;
+    }
+    console.log(`   ✓ 创建 ${GROUP_SEEDS.length} 个用户组`);
+
     // ============================== 用户 ==============================
     console.log("👤 创建用户...");
     const defaultPassword = await hashPassword("password123");
@@ -656,6 +762,15 @@ async function main() {
         continue;
       }
 
+      const groupId =
+        u.role === "OWNER"
+          ? undefined
+          : u.role === "ADMIN"
+            ? groupRecords["全权管理组"]
+            : u.canUpload
+              ? groupRecords["投稿用户组"]
+              : groupRecords["默认用户组"];
+
       const user = await prisma.user.create({
         data: {
           email: u.email,
@@ -666,6 +781,7 @@ async function main() {
           canUpload: u.canUpload,
           bio: u.bio,
           adminScopes: (u as { adminScopes?: string[] }).adminScopes ?? undefined,
+          groupId,
           createdAt: daysAgo(randomInt(30, 180)),
         },
       });
@@ -1085,6 +1201,7 @@ async function main() {
     // ============================== 完成 ==============================
     console.log("\n✅ Seed 完成！\n");
     console.log("📋 数据概览：");
+    console.log(`   用户组: ${GROUP_SEEDS.length} 个`);
     console.log(`   标签分类: ${TAG_CATEGORIES.length} 个`);
     console.log(`   标签: ${totalTags} 个`);
     console.log(`   用户: ${userRecords.length} 个`);

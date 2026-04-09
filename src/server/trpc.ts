@@ -7,6 +7,7 @@ import { redis, REDIS_AVAILABLE } from "@/lib/redis";
 import { getSession, type AppSession } from "@/lib/auth";
 import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
 import { isPrivileged } from "@/lib/permissions";
+import { resolveAdminScopes } from "@/lib/group-permissions";
 
 // Context 类型
 export interface Context {
@@ -320,14 +321,20 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
 
   const user = await ctx.prisma.user.findUnique({
     where: { id: ctx.session.user.id },
-    select: { role: true, adminScopes: true },
+    select: {
+      role: true,
+      adminScopes: true,
+      group: { select: { adminScopes: true } },
+    },
   });
 
   if (!user || !isPrivileged(user.role)) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 
-  const scopes = user.role === "OWNER" ? Object.keys(ADMIN_SCOPES) : (user.adminScopes as string[]) || [];
+  const groupAdminScopes = (user.group?.adminScopes as string[] | null) ?? null;
+  const userAdminScopes = (user.adminScopes as string[] | null) ?? null;
+  const scopes = resolveAdminScopes(user.role, groupAdminScopes ?? userAdminScopes);
 
   return next({
     ctx: {

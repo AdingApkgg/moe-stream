@@ -44,6 +44,7 @@ import {
   ScrollText,
   BarChart3,
   MessageSquare,
+  Eye,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 
@@ -60,6 +61,7 @@ const TabEmail = lazy(() => import("./_components/tab-email").then((m) => ({ def
 const TabStorage = lazy(() => import("./_components/tab-storage").then((m) => ({ default: m.TabStorage })));
 const TabSeo = lazy(() => import("./_components/tab-seo").then((m) => ({ default: m.TabSeo })));
 const TabMessaging = lazy(() => import("./_components/tab-messaging").then((m) => ({ default: m.TabMessaging })));
+const TabPrivacy = lazy(() => import("./_components/tab-privacy").then((m) => ({ default: m.TabPrivacy })));
 const TabAnalytics = lazy(() => import("./_components/tab-analytics").then((m) => ({ default: m.TabAnalytics })));
 
 function TabLoading() {
@@ -259,8 +261,11 @@ export default function AdminSettingsPage() {
             </TabsTrigger>
 
             <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">
-              安全与认证
+              安全与隐私
             </span>
+            <TabsTrigger value="privacy" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Eye className="h-3.5 w-3.5" /> 信息展示
+            </TabsTrigger>
             <TabsTrigger value="captcha" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <ShieldCheck className="h-3.5 w-3.5" /> 验证码
             </TabsTrigger>
@@ -312,7 +317,8 @@ export default function AdminSettingsPage() {
               </SelectGroup>
               <SelectSeparator />
               <SelectGroup>
-                <SelectLabel>安全与认证</SelectLabel>
+                <SelectLabel>安全与隐私</SelectLabel>
+                <SelectItem value="privacy">信息展示</SelectItem>
                 <SelectItem value="captcha">验证码</SelectItem>
                 <SelectItem value="oauth">登录</SelectItem>
                 <SelectItem value="email">邮件</SelectItem>
@@ -360,6 +366,10 @@ export default function AdminSettingsPage() {
 
             <TabsContent value="footer">
               <TabFooter config={config} />
+            </TabsContent>
+
+            <TabsContent value="privacy">
+              <TabPrivacy config={config} />
             </TabsContent>
 
             <TabsContent value="captcha">

@@ -23,6 +23,8 @@ interface CustomSessionUser {
   canUpload?: boolean;
   adsEnabled?: boolean;
   twoFactorEnabled?: boolean;
+  groupId?: string | null;
+  groupName?: string | null;
 }
 
 /**
@@ -40,6 +42,9 @@ export function useSession() {
   const adsEnabled = customUser?.adsEnabled ?? true;
   const twoFactorEnabled = customUser?.twoFactorEnabled ?? false;
 
+  const groupId = customUser?.groupId ?? null;
+  const groupName = customUser?.groupName ?? null;
+
   const session = data?.user
     ? {
         user: {
@@ -51,6 +56,8 @@ export function useSession() {
           canUpload,
           adsEnabled,
           twoFactorEnabled,
+          groupId,
+          groupName,
         },
         expires: data.session?.expiresAt?.toString?.() ?? "",
       }
