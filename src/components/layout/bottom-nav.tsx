@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Home, Upload, User, Compass, MessageSquare, type LucideIcon } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 import { useIsMounted } from "@/components/motion";
+import { useSiteConfig } from "@/contexts/site-config";
 
 interface NavItem {
   href: string;
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
   const { session } = useStableSession();
+  const config = useSiteConfig();
   // 避免水合不匹配：useIsMounted 基于 ref，不触发 set-state-in-effect lint
   const mounted = useIsMounted();
 
@@ -35,8 +37,8 @@ export function BottomNav() {
   const effectiveSession = mounted ? session : null;
 
   const visibleItems = navItems.filter((item) => {
-    // 需要上传权限的项，检查 canUpload
     if (item.requireUpload && (!effectiveSession || !effectiveSession.user?.canUpload)) return false;
+    if (item.href === "/channels" && config?.channelEnabled === false && config?.dmEnabled === false) return false;
     return true;
   });
 

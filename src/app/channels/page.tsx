@@ -10,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Hash, Plus, Users, MessageSquare, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSiteConfig } from "@/contexts/site-config";
 
 export default function ChannelsPage() {
+  const config = useSiteConfig();
   const { session } = useStableSession();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -19,7 +21,12 @@ export default function ChannelsPage() {
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
 
-  const { data, isLoading } = trpc.channel.list.useQuery({ limit: 50 }, { placeholderData: (prev) => prev });
+  const channelEnabled = config?.channelEnabled !== false;
+
+  const { data, isLoading } = trpc.channel.list.useQuery(
+    { limit: 50 },
+    { placeholderData: (prev) => prev, enabled: channelEnabled },
+  );
   const utils = trpc.useUtils();
 
   const createMutation = trpc.channel.create.useMutation({
@@ -32,6 +39,18 @@ export default function ChannelsPage() {
       utils.channel.list.invalidate();
     },
   });
+
+  if (!channelEnabled) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-6">
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <Hash className="h-12 w-12 mb-3 opacity-20" />
+          <p className="text-lg font-medium">频道功能未开放</p>
+          <p className="text-sm mt-1">管理员暂未开启此功能</p>
+        </div>
+      </div>
+    );
+  }
 
   const channels = data?.channels ?? [];
 

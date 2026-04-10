@@ -14,14 +14,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowLeft, MessageSquare, Plus, Search, Loader2, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/lib/hooks";
+import { useSiteConfig } from "@/contexts/site-config";
 
 export default function MessagesPage() {
+  const config = useSiteConfig();
   const { session, isLoading: sessionLoading } = useStableSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
 
+  const dmEnabled = config?.dmEnabled !== false;
   const targetUser = searchParams.get("user");
 
   const getOrCreate = trpc.message.getOrCreate.useMutation({
@@ -31,10 +34,10 @@ export default function MessagesPage() {
   });
 
   useEffect(() => {
-    if (targetUser && session?.user) {
+    if (dmEnabled && targetUser && session?.user) {
       getOrCreate.mutate({ userId: targetUser });
     }
-  }, [targetUser, session?.user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [targetUser, session?.user, dmEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sessionLoading && !session?.user) {
@@ -46,6 +49,18 @@ export default function MessagesPage() {
     setShowNewDialog(false);
     getOrCreate.mutate({ userId });
   };
+
+  if (!dmEnabled) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
+          <p className="text-lg font-medium">私信功能未开放</p>
+          <p className="text-sm mt-1">管理员暂未开启此功能</p>
+        </div>
+      </div>
+    );
+  }
 
   if (sessionLoading || !session?.user) {
     return (

@@ -19,6 +19,7 @@ import {
   Hash,
   Mail,
   HardDrive,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -52,7 +53,8 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/comments", icon: MessageCircle, label: "评论动态" },
-  { href: "/ranking", icon: Trophy, label: "排名榜" },
+  { href: "/ranking", icon: Trophy, label: "热门排行" },
+  { href: "/links", icon: Link2, label: "友情链接" },
 ];
 
 /** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
@@ -62,7 +64,7 @@ const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: LucideIcon }
   { id: "game", label: "游戏", icon: Gamepad2 },
 ];
 
-const communityNavItems: NavItem[] = [
+const allCommunityNavItems: NavItem[] = [
   { href: "/channels", icon: Hash, label: "频道", auth: true },
   { href: "/messages", icon: Mail, label: "私信", auth: true },
 ];
@@ -285,10 +287,21 @@ function UserProfileLink({ collapsed, session }: { collapsed: boolean; session: 
   );
 }
 
+/** 根据站点配置过滤社区导航项（频道/私信） */
+function useCommunityNavItems() {
+  const config = useSiteConfig();
+  return allCommunityNavItems.filter((item) => {
+    if (item.href === "/channels") return config?.channelEnabled !== false;
+    if (item.href === "/messages") return config?.dmEnabled !== false;
+    return true;
+  });
+}
+
 /** 侧栏导航内容（桌面 & 移动端共用） */
 export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?: boolean; onItemClick?: () => void }) {
   const pathname = usePathname();
   const { session } = useStableSession();
+  const communityNavItems = useCommunityNavItems();
 
   return (
     <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>

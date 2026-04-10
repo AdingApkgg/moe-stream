@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "排名榜",
+  title: "热门排行",
   description: "内容排名和投稿者排行",
 };
 

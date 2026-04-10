@@ -200,16 +200,21 @@ function SoundToggleButton() {
 function MessageButton() {
   const { session } = useStableSession();
   const storeUnread = useSocketStore((s) => s.unreadMessages);
+  const config = useSiteConfig();
+
+  const dmEnabled = config?.dmEnabled !== false;
 
   const { data: convData } = trpc.message.conversations.useQuery(
     { limit: 50 },
     {
-      enabled: !!session?.user,
+      enabled: !!session?.user && dmEnabled,
       staleTime: 30_000,
       refetchInterval: 60_000,
       refetchOnWindowFocus: true,
     },
   );
+
+  if (!dmEnabled) return null;
 
   const serverUnread = convData?.conversations.reduce((sum, c) => sum + c.unreadCount, 0);
   const unread = serverUnread ?? storeUnread;
@@ -694,18 +699,22 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem asChild>
-                    <Link href="/channels">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      聊天频道
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/messages">
-                      <Mail className="mr-2 h-4 w-4" />
-                      私信
-                    </Link>
-                  </DropdownMenuItem>
+                  {siteConfig?.channelEnabled !== false && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/channels">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        聊天频道
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {siteConfig?.dmEnabled !== false && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/messages">
+                        <Mail className="mr-2 h-4 w-4" />
+                        私信
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/favorites">
                       <Heart className="mr-2 h-4 w-4" />

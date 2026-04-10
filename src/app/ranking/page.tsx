@@ -354,7 +354,7 @@ export default function RankingPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Trophy className="h-6 w-6 text-amber-500" />
-            排名榜
+            热门排行
           </h1>
           <p className="text-muted-foreground text-sm mt-1">全站内容与用户排行</p>
         </div>

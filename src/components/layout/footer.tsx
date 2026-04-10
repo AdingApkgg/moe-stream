@@ -57,9 +57,6 @@ export function Footer() {
                 关于
               </Link>
             )}
-            <Link href="/links" className="hover:text-foreground transition-colors">
-              友链
-            </Link>
             <Link href="/rss" className="hover:text-foreground transition-colors">
               RSS
             </Link>

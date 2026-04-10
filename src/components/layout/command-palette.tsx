@@ -153,7 +153,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push("/ranking"))}>
             <Trophy className="mr-2 h-4 w-4" />
-            排名榜
+            热门排行
           </CommandItem>
         </CommandGroup>
 
