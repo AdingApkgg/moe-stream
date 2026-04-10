@@ -7,7 +7,7 @@ import { redis, REDIS_AVAILABLE } from "@/lib/redis";
 import { getSession, type AppSession } from "@/lib/auth";
 import { ADMIN_SCOPES, type AdminScope } from "@/lib/constants";
 import { isPrivileged } from "@/lib/permissions";
-import { resolveAdminScopes } from "@/lib/group-permissions";
+import { resolveAdminScopes, resolveRole } from "@/lib/group-permissions";
 
 // Context 类型
 export interface Context {
@@ -324,22 +324,27 @@ const enforceUserIsAdmin = t.middleware(async ({ ctx, next }) => {
     select: {
       role: true,
       adminScopes: true,
-      group: { select: { adminScopes: true } },
+      group: { select: { role: true, adminScopes: true } },
     },
   });
 
-  if (!user || !isPrivileged(user.role)) {
+  if (!user) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+
+  const effectiveRole = resolveRole(user.role, user.group?.role);
+  if (!isPrivileged(effectiveRole)) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 
   const groupAdminScopes = (user.group?.adminScopes as string[] | null) ?? null;
   const userAdminScopes = (user.adminScopes as string[] | null) ?? null;
-  const scopes = resolveAdminScopes(user.role, groupAdminScopes ?? userAdminScopes);
+  const scopes = resolveAdminScopes(effectiveRole, groupAdminScopes ?? userAdminScopes);
 
   return next({
     ctx: {
       session: { ...ctx.session, user: ctx.session.user },
-      adminRole: user.role as "ADMIN" | "OWNER",
+      adminRole: effectiveRole as "ADMIN" | "OWNER",
       adminScopes: scopes,
     },
   });
@@ -352,10 +357,11 @@ const enforceUserIsOwner = t.middleware(async ({ ctx, next }) => {
 
   const user = await ctx.prisma.user.findUnique({
     where: { id: ctx.session.user.id },
-    select: { role: true },
+    select: { role: true, group: { select: { role: true } } },
   });
 
-  if (user?.role !== "OWNER") {
+  const effectiveRole = resolveRole(user?.role ?? "USER", user?.group?.role);
+  if (effectiveRole !== "OWNER") {
     throw new TRPCError({ code: "FORBIDDEN", message: "仅站长可执行此操作" });
   }
 

@@ -644,6 +644,7 @@ async function main() {
       {
         name: "默认用户组",
         description: "新注册用户的默认组",
+        role: "USER" as const,
         permissions: {
           canUpload: false,
           canComment: true,
@@ -662,6 +663,7 @@ async function main() {
       {
         name: "投稿用户组",
         description: "具有投稿权限的用户",
+        role: "USER" as const,
         permissions: {
           canUpload: true,
           canComment: true,
@@ -680,6 +682,7 @@ async function main() {
       {
         name: "内容审核组",
         description: "负责内容审核的管理员",
+        role: "ADMIN" as const,
         permissions: {
           canUpload: true,
           canComment: true,
@@ -698,6 +701,7 @@ async function main() {
       {
         name: "全权管理组",
         description: "拥有所有管理权限的管理员",
+        role: "ADMIN" as const,
         permissions: {
           canUpload: true,
           canComment: true,
@@ -721,6 +725,25 @@ async function main() {
         color: "#EF4444",
         sortOrder: 3,
       },
+      {
+        name: "站长组",
+        description: "站长专属组，拥有最高权限",
+        role: "OWNER" as const,
+        permissions: {
+          canUpload: true,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: true,
+          adsEnabled: false,
+        },
+        adminScopes: undefined,
+        storageQuota: BigInt(107374182400), // 100GB
+        isDefault: false,
+        isSystem: true,
+        color: "#D97706",
+        sortOrder: 99,
+      },
     ];
 
     const groupRecords: Record<string, string> = {};
@@ -731,6 +754,7 @@ async function main() {
         create: {
           name: g.name,
           description: g.description,
+          role: g.role,
           permissions: g.permissions,
           adminScopes: g.adminScopes ?? undefined,
           storageQuota: g.storageQuota,
@@ -764,7 +788,7 @@ async function main() {
 
       const groupId =
         u.role === "OWNER"
-          ? undefined
+          ? groupRecords["站长组"]
           : u.role === "ADMIN"
             ? groupRecords["全权管理组"]
             : u.canUpload

@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Dialog,
@@ -36,8 +35,6 @@ import { toast } from "@/lib/toast-with-sound";
 import {
   Users,
   Search,
-  Shield,
-  Loader2,
   ChevronDown,
   ChevronUp,
   Ban,
@@ -53,10 +50,8 @@ import {
   Square,
   UserX,
   UserCheck,
-  Megaphone,
   UsersRound,
 } from "lucide-react";
-import { ADMIN_SCOPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type UserRole = "USER" | "ADMIN" | "OWNER";
@@ -68,11 +63,9 @@ interface UserItem {
   nickname: string | null;
   avatar: string | null;
   role: UserRole;
-  adminScopes: unknown;
   isBanned: boolean;
   banReason: string | null;
   lastIpLocation: string | null;
-  adsEnabled: boolean;
   createdAt: Date;
   groupId: string | null;
   group: { id: string; name: string; color: string | null } | null;
@@ -84,15 +77,12 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | UserRole>("ALL");
   const [bannedFilter, setBannedFilter] = useState<"ALL" | "BANNED" | "ACTIVE">("ALL");
-  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
-  const [editingScopes, setEditingScopes] = useState<string[]>([]);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<string>("ALL");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [banningUser, setBanningUser] = useState<UserItem | null>(null);
   const [banReason, setBanReason] = useState("");
-  const [groupFilter, setGroupFilter] = useState<string>("ALL");
-  const [assignGroupId, setAssignGroupId] = useState<string>("");
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -134,23 +124,15 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
     { enabled: permissions?.scopes.includes("user:view") },
   );
 
-  const updateRoleMutation = trpc.admin.updateUserRole.useMutation({
-    onSuccess: () => {
-      toast.success("用户角色已更新");
+  const assignGroupMutation = trpc.admin.assignUsersToGroup.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已将 ${result.count} 个用户分配到用户组`);
       utils.admin.listUsers.invalidate();
-      utils.admin.getUserStats.invalidate();
-      setSelectedUser(null);
+      utils.admin.listGroups.invalidate();
+      setSelectedIds(new Set());
+      setEditingUser(null);
     },
-    onError: (error) => toast.error(error.message || "更新失败"),
-  });
-
-  const updateScopesMutation = trpc.admin.updateAdminScopes.useMutation({
-    onSuccess: () => {
-      toast.success("权限已更新");
-      utils.admin.listUsers.invalidate();
-      setSelectedUser(null);
-    },
-    onError: (error) => toast.error(error.message || "更新失败"),
+    onError: (error) => toast.error(error.message || "分配失败"),
   });
 
   const banUserMutation = trpc.admin.banUser.useMutation({
@@ -193,35 +175,13 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
     onError: (error) => toast.error(error.message || "批量解封失败"),
   });
 
-  const updateAdsEnabledMutation = trpc.admin.updateUserAdsEnabled.useMutation({
-    onSuccess: (_, variables) => {
-      toast.success(variables.adsEnabled ? "已开启该用户广告加载" : "已关闭该用户广告加载");
-      utils.admin.listUsers.invalidate();
-    },
-    onError: (error) => toast.error(error.message || "更新失败"),
-  });
-
-  const assignGroupMutation = trpc.admin.assignUsersToGroup.useMutation({
-    onSuccess: (result) => {
-      toast.success(`已将 ${result.count} 个用户分配到用户组`);
-      utils.admin.listUsers.invalidate();
-      utils.admin.listGroups.invalidate();
-      setSelectedIds(new Set());
-      setAssignGroupId("");
-    },
-    onError: (error) => toast.error(error.message || "分配失败"),
-  });
-
   const users = useMemo(() => data?.users || [], [data?.users]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -230,59 +190,18 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
   const allPageSelected = selectableUsers.length > 0 && selectableUsers.every((u) => selectedIds.has(u.id));
 
   const toggleSelectAll = useCallback(() => {
-    if (allPageSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
-    }
+    if (allPageSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(selectableUsers.map((u) => u.id)));
   }, [selectableUsers, allPageSelected]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
-
-  const handleEditUser = (user: UserItem) => {
-    setSelectedUser(user);
-    setEditingScopes((user.adminScopes as string[]) || []);
-  };
-
-  const handleUpdateRole = async (newRole: "USER" | "ADMIN") => {
-    if (!selectedUser) return;
-    setIsUpdating(true);
-    try {
-      await updateRoleMutation.mutateAsync({
-        userId: selectedUser.id,
-        role: newRole,
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleUpdateScopes = async () => {
-    if (!selectedUser) return;
-    setIsUpdating(true);
-    try {
-      await updateScopesMutation.mutateAsync({
-        userId: selectedUser.id,
-        scopes: editingScopes,
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const toggleScope = (scope: string) => {
-    setEditingScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
-  };
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -414,9 +333,8 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                 </Button>
                 {permissions?.isOwner && groups && groups.length > 0 && (
                   <Select
-                    value={assignGroupId}
+                    value=""
                     onValueChange={(groupId) => {
-                      setAssignGroupId(groupId);
                       assignGroupMutation.mutate({ userIds: Array.from(selectedIds), groupId });
                     }}
                   >
@@ -521,15 +439,14 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                         </span>
                       </div>
 
-                      {/* 位置信息 */}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {user.lastIpLocation && (
+                      {user.lastIpLocation && (
+                        <div className="flex items-center gap-2 mt-2">
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
                             <Globe className="h-3 w-3 text-blue-500" />
                             {user.lastIpLocation}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 操作按钮 */}
@@ -565,10 +482,10 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleEditUser(user)}
-                          title="权限设置"
+                          onClick={() => setEditingUser(user)}
+                          title="分配用户组"
                         >
-                          <Shield className="h-4 w-4" />
+                          <UsersRound className="h-4 w-4" />
                         </Button>
                       )}
 
@@ -594,7 +511,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                   <Collapsible open={isExpanded}>
                     <CollapsibleContent>
                       <div className="mt-4 pt-4 border-t text-xs text-muted-foreground space-y-3">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                           <div>
                             <div className="font-medium text-foreground mb-1">用户 ID</div>
                             <code className="text-xs bg-muted px-1 py-0.5 rounded">{user.id}</code>
@@ -622,7 +539,19 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                               <UsersRound className="h-3 w-3" />
                               用户组
                             </div>
-                            {user.group ? user.group.name : "未分配"}
+                            {user.group ? (
+                              <span className="inline-flex items-center gap-1">
+                                {user.group.color && (
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: user.group.color }}
+                                  />
+                                )}
+                                {user.group.name}
+                              </span>
+                            ) : (
+                              "未分配"
+                            )}
                           </div>
                         </div>
 
@@ -630,38 +559,6 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
                           <div className="p-2 bg-destructive/10 rounded text-destructive">
                             <div className="font-medium mb-1">封禁原因</div>
                             {user.banReason}
-                          </div>
-                        )}
-
-                        {user.role === "ADMIN" && (user.adminScopes as string[])?.length > 0 && (
-                          <div>
-                            <div className="font-medium text-foreground mb-1">管理权限</div>
-                            <div className="flex flex-wrap gap-1">
-                              {(user.adminScopes as string[]).map((scope) => (
-                                <Badge key={scope} variant="outline" className="text-xs">
-                                  {ADMIN_SCOPES[scope as keyof typeof ADMIN_SCOPES] || scope}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {permissions?.scopes.includes("user:manage") && user.role !== "OWNER" && (
-                          <div className="flex items-center justify-between gap-4 py-2 rounded bg-muted/50 px-3">
-                            <div className="flex items-center gap-2 font-medium text-foreground">
-                              <Megaphone className="h-3.5 w-3.5" />
-                              广告加载
-                            </div>
-                            <Switch
-                              checked={user.adsEnabled}
-                              disabled={updateAdsEnabledMutation.isPending}
-                              onCheckedChange={(checked) => {
-                                updateAdsEnabledMutation.mutate({
-                                  userId: user.id,
-                                  adsEnabled: !!checked,
-                                });
-                              }}
-                            />
                           </div>
                         )}
                       </div>
@@ -682,82 +579,81 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
         </div>
       )}
 
-      {/* 编辑用户对话框 */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+      {/* 分配用户组对话框 */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              管理用户权限
+              <UsersRound className="h-5 w-5" />
+              分配用户组
             </DialogTitle>
-            <DialogDescription>修改 {selectedUser?.nickname || selectedUser?.username} 的角色和权限</DialogDescription>
+            <DialogDescription>修改 {editingUser?.nickname || editingUser?.username} 的所属用户组</DialogDescription>
           </DialogHeader>
 
-          {selectedUser && (
+          {editingUser && (
             <div className="space-y-6 py-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={selectedUser.avatar || undefined} />
+                  <AvatarImage src={editingUser.avatar || undefined} />
                   <AvatarFallback>
-                    {(selectedUser.nickname || selectedUser.username).charAt(0).toUpperCase()}
+                    {(editingUser.nickname || editingUser.username).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="font-medium">{selectedUser.nickname || selectedUser.username}</div>
-                  <div className="text-sm text-muted-foreground">@{selectedUser.username}</div>
+                  <div className="font-medium">{editingUser.nickname || editingUser.username}</div>
+                  <div className="text-sm text-muted-foreground">@{editingUser.username}</div>
                 </div>
+                {editingUser.group && (
+                  <Badge variant="outline" className="ml-auto text-xs gap-1">
+                    {editingUser.group.color && (
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: editingUser.group.color }} />
+                    )}
+                    {editingUser.group.name}
+                  </Badge>
+                )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">用户角色</label>
-                <Select
-                  value={selectedUser.role}
-                  onValueChange={(v) => handleUpdateRole(v as "USER" | "ADMIN")}
-                  disabled={isUpdating}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USER">普通用户</SelectItem>
-                    <SelectItem value="ADMIN">管理员</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">所属用户组</label>
+                {groups && groups.length > 0 ? (
+                  <Select
+                    value={editingUser.groupId ?? ""}
+                    onValueChange={(groupId) => {
+                      assignGroupMutation.mutate({ userIds: [editingUser.id], groupId });
+                    }}
+                    disabled={assignGroupMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择用户组" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          <span className="flex items-center gap-1.5">
+                            {g.color && (
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                            )}
+                            {g.name}
+                            <span className="text-muted-foreground ml-1">({g._count.users} 人)</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂无用户组</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  用户组决定角色级别（用户/管理员/站长）、功能权限和管理权限模板
+                </p>
               </div>
-
-              {selectedUser.role === "ADMIN" && (
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">权限范围</label>
-                  <div className="space-y-2">
-                    {Object.entries(ADMIN_SCOPES).map(([scope, label]) => (
-                      <div key={scope} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={scope}
-                          checked={editingScopes.includes(scope)}
-                          onCheckedChange={() => toggleScope(scope)}
-                          disabled={isUpdating}
-                        />
-                        <label htmlFor={scope} className="text-sm cursor-pointer">
-                          {label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedUser(null)}>
-              取消
+            <Button variant="outline" onClick={() => setEditingUser(null)}>
+              关闭
             </Button>
-            {selectedUser?.role === "ADMIN" && (
-              <Button onClick={handleUpdateScopes} disabled={isUpdating}>
-                {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存权限
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -786,10 +682,7 @@ export default function AdminUsersClient({ page: initialPage }: { page: number }
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (banningUser) {
-                  banUserMutation.mutate({
-                    userId: banningUser.id,
-                    reason: banReason || undefined,
-                  });
+                  banUserMutation.mutate({ userId: banningUser.id, reason: banReason || undefined });
                 }
               }}
             >

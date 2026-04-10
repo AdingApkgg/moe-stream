@@ -29,7 +29,7 @@ const ALL_PERMISSIONS: GroupPermissions = {
 
 /**
  * 从用户组的 permissions JSON 解析出完整的功能权限。
- * OWNER 直接获得全部权限，其他角色以组权限为准、缺失字段回退默认值。
+ * OWNER 角色直接获得全部权限，其他角色以组权限为准、缺失字段回退默认值。
  */
 export function resolvePermissions(
   role: string,
@@ -51,6 +51,17 @@ export function resolveAdminScopes(role: string, groupAdminScopes?: string[] | n
   return groupAdminScopes.filter((s) => valid.includes(s)) as AdminScope[];
 }
 
+/**
+ * 从用户的 group 信息解析出有效 role。
+ * 优先使用 group.role，回退到 user 自身的 role（兼容未分配组的用户）。
+ */
+export function resolveRole(userRole: string, groupRole?: string | null): "USER" | "ADMIN" | "OWNER" {
+  const effective = groupRole ?? userRole;
+  if (effective === "OWNER") return "OWNER";
+  if (effective === "ADMIN") return "ADMIN";
+  return "USER";
+}
+
 export const GROUP_PERMISSION_LABELS: Record<keyof GroupPermissions, string> = {
   canUpload: "投稿",
   canComment: "评论",
@@ -58,4 +69,10 @@ export const GROUP_PERMISSION_LABELS: Record<keyof GroupPermissions, string> = {
   canChat: "聊天/私信",
   canDownload: "下载文件",
   adsEnabled: "展示广告",
+};
+
+export const ROLE_LABELS: Record<string, string> = {
+  USER: "普通用户",
+  ADMIN: "管理员",
+  OWNER: "站长",
 };

@@ -1,9 +1,7 @@
-import { router, adminProcedure, ownerProcedure, requireScope } from "../../trpc";
+import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { ADMIN_SCOPES } from "@/lib/constants";
 import { isOwner as isOwnerRole } from "@/lib/permissions";
-import { Prisma } from "@/generated/prisma/client";
 
 export const adminUsersRouter = router({
   // ========== 用户管理（站长专用）==========
@@ -156,109 +154,5 @@ export const adminUsersRouter = router({
       });
 
       return { success: true, count: result.count };
-    }),
-
-  // 更新用户角色（站长专用）
-  updateUserRole: ownerProcedure
-    .input(
-      z.object({
-        userId: z.string(),
-        role: z.enum(["USER", "ADMIN"]),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (input.userId === ctx.session.user.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "不能修改自己的角色" });
-      }
-
-      const targetUser = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { role: true },
-      });
-
-      if (!targetUser) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
-
-      if (isOwnerRole(targetUser.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的角色" });
-      }
-
-      const user = await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: {
-          role: input.role,
-          // 降级为普通用户时清空权限
-          ...(input.role === "USER" && { adminScopes: Prisma.DbNull }),
-        },
-        select: { id: true, username: true, role: true, adminScopes: true },
-      });
-
-      return { success: true, user };
-    }),
-
-  // 更新管理员权限范围（站长专用）
-  updateAdminScopes: ownerProcedure
-    .input(
-      z.object({
-        userId: z.string(),
-        scopes: z.array(z.string()),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const targetUser = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { role: true },
-      });
-
-      if (!targetUser) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
-
-      if (targetUser.role !== "ADMIN") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "只能为管理员分配权限" });
-      }
-
-      // 验证权限范围有效性
-      const validScopes = input.scopes.filter((s) => s in ADMIN_SCOPES);
-
-      const user = await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { adminScopes: validScopes },
-        select: { id: true, username: true, role: true, adminScopes: true },
-      });
-
-      return { success: true, user };
-    }),
-
-  // 更新用户广告加载开关（站长或拥有 user:manage 的管理员）
-  updateUserAdsEnabled: adminProcedure
-    .use(requireScope("user:manage"))
-    .input(
-      z.object({
-        userId: z.string(),
-        adsEnabled: z.boolean(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const targetUser = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { role: true },
-      });
-
-      if (!targetUser) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
-
-      if (isOwnerRole(targetUser.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的设置" });
-      }
-
-      await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { adsEnabled: input.adsEnabled },
-      });
-
-      return { success: true };
     }),
 });

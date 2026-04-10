@@ -123,14 +123,15 @@ enum Role {
   OWNER  // 站长，拥有最高权限
 }
 
-/// 用户组，定义功能权限和管理员权限模板
+/// 用户组，定义角色级别、功能权限和管理员权限模板
 model UserGroup {
   id          String   @id @default(cuid())
   name        String   @unique         /// 用户组名称
   description String?                  /// 用户组描述
 
+  role        Role     @default(USER)  /// 组的角色级别，决定成员的 User.role
   permissions Json     @default("{}")  /// 功能权限配置 { canUpload, canComment, canDanmaku, canChat, canDownload, adsEnabled }
-  adminScopes Json?                    /// 管理员权限范围 ["video:moderate", ...]
+  adminScopes Json?                    /// 管理员权限范围 ["video:moderate", ...]（仅 role=ADMIN 时生效）
 
   storageQuota BigInt  @default(5368709120) /// 组默认存储配额（字节），5GB
 

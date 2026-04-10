@@ -7,7 +7,7 @@ import { hash, compare } from "@/lib/bcrypt-wasm";
 
 import { send2faOtpEmail } from "@/lib/email";
 import { isPrivileged } from "@/lib/permissions";
-import { resolvePermissions, type GroupPermissions } from "@/lib/group-permissions";
+import { resolvePermissions, resolveRole, type GroupPermissions } from "@/lib/group-permissions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,14 +175,15 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             twoFactorEnabled: true,
             groupId: true,
             group: {
-              select: { id: true, name: true, permissions: true },
+              select: { id: true, name: true, role: true, permissions: true },
             },
           },
         });
         if (!dbUser) return { user, session };
 
-        const perms = resolvePermissions(dbUser.role, dbUser.group?.permissions as Partial<GroupPermissions> | null);
-        const canUpload = isPrivileged(dbUser.role) || perms.canUpload || dbUser.canUpload === true;
+        const effectiveRole = resolveRole(dbUser.role, dbUser.group?.role);
+        const perms = resolvePermissions(effectiveRole, dbUser.group?.permissions as Partial<GroupPermissions> | null);
+        const canUpload = isPrivileged(effectiveRole) || perms.canUpload || dbUser.canUpload === true;
 
         return {
           session,
@@ -190,7 +191,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
             ...user,
             name: dbUser.nickname || dbUser.username || user.name,
             image: dbUser.avatar || user.image,
-            role: dbUser.role,
+            role: effectiveRole,
             canUpload,
             adsEnabled: perms.adsEnabled,
             twoFactorEnabled: dbUser.twoFactorEnabled,

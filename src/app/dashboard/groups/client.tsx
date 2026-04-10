@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,13 +33,21 @@ import {
 import { toast } from "@/lib/toast-with-sound";
 import { UsersRound, Plus, Pencil, Trash2, Star, Loader2, Shield, Lock } from "lucide-react";
 import { ADMIN_SCOPES } from "@/lib/constants";
-import { DEFAULT_GROUP_PERMISSIONS, GROUP_PERMISSION_LABELS, type GroupPermissions } from "@/lib/group-permissions";
+import {
+  DEFAULT_GROUP_PERMISSIONS,
+  GROUP_PERMISSION_LABELS,
+  ROLE_LABELS,
+  type GroupPermissions,
+} from "@/lib/group-permissions";
 import { cn } from "@/lib/utils";
+
+type GroupRole = "USER" | "ADMIN" | "OWNER";
 
 interface GroupItem {
   id: string;
   name: string;
   description: string | null;
+  role: GroupRole;
   permissions: GroupPermissions;
   adminScopes: string[] | null;
   storageQuota: string;
@@ -65,6 +74,25 @@ function formatStorageQuota(bytes: string): string {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(0)} GB`;
   if (n >= 1048576) return `${(n / 1048576).toFixed(0)} MB`;
   return `${n} B`;
+}
+
+function RoleBadge({ role }: { role: GroupRole }) {
+  switch (role) {
+    case "OWNER":
+      return <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-[11px]">站长</Badge>;
+    case "ADMIN":
+      return (
+        <Badge variant="secondary" className="text-[11px]">
+          管理员
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="text-[11px]">
+          用户
+        </Badge>
+      );
+  }
 }
 
 function PermissionBadges({ permissions }: { permissions: GroupPermissions }) {
@@ -106,6 +134,7 @@ function AdminScopesBadges({ scopes }: { scopes: string[] | null }) {
 interface GroupFormState {
   name: string;
   description: string;
+  role: GroupRole;
   permissions: GroupPermissions;
   adminScopes: string[];
   storageQuota: string;
@@ -115,6 +144,7 @@ interface GroupFormState {
 const defaultFormState: GroupFormState = {
   name: "",
   description: "",
+  role: "USER",
   permissions: { ...DEFAULT_GROUP_PERMISSIONS },
   adminScopes: [],
   storageQuota: "5368709120",
@@ -187,6 +217,7 @@ export default function GroupsClient() {
     setForm({
       name: group.name,
       description: group.description ?? "",
+      role: group.role,
       permissions: { ...group.permissions },
       adminScopes: (group.adminScopes ?? []) as string[],
       storageQuota: group.storageQuota,
@@ -201,6 +232,7 @@ export default function GroupsClient() {
         id: editingGroup.id,
         name: form.name,
         description: form.description || null,
+        role: form.role,
         permissions: form.permissions,
         adminScopes: form.adminScopes.length > 0 ? form.adminScopes : null,
         storageQuota: form.storageQuota,
@@ -210,6 +242,7 @@ export default function GroupsClient() {
       createMutation.mutate({
         name: form.name,
         description: form.description || undefined,
+        role: form.role,
         permissions: form.permissions,
         adminScopes: form.adminScopes.length > 0 ? form.adminScopes : undefined,
         storageQuota: form.storageQuota,
@@ -220,6 +253,7 @@ export default function GroupsClient() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const isDialogOpen = isCreating || !!editingGroup;
+  const isOwnerGroup = editingGroup?.role === "OWNER";
 
   return (
     <div className="space-y-6">
@@ -229,7 +263,7 @@ export default function GroupsClient() {
           <UsersRound className="h-6 w-6 text-primary" />
           <div>
             <h1 className="text-xl font-semibold">用户组管理</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">管理用户组及其权限配置</p>
+            <p className="text-sm text-muted-foreground mt-0.5">管理用户组的角色级别、功能权限和管理权限模板</p>
           </div>
         </div>
         {permissions?.isOwner && (
@@ -265,8 +299,9 @@ export default function GroupsClient() {
               )}
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">{group.name}</CardTitle>
+                    <RoleBadge role={group.role} />
                     {group.isDefault && (
                       <Badge variant="default" className="text-[10px] px-1.5 py-0">
                         <Star className="h-2.5 w-2.5 mr-0.5" />
@@ -282,7 +317,7 @@ export default function GroupsClient() {
                   </div>
                   {permissions?.isOwner && (
                     <div className="flex items-center gap-1">
-                      {!group.isDefault && (
+                      {!group.isDefault && group.role === "USER" && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -302,7 +337,7 @@ export default function GroupsClient() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      {!group.isSystem && (
+                      {!group.isSystem && group.role !== "OWNER" && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -322,10 +357,18 @@ export default function GroupsClient() {
                   <p className="text-xs text-muted-foreground mb-1.5">功能权限</p>
                   <PermissionBadges permissions={group.permissions} />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1.5">管理权限</p>
-                  <AdminScopesBadges scopes={group.adminScopes as string[] | null} />
-                </div>
+                {group.role === "ADMIN" && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">管理权限</p>
+                    <AdminScopesBadges scopes={group.adminScopes as string[] | null} />
+                  </div>
+                )}
+                {group.role === "OWNER" && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">管理权限</p>
+                    <span className="text-xs text-amber-600 font-medium">全部权限（站长）</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm pt-1 border-t">
                   <span className="text-muted-foreground">
                     成员 <span className="font-medium text-foreground">{group._count.users}</span> 人
@@ -353,7 +396,9 @@ export default function GroupsClient() {
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingGroup ? "编辑用户组" : "新建用户组"}</DialogTitle>
-            <DialogDescription>{editingGroup ? "修改用户组的权限和配置" : "创建一个新的用户组"}</DialogDescription>
+            <DialogDescription>
+              {editingGroup ? "修改用户组的角色级别和权限配置" : "创建一个新的用户组"}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-2">
@@ -380,22 +425,44 @@ export default function GroupsClient() {
                   maxLength={200}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="group-color">标识颜色</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="group-color"
-                    type="color"
-                    value={form.color}
-                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                    className="h-8 w-8 rounded border cursor-pointer"
-                  />
-                  <Input
-                    value={form.color}
-                    onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                    className="w-28 font-mono text-sm"
-                    maxLength={20}
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>角色级别</Label>
+                  <Select
+                    value={form.role}
+                    onValueChange={(v) => setForm((f) => ({ ...f, role: v as GroupRole }))}
+                    disabled={isOwnerGroup}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">{ROLE_LABELS.USER}</SelectItem>
+                      <SelectItem value="ADMIN">{ROLE_LABELS.ADMIN}</SelectItem>
+                      <SelectItem value="OWNER" disabled>
+                        {ROLE_LABELS.OWNER}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">决定组内成员的基础权限等级</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="group-color">标识颜色</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="group-color"
+                      type="color"
+                      value={form.color}
+                      onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                      className="h-9 w-9 rounded border cursor-pointer"
+                    />
+                    <Input
+                      value={form.color}
+                      onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                      className="flex-1 font-mono text-sm"
+                      maxLength={20}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -424,33 +491,41 @@ export default function GroupsClient() {
               </div>
             </div>
 
-            {/* 管理员权限 */}
-            <div className="space-y-3">
-              <Label>管理员权限模板</Label>
-              <p className="text-xs text-muted-foreground">仅对 ADMIN 角色生效，OWNER 始终拥有全部权限</p>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(ADMIN_SCOPES).map(([scope, label]) => (
-                  <label
-                    key={scope}
-                    className={cn(
-                      "flex items-center gap-2 rounded-md border p-2.5 cursor-pointer transition-colors",
-                      form.adminScopes.includes(scope) && "border-primary/50 bg-primary/5",
-                    )}
-                  >
-                    <Checkbox
-                      checked={form.adminScopes.includes(scope)}
-                      onCheckedChange={(checked) =>
-                        setForm((f) => ({
-                          ...f,
-                          adminScopes: checked ? [...f.adminScopes, scope] : f.adminScopes.filter((s) => s !== scope),
-                        }))
-                      }
-                    />
-                    <span className="text-sm">{label}</span>
-                  </label>
-                ))}
+            {/* 管理员权限（仅 ADMIN 角色级别时显示） */}
+            {form.role === "ADMIN" && (
+              <div className="space-y-3">
+                <Label>管理员权限模板</Label>
+                <p className="text-xs text-muted-foreground">组内成员将获得以下管理后台权限</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(ADMIN_SCOPES).map(([scope, label]) => (
+                    <label
+                      key={scope}
+                      className={cn(
+                        "flex items-center gap-2 rounded-md border p-2.5 cursor-pointer transition-colors",
+                        form.adminScopes.includes(scope) && "border-primary/50 bg-primary/5",
+                      )}
+                    >
+                      <Checkbox
+                        checked={form.adminScopes.includes(scope)}
+                        onCheckedChange={(checked) =>
+                          setForm((f) => ({
+                            ...f,
+                            adminScopes: checked ? [...f.adminScopes, scope] : f.adminScopes.filter((s) => s !== scope),
+                          }))
+                        }
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {form.role === "OWNER" && (
+              <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-3">
+                <p className="text-sm text-amber-600 font-medium">站长组自动拥有全部管理权限，无需单独配置</p>
+              </div>
+            )}
 
             {/* 存储配额 */}
             <div className="space-y-3">
@@ -498,7 +573,7 @@ export default function GroupsClient() {
             <AlertDialogDescription>
               确定要删除「{deletingGroup?.name}」吗？该组下的{" "}
               <span className="font-medium text-foreground">{deletingGroup?._count.users}</span>{" "}
-              名用户将被移至默认用户组。此操作不可撤销。
+              名用户将被移至默认用户组，其角色也会同步变更。此操作不可撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

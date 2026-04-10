@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { ADMIN_SCOPES } from "@/lib/constants";
 import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
-import { resolveAdminScopes } from "@/lib/group-permissions";
+import { resolveAdminScopes, resolveRole } from "@/lib/group-permissions";
 
 const MAX_RANGE_DAYS = 90;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -36,7 +36,7 @@ export const adminStatsRouter = router({
       select: {
         role: true,
         adminScopes: true,
-        group: { select: { adminScopes: true } },
+        group: { select: { role: true, adminScopes: true } },
       },
     });
 
@@ -44,14 +44,15 @@ export const adminStatsRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const isOwner = isOwnerRole(user.role);
-    const isAdmin = isPrivileged(user.role);
+    const effectiveRole = resolveRole(user.role, user.group?.role);
+    const isOwner = isOwnerRole(effectiveRole);
+    const isAdmin = isPrivileged(effectiveRole);
     const groupAdminScopes = (user.group?.adminScopes as string[] | null) ?? null;
     const userAdminScopes = (user.adminScopes as string[] | null) ?? null;
-    const scopes = resolveAdminScopes(user.role, groupAdminScopes ?? userAdminScopes);
+    const scopes = resolveAdminScopes(effectiveRole, groupAdminScopes ?? userAdminScopes);
 
     return {
-      role: user.role,
+      role: effectiveRole,
       isOwner,
       isAdmin,
       scopes: scopes as string[],

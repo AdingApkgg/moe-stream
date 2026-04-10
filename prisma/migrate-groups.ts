@@ -1,10 +1,11 @@
 /**
  * 数据迁移脚本：创建系统内置用户组，并将现有用户按规则分配到对应组。
+ * 同时同步 User.role 与所属组的 role。
  *
  * 运行方式：pnpm tsx prisma/migrate-groups.ts
  *
  * 迁移规则：
- *   - OWNER → 不分配组（始终绕过权限检查）
+ *   - OWNER → 站长组
  *   - ADMIN + 全部 adminScopes → 全权管理组
  *   - ADMIN + 部分 adminScopes（含 video:moderate 或 comment:manage）→ 内容审核组
  *   - ADMIN + 其他 → 全权管理组（兜底）
@@ -34,6 +35,7 @@ const GROUP_SEEDS = [
   {
     name: "默认用户组",
     description: "新注册用户的默认组",
+    role: "USER" as const,
     permissions: {
       canUpload: false,
       canComment: true,
@@ -52,6 +54,7 @@ const GROUP_SEEDS = [
   {
     name: "投稿用户组",
     description: "具有投稿权限的用户",
+    role: "USER" as const,
     permissions: {
       canUpload: true,
       canComment: true,
@@ -70,6 +73,7 @@ const GROUP_SEEDS = [
   {
     name: "内容审核组",
     description: "负责内容审核的管理员",
+    role: "ADMIN" as const,
     permissions: {
       canUpload: true,
       canComment: true,
@@ -88,6 +92,7 @@ const GROUP_SEEDS = [
   {
     name: "全权管理组",
     description: "拥有所有管理权限的管理员",
+    role: "ADMIN" as const,
     permissions: {
       canUpload: true,
       canComment: true,
@@ -102,6 +107,25 @@ const GROUP_SEEDS = [
     isSystem: true,
     color: "#EF4444",
     sortOrder: 3,
+  },
+  {
+    name: "站长组",
+    description: "站长专属组，拥有最高权限",
+    role: "OWNER" as const,
+    permissions: {
+      canUpload: true,
+      canComment: true,
+      canDanmaku: true,
+      canChat: true,
+      canDownload: true,
+      adsEnabled: false,
+    },
+    adminScopes: undefined as string[] | undefined,
+    storageQuota: BigInt(107374182400),
+    isDefault: false,
+    isSystem: true,
+    color: "#D97706",
+    sortOrder: 99,
   },
 ];
 
@@ -126,6 +150,7 @@ async function main() {
         create: {
           name: g.name,
           description: g.description,
+          role: g.role,
           permissions: g.permissions,
           adminScopes: g.adminScopes ?? undefined,
           storageQuota: g.storageQuota,
@@ -136,7 +161,7 @@ async function main() {
         },
       });
       groupMap[g.name] = group.id;
-      console.log(`   ✓ ${g.name} (${group.id})`);
+      console.log(`   ✓ ${g.name} (${group.id}) — role: ${g.role}`);
     }
 
     // 2. 查询所有未分配组的用户
@@ -151,19 +176,16 @@ async function main() {
     let uploaderCount = 0;
     let moderatorCount = 0;
     let fullAdminCount = 0;
-    let ownerSkipCount = 0;
+    let ownerCount = 0;
 
     for (const user of usersToMigrate) {
-      if (user.role === "OWNER") {
-        ownerSkipCount++;
-        console.log(`   ⏭ ${user.username} (OWNER) — 跳过`);
-        continue;
-      }
-
       let targetGroupName: string;
       const scopes = (user.adminScopes as string[]) ?? [];
 
-      if (user.role === "ADMIN") {
+      if (user.role === "OWNER") {
+        targetGroupName = "站长组";
+        ownerCount++;
+      } else if (user.role === "ADMIN") {
         const hasAllScopes = ALL_ADMIN_SCOPES.every((s) => scopes.includes(s));
         if (hasAllScopes) {
           targetGroupName = "全权管理组";
@@ -196,7 +218,7 @@ async function main() {
     console.log(`   投稿用户组: ${uploaderCount} 人`);
     console.log(`   内容审核组: ${moderatorCount} 人`);
     console.log(`   全权管理组: ${fullAdminCount} 人`);
-    console.log(`   OWNER 跳过: ${ownerSkipCount} 人`);
+    console.log(`   站长组: ${ownerCount} 人`);
     console.log(`\n✅ 用户组迁移完成！`);
   } finally {
     await prisma.$disconnect();
