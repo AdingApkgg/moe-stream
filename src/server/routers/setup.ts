@@ -47,6 +47,51 @@ export const setupRouter = router({
 
       const hashedPassword = await hash(input.password, 10);
 
+      // 确保站长组和默认组存在
+      const ownerGroup = await ctx.prisma.userGroup.upsert({
+        where: { name: "站长组" },
+        update: {},
+        create: {
+          name: "站长组",
+          description: "站长专属组，拥有最高权限",
+          role: "OWNER",
+          permissions: {
+            canUpload: true,
+            canComment: true,
+            canDanmaku: true,
+            canChat: true,
+            canDownload: true,
+            adsEnabled: false,
+          },
+          storageQuota: BigInt(107374182400),
+          isSystem: true,
+          color: "#D97706",
+          sortOrder: 99,
+        },
+      });
+      await ctx.prisma.userGroup.upsert({
+        where: { name: "默认用户组" },
+        update: {},
+        create: {
+          name: "默认用户组",
+          description: "新注册用户的默认组",
+          role: "USER",
+          permissions: {
+            canUpload: false,
+            canComment: true,
+            canDanmaku: true,
+            canChat: true,
+            canDownload: false,
+            adsEnabled: true,
+          },
+          storageQuota: BigInt(5368709120),
+          isDefault: true,
+          isSystem: true,
+          color: "#6B7280",
+          sortOrder: 0,
+        },
+      });
+
       const user = await ctx.prisma.user.create({
         data: {
           email: input.email,
@@ -56,6 +101,7 @@ export const setupRouter = router({
           nickname: input.nickname || input.username,
           role: "OWNER",
           canUpload: true,
+          groupId: ownerGroup.id,
         },
       });
 

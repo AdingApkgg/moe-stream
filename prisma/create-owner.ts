@@ -33,25 +33,45 @@ async function main() {
       },
     });
 
+    // 确保站长组存在
+    const ownerGroup = await prisma.userGroup.upsert({
+      where: { name: "站长组" },
+      update: {},
+      create: {
+        name: "站长组",
+        description: "站长专属组，拥有最高权限",
+        role: "OWNER",
+        permissions: {
+          canUpload: true,
+          canComment: true,
+          canDanmaku: true,
+          canChat: true,
+          canDownload: true,
+          adsEnabled: false,
+        },
+        storageQuota: BigInt(107374182400),
+        isSystem: true,
+        color: "#D97706",
+        sortOrder: 99,
+      },
+    });
+
     if (existing) {
       console.log(`User already exists: ${existing.email} (${existing.username})`);
       console.log(`Current role: ${existing.role}`);
 
-      // 如果存在但不是 OWNER，升级为 OWNER
-      if (existing.role !== "OWNER") {
+      if (existing.role !== "OWNER" || existing.groupId !== ownerGroup.id) {
         await prisma.user.update({
           where: { id: existing.id },
-          data: { role: "OWNER" },
+          data: { role: "OWNER", groupId: ownerGroup.id },
         });
-        console.log("Upgraded to OWNER role!");
+        console.log("Upgraded to OWNER role and assigned to owner group!");
       }
       return;
     }
 
-    // 加密密码
     const hashedPassword = await hash(OWNER_CONFIG.password, 12);
 
-    // 创建站长用户
     const owner = await prisma.user.create({
       data: {
         email: OWNER_CONFIG.email,
@@ -59,7 +79,8 @@ async function main() {
         password: hashedPassword,
         nickname: OWNER_CONFIG.nickname,
         role: "OWNER",
-        emailVerified: new Date(), // 站长账号默认已验证
+        groupId: ownerGroup.id,
+        emailVerified: new Date(),
       },
     });
 

@@ -763,43 +763,6 @@ export const userRouter = router({
       return { users, nextCursor };
     }),
 
-  // 设置用户角色（仅站长）
-  setUserRole: ownerProcedure
-    .input(
-      z.object({
-        userId: z.string(),
-        role: z.enum(["USER", "ADMIN"]), // 站长只能设置为 USER 或 ADMIN
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      // 不能修改自己的角色
-      if (input.userId === ctx.session.user.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "不能修改自己的角色" });
-      }
-
-      // 不能修改其他站长的角色
-      const targetUser = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { role: true },
-      });
-
-      if (!targetUser) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
-      }
-
-      if (isOwner(targetUser.role)) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长的角色" });
-      }
-
-      const user = await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { role: input.role },
-        select: { id: true, username: true, role: true },
-      });
-
-      return { success: true, user };
-    }),
-
   // 转让站长权限（仅站长）
   transferOwnership: ownerProcedure.input(z.object({ userId: z.string() })).mutation(async ({ ctx, input }) => {
     if (input.userId === ctx.session.user.id) {
@@ -814,15 +777,21 @@ export const userRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
     }
 
-    // 事务：将目标用户设为站长，将自己降为管理员
+    const ownerGroup = await ctx.prisma.userGroup.findFirst({ where: { role: "OWNER" } });
+    const adminGroup = await ctx.prisma.userGroup.findFirst({
+      where: { role: "ADMIN" },
+      orderBy: { sortOrder: "desc" },
+    });
+
+    // 事务：将目标用户设为站长（移入站长组），将自己降为管理员（移入管理组）
     await ctx.prisma.$transaction([
       ctx.prisma.user.update({
         where: { id: input.userId },
-        data: { role: "OWNER" },
+        data: { role: "OWNER", ...(ownerGroup && { groupId: ownerGroup.id }) },
       }),
       ctx.prisma.user.update({
         where: { id: ctx.session.user.id },
-        data: { role: "ADMIN" },
+        data: { role: "ADMIN", ...(adminGroup && { groupId: adminGroup.id }) },
       }),
     ]);
 
