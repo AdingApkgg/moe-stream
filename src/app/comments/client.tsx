@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
+import { getRedirectUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -434,7 +435,7 @@ function GuestbookSection() {
                         )}
                         {msg.guestWebsite && (
                           <a
-                            href={msg.guestWebsite}
+                            href={getRedirectUrl(msg.guestWebsite)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"

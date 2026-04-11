@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Map, ExternalLink, Globe, Search, FolderTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getRedirectUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Sitemap 站点地图",
@@ -92,7 +93,7 @@ export default function SitemapInfoPage() {
           ].map((engine) => (
             <a
               key={engine.name}
-              href={engine.url}
+              href={getRedirectUrl(engine.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
@@ -107,7 +108,7 @@ export default function SitemapInfoPage() {
       <div className="text-sm text-muted-foreground pt-4 border-t">
         站点地图遵循{" "}
         <a
-          href="https://www.sitemaps.org/protocol.html"
+          href={getRedirectUrl("https://www.sitemaps.org/protocol.html")}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline"

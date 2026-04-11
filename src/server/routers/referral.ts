@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure, adminProcedure } from "../trpc";
+import { router, protectedProcedure, adminProcedure, requireScope } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { awardDailyLogin, awardCheckin } from "@/lib/points";
@@ -470,6 +470,7 @@ export const referralRouter = router({
         where.OR = [
           { label: { contains: search.trim(), mode: "insensitive" } },
           { code: { contains: search.trim(), mode: "insensitive" } },
+          { note: { contains: search.trim(), mode: "insensitive" } },
         ];
       }
       if (channel !== undefined && channel !== "") {
@@ -503,6 +504,7 @@ export const referralRouter = router({
         label: z.string().max(100).optional(),
         channel: z.string().max(50).optional(),
         targetUrl: z.string().url().optional(),
+        note: z.string().max(500).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -534,6 +536,7 @@ export const referralRouter = router({
           label: input.label || null,
           channel: input.channel || null,
           targetUrl: input.targetUrl || null,
+          note: input.note || null,
         },
       });
 
@@ -545,6 +548,9 @@ export const referralRouter = router({
       z.object({
         id: z.string(),
         label: z.string().max(100).optional(),
+        channel: z.string().max(50).optional(),
+        targetUrl: z.string().url().or(z.literal("")).optional(),
+        note: z.string().max(500).optional(),
         isActive: z.boolean().optional(),
       }),
     )
@@ -560,6 +566,9 @@ export const referralRouter = router({
 
       const data: Record<string, unknown> = {};
       if (input.label !== undefined) data.label = input.label || null;
+      if (input.channel !== undefined) data.channel = input.channel || null;
+      if (input.targetUrl !== undefined) data.targetUrl = input.targetUrl || null;
+      if (input.note !== undefined) data.note = input.note || null;
       if (input.isActive !== undefined) data.isActive = input.isActive;
 
       return ctx.prisma.referralLink.update({
@@ -832,6 +841,70 @@ export const referralRouter = router({
         referralCount: t._count.id,
         totalPoints: t._sum.pointsAwarded || 0,
       }));
+    }),
+
+  adminGetAllLinks: adminProcedure
+    .use(requireScope("referral:view_all"))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(20),
+        page: z.number().min(1).default(1),
+        search: z.string().optional(),
+        channel: z.string().optional(),
+        isActive: z.boolean().optional(),
+        userId: z.string().optional(),
+        sortBy: z.enum(["createdAt", "clicks", "uniqueClicks", "registers", "paymentAmount"]).default("createdAt"),
+        sortDir: z.enum(["asc", "desc"]).default("desc"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page, search, channel, isActive, userId, sortBy, sortDir } = input;
+
+      const where: Record<string, unknown> = {};
+      if (userId) where.userId = userId;
+      if (search?.trim()) {
+        where.OR = [
+          { label: { contains: search.trim(), mode: "insensitive" } },
+          { code: { contains: search.trim(), mode: "insensitive" } },
+          { note: { contains: search.trim(), mode: "insensitive" } },
+          {
+            user: {
+              OR: [
+                { username: { contains: search.trim(), mode: "insensitive" } },
+                { nickname: { contains: search.trim(), mode: "insensitive" } },
+              ],
+            },
+          },
+        ];
+      }
+      if (channel !== undefined && channel !== "") {
+        where.channel = channel === "_none" ? null : channel;
+      }
+      if (isActive !== undefined) {
+        where.isActive = isActive;
+      }
+
+      const [links, totalCount] = await Promise.all([
+        ctx.prisma.referralLink.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { [sortBy]: sortDir },
+          include: {
+            user: {
+              select: { id: true, username: true, nickname: true, avatar: true },
+            },
+          },
+        }),
+        ctx.prisma.referralLink.count({ where }),
+      ]);
+
+      return {
+        links,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   adminAdjustPoints: adminProcedure

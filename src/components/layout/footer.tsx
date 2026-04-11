@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSiteConfig } from "@/contexts/site-config";
+import { getRedirectUrl } from "@/lib/utils";
 
 export function Footer() {
   const config = useSiteConfig();
@@ -71,7 +72,7 @@ export function Footer() {
             </Link>
             {githubUrl && (
               <a
-                href={githubUrl}
+                href={getRedirectUrl(githubUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
@@ -83,7 +84,7 @@ export function Footer() {
             {footerLinks.map((link, index) => (
               <a
                 key={index}
-                href={link.url}
+                href={getRedirectUrl(link.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"

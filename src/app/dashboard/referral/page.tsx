@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { getRedirectUrl } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,6 +51,8 @@ import {
   CheckCircle,
   Clock,
   Upload,
+  Pencil,
+  StickyNote,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -325,6 +329,106 @@ const LINK_SORT_OPTIONS: { value: LinkSortBy; label: string }[] = [
   { value: "registers", label: "注册数" },
 ];
 
+type EditingLink = {
+  id: string;
+  label: string;
+  channel: string;
+  targetUrl: string;
+  note: string;
+};
+
+function LinkEditDialogInner({ link, onClose }: { link: EditingLink; onClose: () => void }) {
+  const [label, setLabel] = useState(link.label);
+  const [channel, setChannel] = useState(link.channel || "");
+  const [targetUrl, setTargetUrl] = useState(link.targetUrl || "");
+  const [note, setNote] = useState(link.note || "");
+
+  const utils = trpc.useUtils();
+
+  const updateMutation = trpc.referral.updateLink.useMutation({
+    onSuccess: () => {
+      toast.success("推广链接已更新");
+      onClose();
+      utils.referral.getMyLinks.invalidate();
+      utils.referral.getMyStats.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>编辑推广链接</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">标签</label>
+          <Input placeholder="如：B站个人简介" value={label} onChange={(e) => setLabel(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">渠道</label>
+          <Select value={channel || "_none"} onValueChange={setChannel}>
+            <SelectTrigger>
+              <SelectValue placeholder="选择渠道" />
+            </SelectTrigger>
+            <SelectContent>
+              {CHANNEL_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value || "_none"}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">自定义落地页</label>
+          <Input placeholder="https://..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
+          <p className="text-xs text-muted-foreground">留空则跳转到站点首页</p>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">备注</label>
+          <Textarea
+            placeholder="添加备注信息..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={500}
+          />
+          <p className="text-xs text-muted-foreground">{note.length}/500</p>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          取消
+        </Button>
+        <Button
+          onClick={() =>
+            updateMutation.mutate({
+              id: link.id,
+              label: label || undefined,
+              channel: (channel === "_none" ? "" : channel) || undefined,
+              targetUrl: targetUrl || "",
+              note: note || undefined,
+            })
+          }
+          disabled={updateMutation.isPending}
+        >
+          {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+          保存
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function LinkEditDialog({ link, onClose }: { link: EditingLink | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!link} onOpenChange={() => onClose()}>
+      {link && <LinkEditDialogInner link={link} onClose={onClose} />}
+    </Dialog>
+  );
+}
+
 function LinksManager() {
   const siteConfig = useSiteConfig();
   const siteUrl = siteConfig?.siteUrl || (typeof window !== "undefined" ? window.location.origin : "");
@@ -332,9 +436,11 @@ function LinksManager() {
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingLink, setEditingLink] = useState<EditingLink | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newChannel, setNewChannel] = useState("");
   const [newTargetUrl, setNewTargetUrl] = useState("");
+  const [newNote, setNewNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterChannel, setFilterChannel] = useState<string>("");
   const [filterActive, setFilterActive] = useState<string>("all");
@@ -369,13 +475,14 @@ function LinksManager() {
       setNewLabel("");
       setNewChannel("");
       setNewTargetUrl("");
+      setNewNote("");
       utils.referral.getMyLinks.invalidate();
       utils.referral.getMyStats.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const updateMutation = trpc.referral.updateLink.useMutation({
+  const toggleMutation = trpc.referral.updateLink.useMutation({
     onSuccess: () => {
       toast.success("已更新");
       utils.referral.getMyLinks.invalidate();
@@ -600,6 +707,12 @@ function LinksManager() {
                     <div className="text-xs text-muted-foreground font-mono truncate">
                       {siteUrl}/r/{link.code}
                     </div>
+                    {link.note && (
+                      <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                        <StickyNote className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{link.note}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <MousePointerClick className="h-3 w-3" />
@@ -617,14 +730,29 @@ function LinksManager() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Switch
                       checked={link.isActive}
-                      onCheckedChange={(checked) => updateMutation.mutate({ id: link.id, isActive: checked })}
+                      onCheckedChange={(checked) => toggleMutation.mutate({ id: link.id, isActive: checked })}
                     />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setEditingLink({
+                          id: link.id,
+                          label: link.label || "",
+                          channel: link.channel || "",
+                          targetUrl: link.targetUrl || "",
+                          note: link.note || "",
+                        })
+                      }
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`${siteUrl}/r/${link.code}`)}>
                       <Copy className="h-4 w-4" />
                     </Button>
                     {link.targetUrl && (
                       <Button variant="ghost" size="icon" asChild>
-                        <a href={link.targetUrl} target="_blank" rel="noreferrer">
+                        <a href={getRedirectUrl(link.targetUrl)} target="_blank" rel="noreferrer">
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>
@@ -667,6 +795,9 @@ function LinksManager() {
         </CardContent>
       </Card>
 
+      {/* Edit Dialog */}
+      <LinkEditDialog link={editingLink} onClose={() => setEditingLink(null)} />
+
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
@@ -698,6 +829,17 @@ function LinksManager() {
               <Input placeholder="https://..." value={newTargetUrl} onChange={(e) => setNewTargetUrl(e.target.value)} />
               <p className="text-xs text-muted-foreground">留空则跳转到站点首页</p>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">备注（可选）</label>
+              <Textarea
+                placeholder="添加备注信息..."
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">{newNote.length}/500</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>
@@ -709,6 +851,7 @@ function LinksManager() {
                   label: newLabel || undefined,
                   channel: (newChannel === "_none" ? "" : newChannel) || undefined,
                   targetUrl: newTargetUrl || undefined,
+                  note: newNote || undefined,
                 })
               }
               disabled={createMutation.isPending}

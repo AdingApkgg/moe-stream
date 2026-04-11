@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { useSession } from "@/lib/auth-client";
@@ -201,6 +201,16 @@ export function GamePageClient({
       setTimeout(() => setCopiedUrl(null), 2000);
     },
     [play],
+  );
+
+  const trackDownload = trpc.game.trackDownload.useMutation();
+
+  const handleDownloadClick = useCallback(
+    (url: string) => {
+      trackDownload.mutate({ gameId: id });
+      window.open(getRedirectUrl(url), "_blank", "noopener,noreferrer");
+    },
+    [id, trackDownload],
   );
 
   const handleShare = useCallback(async () => {
@@ -473,6 +483,12 @@ export function GamePageClient({
                   <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   {initialGame._count.comments}
                 </span>
+                {initialGame.downloads > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    {formatViews(initialGame.downloads)}
+                  </span>
+                )}
                 {/* 上传者 + 日期放在同一行 */}
                 <span className="hidden sm:flex items-center gap-1 text-muted-foreground/60">|</span>
                 <Link
@@ -733,19 +749,23 @@ export function GamePageClient({
                               )}
                             </div>
                             {/* 桌面端按钮 */}
-                            <Button size="sm" className="gap-1.5 shrink-0 hidden sm:inline-flex" asChild>
-                              <a href={dl.url} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4" />
-                                下载
-                              </a>
+                            <Button
+                              size="sm"
+                              className="gap-1.5 shrink-0 hidden sm:inline-flex"
+                              onClick={() => handleDownloadClick(dl.url)}
+                            >
+                              <Download className="h-4 w-4" />
+                              下载
                             </Button>
                           </div>
                           {/* 移动端全宽按钮 */}
-                          <Button size="sm" className="w-full gap-1.5 mt-2 sm:hidden" asChild>
-                            <a href={dl.url} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4" />
-                              下载资源
-                            </a>
+                          <Button
+                            size="sm"
+                            className="w-full gap-1.5 mt-2 sm:hidden"
+                            onClick={() => handleDownloadClick(dl.url)}
+                          >
+                            <Download className="h-4 w-4" />
+                            下载资源
                           </Button>
                         </div>
                       ))}
@@ -1032,7 +1052,7 @@ export function GamePageClient({
                           {extra.authorUrl && (
                             <InfoRow icon={ExternalLink} label="作者网址">
                               <a
-                                href={extra.authorUrl}
+                                href={getRedirectUrl(extra.authorUrl)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
@@ -1116,7 +1136,7 @@ export function GamePageClient({
                         {extra.authorUrl && (
                           <InfoRow icon={ExternalLink} label="作者网址">
                             <a
-                              href={extra.authorUrl}
+                              href={getRedirectUrl(extra.authorUrl)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-primary hover:underline inline-flex items-center gap-1 text-xs"

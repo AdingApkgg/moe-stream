@@ -1,6 +1,7 @@
 "use client";
 
 import type { SiteConfig } from "@/generated/prisma/client";
+import { getRedirectUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,7 +138,12 @@ export function TabOauth({ config }: { config: SiteConfig | undefined }) {
                     </h4>
                     <FormDescription>
                       在{" "}
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      <a
+                        href={getRedirectUrl(url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
                         {urlLabel}
                       </a>{" "}
                       创建应用。回调 URL：

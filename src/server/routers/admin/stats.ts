@@ -149,7 +149,7 @@ export const adminStatsRouter = router({
     .input(
       z.object({
         type: z.enum(["video", "game", "image", "uploader", "points", "commentator", "collector", "liker"]),
-        metric: z.enum(["views", "likes", "favorites", "comments", "uploads"]),
+        metric: z.enum(["views", "likes", "favorites", "comments", "uploads", "downloads"]),
         limit: z.number().min(5).max(50).default(20),
       }),
     )
@@ -541,6 +541,7 @@ export const adminStatsRouter = router({
           title: true,
           coverUrl: true,
           views: true,
+          downloads: true,
           uploader: { select: { id: true, nickname: true, username: true, avatar: true } },
           _count: { select: { likes: true, favorites: true, comments: { where: { isDeleted: false } } } },
         } as const;
@@ -568,6 +569,37 @@ export const adminStatsRouter = router({
                 likes: g._count.likes,
                 favorites: g._count.favorites,
                 comments: g._count.comments,
+                downloads: g.downloads,
+              },
+            })),
+            type,
+            metric,
+          };
+        }
+        if (metric === "downloads") {
+          const games = await ctx.prisma.game.findMany({
+            where: { status: "PUBLISHED" },
+            orderBy: { downloads: "desc" },
+            take: limit,
+            select: baseSelect,
+          });
+          return {
+            items: games.map((g) => ({
+              id: g.id,
+              title: g.title,
+              coverUrl: g.coverUrl,
+              value: g.downloads,
+              uploader: {
+                id: g.uploader.id,
+                name: g.uploader.nickname || g.uploader.username,
+                avatar: g.uploader.avatar,
+              },
+              stats: {
+                views: g.views,
+                likes: g._count.likes,
+                favorites: g._count.favorites,
+                comments: g._count.comments,
+                downloads: g.downloads,
               },
             })),
             type,
@@ -596,6 +628,7 @@ export const adminStatsRouter = router({
               likes: g._count.likes,
               favorites: g._count.favorites,
               comments: g._count.comments,
+              downloads: g.downloads,
             },
           })),
           type,

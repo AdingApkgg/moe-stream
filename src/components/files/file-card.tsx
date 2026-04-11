@@ -21,7 +21,7 @@ import {
   Download,
   ExternalLink,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 
 interface FileCardFile {
   id: string;
@@ -96,7 +96,7 @@ export function FileCard({ file, onDelete, onDetach, onAttach, showAttachInfo = 
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href={file.url} target="_blank" rel="noopener noreferrer">
+                <a href={getRedirectUrl(file.url)} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4 mr-2" />
                   新窗口打开
                 </a>

@@ -34,7 +34,7 @@ export const gameRouter = router({
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         gameType: z.string().optional(),
-        sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
+        sortBy: z.enum(["latest", "views", "likes", "downloads", "titleAsc", "titleDesc"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
       }),
     )
@@ -98,6 +98,7 @@ export const gameRouter = router({
       const orderBy = {
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
+        downloads: { downloads: "desc" as const },
         likes: { createdAt: "desc" as const },
         titleAsc: { title: "asc" as const },
         titleDesc: { title: "desc" as const },
@@ -879,6 +880,22 @@ export const gameRouter = router({
         totalPages: Math.ceil(totalCount / limit),
         currentPage: page,
       };
+    }),
+
+  /** 记录下载 */
+  trackDownload: publicProcedure
+    .input(z.object({ gameId: z.string(), visitorId: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.visitorId) {
+        const dedupKey = `download:game:${input.gameId}:${input.visitorId}`;
+        const isNew = await redisSetNX(dedupKey, "1", 3600);
+        if (!isNew) return { success: true, deduplicated: true };
+      }
+      await ctx.prisma.game.update({
+        where: { id: input.gameId },
+        data: { downloads: { increment: 1 } },
+      });
+      return { success: true };
     }),
 
   /** 增加浏览量 */

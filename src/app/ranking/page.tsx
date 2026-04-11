@@ -25,6 +25,7 @@ import {
   Coins,
   Users,
   Flame,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,7 +34,7 @@ import {
 type ContentType = "video" | "game" | "image";
 type UserType = "uploader" | "points" | "commentator" | "collector" | "liker";
 type RankCategory = "content" | "user";
-type Metric = "views" | "likes" | "favorites" | "comments" | "uploads";
+type Metric = "views" | "likes" | "favorites" | "comments" | "uploads" | "downloads";
 
 const CONTENT_TYPES: { id: ContentType; label: string; icon: LucideIcon }[] = [
   { id: "video", label: "视频", icon: Video },
@@ -56,6 +57,10 @@ const METRICS: { id: Metric; label: string; icon: LucideIcon }[] = [
   { id: "comments", label: "评论", icon: MessageSquare },
 ];
 
+const GAME_EXTRA_METRICS: { id: Metric; label: string; icon: LucideIcon }[] = [
+  { id: "downloads", label: "下载", icon: Download },
+];
+
 function getContentHref(type: ContentType, id: string): string {
   if (type === "video") return `/video/${id}`;
   if (type === "game") return `/game/${id}`;
@@ -68,6 +73,7 @@ const METRIC_ICON_MAP: Record<Metric, LucideIcon> = {
   favorites: Star,
   comments: MessageSquare,
   uploads: Upload,
+  downloads: Download,
 };
 
 const USER_TYPE_ICON_MAP: Record<UserType, LucideIcon> = {
@@ -389,7 +395,11 @@ export default function RankingPage() {
             <Tabs
               value={contentType}
               onValueChange={(v) => {
-                setContentType(v as ContentType);
+                const newType = v as ContentType;
+                setContentType(newType);
+                if (newType !== "game" && metric === "downloads") {
+                  setMetric("views");
+                }
                 play("navigate");
               }}
             >
@@ -417,6 +427,13 @@ export default function RankingPage() {
                     {m.label}
                   </TabsTrigger>
                 ))}
+                {contentType === "game" &&
+                  GAME_EXTRA_METRICS.map((m) => (
+                    <TabsTrigger key={m.id} value={m.id} className="text-xs px-3 h-7 gap-1.5">
+                      <m.icon className="h-3.5 w-3.5" />
+                      {m.label}
+                    </TabsTrigger>
+                  ))}
               </TabsList>
             </Tabs>
           </div>

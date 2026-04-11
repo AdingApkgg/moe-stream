@@ -1,6 +1,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { TRPCError } from "@trpc/server";
-import { isPrivileged, canUploadContent } from "@/lib/permissions";
+import { isPrivileged } from "@/lib/permissions";
+import { resolvePermissions, resolveRole, type GroupPermissions } from "@/lib/group-permissions";
 
 type ContentType = "video" | "game" | "imagePost";
 
@@ -151,6 +152,7 @@ export function resolvePublishStatus(userRole: string): "PUBLISHED" | "PENDING" 
 
 /**
  * 检查用户投稿权限，不满足则抛出 TRPCError。
+ * 综合考虑用户组的 role 和 permissions.canUpload。
  */
 export async function assertCanUpload(
   prisma: PrismaClient,
@@ -158,21 +160,29 @@ export async function assertCanUpload(
 ): Promise<{ role: string; canUpload: boolean }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, canUpload: true },
+    select: {
+      role: true,
+      canUpload: true,
+      group: { select: { role: true, permissions: true } },
+    },
   });
 
   if (!user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "用户不存在" });
   }
 
-  if (!canUploadContent(user)) {
+  const effectiveRole = resolveRole(user.role, user.group?.role);
+  const perms = resolvePermissions(effectiveRole, user.group?.permissions as Partial<GroupPermissions> | null);
+  const canUpload = isPrivileged(effectiveRole) || perms.canUpload || user.canUpload === true;
+
+  if (!canUpload) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "暂无投稿权限，请联系管理员开通",
     });
   }
 
-  return user;
+  return { role: effectiveRole, canUpload };
 }
 
 /**

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Rss, ExternalLink, BookOpen, Bell, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getRedirectUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "RSS 订阅",
@@ -77,7 +78,7 @@ export default function RssPage() {
           {readers.map((reader) => (
             <a
               key={reader.name}
-              href={reader.url}
+              href={getRedirectUrl(reader.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -95,7 +96,7 @@ export default function RssPage() {
       <div className="text-sm text-muted-foreground pt-4 border-t">
         订阅源遵循{" "}
         <a
-          href="https://www.rssboard.org/rss-specification"
+          href={getRedirectUrl("https://www.rssboard.org/rss-specification")}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline"

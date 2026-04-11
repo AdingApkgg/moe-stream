@@ -1,6 +1,7 @@
 "use client";
 
 import type { SiteConfig } from "@/generated/prisma/client";
+import { getRedirectUrl } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -166,7 +167,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href="https://dash.cloudflare.com/?to=/:account/turnstile"
+                  href={getRedirectUrl("https://dash.cloudflare.com/?to=/:account/turnstile")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -210,7 +211,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href="https://www.google.com/recaptcha/admin"
+                  href={getRedirectUrl("https://www.google.com/recaptcha/admin")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -254,7 +255,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href="https://dashboard.hcaptcha.com/"
+                  href={getRedirectUrl("https://dashboard.hcaptcha.com/")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"

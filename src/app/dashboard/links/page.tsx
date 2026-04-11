@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast-with-sound";
 import { Link2, Plus, Edit2, Trash2, Eye, EyeOff, Loader2, ExternalLink, Globe } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 
 interface FriendLinkItem {
   id: string;
@@ -231,7 +231,7 @@ export default function AdminLinksPage() {
                       <div className="min-w-0">
                         <span className="font-medium block truncate">{link.name}</span>
                         <a
-                          href={link.url}
+                          href={getRedirectUrl(link.url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-muted-foreground hover:underline truncate block"
@@ -260,7 +260,12 @@ export default function AdminLinksPage() {
                           {link.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer" title="在新标签页打开">
+                          <a
+                            href={getRedirectUrl(link.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="在新标签页打开"
+                          >
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         </Button>

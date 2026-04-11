@@ -11,6 +11,7 @@ import Link from "next/link";
 import { MotionPage } from "@/components/motion";
 import { getCoverUrl } from "@/lib/cover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getRedirectUrl } from "@/lib/utils";
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "--:--";
@@ -113,7 +114,7 @@ export default function SeriesPage() {
                   </Alert>
                 )}
                 <Button asChild className="w-full sm:w-auto">
-                  <a href={series.downloadUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={getRedirectUrl(series.downloadUrl)} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4 mr-2" />
                     下载资源
                     <ExternalLink className="h-3 w-3 ml-2 opacity-50" />

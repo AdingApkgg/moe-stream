@@ -46,7 +46,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { formatRelativeTime } from "@/lib/format";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 import { useAvatarUrl } from "@/lib/avatar";
 import { useSiteConfig } from "@/contexts/site-config";
 import { CommentContent } from "./comment-content";
@@ -343,7 +343,7 @@ export function ImagePostCommentItem({
     <div className={cn("flex gap-3", isReply && "ml-12")}>
       {isGuest ? (
         comment.guestWebsite ? (
-          <a href={comment.guestWebsite} target="_blank" rel="noopener noreferrer">
+          <a href={getRedirectUrl(comment.guestWebsite)} target="_blank" rel="noopener noreferrer">
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src={guestAvatarUrl} />
               <AvatarFallback>{avatarFallbackChar}</AvatarFallback>
@@ -369,7 +369,7 @@ export function ImagePostCommentItem({
           {isGuest ? (
             comment.guestWebsite ? (
               <a
-                href={comment.guestWebsite}
+                href={getRedirectUrl(comment.guestWebsite)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-sm hover:underline"

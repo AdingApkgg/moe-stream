@@ -6,7 +6,7 @@ import { useStableSession } from "@/lib/hooks";
 import { getSocket } from "@/lib/socket-client";
 import { useSocketStore } from "@/stores/socket";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 import { Loader2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import dayjs from "dayjs";
@@ -151,7 +151,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
                 )}
                 {msg.type === "FILE" && (
                   <a
-                    href={(msg.metadata as Record<string, string>)?.fileUrl || "#"}
+                    href={getRedirectUrl((msg.metadata as Record<string, string>)?.fileUrl || "#")}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline"

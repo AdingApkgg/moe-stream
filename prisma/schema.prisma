@@ -419,6 +419,7 @@ model Game {
                           // }
 
   views       Int         @default(0)
+  downloads   Int         @default(0) /// 下载次数
   isNsfw      Boolean     @default(false) /// NSFW 标记
   status      VideoStatus @default(PENDING) // 复用审核状态枚举
 
@@ -442,6 +443,7 @@ model Game {
   @@index([status])
   @@index([createdAt])
   @@index([gameType])
+  @@index([downloads])
 }
 
 model GameVersion {
@@ -1353,6 +1355,7 @@ model ReferralLink {
   label         String?
   channel       String?
   targetUrl     String?
+  note          String?  /// 备注信息
   clicks        Int      @default(0) // 总点击（含重复）
   uniqueClicks  Int      @default(0) // 去重点击（同一访客同日仅计一次）
   registers     Int      @default(0)

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Ad } from "@/lib/ads";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 
 interface AdCardProps {
   ad: Ad;
@@ -16,7 +16,7 @@ interface AdCardProps {
 export function AdCard({ ad, compact, className }: AdCardProps) {
   return (
     <a
-      href={ad.url}
+      href={getRedirectUrl(ad.url)}
       target="_blank"
       rel="noopener noreferrer sponsored"
       className={cn(

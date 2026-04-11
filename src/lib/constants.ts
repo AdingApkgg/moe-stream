@@ -8,6 +8,7 @@ export const ADMIN_SCOPES = {
   "tag:manage": "标签管理",
   "settings:manage": "系统设置",
   "comment:manage": "评论管理",
+  "referral:view_all": "全站推广查看",
 } as const;
 
 export type AdminScope = keyof typeof ADMIN_SCOPES;

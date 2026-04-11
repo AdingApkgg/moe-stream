@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link2, Globe, ExternalLink, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
+import { getRedirectUrl } from "@/lib/utils";
 
 interface SerializedLink {
   id: string;
@@ -80,7 +81,13 @@ export function LinksClient({ links }: LinksClientProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-10">
           {links.map((link) => (
-            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="group block">
+            <a
+              key={link.id}
+              href={getRedirectUrl(link.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block"
+            >
               <div className="rounded-xl border bg-card p-5 transition-all duration-200 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">
                 <div className="flex items-start gap-4">
                   <div className="shrink-0 w-14 h-14 rounded-xl bg-muted flex items-center justify-center overflow-hidden ring-1 ring-border/50 group-hover:ring-primary/30 transition-colors">

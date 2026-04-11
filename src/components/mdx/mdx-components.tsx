@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import { CodeBlock } from "./code-block";
+import { getRedirectUrl } from "@/lib/utils";
 
 /** prose 样式类（供各 MDX 渲染器共享） */
 export const mdxProseClasses = [
@@ -22,16 +23,19 @@ export const mdxProseClasses = [
 export function getMDXComponents(overrides: MDXComponents = {}): MDXComponents {
   return {
     pre: (props) => <CodeBlock {...props} />,
-    a: ({ href, children, ...props }) => (
-      <a
-        href={href}
-        target={href?.startsWith("http") ? "_blank" : undefined}
-        rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
-        {...props}
-      >
-        {children}
-      </a>
-    ),
+    a: ({ href, children, ...props }) => {
+      const isExternal = href?.startsWith("http");
+      return (
+        <a
+          href={isExternal && href ? getRedirectUrl(href) : href}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noopener noreferrer" : undefined}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
     img: ({ src, alt, ...props }) => (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={src} alt={alt || ""} className="rounded-lg max-w-full h-auto" loading="lazy" {...props} />

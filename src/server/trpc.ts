@@ -93,6 +93,7 @@ async function resolveApiKey(headers: Headers | undefined): Promise<{
           adsEnabled: true,
           twoFactorEnabled: true,
           isBanned: true,
+          group: { select: { role: true } },
         },
       },
     },
@@ -104,13 +105,14 @@ async function resolveApiKey(headers: Headers | undefined): Promise<{
 
   prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
 
+  const effectiveRole = resolveRole(apiKey.user.role, apiKey.user.group?.role);
   const session: AppSession = {
     user: {
       id: apiKey.user.id,
       email: apiKey.user.email,
       name: apiKey.user.nickname,
       image: apiKey.user.avatar,
-      role: apiKey.user.role as "USER" | "ADMIN" | "OWNER",
+      role: effectiveRole,
       canUpload: apiKey.user.canUpload,
       adsEnabled: apiKey.user.adsEnabled,
       twoFactorEnabled: apiKey.user.twoFactorEnabled,

@@ -77,6 +77,7 @@ const menuGroups: MenuGroup[] = [
     label: "推广",
     items: [
       { href: "/dashboard/referral", label: "推广中心", icon: TrendingUp, scope: null },
+      { href: "/dashboard/referral-admin", label: "全站推广", icon: Link2, scope: "referral:view_all" },
       { href: "/dashboard/points", label: "积分管理", icon: Coins, scope: "settings:manage" },
       { href: "/dashboard/payment", label: "支付管理", icon: Wallet, scope: "settings:manage" },
     ],

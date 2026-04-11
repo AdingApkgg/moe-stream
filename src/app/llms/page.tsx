@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Bot, ExternalLink, FileText, Layers, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getRedirectUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "llms.txt",
@@ -115,7 +116,7 @@ export default function LlmsPage() {
       <div className="text-sm text-muted-foreground pt-4 border-t">
         了解更多关于 llms.txt 标准，请访问{" "}
         <a
-          href="https://llmstxt.org"
+          href={getRedirectUrl("https://llmstxt.org")}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline"

@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 
 function useAdminPrivacyConfig() {
   const { data } = trpc.admin.getSiteConfig.useQuery(undefined, {
@@ -1227,7 +1227,7 @@ function GuestbookCard({
               {message.guestEmail && <span className="flex items-center gap-1">邮箱: {message.guestEmail}</span>}
               {message.guestWebsite && (
                 <a
-                  href={message.guestWebsite}
+                  href={getRedirectUrl(message.guestWebsite)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline text-primary"

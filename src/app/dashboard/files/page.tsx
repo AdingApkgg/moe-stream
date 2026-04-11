@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { getRedirectUrl } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -278,7 +279,7 @@ export default function AdminFilesPage() {
                               <DropdownMenuContent align="end">
                                 {file.url && (
                                   <DropdownMenuItem asChild>
-                                    <a href={file.url} target="_blank" rel="noopener noreferrer">
+                                    <a href={getRedirectUrl(file.url)} target="_blank" rel="noopener noreferrer">
                                       <ExternalLink className="h-4 w-4 mr-2" />
                                       查看文件
                                     </a>

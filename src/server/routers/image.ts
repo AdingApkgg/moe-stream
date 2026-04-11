@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { awardPoints } from "@/lib/points";
+import { resolveRole } from "@/lib/group-permissions";
 import {
   generateContentId,
   resolveAllTagIds,
@@ -298,9 +299,10 @@ export const imageRouter = router({
 
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.session.user.id },
-      select: { role: true },
+      select: { role: true, group: { select: { role: true } } },
     });
-    assertOwnership(post.uploaderId, ctx.session.user.id, user?.role ?? "USER", "无权编辑此图片帖");
+    const effectiveRole = resolveRole(user?.role ?? "USER", user?.group?.role);
+    assertOwnership(post.uploaderId, ctx.session.user.id, effectiveRole, "无权编辑此图片帖");
 
     return post;
   }),
