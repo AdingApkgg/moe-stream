@@ -310,6 +310,7 @@ export const adminConfigRouter = router({
                 .array(z.enum(["all", "sidebar", "header", "in-feed", "ad-gate"]))
                 .optional()
                 .default(["all"]),
+              displayMode: z.enum(["card", "banner"]).optional().default("card"),
               /** @deprecated 兼容旧数据，读取时由客户端 normalizePositions 处理 */
               position: z.enum(["all", "sidebar", "header", "in-feed", "ad-gate", "video-page"]).optional(),
               startDate: z.string().nullable().optional(),

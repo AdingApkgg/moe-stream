@@ -33,6 +33,14 @@ export function resolveSlotPosition(slotId: string): AdPosition | undefined {
 
 const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
 
+/** 广告展示模式 */
+export type AdDisplayMode = "card" | "banner";
+
+export const AD_DISPLAY_MODES: { value: AdDisplayMode; label: string }[] = [
+  { value: "card", label: "卡片" },
+  { value: "banner", label: "横幅" },
+];
+
 /** 单条广告的数据结构（存储在 SiteConfig.sponsorAds JSON 中） */
 export interface Ad {
   /** 唯一标识（uuid，用于编辑/删除） */
@@ -53,6 +61,8 @@ export interface Ad {
   enabled: boolean;
   /** 展示位置列表（包含 "all" 表示所有位置） */
   positions: AdPosition[];
+  /** 展示模式（card = 卡片，banner = 横幅），默认 card */
+  displayMode?: AdDisplayMode;
   /** 投放开始时间（ISO string，为空表示立即开始） */
   startDate?: string | null;
   /** 投放结束时间（ISO string，为空表示长期有效） */

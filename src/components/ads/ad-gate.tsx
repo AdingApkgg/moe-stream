@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useSiteConfigForAds } from "@/hooks/use-ads";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
 import { pickWeightedRandomAds, getActiveAds, normalizePositions } from "@/lib/ads";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
 const STORAGE_VIEW_COUNT = "acgn_ad_gate_view_count";
 const SESSION_CLICK_AT = "acgn_ad_gate_click_at";
-const MIN_AWAY_MS = 1000; // 至少在新标签页停留 1 秒再返回才计数
+const MIN_AWAY_MS = 1000;
 const MAX_AWAY_MS = 10 * 60 * 1000;
 
-/** 从 JSON 解析广告列表（兼容旧格式） */
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((item, idx) => ({
@@ -31,6 +31,136 @@ function parseAds(raw: unknown): Ad[] {
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,
   }));
+}
+
+const AUTO_PLAY_MS = 4000;
+
+function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) => void }) {
+  const [current, setCurrent] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const total = ads.length;
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (total <= 1) return;
+    timerRef.current = setInterval(() => {
+      setCurrent((i) => (i + 1) % total);
+    }, AUTO_PLAY_MS);
+  }, [total]);
+
+  useEffect(() => {
+    resetTimer();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [resetTimer]);
+
+  const go = useCallback(
+    (dir: -1 | 1) => {
+      setCurrent((i) => (i + dir + total) % total);
+      resetTimer();
+    },
+    [total, resetTimer],
+  );
+
+  const goTo = useCallback(
+    (idx: number) => {
+      setCurrent(idx);
+      resetTimer();
+    },
+    [resetTimer],
+  );
+
+  if (total === 0) return null;
+  const ad = ads[current];
+
+  return (
+    <div className="relative rounded-xl overflow-hidden">
+      {/* 广告内容 */}
+      <button
+        type="button"
+        onClick={() => onClickAd(ad.url)}
+        className="group relative w-full text-left transition-all"
+      >
+        {ad.imageUrl ? (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={ad.imageUrl}
+              alt={ad.title}
+              className="w-full h-auto block transition-transform group-hover:scale-[1.02]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate drop-shadow-sm">{ad.title}</p>
+                {ad.description && (
+                  <p className="text-xs text-white/80 line-clamp-1 drop-shadow-sm">{ad.description}</p>
+                )}
+              </div>
+              {ad.platform && (
+                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white font-medium backdrop-blur-sm">
+                  {ad.platform}
+                </span>
+              )}
+            </div>
+            <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-white/70 backdrop-blur-sm">
+              广告
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 bg-muted/50 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground truncate">{ad.title}</span>
+              {ad.platform && (
+                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {ad.platform}
+                </span>
+              )}
+            </div>
+            {ad.description && <p className="text-xs text-muted-foreground line-clamp-2">{ad.description}</p>}
+          </div>
+        )}
+      </button>
+
+      {/* 左右切换箭头 */}
+      {total > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white/80 hover:bg-black/50 hover:text-white transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white/80 hover:bg-black/50 hover:text-white transition-colors"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </>
+      )}
+
+      {/* 底部指示器 */}
+      {total > 1 && (
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1.5 py-1">
+          {ads.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => goTo(idx)}
+              className={cn(
+                "h-1.5 rounded-full transition-all",
+                idx === current ? "w-4 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60",
+              )}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdGate() {
@@ -54,7 +184,6 @@ export function AdGate() {
     status !== "loading" &&
     (session === null ? true : (session.user as { adsEnabled?: boolean })?.adsEnabled !== false);
 
-  // 随机选一条用于「随机观看广告」按钮
   const randomAd = useMemo(() => pickWeightedRandomAds(enabledAds, 1, "ad-gate")[0] ?? null, [enabledAds]);
 
   const openSponsor = useCallback((url: string) => {
@@ -144,7 +273,7 @@ export function AdGate() {
   if (freeUntil != null && (now === 0 || freeUntil > now) && !completed) return null;
   if (completed) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm">
         <div className="mx-4 max-w-md space-y-6 rounded-xl border bg-card p-6 text-center shadow-lg">
           <p className="text-lg font-medium text-foreground">感谢您的支持！</p>
           <p className="text-sm text-muted-foreground">
@@ -159,8 +288,11 @@ export function AdGate() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background p-4">
-      <div className="mx-auto w-full max-w-lg space-y-6 rounded-xl border bg-card p-6 shadow-lg">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/60 backdrop-blur-sm p-4">
+      <div
+        className="w-full max-w-lg space-y-5 rounded-xl border bg-card p-6 shadow-xl"
+        style={{ height: "fit-content" }}
+      >
         <div className="text-center space-y-2">
           <h2 className="text-xl font-semibold">感谢支持</h2>
           <p className="text-sm text-muted-foreground">
@@ -171,68 +303,18 @@ export function AdGate() {
           </p>
         </div>
 
-        <div className="flex justify-center gap-2">
+        <div className="flex items-center justify-center gap-3">
           <span className="rounded-full bg-primary/20 px-3 py-1 text-sm font-medium text-primary">
             {viewCount}/{required} 已完成
           </span>
-        </div>
-
-        {randomAd && (
-          <div className="flex justify-center">
-            <Button variant="outline" size="lg" className="gap-2" onClick={() => openSponsor(randomAd.url)}>
+          {randomAd && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openSponsor(randomAd.url)}>
               🎲 随机观看广告
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
-        <p className="text-center text-sm text-muted-foreground">🎯 点击下方广告或随机按钮，支持本站运营！</p>
-
-        <ul className="space-y-2">
-          {enabledAds.map((ad, i) => (
-            <li key={i}>
-              <button
-                type="button"
-                onClick={() => openSponsor(ad.url)}
-                className={cn(
-                  "w-full rounded-lg border bg-muted/50 text-left text-sm transition-colors overflow-hidden",
-                  "hover:bg-muted hover:border-primary/50",
-                )}
-              >
-                {ad.imageUrl ? (
-                  <div className="flex gap-3 p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={ad.imageUrl} alt={ad.title} className="w-16 h-16 rounded object-cover shrink-0" />
-                    <div className="flex flex-col justify-center min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground truncate">{ad.title}</span>
-                        {ad.platform && (
-                          <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium leading-none">
-                            {ad.platform}
-                          </span>
-                        )}
-                      </div>
-                      {ad.description && (
-                        <span className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{ad.description}</span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-foreground">{ad.title}</span>
-                      {ad.platform && (
-                        <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary font-medium leading-none">
-                          {ad.platform}
-                        </span>
-                      )}
-                    </div>
-                    {ad.description && <span className="mt-1 block text-muted-foreground">{ad.description}</span>}
-                  </div>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <AdCarousel ads={enabledAds} onClickAd={openSponsor} />
       </div>
     </div>
   );

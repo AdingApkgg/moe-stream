@@ -13,6 +13,7 @@ import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
+import { HeaderBannerCarousel } from "@/components/ads/header-banner";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
@@ -167,6 +168,9 @@ export function GameListClient({
   return (
     <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
+        {/* 横幅轮播广告 */}
+        <HeaderBannerCarousel className="mb-4" />
+
         {/* 公告横幅 */}
         {siteConfig?.announcementEnabled && siteConfig.announcement && (
           <div
