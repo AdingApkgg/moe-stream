@@ -16,7 +16,7 @@ export function HeaderBannerCarousel({ className }: { className?: string }) {
     () => true,
     () => false,
   );
-  const { ads, showAds } = useRandomAds(5, "header-banner", resolveSlotPosition("header"));
+  const { ads, showAds } = useRandomAds(5, "header-carousel", resolveSlotPosition("header-carousel"));
 
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);

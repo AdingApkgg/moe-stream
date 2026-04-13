@@ -2,15 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import type { Ad, AdPosition, AdDisplayMode } from "@/lib/ads";
-import {
-  AD_POSITIONS,
-  AD_POSITION_SPECIFIC,
-  AD_DISPLAY_MODES,
-  isAdInSchedule,
-  normalizePositions,
-  getPositionsLabel,
-} from "@/lib/ads";
+import type { Ad, AdPosition } from "@/lib/ads";
+import { AD_POSITIONS, AD_POSITION_SPECIFIC, isAdInSchedule, normalizePositions, getPositionsLabel } from "@/lib/ads";
 import { AdCard } from "@/components/ads/ad-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,7 +105,6 @@ const emptyForm: AdFormData = {
   weight: 1,
   enabled: true,
   positions: ["all"],
-  displayMode: "card",
   startDate: null,
   endDate: null,
 };
@@ -129,7 +121,6 @@ function parseAds(raw: unknown): Ad[] {
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
     positions: normalizePositions(item),
-    displayMode: (item.displayMode as AdDisplayMode) ?? "card",
     startDate: item.startDate ?? null,
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,
@@ -312,7 +303,6 @@ export default function AdsManagementPage() {
             weight: a.weight,
             enabled: a.enabled,
             positions: a.positions.length > 0 ? a.positions : ["all"],
-            displayMode: a.displayMode || "card",
             startDate: a.startDate || null,
             endDate: a.endDate || null,
             createdAt: a.createdAt,
@@ -362,7 +352,6 @@ export default function AdsManagementPage() {
       weight: ad.weight,
       enabled: ad.enabled,
       positions: ad.positions,
-      displayMode: ad.displayMode || "card",
       startDate: ad.startDate || null,
       endDate: ad.endDate || null,
     });
@@ -906,11 +895,6 @@ export default function AdsManagementPage() {
                                 {ad.platform}
                               </Badge>
                             )}
-                            {ad.displayMode === "banner" && (
-                              <Badge variant="outline" className="text-[11px]">
-                                横幅
-                              </Badge>
-                            )}
                           </div>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1 truncate max-w-[200px]">
@@ -1115,31 +1099,6 @@ export default function AdsManagementPage() {
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="简短广告描述"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">展示模式</label>
-                <div className="flex gap-2">
-                  {AD_DISPLAY_MODES.map((mode) => (
-                    <button
-                      key={mode.value}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, displayMode: mode.value }))}
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
-                        "hover:border-primary/50 hover:bg-accent",
-                        form.displayMode === mode.value
-                          ? "border-primary bg-primary/10 text-primary shadow-sm"
-                          : "border-border/60 bg-card text-muted-foreground",
-                      )}
-                    >
-                      {mode.value === "card" ? "🃏" : "🖼️"} {mode.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  卡片模式适合有缩略图的广告，横幅模式适合全宽展示的广告图
-                </p>
               </div>
 
               <div className="space-y-2">
