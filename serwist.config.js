@@ -7,6 +7,9 @@ const config = {
   globDirectory: "public",
   globPatterns: [],
   injectionPoint: undefined,
+  esbuildOptions: {
+    target: "es2020",
+  },
 };
 
 module.exports = config;
