@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useRandomAds } from "@/hooks/use-ads";
 import { resolveSlotPosition } from "@/lib/ads";
-import { getRedirectUrl } from "@/lib/utils";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { cn } from "@/lib/utils";
+import { cn, getRedirectUrl } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const AUTO_PLAY_MS = 5000;

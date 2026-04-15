@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { getRedirectUrl } from "@/lib/utils";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 export function Footer() {
   const config = useSiteConfig();

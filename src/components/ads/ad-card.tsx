@@ -3,7 +3,6 @@
 import type { Ad } from "@/lib/ads";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { cn, getRedirectUrl } from "@/lib/utils";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface AdCardProps {
   ad: Ad;

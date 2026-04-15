@@ -31,7 +31,6 @@ import { toast } from "@/lib/toast-with-sound";
 import { Link2, Plus, Edit2, Trash2, Eye, EyeOff, Loader2, ExternalLink, Globe } from "lucide-react";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface FriendLinkItem {
   id: string;

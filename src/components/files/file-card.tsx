@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface FileCardFile {
   id: string;

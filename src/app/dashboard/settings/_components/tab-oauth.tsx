@@ -3,7 +3,6 @@
 import type { SiteConfig } from "@/generated/prisma/client";
 import { getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

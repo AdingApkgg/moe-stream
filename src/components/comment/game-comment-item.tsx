@@ -48,7 +48,6 @@ import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useAvatarUrl } from "@/lib/avatar";
 import { useSiteConfig } from "@/contexts/site-config";
 import { CommentContent } from "./comment-content";

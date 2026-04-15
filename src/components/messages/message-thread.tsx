@@ -8,7 +8,6 @@ import { useSocketStore } from "@/stores/socket";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
-import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Loader2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import dayjs from "dayjs";
