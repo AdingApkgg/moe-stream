@@ -45,6 +45,8 @@ import {
   BarChart3,
   MessageSquare,
   Eye,
+  ExternalLink,
+  ImageIcon,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 
@@ -63,6 +65,8 @@ const TabSeo = lazy(() => import("./_components/tab-seo").then((m) => ({ default
 const TabMessaging = lazy(() => import("./_components/tab-messaging").then((m) => ({ default: m.TabMessaging })));
 const TabPrivacy = lazy(() => import("./_components/tab-privacy").then((m) => ({ default: m.TabPrivacy })));
 const TabAnalytics = lazy(() => import("./_components/tab-analytics").then((m) => ({ default: m.TabAnalytics })));
+const TabRedirect = lazy(() => import("./_components/tab-redirect").then((m) => ({ default: m.TabRedirect })));
+const TabMedia = lazy(() => import("./_components/tab-media").then((m) => ({ default: m.TabMedia })));
 
 function TabLoading() {
   return (
@@ -240,6 +244,9 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="content" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <FileText className="h-3.5 w-3.5" /> 内容设置
             </TabsTrigger>
+            <TabsTrigger value="media" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <ImageIcon className="h-3.5 w-3.5" /> 媒体处理
+            </TabsTrigger>
             <TabsTrigger value="messaging" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <MessageSquare className="h-3.5 w-3.5" /> 通讯
             </TabsTrigger>
@@ -265,6 +272,9 @@ export default function AdminSettingsPage() {
             </span>
             <TabsTrigger value="privacy" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <Eye className="h-3.5 w-3.5" /> 信息展示
+            </TabsTrigger>
+            <TabsTrigger value="redirect" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <ExternalLink className="h-3.5 w-3.5" /> 外链中转
             </TabsTrigger>
             <TabsTrigger value="captcha" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <ShieldCheck className="h-3.5 w-3.5" /> 验证码
@@ -301,6 +311,7 @@ export default function AdminSettingsPage() {
                 <SelectItem value="basic">基本信息</SelectItem>
                 <SelectItem value="features">功能开关</SelectItem>
                 <SelectItem value="content">内容设置</SelectItem>
+                <SelectItem value="media">媒体处理</SelectItem>
                 <SelectItem value="messaging">通讯</SelectItem>
               </SelectGroup>
               <SelectSeparator />
@@ -319,6 +330,7 @@ export default function AdminSettingsPage() {
               <SelectGroup>
                 <SelectLabel>安全与隐私</SelectLabel>
                 <SelectItem value="privacy">信息展示</SelectItem>
+                <SelectItem value="redirect">外链中转</SelectItem>
                 <SelectItem value="captcha">验证码</SelectItem>
                 <SelectItem value="oauth">登录</SelectItem>
                 <SelectItem value="email">邮件</SelectItem>
@@ -348,6 +360,10 @@ export default function AdminSettingsPage() {
               <TabContent config={config} />
             </TabsContent>
 
+            <TabsContent value="media">
+              <TabMedia config={config} />
+            </TabsContent>
+
             <TabsContent value="messaging">
               <TabMessaging config={config} />
             </TabsContent>
@@ -370,6 +386,10 @@ export default function AdminSettingsPage() {
 
             <TabsContent value="privacy">
               <TabPrivacy config={config} />
+            </TabsContent>
+
+            <TabsContent value="redirect">
+              <TabRedirect config={config} />
             </TabsContent>
 
             <TabsContent value="captcha">

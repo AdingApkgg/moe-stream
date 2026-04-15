@@ -2,6 +2,8 @@
 
 import type { SiteConfig } from "@/generated/prisma/client";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +18,7 @@ import { useTabForm } from "../_lib/use-tab-form";
 type CaptchaType = z.infer<typeof captchaType>;
 
 export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
+  const redirectOpts = useRedirectOptions();
   const { form, onSubmit, onFormError, isPending } = useTabForm({
     schema: captchaTabSchema,
     pickValues: pickCaptchaValues,
@@ -167,7 +170,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href={getRedirectUrl("https://dash.cloudflare.com/?to=/:account/turnstile")}
+                  href={getRedirectUrl("https://dash.cloudflare.com/?to=/:account/turnstile", redirectOpts)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -211,7 +214,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href={getRedirectUrl("https://www.google.com/recaptcha/admin")}
+                  href={getRedirectUrl("https://www.google.com/recaptcha/admin", redirectOpts)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -255,7 +258,7 @@ export function TabCaptcha({ config }: { config: SiteConfig | undefined }) {
               <FormDescription className="mt-0">
                 在{" "}
                 <a
-                  href={getRedirectUrl("https://dashboard.hcaptcha.com/")}
+                  href={getRedirectUrl("https://dashboard.hcaptcha.com/", redirectOpts)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useRandomAds } from "@/hooks/use-ads";
 import { resolveSlotPosition } from "@/lib/ads";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -11,6 +13,7 @@ const AUTO_PLAY_MS = 5000;
 const emptySubscribe = () => () => {};
 
 export function HeaderBannerCarousel({ className }: { className?: string }) {
+  const redirectOpts = useRedirectOptions();
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -59,7 +62,7 @@ export function HeaderBannerCarousel({ className }: { className?: string }) {
   return (
     <div className={cn("relative rounded-xl overflow-hidden", className)}>
       <a
-        href={getRedirectUrl(ad.url)}
+        href={getRedirectUrl(ad.url, redirectOpts)}
         target="_blank"
         rel="noopener noreferrer sponsored"
         className="group block w-full"

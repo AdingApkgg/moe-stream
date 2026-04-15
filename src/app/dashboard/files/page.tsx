@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +76,7 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
 };
 
 export default function AdminFilesPage() {
+  const redirectOpts = useRedirectOptions();
   const [statusFilter, setStatusFilter] = useState("UPLOADED");
   const [mimeFilter, setMimeFilter] = useState("all");
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
@@ -279,7 +282,11 @@ export default function AdminFilesPage() {
                               <DropdownMenuContent align="end">
                                 {file.url && (
                                   <DropdownMenuItem asChild>
-                                    <a href={getRedirectUrl(file.url)} target="_blank" rel="noopener noreferrer">
+                                    <a
+                                      href={getRedirectUrl(file.url, redirectOpts)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
                                       <ExternalLink className="h-4 w-4 mr-2" />
                                       查看文件
                                     </a>

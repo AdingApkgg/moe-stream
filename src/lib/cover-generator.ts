@@ -3,7 +3,8 @@ import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import sharp from "sharp";
-import { COVER_CONFIG } from "@/lib/cover-config";
+import { COVER_CONFIG, resolveCoverEncoding } from "@/lib/cover-config";
+import type { CoverEncodingConfig } from "@/lib/server-config";
 
 export type CoverFormat = (typeof COVER_CONFIG.formats)[number];
 
@@ -391,13 +392,28 @@ export async function selectBestFrame(
  *
  * 编码参数已从 cover-config 集中管理
  */
+function encodingOrDefault(
+  encoding?: Pick<CoverEncodingConfig, "avifQuality" | "avifEffort" | "webpQuality" | "jpegQuality">,
+) {
+  return (
+    encoding ?? {
+      avifQuality: COVER_CONFIG.avifQuality,
+      avifEffort: COVER_CONFIG.avifEffort,
+      webpQuality: COVER_CONFIG.webpQuality,
+      jpegQuality: COVER_CONFIG.jpegQuality,
+    }
+  );
+}
+
 export async function convertFrameToCover(
   framePath: string,
   outputPath: string,
   format: CoverFormat,
   width?: number,
+  encoding?: Pick<CoverEncodingConfig, "avifQuality" | "avifEffort" | "webpQuality" | "jpegQuality">,
 ): Promise<boolean> {
   try {
+    const enc = encodingOrDefault(encoding);
     let pipeline = sharp(framePath);
 
     if (width) {
@@ -406,13 +422,13 @@ export async function convertFrameToCover(
 
     switch (format) {
       case "avif":
-        await pipeline.avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort }).toFile(outputPath);
+        await pipeline.avif({ quality: enc.avifQuality, effort: enc.avifEffort }).toFile(outputPath);
         break;
       case "webp":
-        await pipeline.webp({ quality: COVER_CONFIG.webpQuality }).toFile(outputPath);
+        await pipeline.webp({ quality: enc.webpQuality }).toFile(outputPath);
         break;
       case "jpg":
-        await pipeline.jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true }).toFile(outputPath);
+        await pipeline.jpeg({ quality: enc.jpegQuality, mozjpeg: true }).toFile(outputPath);
         break;
       default:
         await pipeline.jpeg({ quality: 88 }).toFile(outputPath);
@@ -477,6 +493,7 @@ export async function generateCoverForVideo(
   coverDir: string,
   options?: GenerateCoverOptions,
 ): Promise<GenerateCoverResult | null> {
+  const coverEnc = await resolveCoverEncoding();
   const maxRetries = options?.maxRetries ?? COVER_CONFIG.maxRetries;
   const retryDelayMs = options?.retryDelayMs ?? COVER_CONFIG.retryDelay;
   const startTime = Date.now();
@@ -485,7 +502,7 @@ export async function generateCoverForVideo(
 
   const best = await selectBestFrame(videoUrl, {
     samplePoints: options?.samplePoints,
-    width: options?.width ?? COVER_CONFIG.width,
+    width: options?.width ?? coverEnc.width,
     timeoutMs: options?.timeoutMs,
   });
 
@@ -501,7 +518,7 @@ export async function generateCoverForVideo(
       const coverFilePath = path.join(coverDir, coverFileName);
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const ok = await convertFrameToCover(best.framePath, coverFilePath, format);
+        const ok = await convertFrameToCover(best.framePath, coverFilePath, format, coverEnc.width, coverEnc);
         if (ok) return { format, coverFileName };
         if (attempt < maxRetries) await sleep(retryDelayMs);
       }
@@ -543,13 +560,14 @@ export async function retryGenerateCover(
   format: CoverFormat,
   options?: GenerateCoverOptions,
 ): Promise<boolean> {
+  const coverEnc = await resolveCoverEncoding();
   const maxRetries = options?.maxRetries ?? COVER_CONFIG.maxRetries;
   const retryDelayMs = options?.retryDelayMs ?? COVER_CONFIG.retryDelay;
 
   // Step 1: 选帧（仅一次）
   const best = await selectBestFrame(videoUrl, {
     samplePoints: options?.samplePoints,
-    width: options?.width ?? COVER_CONFIG.width,
+    width: options?.width ?? coverEnc.width,
     timeoutMs: options?.timeoutMs,
   });
   if (!best) return false;
@@ -557,7 +575,7 @@ export async function retryGenerateCover(
   try {
     // Step 2: 格式转换（可重试）
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      const ok = await convertFrameToCover(best.framePath, outputPath, format);
+      const ok = await convertFrameToCover(best.framePath, outputPath, format, coverEnc.width, coverEnc);
       if (ok) return true;
       if (attempt < maxRetries) await sleep(retryDelayMs);
     }

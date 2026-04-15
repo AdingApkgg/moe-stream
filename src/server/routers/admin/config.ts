@@ -38,6 +38,14 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "allowedVideoFormats",
   "adminBatchLimit",
   "uploadBatchLimit",
+  "imageCompressEnabled",
+  "imageCompressProfiles",
+  "imageCompressBypassRules",
+  "coverWidth",
+  "coverAvifQuality",
+  "coverAvifEffort",
+  "coverWebpQuality",
+  "coverJpegQuality",
   "contactEmail",
   "socialLinks",
   "privacyPolicy",
@@ -172,6 +180,12 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "adminShowFullIp",
   "adminShowUserAgent",
   "adminShowDeviceDetail",
+  "redirectEnabled",
+  "redirectCountdown",
+  "redirectWhitelist",
+  "redirectTitle",
+  "redirectDescription",
+  "redirectDisclaimer",
 ]);
 
 const NON_NULLABLE_KEYS = new Set([
@@ -259,6 +273,49 @@ export const adminConfigRouter = router({
         allowedVideoFormats: z.string().max(200).optional(),
         adminBatchLimit: z.number().int().min(100).max(100000).optional(),
         uploadBatchLimit: z.number().int().min(1).max(100000).optional(),
+
+        // 媒体 / 图片压缩
+        imageCompressEnabled: z.boolean().optional(),
+        imageCompressProfiles: z
+          .record(
+            z.enum(["avatar", "cover", "misc", "sticker"]),
+            z.object({
+              enabled: z.boolean(),
+              format: z.enum(["webp", "avif"]),
+              quality: z.number().int().min(1).max(100),
+              lossless: z.boolean(),
+              maxWidth: z.number().int().min(16).max(8192),
+              maxHeight: z.number().int().min(16).max(8192),
+            }),
+          )
+          .optional()
+          .nullable(),
+        imageCompressBypassRules: z
+          .array(
+            z.object({
+              id: z.string().min(1).max(80),
+              name: z.string().max(200),
+              enabled: z.boolean(),
+              conditions: z.object({
+                mimeTypes: z.array(z.string().max(120)).max(50),
+                uploadTypes: z.array(z.string().max(32)).max(20),
+                maxFileSize: z
+                  .number()
+                  .int()
+                  .min(1)
+                  .max(500 * 1024 * 1024)
+                  .nullable(),
+              }),
+            }),
+          )
+          .max(30)
+          .optional()
+          .nullable(),
+        coverWidth: z.number().int().min(256).max(4096).optional(),
+        coverAvifQuality: z.number().int().min(1).max(100).optional(),
+        coverAvifEffort: z.number().int().min(0).max(9).optional(),
+        coverWebpQuality: z.number().int().min(1).max(100).optional(),
+        coverJpegQuality: z.number().int().min(1).max(100).optional(),
 
         // 联系方式
         contactEmail: z.string().email().optional().nullable().or(z.literal("")),
@@ -468,6 +525,14 @@ export const adminConfigRouter = router({
         adminShowUserAgent: z.boolean().optional(),
         adminShowDeviceDetail: z.boolean().optional(),
 
+        // 外链中转
+        redirectEnabled: z.boolean().optional(),
+        redirectCountdown: z.number().int().min(1).max(30).optional(),
+        redirectWhitelist: z.array(z.string().max(253)).max(200).optional(),
+        redirectTitle: z.string().max(100).optional().nullable().or(z.literal("")),
+        redirectDescription: z.string().max(500).optional().nullable().or(z.literal("")),
+        redirectDisclaimer: z.string().max(500).optional().nullable().or(z.literal("")),
+
         // 统计分析
         analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),
         analyticsGtmId: z.string().max(200).optional().nullable().or(z.literal("")),
@@ -530,6 +595,16 @@ export const adminConfigRouter = router({
       if (Array.isArray(cleaned.fileStorageRouteRules)) {
         cleaned.fileStorageRouteRules = JSON.parse(
           JSON.stringify(cleaned.fileStorageRouteRules),
+        ) as Prisma.InputJsonValue;
+      }
+      if (cleaned.imageCompressProfiles != null && typeof cleaned.imageCompressProfiles === "object") {
+        cleaned.imageCompressProfiles = JSON.parse(
+          JSON.stringify(cleaned.imageCompressProfiles),
+        ) as Prisma.InputJsonValue;
+      }
+      if (Array.isArray(cleaned.imageCompressBypassRules)) {
+        cleaned.imageCompressBypassRules = JSON.parse(
+          JSON.stringify(cleaned.imageCompressBypassRules),
         ) as Prisma.InputJsonValue;
       }
 

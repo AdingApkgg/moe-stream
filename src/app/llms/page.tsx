@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bot, ExternalLink, FileText, Layers, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRedirectUrl } from "@/lib/utils";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "llms.txt",
@@ -24,7 +25,9 @@ const files = [
   },
 ];
 
-export default function LlmsPage() {
+export default async function LlmsPage() {
+  const siteConfig = await getPublicSiteConfig();
+  const redirectOpts = { enabled: siteConfig.redirectEnabled, whitelist: siteConfig.redirectWhitelist };
   return (
     <div className="container max-w-3xl py-10 space-y-10">
       <div className="space-y-3">
@@ -116,7 +119,7 @@ export default function LlmsPage() {
       <div className="text-sm text-muted-foreground pt-4 border-t">
         了解更多关于 llms.txt 标准，请访问{" "}
         <a
-          href={getRedirectUrl("https://llmstxt.org")}
+          href={getRedirectUrl("https://llmstxt.org", redirectOpts)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline"

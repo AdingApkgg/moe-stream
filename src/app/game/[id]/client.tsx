@@ -45,6 +45,7 @@ import {
 import { GameVideoPlayer } from "@/components/game/game-video-player";
 import { formatViews, formatDate } from "@/lib/format";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { useSession } from "@/lib/auth-client";
@@ -142,6 +143,7 @@ export function GamePageClient({
   versionContents,
   customTabContents,
 }: GamePageClientProps) {
+  const redirectOpts = useRedirectOptions();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -208,9 +210,9 @@ export function GamePageClient({
   const handleDownloadClick = useCallback(
     (url: string) => {
       trackDownload.mutate({ gameId: id });
-      window.open(getRedirectUrl(url), "_blank", "noopener,noreferrer");
+      window.open(getRedirectUrl(url, redirectOpts), "_blank", "noopener,noreferrer");
     },
-    [id, trackDownload],
+    [id, trackDownload, redirectOpts],
   );
 
   const handleShare = useCallback(async () => {
@@ -1052,7 +1054,7 @@ export function GamePageClient({
                           {extra.authorUrl && (
                             <InfoRow icon={ExternalLink} label="作者网址">
                               <a
-                                href={getRedirectUrl(extra.authorUrl)}
+                                href={getRedirectUrl(extra.authorUrl, redirectOpts)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
@@ -1136,7 +1138,7 @@ export function GamePageClient({
                         {extra.authorUrl && (
                           <InfoRow icon={ExternalLink} label="作者网址">
                             <a
-                              href={getRedirectUrl(extra.authorUrl)}
+                              href={getRedirectUrl(extra.authorUrl, redirectOpts)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-primary hover:underline inline-flex items-center gap-1 text-xs"

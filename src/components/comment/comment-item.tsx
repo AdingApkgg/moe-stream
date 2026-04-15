@@ -47,6 +47,8 @@ import { formatRelativeTime } from "@/lib/format";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useAvatarUrl } from "@/lib/avatar";
 import { useSiteConfig } from "@/contexts/site-config";
 import { CommentContent } from "./comment-content";
@@ -98,6 +100,7 @@ interface CommentItemProps {
 
 export function CommentItem({ comment, videoId, parentId, isReply = false, onReplyToComment }: CommentItemProps) {
   const { data: session } = useSession();
+  const redirectOpts = useRedirectOptions();
   const siteConfig = useSiteConfig();
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -367,7 +370,7 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
       {isGuest ? (
         // 访客头像（可点击网址）
         comment.guestWebsite ? (
-          <a href={getRedirectUrl(comment.guestWebsite)} target="_blank" rel="noopener noreferrer">
+          <a href={getRedirectUrl(comment.guestWebsite, redirectOpts)} target="_blank" rel="noopener noreferrer">
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src={guestAvatarUrl} />
               <AvatarFallback>{avatarFallbackChar}</AvatarFallback>
@@ -396,7 +399,7 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
             // 访客名称（可点击网址）
             comment.guestWebsite ? (
               <a
-                href={getRedirectUrl(comment.guestWebsite)}
+                href={getRedirectUrl(comment.guestWebsite, redirectOpts)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-sm hover:underline"

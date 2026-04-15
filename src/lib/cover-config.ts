@@ -1,3 +1,17 @@
+/**
+ * 从站点配置读取封面编码参数（宽度与质量），其余队列/超时等仍用本文件 `COVER_CONFIG`）
+ */
+export async function resolveCoverEncoding(): Promise<{
+  width: number;
+  avifQuality: number;
+  avifEffort: number;
+  webpQuality: number;
+  jpegQuality: number;
+}> {
+  const { getServerConfig } = await import("@/lib/server-config");
+  return (await getServerConfig()).coverEncoding;
+}
+
 export const COVER_CONFIG = {
   /** 最终封面宽度 */
   width: 1280,

@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 export function Footer() {
   const config = useSiteConfig();
+  const redirectOpts = useRedirectOptions();
 
   const siteName = config?.siteName || "ACGN Site";
   const footerLinks = config?.footerLinks || [];
@@ -72,7 +75,7 @@ export function Footer() {
             </Link>
             {githubUrl && (
               <a
-                href={getRedirectUrl(githubUrl)}
+                href={getRedirectUrl(githubUrl, redirectOpts)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"
@@ -84,7 +87,7 @@ export function Footer() {
             {footerLinks.map((link, index) => (
               <a
                 key={index}
-                href={getRedirectUrl(link.url)}
+                href={getRedirectUrl(link.url, redirectOpts)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-foreground transition-colors"

@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link2, Globe, ExternalLink, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface SerializedLink {
   id: string;
@@ -29,6 +30,7 @@ interface LinksClientProps {
 }
 
 export function LinksClient({ links }: LinksClientProps) {
+  const redirectOpts = useRedirectOptions();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [logo, setLogo] = useState("");
@@ -83,7 +85,7 @@ export function LinksClient({ links }: LinksClientProps) {
           {links.map((link) => (
             <a
               key={link.id}
-              href={getRedirectUrl(link.url)}
+              href={getRedirectUrl(link.url, redirectOpts)}
               target="_blank"
               rel="noopener noreferrer"
               className="group block"

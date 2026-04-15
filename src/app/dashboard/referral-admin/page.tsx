@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ function copyToClipboard(text: string) {
 }
 
 export default function ReferralAdminPage() {
+  const redirectOpts = useRedirectOptions();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterChannel, setFilterChannel] = useState<string>("");
@@ -361,7 +363,11 @@ export default function ReferralAdminPage() {
                                 </Button>
                                 {link.targetUrl && (
                                   <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                    <a href={getRedirectUrl(link.targetUrl)} target="_blank" rel="noreferrer">
+                                    <a
+                                      href={getRedirectUrl(link.targetUrl, redirectOpts)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
                                       <ExternalLink className="h-3.5 w-3.5" />
                                     </a>
                                   </Button>

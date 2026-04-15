@@ -22,6 +22,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface FileCardFile {
   id: string;
@@ -66,6 +68,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export function FileCard({ file, onDelete, onDetach, onAttach, showAttachInfo = true, className }: FileCardProps) {
+  const redirectOpts = useRedirectOptions();
   const isImage = file.mimeType.startsWith("image/");
   const isVideo = file.mimeType.startsWith("video/");
 
@@ -96,7 +99,7 @@ export function FileCard({ file, onDelete, onDetach, onAttach, showAttachInfo = 
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href={getRedirectUrl(file.url)} target="_blank" rel="noopener noreferrer">
+                <a href={getRedirectUrl(file.url, redirectOpts)} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4 mr-2" />
                   新窗口打开
                 </a>

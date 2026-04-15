@@ -1093,6 +1093,23 @@ model SiteConfig {
   allowedVideoFormats String  @default("mp4,webm,m3u8") // 允许的视频格式
   adminBatchLimit     Int     @default(10000)  // 后台批量操作上限（转移、删除等）
   uploadBatchLimit    Int     @default(1000)   // 用户投稿批量上限
+
+  /// 是否启用用户上传图片的压缩处理（关闭则原样保存）
+  imageCompressEnabled Boolean @default(true)
+  /// 各上传类型的压缩参数 { avatar?, cover?, misc?, sticker? }
+  imageCompressProfiles Json?
+  /// 满足全部非空条件时跳过压缩的规则列表
+  imageCompressBypassRules Json?
+  /// 视频封面输出宽度（像素）
+  coverWidth Int @default(1280)
+  /// 封面 AVIF 质量 1-100
+  coverAvifQuality Int @default(65)
+  /// 封面 AVIF effort 0-9
+  coverAvifEffort Int @default(2)
+  /// 封面 WebP 质量 1-100
+  coverWebpQuality Int @default(82)
+  /// 封面 JPEG 质量 1-100
+  coverJpegQuality Int @default(88)
   
   // 联系方式
   contactEmail    String?
@@ -1269,6 +1286,14 @@ model SiteConfig {
   adminShowFullIp        Boolean @default(true)   // 管理后台是否显示完整 IP 地址
   adminShowUserAgent     Boolean @default(false)  // 管理后台是否显示完整 User-Agent
   adminShowDeviceDetail  Boolean @default(true)   // 管理后台是否显示详细设备信息（品牌、型号等）
+
+  // 外链中转
+  redirectEnabled     Boolean @default(true)   /// 是否启用外链中转页
+  redirectCountdown   Int     @default(5)      /// 中转页倒计时秒数
+  redirectWhitelist   Json    @default("[]")   /// 白名单域名列表（JSON 数组，如 ["bilibili.com"]）
+  redirectTitle       String? @db.Text         /// 中转页自定义标题
+  redirectDescription String? @db.Text         /// 中转页自定义描述
+  redirectDisclaimer  String? @db.Text         /// 中转页免责声明
 
   // 统计分析
   analyticsGoogleId       String?  // Google Analytics 4 Measurement ID (G-XXXXXXXXXX)

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Rss, ExternalLink, BookOpen, Bell, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRedirectUrl } from "@/lib/utils";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "RSS 订阅",
@@ -16,7 +17,9 @@ const readers = [
   { name: "Miniflux", url: "https://miniflux.app", desc: "极简自托管 RSS 阅读器" },
 ];
 
-export default function RssPage() {
+export default async function RssPage() {
+  const siteConfig = await getPublicSiteConfig();
+  const redirectOpts = { enabled: siteConfig.redirectEnabled, whitelist: siteConfig.redirectWhitelist };
   return (
     <div className="container max-w-3xl py-10 space-y-10">
       <div className="space-y-3">
@@ -78,7 +81,7 @@ export default function RssPage() {
           {readers.map((reader) => (
             <a
               key={reader.name}
-              href={getRedirectUrl(reader.url)}
+              href={getRedirectUrl(reader.url, redirectOpts)}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -96,7 +99,7 @@ export default function RssPage() {
       <div className="text-sm text-muted-foreground pt-4 border-t">
         订阅源遵循{" "}
         <a
-          href={getRedirectUrl("https://www.rssboard.org/rss-specification")}
+          href={getRedirectUrl("https://www.rssboard.org/rss-specification", redirectOpts)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:underline"

@@ -1,4 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import {
+  mergeImageCompressBypassRules,
+  mergeImageCompressProfiles,
+  type ImageCompressBypassRule,
+  type ImageCompressProfile,
+  type UploadImageType,
+} from "@/lib/image-compress-config";
 
 export interface SmtpConfig {
   host: string;
@@ -15,6 +22,15 @@ export interface HttpEmailApiConfig {
   headers: Record<string, string>;
 }
 
+/** 视频封面编码参数（其余队列/超时等仍见 cover-config 静态常量） */
+export interface CoverEncodingConfig {
+  width: number;
+  avifQuality: number;
+  avifEffort: number;
+  webpQuality: number;
+  jpegQuality: number;
+}
+
 export interface ServerConfig {
   siteUrl: string;
   siteName: string;
@@ -28,6 +44,14 @@ export interface ServerConfig {
   turnstileSecretKey: string | null;
   recaptchaSecretKey: string | null;
   hcaptchaSecretKey: string | null;
+  /** 用户上传图片压缩总开关 */
+  imageCompressEnabled: boolean;
+  /** 各上传类型压缩参数 */
+  imageCompressProfiles: Record<UploadImageType, ImageCompressProfile>;
+  /** 满足条件时跳过压缩 */
+  imageCompressBypassRules: ImageCompressBypassRule[];
+  /** 封面生成编码相关（宽度与质量） */
+  coverEncoding: CoverEncodingConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,6 +64,11 @@ let _inflight: Promise<ServerConfig> | null = null;
 // ---------------------------------------------------------------------------
 // DB → ServerConfig
 // ---------------------------------------------------------------------------
+
+function clampInt(n: number, min: number, max: number, fallback: number): number {
+  if (typeof n !== "number" || Number.isNaN(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(n)));
+}
 
 function parseHttpHeaders(raw: unknown): Record<string, string> {
   if (typeof raw !== "string" || raw.trim() === "") return {};
@@ -68,6 +97,8 @@ function toServerConfig(c: Record<string, unknown>): ServerConfig {
   const mailApiKey = c.mailApiKey as string | null;
   const hasHttpApi = !!(mailApiUrl && mailApiFrom);
 
+  const imageCompressEnabled = typeof c.imageCompressEnabled === "boolean" ? c.imageCompressEnabled : true;
+
   return {
     siteUrl: (c.siteUrl as string) || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     siteName: (c.siteName as string) || process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
@@ -91,6 +122,16 @@ function toServerConfig(c: Record<string, unknown>): ServerConfig {
     turnstileSecretKey: (c.turnstileSecretKey as string) || null,
     recaptchaSecretKey: (c.recaptchaSecretKey as string) || null,
     hcaptchaSecretKey: (c.hcaptchaSecretKey as string) || null,
+    imageCompressEnabled,
+    imageCompressProfiles: mergeImageCompressProfiles(c.imageCompressProfiles),
+    imageCompressBypassRules: mergeImageCompressBypassRules(c.imageCompressBypassRules),
+    coverEncoding: {
+      width: clampInt(Number(c.coverWidth), 256, 4096, 1280),
+      avifQuality: clampInt(Number(c.coverAvifQuality), 1, 100, 65),
+      avifEffort: clampInt(Number(c.coverAvifEffort), 0, 9, 2),
+      webpQuality: clampInt(Number(c.coverWebpQuality), 1, 100, 82),
+      jpegQuality: clampInt(Number(c.coverJpegQuality), 1, 100, 88),
+    },
   };
 }
 

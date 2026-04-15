@@ -30,6 +30,8 @@ import {
 import { toast } from "@/lib/toast-with-sound";
 import { Link2, Plus, Edit2, Trash2, Eye, EyeOff, Loader2, ExternalLink, Globe } from "lucide-react";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface FriendLinkItem {
   id: string;
@@ -53,6 +55,7 @@ const emptyForm = {
 };
 
 export default function AdminLinksPage() {
+  const redirectOpts = useRedirectOptions();
   const [editingLink, setEditingLink] = useState<FriendLinkItem | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -231,7 +234,7 @@ export default function AdminLinksPage() {
                       <div className="min-w-0">
                         <span className="font-medium block truncate">{link.name}</span>
                         <a
-                          href={getRedirectUrl(link.url)}
+                          href={getRedirectUrl(link.url, redirectOpts)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-muted-foreground hover:underline truncate block"
@@ -261,7 +264,7 @@ export default function AdminLinksPage() {
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                           <a
-                            href={getRedirectUrl(link.url)}
+                            href={getRedirectUrl(link.url, redirectOpts)}
                             target="_blank"
                             rel="noopener noreferrer"
                             title="在新标签页打开"

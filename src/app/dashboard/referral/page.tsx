@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -430,6 +431,7 @@ function LinkEditDialog({ link, onClose }: { link: EditingLink | null; onClose: 
 }
 
 function LinksManager() {
+  const redirectOpts = useRedirectOptions();
   const siteConfig = useSiteConfig();
   const siteUrl = siteConfig?.siteUrl || (typeof window !== "undefined" ? window.location.origin : "");
 
@@ -752,7 +754,7 @@ function LinksManager() {
                     </Button>
                     {link.targetUrl && (
                       <Button variant="ghost" size="icon" asChild>
-                        <a href={getRedirectUrl(link.targetUrl)} target="_blank" rel="noreferrer">
+                        <a href={getRedirectUrl(link.targetUrl, redirectOpts)} target="_blank" rel="noreferrer">
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       </Button>

@@ -91,9 +91,10 @@ export async function processVideo(videoId: string): Promise<boolean> {
 
   log(`视频 ${videoId} URL: ${video.videoUrl.slice(0, 80)}...`);
 
+  const siteCfg = await getServerConfig();
   const coverDir = await getCoverDir();
   const result = await generateCoverForVideo(video.videoUrl, videoId, coverDir, {
-    width: COVER_CONFIG.width,
+    width: siteCfg.coverEncoding.width,
     timeoutMs: COVER_CONFIG.timeout,
     maxRetries: COVER_CONFIG.maxRetries,
     retryDelayMs: COVER_CONFIG.retryDelay,
@@ -142,6 +143,7 @@ async function tryCdnThumbnailFallback(
   videoId: string,
   coverDir: string,
 ): Promise<{ coverUrl: string; blurDataURL: string | null } | null> {
+  const enc = (await getServerConfig()).coverEncoding;
   const patterns: string[] = [];
   if (/\.m3u8(\?|$)/i.test(videoUrl)) {
     const base = videoUrl.replace(/\.m3u8(\?.*)?$/i, "");
@@ -172,15 +174,15 @@ async function tryCdnThumbnailFallback(
 
       // 保存为 JPEG + 尝试 AVIF
       await sharp(buffer)
-        .resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
-        .jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true })
+        .resize(enc.width, undefined, { withoutEnlargement: true })
+        .jpeg({ quality: enc.jpegQuality, mozjpeg: true })
         .toFile(jpgPath);
 
       let coverUrl = `/uploads/cover/${videoId}.jpg`;
       try {
         await sharp(buffer)
-          .resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true })
-          .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort })
+          .resize(enc.width, undefined, { withoutEnlargement: true })
+          .avif({ quality: enc.avifQuality, effort: enc.avifEffort })
           .toFile(avifPath);
         coverUrl = `/uploads/cover/${videoId}.avif`;
       } catch {
@@ -294,24 +296,25 @@ export async function setCoverManually(
 ): Promise<{ coverUrl: string; blurDataURL: string | null }> {
   await ensureCoverDir();
   const coverDir = await getCoverDir();
+  const enc = (await getServerConfig()).coverEncoding;
 
   const jpgPath = path.join(coverDir, `${videoId}.jpg`);
   const avifPath = path.join(coverDir, `${videoId}.avif`);
   const webpPath = path.join(coverDir, `${videoId}.webp`);
 
   // 并行生成三种格式 + blurDataURL
-  const src = sharp(imageBuffer).resize(COVER_CONFIG.width, undefined, { withoutEnlargement: true });
+  const src = sharp(imageBuffer).resize(enc.width, undefined, { withoutEnlargement: true });
 
   const [, , , blurDataURL] = await Promise.all([
-    src.clone().jpeg({ quality: COVER_CONFIG.jpegQuality, mozjpeg: true }).toFile(jpgPath),
+    src.clone().jpeg({ quality: enc.jpegQuality, mozjpeg: true }).toFile(jpgPath),
     src
       .clone()
-      .avif({ quality: COVER_CONFIG.avifQuality, effort: COVER_CONFIG.avifEffort })
+      .avif({ quality: enc.avifQuality, effort: enc.avifEffort })
       .toFile(avifPath)
       .catch(() => null),
     src
       .clone()
-      .webp({ quality: COVER_CONFIG.webpQuality })
+      .webp({ quality: enc.webpQuality })
       .toFile(webpPath)
       .catch(() => null),
     generateBlurDataURL(imageBuffer),

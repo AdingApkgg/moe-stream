@@ -12,6 +12,7 @@ import { MotionPage } from "@/components/motion";
 import { getCoverUrl } from "@/lib/cover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "--:--";
@@ -21,6 +22,7 @@ function formatDuration(seconds: number | null) {
 }
 
 export default function SeriesPage() {
+  const redirectOpts = useRedirectOptions();
   const params = useParams();
   const seriesId = params.id as string;
 
@@ -114,7 +116,7 @@ export default function SeriesPage() {
                   </Alert>
                 )}
                 <Button asChild className="w-full sm:w-auto">
-                  <a href={getRedirectUrl(series.downloadUrl)} target="_blank" rel="noopener noreferrer">
+                  <a href={getRedirectUrl(series.downloadUrl, redirectOpts)} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4 mr-2" />
                     下载资源
                     <ExternalLink className="h-3 w-3 ml-2 opacity-50" />

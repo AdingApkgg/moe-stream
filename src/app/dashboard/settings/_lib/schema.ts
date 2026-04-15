@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SiteConfig } from "@/generated/prisma/client";
+import { mergeImageCompressBypassRules, mergeImageCompressProfiles } from "@/lib/image-compress-config";
 
 // ---------------------------------------------------------------------------
 // 工具
@@ -115,6 +116,44 @@ export const contentTabSchema = z.object({
   adminBatchLimit: z.number().int().min(100).max(100000),
 });
 
+const imageCompressProfileFormSchema = z.object({
+  enabled: z.boolean(),
+  format: z.enum(["webp", "avif"]),
+  quality: z.number().int().min(1).max(100),
+  lossless: z.boolean(),
+  maxWidth: z.number().int().min(16).max(8192),
+  maxHeight: z.number().int().min(16).max(8192),
+});
+
+export const mediaTabSchema = z.object({
+  imageCompressEnabled: z.boolean(),
+  imageCompressProfiles: z.record(z.enum(["avatar", "cover", "misc", "sticker"]), imageCompressProfileFormSchema),
+  imageCompressBypassRules: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        name: z.string().max(200),
+        enabled: z.boolean(),
+        conditions: z.object({
+          mimeTypes: z.array(z.string().max(120)).max(50),
+          uploadTypes: z.array(z.string().max(32)).max(20),
+          maxFileSize: z
+            .number()
+            .int()
+            .min(1)
+            .max(500 * 1024 * 1024)
+            .nullable(),
+        }),
+      }),
+    )
+    .max(30),
+  coverWidth: z.number().int().min(256).max(4096),
+  coverAvifQuality: z.number().int().min(1).max(100),
+  coverAvifEffort: z.number().int().min(0).max(9),
+  coverWebpQuality: z.number().int().min(1).max(100),
+  coverJpegQuality: z.number().int().min(1).max(100),
+});
+
 export const emailTabSchema = z.object({
   mailSendMode: mailSendModeEnum,
   smtpHost: z.string().max(500).optional().nullable().or(z.literal("")),
@@ -215,6 +254,15 @@ export const analyticsTabSchema = z.object({
   analyticsBingVerification: z.string().max(200).optional().nullable().or(z.literal("")),
 });
 
+export const redirectTabSchema = z.object({
+  redirectEnabled: z.boolean(),
+  redirectCountdown: z.number().int().min(1).max(30),
+  redirectWhitelist: z.array(z.string().max(253)).max(200),
+  redirectTitle: z.string().max(100).optional().nullable().or(z.literal("")),
+  redirectDescription: z.string().max(500).optional().nullable().or(z.literal("")),
+  redirectDisclaimer: z.string().max(500).optional().nullable().or(z.literal("")),
+});
+
 // ---------------------------------------------------------------------------
 // 类型导出
 // ---------------------------------------------------------------------------
@@ -225,6 +273,7 @@ export type ThemeTabValues = z.infer<typeof themeTabSchema>;
 export type CaptchaTabValues = z.infer<typeof captchaTabSchema>;
 export type EffectsTabValues = z.infer<typeof effectsTabSchema>;
 export type ContentTabValues = z.infer<typeof contentTabSchema>;
+export type MediaTabValues = z.infer<typeof mediaTabSchema>;
 export type EmailTabValues = z.infer<typeof emailTabSchema>;
 export type StorageTabValues = z.infer<typeof storageTabSchema>;
 export type PagesTabValues = z.infer<typeof pagesTabSchema>;
@@ -234,6 +283,7 @@ export type SeoTabValues = z.infer<typeof seoTabSchema>;
 export type MessagingTabValues = z.infer<typeof messagingTabSchema>;
 export type PrivacyTabValues = z.infer<typeof privacyTabSchema>;
 export type AnalyticsTabValues = z.infer<typeof analyticsTabSchema>;
+export type RedirectTabValues = z.infer<typeof redirectTabSchema>;
 
 // ---------------------------------------------------------------------------
 // SiteConfig → 表单值 pick 函数
@@ -353,6 +403,26 @@ export function pickContentValues(cfg: SiteConfig): ContentTabValues {
   };
 }
 
+export function pickMediaValues(cfg: SiteConfig): MediaTabValues {
+  return {
+    imageCompressEnabled: b(cfg.imageCompressEnabled, true),
+    imageCompressProfiles: mergeImageCompressProfiles(cfg.imageCompressProfiles),
+    imageCompressBypassRules: mergeImageCompressBypassRules(cfg.imageCompressBypassRules).map((r) => ({
+      ...r,
+      conditions: {
+        ...r.conditions,
+        mimeTypes: [...r.conditions.mimeTypes],
+        uploadTypes: [...r.conditions.uploadTypes],
+      },
+    })),
+    coverWidth: n(cfg.coverWidth, 1280),
+    coverAvifQuality: n(cfg.coverAvifQuality, 65),
+    coverAvifEffort: n(cfg.coverAvifEffort, 2),
+    coverWebpQuality: n(cfg.coverWebpQuality, 82),
+    coverJpegQuality: n(cfg.coverJpegQuality, 88),
+  };
+}
+
 export function pickEmailValues(cfg: SiteConfig): EmailTabValues {
   return {
     mailSendMode: validEnum(cfg.mailSendMode, ["smtp", "http_api"], "smtp"),
@@ -449,5 +519,16 @@ export function pickAnalyticsValues(cfg: SiteConfig): AnalyticsTabValues {
     analyticsCfToken: s(cfg.analyticsCfToken),
     analyticsClarityId: s(cfg.analyticsClarityId),
     analyticsBingVerification: s(cfg.analyticsBingVerification),
+  };
+}
+
+export function pickRedirectValues(cfg: SiteConfig): RedirectTabValues {
+  return {
+    redirectEnabled: b(cfg.redirectEnabled, true),
+    redirectCountdown: n(cfg.redirectCountdown, 5),
+    redirectWhitelist: Array.isArray(cfg.redirectWhitelist) ? (cfg.redirectWhitelist as string[]) : [],
+    redirectTitle: s(cfg.redirectTitle),
+    redirectDescription: s(cfg.redirectDescription),
+    redirectDisclaimer: s(cfg.redirectDisclaimer),
   };
 }

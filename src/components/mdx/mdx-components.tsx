@@ -1,6 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import { CodeBlock } from "./code-block";
-import { getRedirectUrl } from "@/lib/utils";
+import { getRedirectUrl, type RedirectOptions } from "@/lib/utils";
 
 /** prose 样式类（供各 MDX 渲染器共享） */
 export const mdxProseClasses = [
@@ -19,15 +19,24 @@ export const mdxProseClasses = [
   "prose-table:border prose-th:bg-muted prose-th:p-2 prose-td:p-2 prose-td:border",
 ].join(" ");
 
+interface GetMDXComponentsOptions {
+  overrides?: MDXComponents;
+  redirect?: RedirectOptions;
+}
+
 /** 共享 MDX 组件映射 */
-export function getMDXComponents(overrides: MDXComponents = {}): MDXComponents {
+export function getMDXComponents(options: GetMDXComponentsOptions | MDXComponents = {}): MDXComponents {
+  const isLegacy = !("overrides" in options) && !("redirect" in options);
+  const overrides = isLegacy ? (options as MDXComponents) : ((options as GetMDXComponentsOptions).overrides ?? {});
+  const redirectOpts = isLegacy ? undefined : (options as GetMDXComponentsOptions).redirect;
+
   return {
     pre: (props) => <CodeBlock {...props} />,
     a: ({ href, children, ...props }) => {
       const isExternal = href?.startsWith("http");
       return (
         <a
-          href={isExternal && href ? getRedirectUrl(href) : href}
+          href={isExternal && href ? getRedirectUrl(href, redirectOpts) : href}
           target={isExternal ? "_blank" : undefined}
           rel={isExternal ? "noopener noreferrer" : undefined}
           {...props}

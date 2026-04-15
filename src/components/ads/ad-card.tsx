@@ -1,7 +1,9 @@
 "use client";
 
 import type { Ad } from "@/lib/ads";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 interface AdCardProps {
   ad: Ad;
@@ -14,9 +16,10 @@ interface AdCardProps {
  * 单条广告卡片：展示图片、平台名、描述，点击跳转。
  */
 export function AdCard({ ad, compact, className }: AdCardProps) {
+  const redirectOpts = useRedirectOptions();
   return (
     <a
-      href={getRedirectUrl(ad.url)}
+      href={getRedirectUrl(ad.url, redirectOpts)}
       target="_blank"
       rel="noopener noreferrer sponsored"
       className={cn(

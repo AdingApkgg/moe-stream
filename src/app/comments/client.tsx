@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,7 @@ function EmptyState({
 
 function GuestbookSection() {
   const { data: session } = useSession();
+  const redirectOpts = useRedirectOptions();
   const isMounted = useIsMounted();
   const [content, setContent] = useState("");
   const [guestName, setGuestName] = useState("");
@@ -435,7 +437,7 @@ function GuestbookSection() {
                         )}
                         {msg.guestWebsite && (
                           <a
-                            href={getRedirectUrl(msg.guestWebsite)}
+                            href={getRedirectUrl(msg.guestWebsite, redirectOpts)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"

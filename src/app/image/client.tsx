@@ -13,6 +13,7 @@ import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
+import { HeaderBannerCarousel } from "@/components/ads/header-banner";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import { useUIStore } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -105,6 +106,9 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   return (
     <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
+        {/* 横幅轮播广告 */}
+        <HeaderBannerCarousel className="mb-4" />
+
         {/* 标签栏 */}
         <MotionPage>
           <CollapsibleTagBar className="mb-6">

@@ -90,6 +90,12 @@ export interface PublicSiteConfig {
   showIpLocation: boolean;
   showDeviceInfo: boolean;
   showCommentExtraMeta: boolean;
+  redirectEnabled: boolean;
+  redirectCountdown: number;
+  redirectWhitelist: string[];
+  redirectTitle: string | null;
+  redirectDescription: string | null;
+  redirectDisclaimer: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +222,12 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     showIpLocation: (c.showIpLocation as boolean) ?? true,
     showDeviceInfo: (c.showDeviceInfo as boolean) ?? true,
     showCommentExtraMeta: (c.showCommentExtraMeta as boolean) ?? false,
+    redirectEnabled: (c.redirectEnabled as boolean) ?? true,
+    redirectCountdown: (c.redirectCountdown as number) ?? 5,
+    redirectWhitelist: Array.isArray(c.redirectWhitelist) ? (c.redirectWhitelist as string[]) : [],
+    redirectTitle: (c.redirectTitle as string) ?? null,
+    redirectDescription: (c.redirectDescription as string) ?? null,
+    redirectDisclaimer: (c.redirectDisclaimer as string) ?? null,
   };
 }
 

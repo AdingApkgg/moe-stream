@@ -7,6 +7,8 @@ import { getSocket } from "@/lib/socket-client";
 import { useSocketStore } from "@/stores/socket";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Loader2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import dayjs from "dayjs";
@@ -19,6 +21,7 @@ interface MessageThreadProps {
 }
 
 export function MessageThread({ conversationId }: MessageThreadProps) {
+  const redirectOpts = useRedirectOptions();
   const { session } = useStableSession();
   const connected = useSocketStore((s) => s.connected);
   const setActiveConversation = useSocketStore((s) => s.setActiveConversation);
@@ -151,7 +154,7 @@ export function MessageThread({ conversationId }: MessageThreadProps) {
                 )}
                 {msg.type === "FILE" && (
                   <a
-                    href={getRedirectUrl((msg.metadata as Record<string, string>)?.fileUrl || "#")}
+                    href={getRedirectUrl((msg.metadata as Record<string, string>)?.fileUrl || "#", redirectOpts)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline"

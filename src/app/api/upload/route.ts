@@ -5,51 +5,17 @@ import { join } from "path";
 import { existsSync } from "fs";
 import sharp from "sharp";
 import { getServerConfig } from "@/lib/server-config";
+import { shouldBypassImageCompress, UPLOAD_IMAGE_TYPES, type UploadImageType } from "@/lib/image-compress-config";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // 允许的文件类型
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
 
-// 图片处理配置
-interface ImageConfig {
-  width: number;
-  height: number;
-  format: "webp" | "avif";
-  quality: number;
-  lossless: boolean;
+function normalizeUploadType(type: string | null): UploadImageType {
+  const t = type || "misc";
+  return UPLOAD_IMAGE_TYPES.includes(t as UploadImageType) ? (t as UploadImageType) : "misc";
 }
-
-const IMAGE_CONFIG: Record<string, ImageConfig> = {
-  avatar: {
-    width: 256,
-    height: 256,
-    format: "avif",
-    quality: 100,
-    lossless: true,
-  },
-  cover: {
-    width: 1920,
-    height: 1080,
-    format: "avif",
-    quality: 100,
-    lossless: true,
-  },
-  misc: {
-    width: 1920,
-    height: 1080,
-    format: "webp",
-    quality: 85,
-    lossless: false,
-  },
-  sticker: {
-    width: 256,
-    height: 256,
-    format: "webp",
-    quality: 90,
-    lossless: false,
-  },
-};
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,9 +46,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `文件大小不能超过 ${MAX_FILE_SIZE / 1024 / 1024}MB` }, { status: 400 });
     }
 
-    const config = await getServerConfig();
-    const uploadType = type || "misc";
-    const uploadPath = join(config.uploadDir, uploadType);
+    const siteCfg = await getServerConfig();
+    const uploadType = normalizeUploadType(type);
+    const uploadPath = join(siteCfg.uploadDir, uploadType);
     if (!existsSync(uploadPath)) {
       await mkdir(uploadPath, { recursive: true });
     }
@@ -97,14 +63,22 @@ export async function POST(request: NextRequest) {
     let metadata: { width?: number; height?: number } = {};
     let compressionMode = "none";
 
-    // GIF 保持原样
-    if (file.type === "image/gif" || noCompress) {
+    const profile = siteCfg.imageCompressProfiles[uploadType];
+    const bypassCompress = shouldBypassImageCompress(
+      siteCfg.imageCompressBypassRules,
+      file.type,
+      uploadType,
+      originalSize,
+    );
+
+    const skipSharpPipeline =
+      file.type === "image/gif" || noCompress || !siteCfg.imageCompressEnabled || !profile.enabled || bypassCompress;
+
+    if (skipSharpPipeline) {
       outputBuffer = inputBuffer;
-      outputExt = file.name.split(".").pop() || "gif";
+      outputExt = file.name.split(".").pop() || (file.type === "image/gif" ? "gif" : "jpg");
       compressionMode = "none";
     } else {
-      const config = IMAGE_CONFIG[uploadType] || IMAGE_CONFIG.misc;
-
       try {
         // 获取原始图片信息
         const imageInfo = await sharp(inputBuffer).metadata();
@@ -115,59 +89,61 @@ export async function POST(request: NextRequest) {
 
         // 根据类型调整尺寸
         if (uploadType === "avatar") {
-          sharpInstance = sharpInstance.resize(config.width, config.height, {
+          sharpInstance = sharpInstance.resize(profile.maxWidth, profile.maxHeight, {
             fit: "cover",
             position: "centre",
           });
         } else {
-          sharpInstance = sharpInstance.resize(config.width, config.height, {
+          sharpInstance = sharpInstance.resize(profile.maxWidth, profile.maxHeight, {
             fit: "inside",
             withoutEnlargement: true,
           });
         }
 
         // 根据配置选择输出格式
-        if (config.format === "avif") {
+        if (profile.format === "avif") {
           outputBuffer = await sharpInstance
             .avif({
-              quality: config.quality,
-              lossless: config.lossless,
+              quality: profile.quality,
+              lossless: profile.lossless,
               effort: 4,
             })
             .toBuffer();
           outputExt = "avif";
-          compressionMode = config.lossless ? "lossless" : "lossy";
+          compressionMode = profile.lossless ? "lossless" : "lossy";
         } else {
           outputBuffer = await sharpInstance
             .webp({
-              quality: config.quality,
+              quality: profile.quality,
               effort: 4,
-              lossless: config.lossless,
+              lossless: profile.lossless,
             })
             .toBuffer();
           outputExt = "webp";
-          compressionMode = config.lossless ? "lossless" : "lossy";
+          compressionMode = profile.lossless ? "lossless" : "lossy";
         }
 
         // 如果压缩后比原图大很多，回退到有损压缩
-        if (config.lossless && outputBuffer.length > originalSize * 1.5) {
+        if (profile.lossless && outputBuffer.length > originalSize * 1.5) {
           console.log(`无损压缩后体积过大，回退到有损压缩`);
+          const fallbackQuality = Math.min(95, Math.max(50, Math.round(profile.quality * 0.85)));
+          const resizeOpts =
+            uploadType === "avatar"
+              ? {
+                  fit: "cover" as const,
+                  position: "centre" as const,
+                }
+              : { fit: "inside" as const, withoutEnlargement: true as const };
 
-          if (config.format === "avif") {
+          if (profile.format === "avif") {
             outputBuffer = await sharp(inputBuffer)
-              .resize(config.width, config.height, {
-                fit: "inside",
-                withoutEnlargement: true,
-              })
-              .avif({ quality: 85, lossless: false, effort: 4 })
+              .resize(profile.maxWidth, profile.maxHeight, resizeOpts)
+              .avif({ quality: fallbackQuality, lossless: false, effort: 4 })
               .toBuffer();
           } else {
             outputBuffer = await sharp(inputBuffer)
-              .resize(config.width, config.height, {
-                fit: "inside",
-                withoutEnlargement: true,
-              })
-              .webp({ quality: 85, effort: 4 })
+              .resize(profile.maxWidth, profile.maxHeight, resizeOpts)
+              .webp({ quality: fallbackQuality, effort: 4 })
               .toBuffer();
           }
           compressionMode = "lossy-fallback";

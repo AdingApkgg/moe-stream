@@ -52,6 +52,7 @@ import {
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast-with-sound";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 
 function useAdminPrivacyConfig() {
   const { data } = trpc.admin.getSiteConfig.useQuery(undefined, {
@@ -1180,6 +1181,7 @@ function GuestbookCard({
   onRestore,
   onHardDelete,
 }: GuestbookCardProps) {
+  const redirectOpts = useRedirectOptions();
   const privacyConfig = useAdminPrivacyConfig();
   const deviceInfo = message.deviceInfo as DeviceInfoType | null;
   const isGuest = !message.user;
@@ -1227,7 +1229,7 @@ function GuestbookCard({
               {message.guestEmail && <span className="flex items-center gap-1">邮箱: {message.guestEmail}</span>}
               {message.guestWebsite && (
                 <a
-                  href={getRedirectUrl(message.guestWebsite)}
+                  href={getRedirectUrl(message.guestWebsite, redirectOpts)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline text-primary"

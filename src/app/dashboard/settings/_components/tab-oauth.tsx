@@ -2,6 +2,8 @@
 
 import type { SiteConfig } from "@/generated/prisma/client";
 import { getRedirectUrl } from "@/lib/utils";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +14,7 @@ import { type OAuthTabValues, oauthTabSchema, pickOAuthValues } from "../_lib/sc
 import { useTabForm } from "../_lib/use-tab-form";
 
 export function TabOauth({ config }: { config: SiteConfig | undefined }) {
+  const redirectOpts = useRedirectOptions();
   const { form, onSubmit, onFormError, isPending } = useTabForm({
     schema: oauthTabSchema,
     pickValues: pickOAuthValues,
@@ -139,7 +142,7 @@ export function TabOauth({ config }: { config: SiteConfig | undefined }) {
                     <FormDescription>
                       在{" "}
                       <a
-                        href={getRedirectUrl(url)}
+                        href={getRedirectUrl(url, redirectOpts)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"
