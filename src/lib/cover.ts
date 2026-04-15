@@ -17,19 +17,26 @@ function appendThumbParams(url: string, thumb?: CoverThumb): string {
 /**
  * 获取视频封面 URL（相对路径，用于前端组件）
  * 如果有 coverUrl 则返回缓存代理 URL，否则返回自动生成的封面 URL
- * 可选 thumb 参数用于请求缩略图
+ * 可选 thumb 参数用于请求缩略图。
+ * @param coverProxyThumbEnabled 与后台「封面代理缩略图」一致；为 false 时不附加 ?w/h/q
  */
-export function getCoverUrl(videoId: string, coverUrl?: string | null, thumb?: CoverThumb): string {
+export function getCoverUrl(
+  videoId: string,
+  coverUrl?: string | null,
+  thumb?: CoverThumb,
+  coverProxyThumbEnabled = true,
+): string {
+  const t = coverProxyThumbEnabled ? thumb : undefined;
   if (coverUrl) {
     if (coverUrl.startsWith("/uploads/")) {
-      if (thumb) {
-        return appendThumbParams(`/api/cover/${encodeURIComponent(coverUrl)}`, thumb);
+      if (t) {
+        return appendThumbParams(`/api/cover/${encodeURIComponent(coverUrl)}`, t);
       }
       return coverUrl;
     }
-    return appendThumbParams(`/api/cover/${encodeURIComponent(coverUrl)}`, thumb);
+    return appendThumbParams(`/api/cover/${encodeURIComponent(coverUrl)}`, t);
   }
-  return appendThumbParams(`/api/cover/video/${videoId}`, thumb);
+  return appendThumbParams(`/api/cover/video/${videoId}`, t);
 }
 
 /**

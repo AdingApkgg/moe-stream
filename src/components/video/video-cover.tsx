@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Film } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSiteConfig } from "@/contexts/site-config";
 
 interface VideoCoverProps {
   videoId?: string;
@@ -31,6 +32,8 @@ function CoverPlaceholder({ className = "" }: { className?: string }) {
 }
 
 export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = "", thumbWidth }: VideoCoverProps) {
+  const siteConfig = useSiteConfig();
+  const proxyThumbEnabled = siteConfig?.coverProxyThumbEnabled !== false;
   const [retryKey, setRetryKey] = useState(0);
   const [giveUp, setGiveUp] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -53,9 +56,10 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
   const getCoverSrc = () => {
     if (giveUp) return null;
 
-    const thumbSuffix = thumbWidth
-      ? `${(coverUrl && !coverUrl.startsWith("/uploads/")) || !coverUrl ? "?" : "?"}w=${thumbWidth}&h=${Math.round((thumbWidth * 9) / 16)}&q=60`
-      : "";
+    const thumbSuffix =
+      proxyThumbEnabled && thumbWidth
+        ? `${(coverUrl && !coverUrl.startsWith("/uploads/")) || !coverUrl ? "?" : "?"}w=${thumbWidth}&h=${Math.round((thumbWidth * 9) / 16)}&q=60`
+        : "";
 
     if (coverUrl) {
       if (coverUrl.startsWith("/uploads/")) {

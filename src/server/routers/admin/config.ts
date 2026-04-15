@@ -46,6 +46,7 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "coverAvifEffort",
   "coverWebpQuality",
   "coverJpegQuality",
+  "coverProxyThumbEnabled",
   "contactEmail",
   "socialLinks",
   "privacyPolicy",
@@ -316,6 +317,7 @@ export const adminConfigRouter = router({
         coverAvifEffort: z.number().int().min(0).max(9).optional(),
         coverWebpQuality: z.number().int().min(1).max(100).optional(),
         coverJpegQuality: z.number().int().min(1).max(100).optional(),
+        coverProxyThumbEnabled: z.boolean().optional(),
 
         // 联系方式
         contactEmail: z.string().email().optional().nullable().or(z.literal("")),

@@ -5,7 +5,7 @@
  * 1. 代理外部图片（解决 CORS 问题）
  * 2. 本地缓存图片（减少重复请求）
  * 3. 自动从视频生成封面（使用 ffmpeg）
- * 4. 支持 ?w=&h=&q= 参数生成缩略图（sharp 缩放 + WebP）
+ * 4. 支持 ?w=&h=&q= 参数生成缩略图（sharp 缩放 + WebP）；后台关闭「封面代理缩略图」时忽略这些参数
  *
  * 使用方式：
  * - /api/cover/https://example.com/image.jpg - 代理外部图片
@@ -191,7 +191,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Missing path" }, { status: 400 });
   }
 
-  const thumbParams = parseThumbParams(request.nextUrl.searchParams);
+  const siteCfg = await getServerConfig();
+  let thumbParams = parseThumbParams(request.nextUrl.searchParams);
+  if (!siteCfg.coverProxyThumbEnabled) {
+    thumbParams = null;
+  }
   const thumbCacheKey = pathSegments.join("/");
 
   // 缩略图缓存命中 → 直接返回（适用于所有类型的封面请求）

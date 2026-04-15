@@ -1110,7 +1110,9 @@ model SiteConfig {
   coverWebpQuality Int @default(82)
   /// 封面 JPEG 质量 1-100
   coverJpegQuality Int @default(88)
-  
+  /// /api/cover 是否按 ?w/h/q 生成列表缩略图（关闭则仅代理原图，不做 sharp 缩放）
+  coverProxyThumbEnabled Boolean @default(true)
+
   // 联系方式
   contactEmail    String?
   socialLinks     Json?    // { github?: string, twitter?: string, discord?: string, ... }

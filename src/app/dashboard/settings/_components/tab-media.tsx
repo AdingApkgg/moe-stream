@@ -65,7 +65,7 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
               <ImageIcon className="h-5 w-5" />
               媒体处理
             </CardTitle>
-            <CardDescription>配置用户上传图片压缩与视频封面编码参数</CardDescription>
+            <CardDescription>配置用户上传图片压缩、列表缩略图代理与视频封面编码</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <FormField
@@ -77,6 +77,35 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
                     <FormLabel>启用图片压缩</FormLabel>
                     <FormDescription>
                       关闭后所有上传图片将原样保存（仍尊重下方绕过规则与客户端 noCompress）
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>缩略图与封面代理</CardTitle>
+            <CardDescription>
+              控制 <code className="text-xs bg-muted px-1 rounded">/api/cover/…?w=&amp;h=&amp;q=</code> 是否生成实时
+              WebP 缩略图；与「上传压缩」无关
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="coverProxyThumbEnabled"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>启用列表缩略图代理</FormLabel>
+                    <FormDescription>
+                      开启时卡片/列表会为外链封面请求带尺寸参数并在服务端缩放；关闭则仅走代理原图（体积更大，适合不想二次处理图片时）
                     </FormDescription>
                   </div>
                   <FormControl>

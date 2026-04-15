@@ -96,6 +96,8 @@ export interface PublicSiteConfig {
   redirectTitle: string | null;
   redirectDescription: string | null;
   redirectDisclaimer: string | null;
+  /** /api/cover 是否启用 ?w/h/q 列表缩略图；为 false 时前端不带缩略参数、接口仅代理原图 */
+  coverProxyThumbEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,6 +230,7 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     redirectTitle: (c.redirectTitle as string) ?? null,
     redirectDescription: (c.redirectDescription as string) ?? null,
     redirectDisclaimer: (c.redirectDisclaimer as string) ?? null,
+    coverProxyThumbEnabled: typeof c.coverProxyThumbEnabled === "boolean" ? c.coverProxyThumbEnabled : true,
   };
 }
 

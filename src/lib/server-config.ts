@@ -52,6 +52,8 @@ export interface ServerConfig {
   imageCompressBypassRules: ImageCompressBypassRule[];
   /** 封面生成编码相关（宽度与质量） */
   coverEncoding: CoverEncodingConfig;
+  /** /api/cover 是否处理 ?w/h/q 缩略图 */
+  coverProxyThumbEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +134,7 @@ function toServerConfig(c: Record<string, unknown>): ServerConfig {
       webpQuality: clampInt(Number(c.coverWebpQuality), 1, 100, 82),
       jpegQuality: clampInt(Number(c.coverJpegQuality), 1, 100, 88),
     },
+    coverProxyThumbEnabled: typeof c.coverProxyThumbEnabled === "boolean" ? c.coverProxyThumbEnabled : true,
   };
 }
 

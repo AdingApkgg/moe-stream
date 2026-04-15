@@ -152,6 +152,7 @@ export const mediaTabSchema = z.object({
   coverAvifEffort: z.number().int().min(0).max(9),
   coverWebpQuality: z.number().int().min(1).max(100),
   coverJpegQuality: z.number().int().min(1).max(100),
+  coverProxyThumbEnabled: z.boolean(),
 });
 
 export const emailTabSchema = z.object({
@@ -420,6 +421,7 @@ export function pickMediaValues(cfg: SiteConfig): MediaTabValues {
     coverAvifEffort: n(cfg.coverAvifEffort, 2),
     coverWebpQuality: n(cfg.coverWebpQuality, 82),
     coverJpegQuality: n(cfg.coverJpegQuality, 88),
+    coverProxyThumbEnabled: b(cfg.coverProxyThumbEnabled, true),
   };
 }
 
