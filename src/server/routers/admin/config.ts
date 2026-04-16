@@ -168,6 +168,10 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "oauthGitlabClientSecret",
   "oauthRedditClientId",
   "oauthRedditClientSecret",
+  "oauthQqClientId",
+  "oauthQqClientSecret",
+  "oauthWechatClientId",
+  "oauthWechatClientSecret",
   "channelEnabled",
   "channelMaxPerUser",
   "channelMaxMembers",
@@ -363,6 +367,14 @@ export const adminConfigRouter = router({
               url: z.string().url(),
               description: z.string().max(500).optional().default(""),
               imageUrl: z.string().max(2000).optional().default(""),
+              images: z
+                .object({
+                  banner: z.string().max(2000).optional().default(""),
+                  card: z.string().max(2000).optional().default(""),
+                  sidebar: z.string().max(2000).optional().default(""),
+                })
+                .optional()
+                .nullable(),
               weight: z.number().int().min(1).max(100).optional().default(1),
               enabled: z.boolean().optional().default(true),
               positions: z
@@ -567,6 +579,10 @@ export const adminConfigRouter = router({
         oauthGitlabClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
         oauthRedditClientId: z.string().max(500).optional().nullable().or(z.literal("")),
         oauthRedditClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthQqClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthQqClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthWechatClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthWechatClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
       }),
     )
     .mutation(async ({ ctx, input }) => {

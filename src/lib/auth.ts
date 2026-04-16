@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { username, customSession, twoFactor } from "better-auth/plugins";
+import { username, customSession, twoFactor, genericOAuth } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { prisma } from "@/lib/prisma";
 import { hash, compare } from "@/lib/bcrypt-wasm";
@@ -33,12 +33,19 @@ const OAUTH_PROVIDER_KEYS = [
   "Linkedin",
   "Gitlab",
   "Reddit",
+  "Wechat",
 ] as const;
 
 type OAuthProviderKey = (typeof OAUTH_PROVIDER_KEYS)[number];
 
+interface QqOAuthCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
 interface OAuthAndSiteConfig {
   oauth: OAuthConfig;
+  qq: QqOAuthCredentials | null;
   siteUrl: string | null;
 }
 
@@ -49,7 +56,7 @@ interface OAuthAndSiteConfig {
 const gOAuth = globalThis as unknown as { __oauthConfig?: OAuthAndSiteConfig };
 
 async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
-  const select: Record<string, true> = { siteUrl: true };
+  const select: Record<string, true> = { siteUrl: true, oauthQqClientId: true, oauthQqClientSecret: true };
   for (const k of OAUTH_PROVIDER_KEYS) {
     select[`oauth${k}ClientId`] = true;
     select[`oauth${k}ClientSecret`] = true;
@@ -60,7 +67,7 @@ async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
     select,
   })) as Record<string, string | null> | null;
 
-  if (!config) return { oauth: {}, siteUrl: null };
+  if (!config) return { oauth: {}, qq: null, siteUrl: null };
 
   const oauth: OAuthConfig = {};
   for (const key of OAUTH_PROVIDER_KEYS) {
@@ -71,7 +78,11 @@ async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
     }
   }
 
-  return { oauth, siteUrl: config.siteUrl || null };
+  const qqId = config.oauthQqClientId;
+  const qqSecret = config.oauthQqClientSecret;
+  const qq = qqId && qqSecret ? { clientId: qqId, clientSecret: qqSecret } : null;
+
+  return { oauth, qq, siteUrl: config.siteUrl || null };
 }
 
 async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
@@ -109,12 +120,11 @@ function resolveBaseURL(siteUrl?: string): string {
   return siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
 
-function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
+function createAuthInstance(oauthConfig: OAuthConfig, qqConfig: QqOAuthCredentials | null, siteUrl?: string) {
   const baseURL = resolveBaseURL(siteUrl);
 
-  console.log(
-    `[auth] Creating auth instance: baseURL=${baseURL}, providers=${Object.keys(oauthConfig).join(",") || "none"}`,
-  );
+  const providerNames = [...Object.keys(oauthConfig), ...(qqConfig ? ["qq"] : [])];
+  console.log(`[auth] Creating auth instance: baseURL=${baseURL}, providers=${providerNames.join(",") || "none"}`);
 
   return betterAuth({
     baseURL,
@@ -137,7 +147,8 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         create: {
           before: async (user) => {
             if (!user.username) {
-              const prefix = (user.email?.split("@")[0] || "user").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 14);
+              const emailPrefix = user.email ? user.email.split("@")[0] : null;
+              const prefix = (emailPrefix || "user").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 14);
               const suffix = Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
               return { data: { ...user, username: `${prefix}_${suffix}` } };
             }
@@ -161,6 +172,47 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
         rpID: new URL(baseURL).hostname,
         rpName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
       }),
+      ...(qqConfig
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: "qq",
+                  clientId: qqConfig.clientId,
+                  clientSecret: qqConfig.clientSecret,
+                  authorizationUrl: "https://graph.qq.com/oauth2.0/authorize",
+                  tokenUrl: "https://graph.qq.com/oauth2.0/token",
+                  scopes: ["get_user_info"],
+                  async getUserInfo(token) {
+                    const meRes = await fetch(
+                      `https://graph.qq.com/oauth2.0/me?access_token=${token.accessToken}&fmt=json`,
+                    );
+                    const meData = (await meRes.json()) as { openid?: string; client_id?: string };
+                    const openid = meData.openid;
+                    if (!openid) throw new Error("QQ OAuth: 无法获取 openid");
+
+                    const infoRes = await fetch(
+                      `https://graph.qq.com/user/get_user_info?access_token=${token.accessToken}&oauth_consumer_key=${qqConfig.clientId}&openid=${openid}`,
+                    );
+                    const info = (await infoRes.json()) as {
+                      ret?: number;
+                      nickname?: string;
+                      figureurl_qq_2?: string;
+                      figureurl_qq_1?: string;
+                    };
+                    if (info.ret !== 0) throw new Error("QQ OAuth: 获取用户信息失败");
+
+                    return {
+                      id: openid,
+                      name: info.nickname || "QQ用户",
+                      image: info.figureurl_qq_2 || info.figureurl_qq_1 || "",
+                    };
+                  },
+                },
+              ],
+            }),
+          ]
+        : []),
       customSession(async ({ user, session }) => {
         if (!user?.id) return { user, session };
         const dbUser = await prisma.user.findUnique({
@@ -249,7 +301,9 @@ function createAuthInstance(oauthConfig: OAuthConfig, siteUrl?: string) {
       accountLinking: {
         enabled: true,
         allowDifferentEmails: true,
-        trustedProviders: OAUTH_PROVIDER_KEYS.map((k) => k.toLowerCase()) as Array<Lowercase<OAuthProviderKey>>,
+        trustedProviders: [...OAUTH_PROVIDER_KEYS.map((k) => k.toLowerCase()), "qq"] as Array<
+          Lowercase<OAuthProviderKey> | "qq"
+        >,
       },
     },
 
@@ -272,8 +326,8 @@ let _cached: { auth: AuthInstance; hash: string } | null = null;
 let _pending: Promise<AuthInstance> | null = null;
 
 export async function getAuthWithOAuth(): Promise<AuthInstance> {
-  const { oauth, siteUrl } = await getOAuthAndSiteConfig();
-  const configHash = JSON.stringify({ oauth, siteUrl });
+  const { oauth, qq, siteUrl } = await getOAuthAndSiteConfig();
+  const configHash = JSON.stringify({ oauth, qq, siteUrl });
 
   if (_cached?.hash === configHash) {
     return _cached.auth;
@@ -283,7 +337,7 @@ export async function getAuthWithOAuth(): Promise<AuthInstance> {
 
   _pending = (async () => {
     try {
-      const instance = createAuthInstance(oauth, siteUrl || undefined);
+      const instance = createAuthInstance(oauth, qq, siteUrl || undefined);
       _cached = { auth: instance, hash: configHash };
       return instance;
     } finally {
@@ -307,7 +361,7 @@ export async function invalidateOAuthConfig() {
 export interface AppSession {
   user: {
     id: string;
-    email: string;
+    email: string | null;
     name?: string | null;
     image?: string | null;
     role?: "USER" | "ADMIN" | "OWNER";
@@ -337,7 +391,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
   const { user, session } = result as {
     user: {
       id: string;
-      email: string;
+      email: string | null;
       name?: string | null;
       image?: string | null;
       role?: string;
@@ -357,7 +411,7 @@ export async function getSession(req?: Request): Promise<AppSession | null> {
     jti: session?.token ?? undefined,
     user: {
       id: user.id,
-      email: user.email,
+      email: user.email ?? null,
       name: user.name ?? null,
       image: user.image ?? null,
       role,

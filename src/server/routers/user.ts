@@ -10,7 +10,8 @@ export const userRouter = router({
   register: publicProcedure
     .input(
       z.object({
-        email: z.string().email(),
+        email: z.string().email().optional(),
+        emailCode: z.string().length(6).optional(),
         username: z.string().min(3).max(20),
         password: z.string().min(6),
         nickname: z.string().optional(),
@@ -19,17 +20,54 @@ export const userRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existingUser = await ctx.prisma.user.findFirst({
-        where: {
-          OR: [{ email: input.email }, { username: input.username }],
-        },
+      const siteConfig = await ctx.prisma.siteConfig.findUnique({
+        where: { id: "default" },
+        select: { allowRegistration: true, requireEmailVerify: true },
       });
+      if (siteConfig && !siteConfig.allowRegistration) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "当前不允许注册" });
+      }
+      if (siteConfig?.requireEmailVerify && !input.email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "需要提供邮箱地址" });
+      }
+      if (siteConfig?.requireEmailVerify && input.email && !input.emailCode) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "需要提供邮箱验证码" });
+      }
 
-      if (existingUser) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "邮箱或用户名已存在",
+      // 服务端校验邮箱验证码
+      let emailCodeValid = false;
+      if (input.email && input.emailCode) {
+        const { verifyCode } = await import("@/lib/email");
+        const result = await verifyCode(input.email, input.emailCode, "REGISTER");
+        if (!result.valid) {
+          if (siteConfig?.requireEmailVerify) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+          }
+          // 非强制模式下验证码错误不阻断注册，只是不标记为已验证
+        } else {
+          emailCodeValid = true;
+        }
+      }
+
+      const existingByUsername = await ctx.prisma.user.findFirst({
+        where: { username: input.username.toLowerCase() },
+      });
+      if (existingByUsername) {
+        throw new TRPCError({ code: "CONFLICT", message: "用户名已存在" });
+      }
+
+      let reclaimEmailFromUserId: string | null = null;
+      if (input.email) {
+        const existingByEmail = await ctx.prisma.user.findFirst({
+          where: { email: input.email },
+          select: { id: true, emailVerified: true },
         });
+        if (existingByEmail) {
+          if (existingByEmail.emailVerified) {
+            throw new TRPCError({ code: "CONFLICT", message: "该邮箱已被验证用户占用" });
+          }
+          reclaimEmailFromUserId = existingByEmail.id;
+        }
       }
 
       if (input.fingerprint) {
@@ -45,7 +83,6 @@ export const userRouter = router({
 
       const hashedPassword = await hash(input.password, 10);
 
-      // Resolve referral link if provided (must be active)
       let referralLink: { id: string; userId: string } | null = null;
       if (input.referralCode) {
         const link = await ctx.prisma.referralLink.findUnique({
@@ -58,9 +95,19 @@ export const userRouter = router({
       }
 
       const result = await ctx.prisma.$transaction(async (tx) => {
+        if (reclaimEmailFromUserId) {
+          await tx.user.update({
+            where: { id: reclaimEmailFromUserId },
+            data: { email: null },
+          });
+        }
+
+        const emailVerified = emailCodeValid ? new Date() : null;
+
         const user = await tx.user.create({
           data: {
-            email: input.email,
+            email: input.email || null,
+            emailVerified,
             username: input.username.toLowerCase(),
             displayUsername: input.username,
             password: hashedPassword,
@@ -133,7 +180,7 @@ export const userRouter = router({
         return user;
       });
 
-      return { id: result.id, email: result.email, username: result.username };
+      return { id: result.id, email: result.email ?? null, username: result.username };
     }),
 
   // 获取用户公开资料

@@ -6,7 +6,7 @@ import { useSiteConfigForAds } from "@/hooks/use-ads";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds, getActiveAds, normalizePositions } from "@/lib/ads";
+import { pickWeightedRandomAds, getActiveAds, normalizePositions, getAdImage } from "@/lib/ads";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
@@ -14,6 +14,16 @@ const STORAGE_VIEW_COUNT = "acgn_ad_gate_view_count";
 const SESSION_CLICK_AT = "acgn_ad_gate_click_at";
 const MIN_AWAY_MS = 1000;
 const MAX_AWAY_MS = 10 * 60 * 1000;
+
+function parseAdImages(raw: unknown): Ad["images"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const result: NonNullable<Ad["images"]> = {};
+  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
+  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
+  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
@@ -24,6 +34,7 @@ function parseAds(raw: unknown): Ad[] {
     url: item.url ?? "",
     description: item.description ?? undefined,
     imageUrl: item.imageUrl ?? undefined,
+    images: parseAdImages(item.images),
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
     positions: normalizePositions(item),
@@ -73,6 +84,7 @@ function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) =>
 
   if (total === 0) return null;
   const ad = ads[current];
+  const imageUrl = getAdImage(ad, "ad-gate");
 
   return (
     <div className="relative rounded-xl overflow-hidden">
@@ -82,11 +94,11 @@ function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) =>
         onClick={() => onClickAd(ad.url)}
         className="group relative w-full text-left transition-all"
       >
-        {ad.imageUrl ? (
+        {imageUrl ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={ad.imageUrl}
+              src={imageUrl}
               alt={ad.title}
               className="w-full h-auto block transition-transform group-hover:scale-[1.02]"
             />

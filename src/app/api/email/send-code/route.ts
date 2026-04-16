@@ -28,13 +28,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "发送太频繁，请1分钟后重试" }, { status: 429 });
     }
 
-    // 注册时检查邮箱是否已存在
     if (type === "REGISTER") {
       const existingUser = await prisma.user.findUnique({
         where: { email },
+        select: { emailVerified: true },
       });
-      if (existingUser) {
-        return NextResponse.json({ success: false, message: "该邮箱已被注册" }, { status: 400 });
+      if (existingUser?.emailVerified) {
+        return NextResponse.json({ success: false, message: "该邮箱已被验证用户占用" }, { status: 400 });
       }
     }
 

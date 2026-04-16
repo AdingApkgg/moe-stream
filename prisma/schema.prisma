@@ -13,7 +13,7 @@ datasource db {
 
 model User {
   id            String    @id @default(dbgenerated("nextval('user_id_seq')::text"))
-  email         String    @unique
+  email         String?   @unique
   emailVerified DateTime?
   username       String    @unique
   displayUsername String?  // Better Auth username 插件展示名（与 username 可不同）
@@ -1216,6 +1216,10 @@ model SiteConfig {
   oauthGitlabClientSecret  String?
   oauthRedditClientId      String?
   oauthRedditClientSecret  String?
+  oauthQqClientId          String?
+  oauthQqClientSecret      String?
+  oauthWechatClientId      String?
+  oauthWechatClientSecret  String?
 
   // SMTP 邮件
   smtpHost        String?

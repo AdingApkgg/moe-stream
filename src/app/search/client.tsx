@@ -333,7 +333,7 @@ export function SearchContent({ query }: SearchContentProps) {
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {videoGridItems.map((item, index) =>
                   item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={videoPickedAds[item.adIndex]} />
+                    <AdCard key={`ad-${item.adIndex}`} ad={videoPickedAds[item.adIndex]} slotId="in-feed" />
                   ) : (
                     <VideoCard key={item.data.id} video={item.data} index={index} />
                   ),
@@ -374,7 +374,7 @@ export function SearchContent({ query }: SearchContentProps) {
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {gameGridItems.map((item, index) =>
                   item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={gamePickedAds[item.adIndex]} />
+                    <AdCard key={`ad-${item.adIndex}`} ad={gamePickedAds[item.adIndex]} slotId="in-feed" />
                   ) : (
                     <GameCard key={item.data.id} game={item.data} index={index} />
                   ),
@@ -419,7 +419,7 @@ export function SearchContent({ query }: SearchContentProps) {
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {imageGridItems.map((item, index) =>
                   item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={imagePickedAds[item.adIndex]} />
+                    <AdCard key={`ad-${item.adIndex}`} ad={imagePickedAds[item.adIndex]} slotId="in-feed" />
                   ) : (
                     <ImagePostCard key={item.data.id} post={item.data} index={index} />
                   ),

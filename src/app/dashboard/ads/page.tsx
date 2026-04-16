@@ -2,8 +2,15 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import type { Ad, AdPosition } from "@/lib/ads";
-import { AD_POSITIONS, AD_POSITION_SPECIFIC, isAdInSchedule, normalizePositions, getPositionsLabel } from "@/lib/ads";
+import type { Ad, AdPosition, AdImages } from "@/lib/ads";
+import {
+  AD_POSITIONS,
+  AD_POSITION_SPECIFIC,
+  AD_IMAGE_SIZES,
+  isAdInSchedule,
+  normalizePositions,
+  getPositionsLabel,
+} from "@/lib/ads";
 import { AdCard } from "@/components/ads/ad-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,12 +109,23 @@ const emptyForm: AdFormData = {
   url: "",
   description: "",
   imageUrl: "",
+  images: { banner: "", card: "", sidebar: "" },
   weight: 1,
   enabled: true,
   positions: ["all"],
   startDate: null,
   endDate: null,
 };
+
+function parseAdImages(raw: unknown): AdImages | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const result: AdImages = {};
+  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
+  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
+  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
 
 function parseAds(raw: unknown): Ad[] {
   if (!Array.isArray(raw)) return [];
@@ -118,6 +136,7 @@ function parseAds(raw: unknown): Ad[] {
     url: item.url ?? "",
     description: item.description ?? undefined,
     imageUrl: item.imageUrl ?? undefined,
+    images: parseAdImages(item.images),
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
     positions: normalizePositions(item),
@@ -300,6 +319,14 @@ export default function AdsManagementPage() {
             url: a.url,
             description: a.description || "",
             imageUrl: a.imageUrl || "",
+            images:
+              a.images && Object.values(a.images).some((v) => v)
+                ? {
+                    banner: a.images.banner || "",
+                    card: a.images.card || "",
+                    sidebar: a.images.sidebar || "",
+                  }
+                : null,
             weight: a.weight,
             enabled: a.enabled,
             positions: a.positions.length > 0 ? a.positions : ["all"],
@@ -349,6 +376,11 @@ export default function AdsManagementPage() {
       url: ad.url,
       description: ad.description || "",
       imageUrl: ad.imageUrl || "",
+      images: {
+        banner: ad.images?.banner || "",
+        card: ad.images?.card || "",
+        sidebar: ad.images?.sidebar || "",
+      },
       weight: ad.weight,
       enabled: ad.enabled,
       positions: ad.positions,
@@ -440,6 +472,7 @@ export default function AdsManagementPage() {
       url: form.url || "#",
       description: form.description || undefined,
       imageUrl: form.imageUrl || undefined,
+      images: form.images,
       weight: form.weight,
       enabled: true,
       positions: form.positions,
@@ -1084,12 +1117,37 @@ export default function AdsManagementPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">图片链接</label>
+                <label className="text-sm font-medium">默认图片</label>
                 <Input
                   value={form.imageUrl || ""}
                   onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
                   placeholder="https://...图片URL"
                 />
+                <p className="text-[11px] text-muted-foreground">通用图片，未配置专用尺寸时使用此图</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">各广告位专用图片</label>
+                <div className="rounded-lg border p-3 space-y-3">
+                  {AD_IMAGE_SIZES.map((size) => (
+                    <div key={size.value} className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground">{size.label}</label>
+                      <Input
+                        value={form.images?.[size.value] || ""}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            images: { ...f.images, [size.value]: e.target.value },
+                          }))
+                        }
+                        placeholder={`https://... (${size.hint})`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  可选，留空则回退到默认图片。配置后该尺寸广告位将使用专用图片
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -1181,13 +1239,13 @@ export default function AdsManagementPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">卡片样式（信息流中）</p>
                   <div className="max-w-[280px]">
-                    <AdCard ad={livePreviewAd} />
+                    <AdCard ad={livePreviewAd} slotId="in-feed" />
                   </div>
                 </div>
                 <div className="border-t pt-4">
                   <p className="text-xs text-muted-foreground mb-2">紧凑样式（侧栏中）</p>
                   <div className="max-w-[220px]">
-                    <AdCard ad={livePreviewAd} compact />
+                    <AdCard ad={livePreviewAd} compact slotId="sidebar" />
                   </div>
                 </div>
               </div>
@@ -1216,12 +1274,12 @@ export default function AdsManagementPage() {
           {previewAd && (
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-2">卡片样式</p>
-                <AdCard ad={previewAd} />
+                <p className="text-xs text-muted-foreground mb-2">卡片样式（信息流）</p>
+                <AdCard ad={previewAd} slotId="in-feed" />
               </div>
               <div className="border-t pt-4">
-                <p className="text-xs text-muted-foreground mb-2">紧凑样式</p>
-                <AdCard ad={previewAd} compact />
+                <p className="text-xs text-muted-foreground mb-2">紧凑样式（侧栏）</p>
+                <AdCard ad={previewAd} compact slotId="sidebar" />
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast-with-sound";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { authClient } from "@/lib/auth-client";
 import { EmailCodeInput } from "@/components/ui/email-code-input";
@@ -26,10 +27,11 @@ function getReferralCode(): string | undefined {
   return match?.[1] || undefined;
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const siteConfig = useSiteConfig();
+  const allowRegistration = siteConfig?.allowRegistration ?? true;
   const [referralCode, setReferralCode] = useState<string | undefined>();
 
   useEffect(() => {
@@ -38,6 +40,9 @@ export default function RegisterPage() {
     setReferralCode(fromUrl || fromCookie);
   }, [searchParams]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+
+  const requireEmailVerify = siteConfig?.requireEmailVerify ?? false;
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const recaptchaSiteKey = siteConfig?.recaptchaSiteKey;
@@ -55,24 +60,47 @@ export default function RegisterPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [sliderValue, setSliderValue] = useState<number | null>(null);
 
-  const registerSchema = z
-    .object({
-      email: z.string().email("请输入有效的邮箱地址"),
-      username: z
-        .string()
-        .min(3, "用户名至少3个字符")
-        .max(20, "用户名最多20个字符")
-        .regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线"),
-      password: z.string().min(6, "密码至少6个字符"),
-      confirmPassword: z.string(),
-      emailCode: z.string().length(6, "请输入6位验证码"),
-      captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
-      inviteCode: z.string().optional(),
-    })
-    .refine((data) => data.password === data.confirmPassword, {
-      message: "两次密码不一致",
-      path: ["confirmPassword"],
-    });
+  const registerSchema = useMemo(
+    () =>
+      z
+        .object({
+          username: z
+            .string()
+            .min(3, "用户名至少3个字符")
+            .max(20, "用户名最多20个字符")
+            .regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线"),
+          email: z
+            .string()
+            .email("请输入有效的邮箱地址")
+            .or(z.literal(""))
+            .optional()
+            .transform((v) => v || undefined),
+          password: z.string().min(6, "密码至少6个字符"),
+          confirmPassword: z.string(),
+          emailCode: z.string().optional(),
+          captcha: captchaType === "math" ? z.string().min(1, "请输入计算结果") : z.string().optional(),
+          inviteCode: z.string().optional(),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: "两次密码不一致",
+          path: ["confirmPassword"],
+        })
+        .refine(
+          (data) => {
+            if (requireEmailVerify && !data.email) return false;
+            return true;
+          },
+          { message: "开启邮箱验证时必须填写邮箱", path: ["email"] },
+        )
+        .refine(
+          (data) => {
+            if (requireEmailVerify && data.email && data.emailCode?.length !== 6) return false;
+            return true;
+          },
+          { message: "请输入6位验证码", path: ["emailCode"] },
+        ),
+    [captchaType, requireEmailVerify],
+  );
 
   type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -85,8 +113,8 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      email: "",
       username: "",
+      email: "",
       password: "",
       confirmPassword: "",
       emailCode: "",
@@ -101,7 +129,14 @@ export default function RegisterPage() {
     }
   }, [referralCode, form]);
 
+  useEffect(() => {
+    if (requireEmailVerify) {
+      setShowEmail(true);
+    }
+  }, [requireEmailVerify]);
+
   const email = form.watch("email");
+  const hasEmail = !!email && email.includes("@");
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -114,7 +149,6 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      // 验证验证码
       if (captchaType !== "none") {
         let captchaBody: Record<string, unknown>;
         if (isTokenCaptcha) {
@@ -142,40 +176,22 @@ export default function RegisterPage() {
         }
       }
 
-      // 验证邮箱验证码
-      const verifyRes = await fetch("/api/email/verify-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          code: data.emailCode,
-          type: "REGISTER",
-        }),
-      });
-      const verifyResult = await verifyRes.json();
-
-      if (!verifyResult.valid) {
-        toast.error(verifyResult.message || "验证码错误");
-        setIsLoading(false);
-        return;
-      }
-
       const fp = await getFingerprint().catch(() => "");
 
       await registerMutation.mutateAsync({
-        email: data.email,
+        email: data.email || undefined,
+        emailCode: data.emailCode || undefined,
         username: data.username,
         password: data.password,
         referralCode: data.inviteCode || referralCode,
         fingerprint: fp || undefined,
       });
 
-      const { error } = await authClient.signIn.email({
-        email: data.email,
-        password: data.password,
-      });
+      const signInResult = data.email
+        ? await authClient.signIn.email({ email: data.email, password: data.password })
+        : await authClient.signIn.username({ username: data.username.toLowerCase(), password: data.password });
 
-      if (error) {
+      if (signInResult?.error) {
         toast.success("注册成功", { description: "请手动登录您的账户" });
         router.push("/login");
       } else {
@@ -195,9 +211,29 @@ export default function RegisterPage() {
     }
   }
 
+  if (!allowRegistration) {
+    return (
+      <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-8">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-3 duration-400 ease-out fill-mode-both">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">注册已关闭</CardTitle>
+              <CardDescription>当前不允许新用户注册</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Link href="/login">
+                <Button variant="outline">前往登录</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-8">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-3 duration-400 ease-out fill-mode-both">
         <Card>
           <CardHeader className="text-center">
             <div>
@@ -210,30 +246,90 @@ export default function RegisterPage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>邮箱</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="your@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>用户名</FormLabel>
                       <FormControl>
-                        <Input placeholder="username" {...field} />
+                        <Input placeholder="用户名（用于登录和展示）" autoComplete="username" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {!showEmail && !requireEmailVerify && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowEmail(true)}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                    添加邮箱（可选）
+                  </button>
+                )}
+
+                {showEmail && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>
+                              邮箱{!requireEmailVerify && <span className="text-muted-foreground ml-1">（选填）</span>}
+                            </FormLabel>
+                            {!requireEmailVerify && (
+                              <button
+                                type="button"
+                                className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => {
+                                  setShowEmail(false);
+                                  form.setValue("email", "");
+                                  form.setValue("emailCode", "");
+                                }}
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                                收起
+                              </button>
+                            )}
+                          </div>
+                          <FormControl>
+                            <Input type="email" placeholder="your@email.com" autoComplete="email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {hasEmail && (
+                      <FormField
+                        control={form.control}
+                        name="emailCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              邮箱验证码
+                              {!requireEmailVerify && (
+                                <span className="text-muted-foreground ml-1">（选填，验证后邮箱受保护）</span>
+                              )}
+                            </FormLabel>
+                            <FormControl>
+                              <EmailCodeInput
+                                email={email || ""}
+                                type="REGISTER"
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                error={form.formState.errors.emailCode?.message}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </>
+                )}
+
                 <FormField
                   control={form.control}
                   name="password"
@@ -241,7 +337,7 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>密码</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="******" {...field} />
+                        <Input type="password" placeholder="******" autoComplete="new-password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -254,27 +350,9 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>确认密码</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="******" {...field} />
+                        <Input type="password" placeholder="******" autoComplete="new-password" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="emailCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>邮箱验证码</FormLabel>
-                      <FormControl>
-                        <EmailCodeInput
-                          email={email}
-                          type="REGISTER"
-                          value={field.value}
-                          onChange={field.onChange}
-                          error={form.formState.errors.emailCode?.message}
-                        />
-                      </FormControl>
                     </FormItem>
                   )}
                 />
@@ -356,5 +434,32 @@ export default function RegisterPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function RegisterFallback() {
+  return (
+    <div className="container flex items-center justify-center min-h-[calc(100vh-200px)] py-8">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <Skeleton className="h-8 w-24 mx-auto" />
+          <Skeleton className="h-4 w-40 mx-auto mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterFallback />}>
+      <RegisterForm />
+    </Suspense>
   );
 }

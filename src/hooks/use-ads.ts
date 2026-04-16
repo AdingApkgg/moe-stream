@@ -17,6 +17,7 @@ function parseAds(raw: unknown): Ad[] {
     url: item.url ?? "",
     description: item.description ?? undefined,
     imageUrl: item.imageUrl ?? undefined,
+    images: parseAdImages(item.images),
     weight: typeof item.weight === "number" ? item.weight : 1,
     enabled: item.enabled !== false,
     positions: normalizePositions(item),
@@ -24,6 +25,16 @@ function parseAds(raw: unknown): Ad[] {
     endDate: item.endDate ?? null,
     createdAt: item.createdAt ?? undefined,
   }));
+}
+
+function parseAdImages(raw: unknown): Ad["images"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const result: NonNullable<Ad["images"]> = {};
+  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
+  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
+  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /**

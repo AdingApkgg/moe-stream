@@ -218,6 +218,10 @@ export const oauthTabSchema = z.object({
   oauthGitlabClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
   oauthRedditClientId: z.string().max(500).optional().nullable().or(z.literal("")),
   oauthRedditClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthQqClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthQqClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthWechatClientId: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthWechatClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
 });
 
 export const seoTabSchema = z.object({
@@ -303,6 +307,8 @@ export const OAUTH_PROVIDERS = [
   "Linkedin",
   "Gitlab",
   "Reddit",
+  "Qq",
+  "Wechat",
 ] as const;
 
 export function pickBasicValues(cfg: SiteConfig): BasicTabValues {

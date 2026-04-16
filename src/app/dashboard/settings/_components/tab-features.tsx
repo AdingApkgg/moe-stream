@@ -76,7 +76,7 @@ export function TabFeatures({ config }: { config: SiteConfig | undefined }) {
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
                     <FormLabel>注册邮箱验证</FormLabel>
-                    <FormDescription>注册时需要验证邮箱</FormDescription>
+                    <FormDescription>开启后注册必须填写邮箱并验证，关闭后邮箱为选填且无需验证</FormDescription>
                   </div>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />

@@ -120,6 +120,20 @@ export function TabOauth({ config }: { config: SiteConfig | undefined }) {
                   url: "https://www.reddit.com/prefs/apps",
                   urlLabel: "Reddit App Preferences",
                 },
+                {
+                  key: "Qq",
+                  label: "QQ",
+                  callbackId: "qq",
+                  url: "https://connect.qq.com/manage.html",
+                  urlLabel: "QQ 互联管理中心",
+                },
+                {
+                  key: "Wechat",
+                  label: "微信",
+                  callbackId: "wechat",
+                  url: "https://open.weixin.qq.com/",
+                  urlLabel: "微信开放平台",
+                },
               ] as const
             ).map(({ key, label, callbackId, url, urlLabel }, idx) => {
               const idField = `oauth${key}ClientId` as keyof OAuthTabValues;

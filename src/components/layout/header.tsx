@@ -674,7 +674,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </Avatar>
                       <div className="flex flex-col space-y-0.5 leading-none min-w-0">
                         <p className="font-medium truncate">{session.user.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+                        <p className="text-xs text-muted-foreground truncate">{session.user.email || ""}</p>
                       </div>
                     </div>
                     {meData?.points !== undefined && (

@@ -35,6 +35,22 @@ export function resolveSlotPosition(slotId: string): AdPosition | undefined {
 
 const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
 
+/** 不同广告位的专用图片尺寸标识 */
+export type AdImageSize = "banner" | "card" | "sidebar";
+
+export const AD_IMAGE_SIZES: { value: AdImageSize; label: string; hint: string }[] = [
+  { value: "banner", label: "横幅图", hint: "用于顶部轮播，推荐 1200×300" },
+  { value: "card", label: "卡片图", hint: "用于信息流，推荐 640×360" },
+  { value: "sidebar", label: "侧栏图", hint: "用于侧边栏，推荐 400×200" },
+];
+
+/** 各广告位尺寸的专用图片 URL */
+export interface AdImages {
+  banner?: string;
+  card?: string;
+  sidebar?: string;
+}
+
 /** 单条广告的数据结构（存储在 SiteConfig.sponsorAds JSON 中） */
 export interface Ad {
   /** 唯一标识（uuid，用于编辑/删除） */
@@ -47,8 +63,10 @@ export interface Ad {
   url: string;
   /** 描述文案 */
   description?: string;
-  /** 广告图片链接 */
+  /** 默认广告图片链接（各尺寸未配置时的回退） */
   imageUrl?: string;
+  /** 各广告位专用图片（未配置的尺寸回退到 imageUrl） */
+  images?: AdImages;
   /** 权重（数值越大被选中概率越高，默认 1） */
   weight: number;
   /** 是否启用（false 时不展示） */
@@ -61,6 +79,30 @@ export interface Ad {
   endDate?: string | null;
   /** 创建时间 */
   createdAt?: string;
+}
+
+const SLOT_TO_IMAGE_SIZE: Record<string, AdImageSize> = {
+  sidebar: "sidebar",
+  "video-sidebar": "sidebar",
+  header: "banner",
+  "header-carousel": "banner",
+  "in-feed": "card",
+  "ad-gate": "card",
+};
+
+/**
+ * 根据广告位选取最合适的图片 URL。
+ * 优先使用该位置对应尺寸的专用图，未配置则回退到默认 imageUrl。
+ */
+export function getAdImage(ad: Ad, slotId?: string): string | undefined {
+  if (slotId && ad.images) {
+    const size = SLOT_TO_IMAGE_SIZE[slotId];
+    if (size) {
+      const url = ad.images[size];
+      if (url) return url;
+    }
+  }
+  return ad.imageUrl;
 }
 
 /** 将旧版单一 position 字段规范化为 positions 数组（兼容旧数据） */

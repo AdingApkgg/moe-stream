@@ -177,7 +177,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
                 {gridItems.map((item, index) =>
                   item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} />
+                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
                   ) : (
                     <ImagePostCard key={item.data.id} post={item.data} index={index} />
                   ),

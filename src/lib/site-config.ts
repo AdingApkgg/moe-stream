@@ -15,6 +15,7 @@ export interface PublicSiteConfig {
   announcement: string | null;
   announcementEnabled: boolean;
   allowRegistration: boolean;
+  requireEmailVerify: boolean;
   allowUpload: boolean;
   allowComment: boolean;
   requireLoginToComment: boolean;
@@ -124,6 +125,8 @@ const OAUTH_KEYS = [
   "Linkedin",
   "Gitlab",
   "Reddit",
+  "Qq",
+  "Wechat",
 ] as const;
 
 function stripTrailingSlash(url: string): string {
@@ -149,6 +152,7 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     announcement: (c.announcement as string) ?? null,
     announcementEnabled: (c.announcementEnabled as boolean) ?? false,
     allowRegistration: (c.allowRegistration as boolean) ?? true,
+    requireEmailVerify: (c.requireEmailVerify as boolean) ?? false,
     allowUpload: (c.allowUpload as boolean) ?? true,
     allowComment: (c.allowComment as boolean) ?? true,
     requireLoginToComment: (c.requireLoginToComment as boolean) ?? false,

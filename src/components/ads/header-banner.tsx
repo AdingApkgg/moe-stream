@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useRandomAds } from "@/hooks/use-ads";
-import { resolveSlotPosition } from "@/lib/ads";
+import { resolveSlotPosition, getAdImage } from "@/lib/ads";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -56,6 +56,7 @@ export function HeaderBannerCarousel({ className }: { className?: string }) {
 
   if (!mounted || !showAds || total === 0) return null;
   const ad = ads[current];
+  const imageUrl = getAdImage(ad, "header-carousel");
 
   return (
     <div className={cn("relative rounded-xl overflow-hidden", className)}>
@@ -65,11 +66,11 @@ export function HeaderBannerCarousel({ className }: { className?: string }) {
         rel="noopener noreferrer sponsored"
         className="group block w-full"
       >
-        {ad.imageUrl ? (
+        {imageUrl ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={ad.imageUrl}
+              src={imageUrl}
               alt={ad.title}
               className="w-full h-auto block transition-transform group-hover:scale-[1.01]"
               loading="lazy"

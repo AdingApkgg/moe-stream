@@ -1,6 +1,7 @@
 "use client";
 
 import type { Ad } from "@/lib/ads";
+import { getAdImage } from "@/lib/ads";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { cn, getRedirectUrl } from "@/lib/utils";
 
@@ -8,14 +9,19 @@ interface AdCardProps {
   ad: Ad;
   /** 紧凑模式（侧栏等小空间） */
   compact?: boolean;
+  /** 广告位标识，用于选取合适尺寸的图片 */
+  slotId?: string;
   className?: string;
 }
 
 /**
  * 单条广告卡片：展示图片、平台名、描述，点击跳转。
  */
-export function AdCard({ ad, compact, className }: AdCardProps) {
+export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
   const redirectOpts = useRedirectOptions();
+  const resolvedSlot = slotId ?? (compact ? "sidebar" : "in-feed");
+  const imageUrl = getAdImage(ad, resolvedSlot);
+
   return (
     <a
       href={getRedirectUrl(ad.url, redirectOpts)}
@@ -27,11 +33,11 @@ export function AdCard({ ad, compact, className }: AdCardProps) {
       )}
     >
       {/* 图片区域 */}
-      {ad.imageUrl ? (
+      {imageUrl ? (
         <div className={cn("relative w-full overflow-hidden bg-muted", compact ? "aspect-[2/1]" : "aspect-video")}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={ad.imageUrl}
+            src={imageUrl}
             alt={ad.title}
             className="w-full h-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"

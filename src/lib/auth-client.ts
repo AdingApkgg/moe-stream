@@ -1,7 +1,7 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { usernameClient, twoFactorClient } from "better-auth/client/plugins";
+import { usernameClient, twoFactorClient, genericOAuthClient } from "better-auth/client/plugins";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { isPrivileged } from "@/lib/permissions";
 
@@ -15,6 +15,7 @@ export const authClient = createAuthClient({
       },
     }),
     passkeyClient(),
+    genericOAuthClient(),
   ],
 });
 
@@ -49,7 +50,7 @@ export function useSession() {
     ? {
         user: {
           id: data.user.id,
-          email: data.user.email ?? "",
+          email: data.user.email ?? null,
           name: data.user.name ?? null,
           image: data.user.image ?? null,
           role,

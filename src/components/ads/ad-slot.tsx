@@ -58,7 +58,7 @@ export function AdSlot({ slotId = "default", minHeight, compact, className, chil
       className={cn(className)}
       style={minHeight ? { minHeight: `${minHeight}px` } : undefined}
     >
-      <AdCard ad={ad} compact={compact} />
+      <AdCard ad={ad} compact={compact} slotId={slotId} />
     </div>
   );
 }

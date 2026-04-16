@@ -172,7 +172,7 @@ function LoginForm() {
       const isEmail = data.identifier.includes("@");
       const result = isEmail
         ? await authClient.signIn.email({ email: data.identifier, password: data.password })
-        : await authClient.signIn.username({ username: data.identifier, password: data.password });
+        : await authClient.signIn.username({ username: data.identifier.toLowerCase(), password: data.password });
 
       if (result?.error) {
         toast.error("登录失败", { description: result.error.message ?? "账号或密码错误" });
@@ -338,6 +338,7 @@ function LoginForm() {
                 <Link href="/forgot-password" className="text-primary hover:underline">
                   忘记密码？
                 </Link>
+                <span className="text-xs text-muted-foreground/60 ml-1">（需要邮箱）</span>
               </div>
               <div>
                 还没有账户？{" "}
