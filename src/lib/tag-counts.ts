@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { safeSync } from "@/lib/meilisearch";
+import { syncTag } from "@/lib/search-sync";
 
 const CHUNK_SIZE = 20;
 
@@ -19,6 +21,7 @@ async function refreshOne(tagId: string): Promise<void> {
     where: { id: tagId },
     data: { videoCount, gameCount, imagePostCount },
   });
+  void safeSync(syncTag(tagId));
 }
 
 /**

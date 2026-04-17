@@ -7,7 +7,7 @@
 
 [Unit]
 Description=MoeStream All Services
-Wants=moestream-app.service moestream-socket.service
+Wants=meilisearch.service moestream-app.service moestream-socket.service
 
 [Install]
 WantedBy=multi-user.target

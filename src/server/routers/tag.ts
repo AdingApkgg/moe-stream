@@ -2,7 +2,9 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, adminProcedure } from "../trpc";
 import { memGetOrSet, memDeletePrefix } from "@/lib/memory-cache";
-import { mergeTagSearchIntoWhere } from "@/lib/search";
+import { meili, INDEX, safeSync } from "@/lib/meilisearch";
+import { syncTag, deleteTag } from "@/lib/search-sync";
+import { shouldMeiliListSearch, tagListMeiliFilter } from "@/lib/meili-filters";
 
 const tagTypeSchema = z.enum(["video", "game", "image"]).optional();
 
@@ -88,20 +90,26 @@ export const tagRouter = router({
     .query(async ({ ctx, input }) => {
       const h = tagQueryHelpers(input.type);
 
-      if (input.search) {
-        const tagWhere = mergeTagSearchIntoWhere(
-          {
-            ...h.hasContent,
-            ...(input.categoryId ? { categoryId: input.categoryId } : {}),
-          },
-          input.search,
-        );
-        return ctx.prisma.tag.findMany({
-          take: input.limit,
-          where: tagWhere,
-          select: tagSelect,
-          orderBy: { name: "asc" },
+      if (shouldMeiliListSearch(input.search)) {
+        const q = input.search!.trim();
+        const filter = tagListMeiliFilter({
+          type: input.type,
+          categoryId: input.categoryId,
         });
+        const msRes = await meili.index(INDEX.tag).search(q, {
+          limit: input.limit,
+          ...(filter ? { filter } : {}),
+          sort: ["name:asc"],
+          attributesToRetrieve: ["id"],
+        });
+        const ids = msRes.hits.map((h: Record<string, unknown>) => String(h.id));
+        if (ids.length === 0) return [];
+        const rows = await ctx.prisma.tag.findMany({
+          where: { id: { in: ids } },
+          select: tagSelect,
+        });
+        const byId = new Map(rows.map((t) => [t.id, t] as const));
+        return ids.map((id: string) => byId.get(id)).filter((t): t is (typeof rows)[number] => Boolean(t));
       }
 
       const where: Prisma.TagWhereInput = {
@@ -230,6 +238,7 @@ export const tagRouter = router({
       });
 
       memDeletePrefix("tag:");
+      void safeSync(syncTag(tag.id));
 
       return tag;
     }),
@@ -240,6 +249,7 @@ export const tagRouter = router({
     });
 
     memDeletePrefix("tag:");
+    void safeSync(deleteTag(input.id));
 
     return { success: true };
   }),

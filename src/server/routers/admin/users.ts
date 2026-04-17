@@ -2,6 +2,8 @@ import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { isOwner as isOwnerRole } from "@/lib/permissions";
+import { safeSync } from "@/lib/meilisearch";
+import { syncUser } from "@/lib/search-sync";
 
 export const adminUsersRouter = router({
   // ========== 用户管理（站长专用）==========
@@ -106,6 +108,8 @@ export const adminUsersRouter = router({
         data: { isBanned: true, banReason: input.reason, bannedAt: new Date() },
       });
 
+      void safeSync(syncUser(input.userId));
+
       return { success: true };
     }),
 
@@ -127,6 +131,8 @@ export const adminUsersRouter = router({
         data: { isBanned: false, banReason: null, bannedAt: null },
       });
 
+      void safeSync(syncUser(input.userId));
+
       return { success: true };
     }),
 
@@ -140,6 +146,10 @@ export const adminUsersRouter = router({
         data: { isBanned: true, bannedAt: new Date() },
       });
 
+      for (const uid of input.userIds) {
+        void safeSync(syncUser(uid));
+      }
+
       return { success: true, count: result.count };
     }),
 
@@ -152,6 +162,10 @@ export const adminUsersRouter = router({
         where: { id: { in: input.userIds } },
         data: { isBanned: false, banReason: null, bannedAt: null },
       });
+
+      for (const uid of input.userIds) {
+        void safeSync(syncUser(uid));
+      }
 
       return { success: true, count: result.count };
     }),

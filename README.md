@@ -119,6 +119,8 @@ cp .env.example .env.development
 |------|------|
 | `DATABASE_URL` | PostgreSQL 连接串 |
 | `REDIS_URL` | Redis 连接串 |
+| `MEILISEARCH_URL` | Meilisearch 地址（本地 `http://127.0.0.1:7700`） |
+| `MEILISEARCH_MASTER_KEY` | Meilisearch API 密钥（与 `MEILI_MASTER_KEY` 在 Compose 中保持一致） |
 | `BETTER_AUTH_SECRET` | Auth 密钥（`openssl rand -base64 32`） |
 | `BETTER_AUTH_BASE_URL` | 站点地址（开发环境 `http://localhost:3000`） |
 | `NEXT_PUBLIC_APP_URL` | 前端访问地址 |
@@ -131,7 +133,7 @@ cp .env.example .env.development
 **方式 A：Podman / Docker Compose（推荐）**
 
 ```bash
-pnpm compose:infra   # 启动 PostgreSQL 18 + Redis 8 容器
+pnpm compose:infra   # 启动 PostgreSQL 18 + Redis 8 + Meilisearch 容器
 ```
 
 默认连接地址（`.env.development`）：
@@ -139,11 +141,13 @@ pnpm compose:infra   # 启动 PostgreSQL 18 + Redis 8 容器
 ```
 DATABASE_URL="postgresql://postgres:your_password@localhost:5432/acgn?schema=public"
 REDIS_URL="redis://localhost:6379"
+MEILISEARCH_URL="http://127.0.0.1:7700"
+MEILISEARCH_MASTER_KEY="与 compose 中 MEILI_MASTER_KEY 一致"
 ```
 
 **方式 B：本地安装**
 
-自行安装 PostgreSQL 和 Redis，在 `.env.development` 中修改连接地址。
+自行安装 PostgreSQL、Redis 与 Meilisearch，在 `.env.development` 中修改连接地址。
 
 ### 4. 初始化数据库
 
@@ -151,6 +155,13 @@ REDIS_URL="redis://localhost:6379"
 pnpm db:generate   # 生成 Prisma Client
 pnpm db:push       # 推送数据库 schema
 pnpm db:seed       # (可选) 填充初始数据
+```
+
+### 4.1 初始化搜索索引（Meilisearch）
+
+```bash
+pnpm meili:init     # 创建索引与 settings
+pnpm meili:reindex  # 全量同步文档（首次或兜底）
 ```
 
 ### 5. 启动开发服务器
@@ -204,8 +215,8 @@ pnpm script:create-owner   # 创建 OWNER 角色用户
 
 | 命令 | 说明 |
 |------|------|
-| `pnpm compose:infra` | 启动 PostgreSQL + Redis 容器（开发用） |
-| `pnpm compose:up` | 全栈启动（PostgreSQL + Redis + Next.js + Socket.io） |
+| `pnpm compose:infra` | 启动 PostgreSQL + Redis + Meilisearch 容器（开发用） |
+| `pnpm compose:up` | 全栈启动（PostgreSQL + Redis + Meilisearch + Next.js + Socket.io） |
 | `pnpm compose:down` | 停止所有容器 |
 | `pnpm compose:logs` | 查看容器日志 |
 | `pnpm compose:build` | 重新构建应用镜像 |

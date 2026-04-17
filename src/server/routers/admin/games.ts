@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
+import { safeSync } from "@/lib/meilisearch";
+import { syncGame, deleteGame as deleteGameSearchIndex } from "@/lib/search-sync";
 
 export const adminGamesRouter = router({
   // ==================== 游戏管理 ====================
@@ -124,6 +126,8 @@ export const adminGamesRouter = router({
         submitGameToIndexNow(input.gameId).catch(() => {});
       }
 
+      void safeSync(syncGame(input.gameId));
+
       return { success: true };
     }),
 
@@ -133,6 +137,7 @@ export const adminGamesRouter = router({
     .input(z.object({ gameId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.game.delete({ where: { id: input.gameId } });
+      void safeSync(deleteGameSearchIndex(input.gameId));
       return { success: true };
     }),
 
@@ -208,6 +213,8 @@ export const adminGamesRouter = router({
       if (input.status === "PUBLISHED") {
         submitGameToIndexNow(game.id).catch(() => {});
       }
+
+      void safeSync(syncGame(game.id));
 
       return game;
     }),
@@ -308,6 +315,8 @@ export const adminGamesRouter = router({
       // 游戏更新后通知搜索引擎重新索引
       submitGameToIndexNow(gameId).catch(() => {});
 
+      void safeSync(syncGame(gameId));
+
       return { success: true };
     }),
 
@@ -359,6 +368,10 @@ export const adminGamesRouter = router({
         submitGamesToIndexNow(input.gameIds).catch(() => {});
       }
 
+      for (const gid of input.gameIds) {
+        void safeSync(syncGame(gid));
+      }
+
       return { success: true, count: result.count };
     }),
 
@@ -370,6 +383,10 @@ export const adminGamesRouter = router({
       const result = await ctx.prisma.game.deleteMany({
         where: { id: { in: input.gameIds } },
       });
+
+      for (const gid of input.gameIds) {
+        void safeSync(deleteGameSearchIndex(gid));
+      }
 
       return { success: true, count: result.count };
     }),
@@ -557,6 +574,7 @@ export const adminGamesRouter = router({
               where: { id: game.id },
               data: { [field]: replaced || null },
             });
+            void safeSync(syncGame(game.id));
             updatedCount++;
           }
         } else {
@@ -601,6 +619,7 @@ export const adminGamesRouter = router({
               where: { id: game.id },
               data: { extraInfo: newExtra as Prisma.InputJsonValue },
             });
+            void safeSync(syncGame(game.id));
             updatedCount++;
           }
         }

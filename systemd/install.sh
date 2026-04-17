@@ -12,7 +12,7 @@
 # 前置条件:
 #   - Node.js >= 22
 #   - pnpm
-#   - PostgreSQL、Redis 已安装并运行
+#   - PostgreSQL、Redis、Meilisearch 已安装并运行（Meilisearch 二进制见下方提示）
 #
 # ============================================================
 
@@ -80,7 +80,8 @@ if [[ "$UNINSTALL" == true ]]; then
     log_step "卸载 MoeStream systemd 服务..."
 
     systemctl stop moestream.target 2>/dev/null || true
-    systemctl disable moestream-app.service moestream-socket.service moestream.target 2>/dev/null || true
+    systemctl disable meilisearch.service moestream-app.service moestream-socket.service moestream.target 2>/dev/null || true
+    rm -f /etc/systemd/system/meilisearch.service
     rm -f /etc/systemd/system/moestream-app.service
     rm -f /etc/systemd/system/moestream-socket.service
     rm -f /etc/systemd/system/moestream.target
@@ -163,7 +164,20 @@ log_step "创建目录结构..."
 mkdir -p "${INSTALL_DIR}"/{uploads,logs,data,.backup-tmp,.next/cache}
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}"
 
+mkdir -p /var/lib/meilisearch/{data,dumps}
+chown -R "${SERVICE_USER}:${SERVICE_USER}" /var/lib/meilisearch
+
 log_ok "目录结构已就绪"
+
+# ============================================================
+# Meilisearch 二进制
+# ============================================================
+if [[ ! -x /usr/local/bin/meilisearch ]]; then
+    log_warn "未找到 /usr/local/bin/meilisearch，请先安装官方二进制，例如:"
+    log_warn "  curl -L https://install.meilisearch.com | sh"
+    log_warn "  sudo mv ./meilisearch /usr/local/bin/meilisearch"
+    log_warn "  并在 ${INSTALL_DIR}/.env.production 中配置 MEILI_MASTER_KEY（与应用的 MEILISEARCH_MASTER_KEY 一致）"
+fi
 
 # ============================================================
 # 安装 systemd 单元文件
@@ -172,7 +186,7 @@ log_step "安装 systemd 服务文件..."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-for unit in moestream-app.service moestream-socket.service moestream.target; do
+for unit in meilisearch.service moestream-app.service moestream-socket.service moestream.target; do
     SRC="${SCRIPT_DIR}/${unit}"
     if [[ ! -f "$SRC" ]]; then
         log_error "找不到 ${SRC}"
@@ -182,10 +196,10 @@ for unit in moestream-app.service moestream-socket.service moestream.target; do
 done
 
 # 替换模板变量
-sed -i "s|User=moestream|User=${SERVICE_USER}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
-sed -i "s|Group=moestream|Group=${SERVICE_USER}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
-sed -i "s|WorkingDirectory=/opt/moestream|WorkingDirectory=${INSTALL_DIR}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
-sed -i "s|EnvironmentFile=/opt/moestream/|EnvironmentFile=${INSTALL_DIR}/|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
+sed -i "s|User=moestream|User=${SERVICE_USER}|g" /etc/systemd/system/meilisearch.service /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
+sed -i "s|Group=moestream|Group=${SERVICE_USER}|g" /etc/systemd/system/meilisearch.service /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
+sed -i "s|WorkingDirectory=/opt/moestream|WorkingDirectory=${INSTALL_DIR}|g" /etc/systemd/system/meilisearch.service /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
+sed -i "s|EnvironmentFile=/opt/moestream/|EnvironmentFile=${INSTALL_DIR}/|g" /etc/systemd/system/meilisearch.service /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
 sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-app.service
 sed -i "s|/opt/moestream|${INSTALL_DIR}|g" /etc/systemd/system/moestream-socket.service
 sed -i "s|ExecStart=/usr/bin/node|ExecStart=${DETECTED_NODE}|g" /etc/systemd/system/moestream-app.service /etc/systemd/system/moestream-socket.service
@@ -201,6 +215,7 @@ log_ok "systemd 服务文件已安装"
 # ============================================================
 log_step "启用服务..."
 
+systemctl enable meilisearch.service
 systemctl enable moestream.target
 systemctl enable moestream-app.service
 systemctl enable moestream-socket.service
@@ -239,5 +254,6 @@ echo "    systemctl restart moestream-socket    # 重启 Socket.io"
 echo "    systemctl status moestream-app        # 查看状态"
 echo "    journalctl -u moestream-app -f        # 实时日志"
 echo "    journalctl -u moestream-socket -f     # Socket 日志"
+echo "    journalctl -u meilisearch -f          # Meilisearch 日志"
 echo "    journalctl -u moestream-app --since '1h ago'  # 最近 1 小时日志"
 echo "=========================================="

@@ -66,6 +66,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # ---------- Meilisearch（全文搜索） ----------
+  meilisearch:
+    image: docker.io/getmeili/meilisearch:v1.12
+    container_name: ${APP_NAME:-acgn}-meilisearch
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in .env}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_HTTP_ADDR: 0.0.0.0:7700
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7700/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # ---------- Next.js 应用 ----------
   app:
     build:
@@ -81,6 +100,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
       REDIS_URL: redis://redis:6379
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_MASTER_KEY: ${MEILI_MASTER_KEY}
       NODE_ENV: production
     env_file:
       - .env.production
@@ -91,6 +112,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3000/robots.txt || exit 1"]
@@ -114,6 +137,8 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-acgn}?schema=public
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_MASTER_KEY: ${MEILI_MASTER_KEY}
       SOCKET_PORT: "3001"
       NODE_ENV: production
     env_file:
@@ -122,6 +147,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
 
   # ---------- Prisma 数据库迁移 ----------
@@ -142,5 +169,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  meilisearch_data:
   uploads_data:
   data_dir:

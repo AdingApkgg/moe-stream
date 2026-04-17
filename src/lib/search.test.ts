@@ -1,25 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { buildHighlightSegments, splitSearchTokens } from "@/lib/search-text";
-import { buildContentSearchWhere } from "@/lib/search";
 
 describe("splitSearchTokens", () => {
   it("按空格分词并去空", () => {
     expect(splitSearchTokens("  a  b ")).toEqual(["a", "b"]);
-  });
-});
-
-describe("buildContentSearchWhere", () => {
-  it("无输入返回 undefined", () => {
-    expect(buildContentSearchWhere("")).toBeUndefined();
-    expect(buildContentSearchWhere("   ")).toBeUndefined();
-  });
-
-  it("多分词生成 AND", () => {
-    const w = buildContentSearchWhere("foo bar");
-    expect(w).toMatchObject({
-      AND: expect.arrayContaining([expect.objectContaining({ OR: expect.any(Array) })]),
-    });
-    expect((w as { AND: unknown[] }).AND).toHaveLength(2);
   });
 });
 

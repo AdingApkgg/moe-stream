@@ -6,6 +6,8 @@ import { nanoid } from "nanoid";
 import { parseShortcode } from "@/lib/shortcode-parser";
 import { enqueueCoverForVideo } from "@/lib/cover-auto";
 import { createNotification } from "@/lib/notification";
+import { safeSync } from "@/lib/meilisearch";
+import { syncVideo, deleteVideo as deleteVideoSearchIndex } from "@/lib/search-sync";
 
 export const adminVideosRouter = router({
   // ========== 视频管理 ==========
@@ -141,6 +143,8 @@ export const adminVideosRouter = router({
         }).catch(() => {});
       }
 
+      void safeSync(syncVideo(input.videoId));
+
       return { success: true, video };
     }),
 
@@ -157,6 +161,8 @@ export const adminVideosRouter = router({
       const seriesIds = episodes.map((e) => e.seriesId);
 
       await ctx.prisma.video.delete({ where: { id: input.videoId } });
+
+      void safeSync(deleteVideoSearchIndex(input.videoId));
 
       // 清理空合集
       if (seriesIds.length > 0) {
@@ -186,6 +192,10 @@ export const adminVideosRouter = router({
         data: { status: input.status },
       });
 
+      for (const vid of input.videoIds) {
+        void safeSync(syncVideo(vid));
+      }
+
       return { success: true, count: result.count };
     }),
 
@@ -204,6 +214,10 @@ export const adminVideosRouter = router({
       const result = await ctx.prisma.video.deleteMany({
         where: { id: { in: input.videoIds } },
       });
+
+      for (const vid of input.videoIds) {
+        void safeSync(deleteVideoSearchIndex(vid));
+      }
 
       // 清理空合集
       if (seriesIds.length > 0) {
@@ -377,6 +391,7 @@ export const adminVideosRouter = router({
               where: { id: video.id },
               data: { [field]: replaced || null },
             });
+            void safeSync(syncVideo(video.id));
             updatedCount++;
           }
         } else {
@@ -421,6 +436,7 @@ export const adminVideosRouter = router({
               where: { id: video.id },
               data: { extraInfo: newExtra as Prisma.InputJsonValue },
             });
+            void safeSync(syncVideo(video.id));
             updatedCount++;
           }
         }
@@ -513,6 +529,8 @@ export const adminVideosRouter = router({
           });
 
           enqueueCoverForVideo(video.id, video.coverUrl).catch(() => {});
+
+          void safeSync(syncVideo(video.id));
 
           results.push({ title: videoData.title, id: video.id });
         } catch (error) {

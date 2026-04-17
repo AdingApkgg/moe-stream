@@ -5,7 +5,7 @@
 [Unit]
 Description=MoeStream Next.js App
 Documentation=https://github.com/your-org/moestream
-After=network.target postgresql.service redis.service
+After=network.target postgresql.service redis.service meilisearch.service
 Wants=moestream-socket.service
 PartOf=moestream.target
 

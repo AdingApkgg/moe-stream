@@ -4,6 +4,8 @@ import { router, publicProcedure, protectedProcedure, ownerProcedure, adminProce
 import { hash, compare } from "@/lib/bcrypt-wasm";
 import { TRPCError } from "@trpc/server";
 import { isOwner } from "@/lib/permissions";
+import { safeSync } from "@/lib/meilisearch";
+import { syncUser, deleteUser, syncVideo, deleteGame, deleteImagePost } from "@/lib/search-sync";
 
 export const userRouter = router({
   // 注册
@@ -179,6 +181,8 @@ export const userRouter = router({
 
         return user;
       });
+
+      void safeSync(syncUser(result.id));
 
       return { id: result.id, email: result.email ?? null, username: result.username };
     }),
@@ -357,6 +361,8 @@ export const userRouter = router({
         },
       });
 
+      void safeSync(syncUser(user.id));
+
       return { success: true, user };
     }),
 
@@ -523,6 +529,8 @@ export const userRouter = router({
         data: updates,
       });
 
+      void safeSync(syncUser(ctx.session.user.id));
+
       return { success: true };
     }),
 
@@ -669,6 +677,12 @@ export const userRouter = router({
         });
       }
 
+      const [videoRows, gameRows, imageRows] = await Promise.all([
+        ctx.prisma.video.findMany({ where: { uploaderId: userId }, select: { id: true } }),
+        ctx.prisma.game.findMany({ where: { uploaderId: userId }, select: { id: true } }),
+        ctx.prisma.imagePost.findMany({ where: { uploaderId: userId }, select: { id: true } }),
+      ]);
+
       // 使用事务处理
       await ctx.prisma.$transaction(async (tx) => {
         // 1. 将用户的视频转移给站长
@@ -689,6 +703,17 @@ export const userRouter = router({
           where: { id: userId },
         });
       });
+
+      void safeSync(deleteUser(userId));
+      for (const v of videoRows) {
+        void safeSync(syncVideo(v.id));
+      }
+      for (const g of gameRows) {
+        void safeSync(deleteGame(g.id));
+      }
+      for (const p of imageRows) {
+        void safeSync(deleteImagePost(p.id));
+      }
 
       return { success: true };
     }),
@@ -762,6 +787,8 @@ export const userRouter = router({
         where: { id: ctx.session.user.id },
         data: { avatar: input.avatar || null },
       });
+
+      void safeSync(syncUser(user.id));
 
       return { success: true, avatar: user.avatar };
     }),
@@ -841,6 +868,9 @@ export const userRouter = router({
         data: { role: "ADMIN", ...(adminGroup && { groupId: adminGroup.id }) },
       }),
     ]);
+
+    void safeSync(syncUser(input.userId));
+    void safeSync(syncUser(ctx.session.user.id));
 
     return { success: true };
   }),

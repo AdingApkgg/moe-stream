@@ -2,6 +2,8 @@ import { router, adminProcedure, requireScope } from "../../trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import { safeSync } from "@/lib/meilisearch";
+import { syncImagePost, deleteImagePost } from "@/lib/search-sync";
 
 export const adminImagesRouter = router({
   // ========== 图片管理 ==========
@@ -82,6 +84,8 @@ export const adminImagesRouter = router({
         data: { status: input.status },
       });
 
+      void safeSync(syncImagePost(input.imageId));
+
       return { success: true };
     }),
 
@@ -90,6 +94,7 @@ export const adminImagesRouter = router({
     .input(z.object({ imageId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.imagePost.delete({ where: { id: input.imageId } });
+      void safeSync(deleteImagePost(input.imageId));
       return { success: true };
     }),
 
@@ -134,6 +139,10 @@ export const adminImagesRouter = router({
         data: { status: input.status },
       });
 
+      for (const pid of input.imageIds) {
+        void safeSync(syncImagePost(pid));
+      }
+
       return { success: true, count: result.count };
     }),
 
@@ -144,6 +153,10 @@ export const adminImagesRouter = router({
       const result = await ctx.prisma.imagePost.deleteMany({
         where: { id: { in: input.imageIds } },
       });
+
+      for (const pid of input.imageIds) {
+        void safeSync(deleteImagePost(pid));
+      }
 
       return { success: true, count: result.count };
     }),
@@ -243,6 +256,7 @@ export const adminImagesRouter = router({
               where: { id: post.id },
               data: { images: replaced },
             });
+            void safeSync(syncImagePost(post.id));
             updatedCount++;
           }
         } else {
@@ -253,6 +267,7 @@ export const adminImagesRouter = router({
               where: { id: post.id },
               data: { [input.field]: replaced || null },
             });
+            void safeSync(syncImagePost(post.id));
             updatedCount++;
           }
         }

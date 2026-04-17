@@ -215,6 +215,9 @@ importers:
       lucide-react:
         specifier: ^1.8.0
         version: 1.8.0(react@19.2.5)
+      meilisearch:
+        specifier: ^0.57.0
+        version: 0.57.0
       nanoid:
         specifier: ^5.1.7
         version: 5.1.7
@@ -5612,6 +5615,10 @@ packages:
 
   media-tracks@0.3.5:
     resolution: {integrity: sha512-l54rkKXlLBt3ob3zOLWHcnjvwUmX5bNEZ70igyapOZZC9imzqBmq1oz8p2roiV04KhjblFIi2hetLPF1oYVLRA==}
+
+  meilisearch@0.57.0:
+    resolution: {integrity: sha512-J3ZdX6MjguEIG9Yo+duRZeVsbMdRuwM2OFvJUs8wZSeBADYZ2qc1eajlClKLRqS/mAhGh2bLiU5SbmhKXKuWSw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
 
   memory-pager@1.5.0:
     resolution: {integrity: sha512-ZS4Bp4r/Zoeq6+NLJpP+0Zzm0pR8whtGPf1XExKLJBAczGMnSi3It14OiNCStjQjM6NU1okjQGSxgEZN8eBYKg==}
@@ -13271,6 +13278,8 @@ snapshots:
   media-played-ranges-mixin@0.1.0: {}
 
   media-tracks@0.3.5: {}
+
+  meilisearch@0.57.0: {}
 
   memory-pager@1.5.0:
     optional: true

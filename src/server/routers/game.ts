@@ -16,7 +16,9 @@ import {
   assertOwnership,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
-import { mergeGameSearchIntoWhere } from "@/lib/search";
+import { meili, INDEX, safeSync } from "@/lib/meilisearch";
+import { syncGame, deleteGame } from "@/lib/search-sync";
+import { shouldMeiliListSearch, gameListMeiliFilter, gameListMeiliSort } from "@/lib/meili-filters";
 
 const GAME_CACHE_TTL = 60; // 1 minute
 
@@ -97,14 +99,49 @@ export const gameRouter = router({
         }));
       }
 
-      Object.assign(baseWhere, mergeGameSearchIntoWhere(baseWhere, search));
-
       if (gameType) {
         baseWhere.gameType = gameType;
       }
 
       if (timeFilter) {
         baseWhere.createdAt = { gte: timeFilter };
+      }
+
+      const listInclude = {
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
+        },
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+        _count: { select: { likes: true, dislikes: true, comments: true, favorites: true } },
+      } as const;
+
+      if (shouldMeiliListSearch(search)) {
+        const q = search!.trim();
+        const filter = gameListMeiliFilter({ tagId, tagSlugs, excludeTagSlugs, gameType, timeFilter });
+        const offset = (page - 1) * limit;
+        const msRes = await meili.index(INDEX.game).search(q, {
+          limit,
+          offset,
+          filter,
+          sort: gameListMeiliSort(sortBy),
+          attributesToRetrieve: ["id"],
+        });
+        const ids = msRes.hits.map((h: Record<string, unknown>) => String(h.id));
+        const rows = await ctx.prisma.game.findMany({
+          where: { id: { in: ids }, status: "PUBLISHED" },
+          include: listInclude,
+        });
+        const byId = new Map(rows.map((g) => [g.id, g] as const));
+        const games = ids.map((id: string) => byId.get(id)).filter((g): g is (typeof rows)[number] => Boolean(g));
+        const totalCount = msRes.estimatedTotalHits ?? msRes.hits.length;
+        return {
+          games,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+        };
       }
 
       const orderBy = {
@@ -124,15 +161,7 @@ export const gameRouter = router({
           skip,
           where: baseWhere,
           orderBy,
-          include: {
-            uploader: {
-              select: { id: true, username: true, nickname: true, avatar: true },
-            },
-            tags: {
-              include: { tag: { select: { id: true, name: true, slug: true } } },
-            },
-            _count: { select: { likes: true, dislikes: true, comments: true, favorites: true } },
-          },
+          include: listInclude,
         }),
         ctx.prisma.game.count({ where: baseWhere }),
       ]);
@@ -348,6 +377,7 @@ export const gameRouter = router({
       });
 
       scheduleTagCountRefresh(allTagIds, "游戏创建");
+      void safeSync(syncGame(game.id));
 
       if (status === "PUBLISHED") {
         submitGameToIndexNow(game.id).catch(() => {});
@@ -457,6 +487,12 @@ export const gameRouter = router({
       }
 
       scheduleTagCountRefresh([...new Set([...previousTagIds, ...tagNameToId.values()])], "游戏批量导入");
+
+      for (const r of results) {
+        if (r.id && !r.error) {
+          void safeSync(syncGame(r.id));
+        }
+      }
 
       const successIds = results.filter((r) => r.id && !r.error).map((r) => r.id!);
       if (successIds.length > 0 && status === "PUBLISHED") {
@@ -693,6 +729,8 @@ export const gameRouter = router({
         }
       }
 
+      void safeSync(syncGame(gameId));
+
       return { success: true };
     }),
 
@@ -714,6 +752,8 @@ export const gameRouter = router({
     const tagIds = game.tags.map((t) => t.tagId);
 
     await ctx.prisma.game.delete({ where: { id: input.id } });
+
+    void safeSync(deleteGame(input.id));
 
     if (tagIds.length > 0) {
       const { refreshTagCounts } = await import("@/lib/tag-counts");
@@ -745,6 +785,10 @@ export const gameRouter = router({
     await ctx.prisma.game.deleteMany({
       where: { id: { in: gameIds } },
     });
+
+    for (const gid of gameIds) {
+      void safeSync(deleteGame(gid));
+    }
 
     if (tagIds.length > 0) {
       const { refreshTagCounts } = await import("@/lib/tag-counts");

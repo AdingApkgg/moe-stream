@@ -14,7 +14,9 @@ import {
   assertBatchLimit,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
-import { mergeContentSearchIntoWhere } from "@/lib/search";
+import { meili, INDEX, safeSync } from "@/lib/meilisearch";
+import { syncImagePost, deleteImagePost } from "@/lib/search-sync";
+import { shouldMeiliListSearch, imageListMeiliFilter, imageListMeiliSort } from "@/lib/meili-filters";
 
 export const imageRouter = router({
   list: publicProcedure
@@ -53,7 +55,41 @@ export const imageRouter = router({
         }));
       }
 
-      Object.assign(where, mergeContentSearchIntoWhere(where, search));
+      const listInclude = {
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
+        },
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+      } as const;
+
+      if (shouldMeiliListSearch(search)) {
+        const q = search!.trim();
+        const filter = imageListMeiliFilter({ tagId, tagSlugs, excludeTagSlugs });
+        const offset = (page - 1) * limit;
+        const msRes = await meili.index(INDEX.image).search(q, {
+          limit,
+          offset,
+          filter,
+          sort: imageListMeiliSort(sortBy),
+          attributesToRetrieve: ["id"],
+        });
+        const ids = msRes.hits.map((h: Record<string, unknown>) => String(h.id));
+        const rows = await ctx.prisma.imagePost.findMany({
+          where: { id: { in: ids }, status: "PUBLISHED" },
+          include: listInclude,
+        });
+        const byId = new Map(rows.map((p) => [p.id, p] as const));
+        const posts = ids.map((id: string) => byId.get(id)).filter((p): p is (typeof rows)[number] => Boolean(p));
+        const totalCount = msRes.estimatedTotalHits ?? msRes.hits.length;
+        return {
+          posts,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+        };
+      }
 
       const orderBy = {
         latest: { createdAt: "desc" as const },
@@ -71,14 +107,7 @@ export const imageRouter = router({
           skip,
           where,
           orderBy,
-          include: {
-            uploader: {
-              select: { id: true, username: true, nickname: true, avatar: true },
-            },
-            tags: {
-              include: { tag: { select: { id: true, name: true, slug: true } } },
-            },
-          },
+          include: listInclude,
         }),
         ctx.prisma.imagePost.count({ where }),
       ]);
@@ -191,6 +220,7 @@ export const imageRouter = router({
       });
 
       scheduleTagCountRefresh(allTagIds, "图片创建");
+      void safeSync(syncImagePost(post.id));
       return { id: post.id, status: post.status };
     }),
 
@@ -274,6 +304,12 @@ export const imageRouter = router({
       }
 
       scheduleTagCountRefresh([...new Set([...previousTagIds, ...tagNameToId.values()])], "图片批量导入");
+
+      for (const r of results) {
+        if (r.id && !r.error) {
+          void safeSync(syncImagePost(r.id));
+        }
+      }
 
       return { results };
     }),
@@ -360,6 +396,8 @@ export const imageRouter = router({
 
         scheduleTagCountRefresh([...new Set([...oldTagIds, ...allTagIds])], "图片编辑");
       }
+
+      void safeSync(syncImagePost(id));
 
       return { success: true };
     }),
@@ -462,6 +500,8 @@ export const imageRouter = router({
 
     await ctx.prisma.imagePost.delete({ where: { id: input.id } });
 
+    void safeSync(deleteImagePost(input.id));
+
     if (tagIds.length > 0) {
       const { refreshTagCounts } = await import("@/lib/tag-counts");
       refreshTagCounts(tagIds).catch((err) => {
@@ -492,6 +532,10 @@ export const imageRouter = router({
     await ctx.prisma.imagePost.deleteMany({
       where: { id: { in: postIds } },
     });
+
+    for (const pid of postIds) {
+      void safeSync(deleteImagePost(pid));
+    }
 
     if (tagIds.length > 0) {
       const { refreshTagCounts } = await import("@/lib/tag-counts");

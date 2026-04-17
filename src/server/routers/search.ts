@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure } from "../trpc";
 import { memGetOrSet } from "@/lib/memory-cache";
 import { splitSearchTokens, suggestionTextRank } from "@/lib/search-text";
-import { buildContentSearchWhere, buildGameSearchWhere, buildTagSearchWhere } from "@/lib/search";
+import { meili, INDEX } from "@/lib/meilisearch";
+import { meiliQuoteFilterValue } from "@/lib/search-index-config";
 
 const SEARCH_COUNTS_TTL_MS = 60_000;
 const SEARCH_ALL_TTL_MS = 60_000;
+
+const PUBLISHED = meiliQuoteFilterValue("PUBLISHED");
 
 export const searchRouter = router({
   /** 各内容类型命中数量（用于搜索页 Tab Badge），短时内存缓存 */
@@ -16,7 +18,7 @@ export const searchRouter = router({
         query: z.string().min(1).max(100),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const raw = input.query.trim();
       const tokens = splitSearchTokens(raw);
       if (tokens.length === 0) {
@@ -28,36 +30,34 @@ export const searchRouter = router({
       return memGetOrSet(
         key,
         async () => {
-          const videoClause = buildContentSearchWhere(raw) as Prisma.VideoWhereInput | undefined;
-          const gameClause = buildGameSearchWhere(raw);
-          const imageClause = buildContentSearchWhere(raw) as Prisma.ImagePostWhereInput | undefined;
-          const tagClause = buildTagSearchWhere(raw);
-
-          const [video, game, image, tag] = await Promise.all([
-            ctx.prisma.video.count({
-              where: {
-                status: "PUBLISHED",
-                ...(videoClause ? { AND: [videoClause] } : {}),
-              },
+          const [v, g, i, t] = await Promise.all([
+            meili.index(INDEX.video).search(raw, {
+              limit: 0,
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: [],
             }),
-            ctx.prisma.game.count({
-              where: {
-                status: "PUBLISHED",
-                ...(gameClause ? { AND: [gameClause] } : {}),
-              },
+            meili.index(INDEX.game).search(raw, {
+              limit: 0,
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: [],
             }),
-            ctx.prisma.imagePost.count({
-              where: {
-                status: "PUBLISHED",
-                ...(imageClause ? { AND: [imageClause] } : {}),
-              },
+            meili.index(INDEX.image).search(raw, {
+              limit: 0,
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: [],
             }),
-            ctx.prisma.tag.count({
-              where: tagClause ?? {},
+            meili.index(INDEX.tag).search(raw, {
+              limit: 0,
+              attributesToRetrieve: [],
             }),
           ]);
 
-          return { video, game, image, tag };
+          return {
+            video: v.estimatedTotalHits ?? v.hits.length,
+            game: g.estimatedTotalHits ?? g.hits.length,
+            image: i.estimatedTotalHits ?? i.hits.length,
+            tag: t.estimatedTotalHits ?? t.hits.length,
+          };
         },
         SEARCH_COUNTS_TTL_MS,
       );
@@ -98,124 +98,126 @@ export const searchRouter = router({
       return memGetOrSet(
         cacheKey,
         async () => {
-          const insensitive = Prisma.QueryMode.insensitive;
-
-          const videoWhere: Prisma.VideoWhereInput = { status: "PUBLISHED" };
-          const videoSearch = buildContentSearchWhere(raw) as Prisma.VideoWhereInput | undefined;
-          if (videoSearch) videoWhere.AND = [videoSearch];
-
-          const gameWhere: Prisma.GameWhereInput = { status: "PUBLISHED" };
-          const gameSearch = buildGameSearchWhere(raw);
-          if (gameSearch) gameWhere.AND = [gameSearch];
-
-          const imageWhere: Prisma.ImagePostWhereInput = { status: "PUBLISHED" };
-          const imageSearch = buildContentSearchWhere(raw) as Prisma.ImagePostWhereInput | undefined;
-          if (imageSearch) imageWhere.AND = [imageSearch];
-
-          const tagWhere = buildTagSearchWhere(raw) ?? {};
-
-          const userWhere: Prisma.UserWhereInput = {
-            isBanned: false,
-            OR: [
-              { username: { contains: raw, mode: insensitive } },
-              { nickname: { contains: raw, mode: insensitive } },
-            ],
-          };
-
-          // 候选集略大于返回上限，便于在内存中按相关性二次排序
           const cap = (n: number) => Math.min(n * 4, 30);
 
-          const [
-            videoItems,
-            videoTotal,
-            gameItems,
-            gameTotal,
-            imageItems,
-            imageTotal,
-            tagItems,
-            tagTotal,
-            userItems,
-            userTotal,
-          ] = await Promise.all([
-            ctx.prisma.video.findMany({
-              where: videoWhere,
-              take: cap(input.videoLimit),
-              orderBy: { views: "desc" },
-              include: {
-                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
-                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-                _count: {
-                  select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true },
-                },
-              },
+          const [vRes, gRes, iRes, tRes, uRes] = await Promise.all([
+            meili.index(INDEX.video).search(raw, {
+              limit: cap(input.videoLimit),
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: ["id"],
             }),
-            ctx.prisma.video.count({ where: videoWhere }),
-            ctx.prisma.game.findMany({
-              where: gameWhere,
-              take: cap(input.gameLimit),
-              orderBy: { views: "desc" },
-              include: {
-                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
-                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-                _count: { select: { likes: true, dislikes: true, favorites: true } },
-              },
+            meili.index(INDEX.game).search(raw, {
+              limit: cap(input.gameLimit),
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: ["id"],
             }),
-            ctx.prisma.game.count({ where: gameWhere }),
-            ctx.prisma.imagePost.findMany({
-              where: imageWhere,
-              take: cap(input.imageLimit),
-              orderBy: { views: "desc" },
-              include: {
-                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
-                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-              },
+            meili.index(INDEX.image).search(raw, {
+              limit: cap(input.imageLimit),
+              filter: `status = ${PUBLISHED}`,
+              attributesToRetrieve: ["id"],
             }),
-            ctx.prisma.imagePost.count({ where: imageWhere }),
-            ctx.prisma.tag.findMany({
-              where: tagWhere,
-              take: cap(input.tagLimit),
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                videoCount: true,
-                gameCount: true,
-                imagePostCount: true,
-              },
-              orderBy: { videos: { _count: "desc" } },
+            meili.index(INDEX.tag).search(raw, {
+              limit: cap(input.tagLimit),
+              attributesToRetrieve: ["id"],
             }),
-            ctx.prisma.tag.count({ where: tagWhere }),
-            ctx.prisma.user.findMany({
-              where: userWhere,
-              take: cap(input.userLimit),
-              select: {
-                id: true,
-                username: true,
-                nickname: true,
-                avatar: true,
-                bio: true,
-                _count: { select: { videos: true } },
-              },
-              orderBy: { createdAt: "desc" },
+            meili.index(INDEX.user).search(raw, {
+              limit: cap(input.userLimit),
+              filter: `isBanned = false`,
+              attributesToRetrieve: ["id"],
             }),
-            ctx.prisma.user.count({ where: userWhere }),
           ]);
 
-          // 相关性二次排序：标题精确/前缀命中优先，再按热度
+          const vIds = vRes.hits.map((h: Record<string, unknown>) => String(h.id));
+          const gIds = gRes.hits.map((h: Record<string, unknown>) => String(h.id));
+          const iIds = iRes.hits.map((h: Record<string, unknown>) => String(h.id));
+          const tIds = tRes.hits.map((h: Record<string, unknown>) => String(h.id));
+          const uIds = uRes.hits.map((h: Record<string, unknown>) => String(h.id));
+
+          const [videoItems, gameItems, imageItems, tagItems, userItems] = await Promise.all([
+            vIds.length
+              ? ctx.prisma.video.findMany({
+                  where: { id: { in: vIds }, status: "PUBLISHED" },
+                  include: {
+                    uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                    tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                    _count: {
+                      select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true },
+                    },
+                  },
+                })
+              : [],
+            gIds.length
+              ? ctx.prisma.game.findMany({
+                  where: { id: { in: gIds }, status: "PUBLISHED" },
+                  include: {
+                    uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                    tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                    _count: { select: { likes: true, dislikes: true, favorites: true } },
+                  },
+                })
+              : [],
+            iIds.length
+              ? ctx.prisma.imagePost.findMany({
+                  where: { id: { in: iIds }, status: "PUBLISHED" },
+                  include: {
+                    uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                    tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                  },
+                })
+              : [],
+            tIds.length
+              ? ctx.prisma.tag.findMany({
+                  where: { id: { in: tIds } },
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    videoCount: true,
+                    gameCount: true,
+                    imagePostCount: true,
+                  },
+                })
+              : [],
+            uIds.length
+              ? ctx.prisma.user.findMany({
+                  where: { id: { in: uIds }, isBanned: false },
+                  select: {
+                    id: true,
+                    username: true,
+                    nickname: true,
+                    avatar: true,
+                    bio: true,
+                    _count: { select: { videos: true } },
+                  },
+                })
+              : [],
+          ]);
+
+          const orderByIds = <T extends { id: string }>(rows: T[], ids: string[]): T[] => {
+            const m = new Map(rows.map((r) => [r.id, r]));
+            return ids.map((id) => m.get(id)).filter((x): x is T => Boolean(x));
+          };
+
+          const videoOrdered = orderByIds(videoItems, vIds);
+          const gameOrdered = orderByIds(gameItems, gIds);
+          const imageOrdered = orderByIds(imageItems, iIds);
+          const tagOrdered = orderByIds(tagItems, tIds);
+          const userOrdered = orderByIds(userItems, uIds);
+
           const scoreContent = (title: string, views: number) =>
             suggestionTextRank(title, raw) * 100_000 + Math.min(views, 999_999);
 
-          const sortedVideos = [...videoItems]
+          const sortedVideos = [...videoOrdered]
             .sort((a, b) => scoreContent(b.title, b.views) - scoreContent(a.title, a.views))
             .slice(0, input.videoLimit);
-          const sortedGames = [...gameItems]
+          const sortedGames = [...gameOrdered]
             .sort((a, b) => scoreContent(b.title, b.views) - scoreContent(a.title, a.views))
             .slice(0, input.gameLimit);
-          const sortedImages = [...imageItems]
+          const sortedImages = [...imageOrdered]
             .sort((a, b) => scoreContent(b.title, b.views) - scoreContent(a.title, a.views))
             .slice(0, input.imageLimit);
 
-          const sortedTags = [...tagItems]
+          const sortedTags = [...tagOrdered]
             .sort(
               (a, b) =>
                 suggestionTextRank(b.name, raw) * 50_000 +
@@ -228,14 +230,29 @@ export const searchRouter = router({
             Math.max(suggestionTextRank(u.nickname ?? "", raw), suggestionTextRank(u.username, raw)) * 1000 +
             u._count.videos;
 
-          const sortedUsers = [...userItems].sort((a, b) => userScore(b) - userScore(a)).slice(0, input.userLimit);
+          const sortedUsers = [...userOrdered].sort((a, b) => userScore(b) - userScore(a)).slice(0, input.userLimit);
 
           return {
-            videos: { items: sortedVideos, totalCount: videoTotal },
-            games: { items: sortedGames, totalCount: gameTotal },
-            imagePosts: { items: sortedImages, totalCount: imageTotal },
-            tags: { items: sortedTags, totalCount: tagTotal },
-            users: { items: sortedUsers, totalCount: userTotal },
+            videos: {
+              items: sortedVideos,
+              totalCount: vRes.estimatedTotalHits ?? vRes.hits.length,
+            },
+            games: {
+              items: sortedGames,
+              totalCount: gRes.estimatedTotalHits ?? gRes.hits.length,
+            },
+            imagePosts: {
+              items: sortedImages,
+              totalCount: iRes.estimatedTotalHits ?? iRes.hits.length,
+            },
+            tags: {
+              items: sortedTags,
+              totalCount: tRes.estimatedTotalHits ?? tRes.hits.length,
+            },
+            users: {
+              items: sortedUsers,
+              totalCount: uRes.estimatedTotalHits ?? uRes.hits.length,
+            },
           };
         },
         SEARCH_ALL_TTL_MS,

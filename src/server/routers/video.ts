@@ -19,7 +19,9 @@ import {
   assertBatchLimit,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
-import { mergeContentSearchIntoWhere } from "@/lib/search";
+import { meili, INDEX, safeSync } from "@/lib/meilisearch";
+import { syncVideo, deleteVideo } from "@/lib/search-sync";
+import { shouldMeiliListSearch, videoListMeiliFilter, videoListMeiliSort } from "@/lib/meili-filters";
 import { suggestionTextRank } from "@/lib/search-text";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
@@ -202,63 +204,56 @@ export const videoRouter = router({
         cacheKey,
         async () => {
           const fetchCap = Math.min(30, Math.max(limit * 3, 12));
-          const insensitive = Prisma.QueryMode.insensitive;
+          const mq = query.trim();
+          const pub = `status = "PUBLISHED"`;
 
-          const [videos, tags, games, imagePosts, users] = await Promise.all([
-            ctx.prisma.video.findMany({
-              where: {
-                status: "PUBLISHED",
-                title: { contains: query, mode: insensitive },
-              },
-              select: { id: true, title: true, views: true },
-              take: fetchCap,
-              orderBy: { views: "desc" },
+          const [vRes, tRes, gRes, iRes, uRes] = await Promise.all([
+            meili.index(INDEX.video).search(mq, {
+              limit: fetchCap,
+              filter: pub,
+              attributesToRetrieve: ["id", "title", "views"],
             }),
-            ctx.prisma.tag.findMany({
-              where: {
-                OR: [
-                  { name: { contains: query, mode: insensitive } },
-                  { aliases: { some: { name: { contains: query, mode: insensitive } } } },
-                ],
-              },
-              select: { id: true, name: true, slug: true, videoCount: true },
-              take: fetchCap,
-              orderBy: { videos: { _count: "desc" } },
+            meili.index(INDEX.tag).search(mq, {
+              limit: fetchCap,
+              attributesToRetrieve: ["id", "name", "slug", "videoCount"],
             }),
-            ctx.prisma.game.findMany({
-              where: {
-                status: "PUBLISHED",
-                OR: [
-                  { title: { contains: query, mode: insensitive } },
-                  { aliases: { some: { name: { contains: query, mode: insensitive } } } },
-                ],
-              },
-              select: { id: true, title: true, views: true },
-              take: fetchCap,
-              orderBy: { views: "desc" },
+            meili.index(INDEX.game).search(mq, {
+              limit: fetchCap,
+              filter: pub,
+              attributesToRetrieve: ["id", "title", "views"],
             }),
-            ctx.prisma.imagePost.findMany({
-              where: {
-                status: "PUBLISHED",
-                title: { contains: query, mode: insensitive },
-              },
-              select: { id: true, title: true, views: true },
-              take: fetchCap,
-              orderBy: { views: "desc" },
+            meili.index(INDEX.image).search(mq, {
+              limit: fetchCap,
+              filter: pub,
+              attributesToRetrieve: ["id", "title", "views"],
             }),
-            ctx.prisma.user.findMany({
-              where: {
-                isBanned: false,
-                OR: [
-                  { username: { contains: query, mode: insensitive } },
-                  { nickname: { contains: query, mode: insensitive } },
-                ],
-              },
-              select: { id: true, username: true, nickname: true },
-              take: fetchCap,
-              orderBy: { createdAt: "desc" },
+            meili.index(INDEX.user).search(mq, {
+              limit: fetchCap,
+              filter: "isBanned = false",
+              attributesToRetrieve: ["id", "username", "nickname"],
             }),
           ]);
+
+          const videos = vRes.hits.map((h: Record<string, unknown>) => {
+            const x = h as { id: string; title: string; views: number };
+            return { id: x.id, title: x.title, views: x.views };
+          });
+          const games = gRes.hits.map((h: Record<string, unknown>) => {
+            const x = h as { id: string; title: string; views: number };
+            return { id: x.id, title: x.title, views: x.views };
+          });
+          const imagePosts = iRes.hits.map((h: Record<string, unknown>) => {
+            const x = h as { id: string; title: string; views: number };
+            return { id: x.id, title: x.title, views: x.views };
+          });
+          const tags = tRes.hits.map((h: Record<string, unknown>) => {
+            const x = h as { id: string; name: string; slug: string; videoCount: number };
+            return { id: x.id, name: x.name, slug: x.slug, videoCount: x.videoCount };
+          });
+          const users = uRes.hits.map((h: Record<string, unknown>) => {
+            const x = h as { id: string; username: string; nickname?: string };
+            return { id: x.id, username: x.username, nickname: x.nickname ?? null };
+          });
 
           const scoreTitle = (title: string, views: number) =>
             suggestionTextRank(title, query) * 50_000 + Math.min(views, 999_999);
@@ -370,6 +365,43 @@ export const videoRouter = router({
       };
       const timeFilter = getTimeFilter();
 
+      const listInclude = {
+        uploader: {
+          select: { id: true, username: true, nickname: true, avatar: true },
+        },
+        tags: {
+          include: { tag: { select: { id: true, name: true, slug: true } } },
+        },
+        _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
+      } as const;
+
+      if (shouldMeiliListSearch(search)) {
+        const q = search!.trim();
+        const filter = videoListMeiliFilter({ tagId, tagSlugs, excludeTagSlugs, timeFilter });
+        const offset = (page - 1) * limit;
+        const msRes = await meili.index(INDEX.video).search(q, {
+          limit,
+          offset,
+          filter,
+          sort: videoListMeiliSort(sortBy),
+          attributesToRetrieve: ["id"],
+        });
+        const ids = msRes.hits.map((h: Record<string, unknown>) => String(h.id));
+        const rows = await ctx.prisma.video.findMany({
+          where: { id: { in: ids }, status: "PUBLISHED" },
+          include: listInclude,
+        });
+        const byId = new Map(rows.map((v) => [v.id, v] as const));
+        const videos = ids.map((id: string) => byId.get(id)).filter((v): v is (typeof rows)[number] => Boolean(v));
+        const totalCount = msRes.estimatedTotalHits ?? msRes.hits.length;
+        return {
+          videos,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: page,
+        };
+      }
+
       const baseWhere: Prisma.VideoWhereInput = {
         status: "PUBLISHED",
       };
@@ -393,8 +425,6 @@ export const videoRouter = router({
         }));
       }
 
-      Object.assign(baseWhere, mergeContentSearchIntoWhere(baseWhere, search));
-
       if (timeFilter) {
         baseWhere.createdAt = { gte: timeFilter };
       }
@@ -407,25 +437,15 @@ export const videoRouter = router({
         titleDesc: { title: "desc" as const },
       }[sortBy];
 
-      // 计算偏移量
       const skip = (page - 1) * limit;
 
-      // 并行获取视频和总数量
       const [videos, totalCount] = await Promise.all([
         ctx.prisma.video.findMany({
           take: limit,
           skip,
           where: baseWhere,
           orderBy,
-          include: {
-            uploader: {
-              select: { id: true, username: true, nickname: true, avatar: true },
-            },
-            tags: {
-              include: { tag: { select: { id: true, name: true, slug: true } } },
-            },
-            _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
-          },
+          include: listInclude,
         }),
         ctx.prisma.video.count({ where: baseWhere }),
       ]);
@@ -691,6 +711,7 @@ export const videoRouter = router({
       });
 
       scheduleTagCountRefresh(uniqueTagIds, "视频创建");
+      void safeSync(syncVideo(video.id));
 
       if (!skipIndexNow && status === "PUBLISHED") {
         submitVideoToIndexNow(video.id).catch(() => {});
@@ -898,6 +919,12 @@ export const videoRouter = router({
       }
       scheduleTagCountRefresh([...new Set([...previousTagIds, ...tagNameToId.values()])], "视频批量导入");
 
+      for (const r of results) {
+        if (r.id && !r.merged) {
+          void safeSync(syncVideo(r.id));
+        }
+      }
+
       // 仅 PUBLISHED 状态时推送 IndexNow
       if (status === "PUBLISHED") {
         const newVideoIds = results.filter((r) => r.id && !r.merged).map((r) => r.id!);
@@ -1030,6 +1057,8 @@ export const videoRouter = router({
 
       enqueueCoverForVideo(updated.id, updated.coverUrl).catch(() => {});
 
+      void safeSync(syncVideo(id));
+
       return updated;
     }),
 
@@ -1078,6 +1107,7 @@ export const videoRouter = router({
     }
 
     memDelete(`video:${input.id}`);
+    void safeSync(deleteVideo(input.id));
     return { success: true };
   }),
 
@@ -1110,6 +1140,10 @@ export const videoRouter = router({
     await ctx.prisma.video.deleteMany({
       where: { id: { in: videoIds } },
     });
+
+    for (const vid of videoIds) {
+      void safeSync(deleteVideo(vid));
+    }
 
     // 刷新受影响标签的反规范化计数
     if (tagIds.length > 0) {

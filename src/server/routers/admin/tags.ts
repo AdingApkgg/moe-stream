@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { memDeletePrefix } from "@/lib/memory-cache";
+import { safeSync } from "@/lib/meilisearch";
+import { syncTag, deleteTag, syncVideo, syncGame, syncImagePost } from "@/lib/search-sync";
 
 export const adminTagsRouter = router({
   // ========== 标签分类管理 ==========
@@ -132,6 +134,7 @@ export const adminTagsRouter = router({
         },
       });
       memDeletePrefix("tag:");
+      void safeSync(syncTag(tag.id));
 
       return { success: true, tag };
     }),
@@ -206,6 +209,7 @@ export const adminTagsRouter = router({
       const { tagId, ...data } = input;
       const tag = await ctx.prisma.tag.update({ where: { id: tagId }, data });
       memDeletePrefix("tag:");
+      void safeSync(syncTag(tagId));
 
       return { success: true, tag };
     }),
@@ -224,6 +228,9 @@ export const adminTagsRouter = router({
         data: { categoryId: input.categoryId },
       });
       memDeletePrefix("tag:");
+      for (const tid of input.tagIds) {
+        void safeSync(syncTag(tid));
+      }
 
       return { success: true, count: result.count };
     }),
@@ -234,6 +241,7 @@ export const adminTagsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.prisma.tag.delete({ where: { id: input.tagId } });
       memDeletePrefix("tag:");
+      void safeSync(deleteTag(input.tagId));
 
       return { success: true };
     }),
@@ -246,6 +254,9 @@ export const adminTagsRouter = router({
         where: { id: { in: input.tagIds } },
       });
       memDeletePrefix("tag:");
+      for (const tid of input.tagIds) {
+        void safeSync(deleteTag(tid));
+      }
 
       return { success: true, count: result.count };
     }),
@@ -266,6 +277,31 @@ export const adminTagsRouter = router({
 
       const targetTag = await ctx.prisma.tag.findUnique({ where: { id: input.targetTagId } });
       if (!targetTag) throw new TRPCError({ code: "NOT_FOUND", message: "目标标签不存在" });
+
+      const affectedVideoIds = new Set(
+        (
+          await ctx.prisma.tagOnVideo.findMany({
+            where: { tagId: { in: sourceTagIds } },
+            select: { videoId: true },
+          })
+        ).map((r) => r.videoId),
+      );
+      const affectedGameIds = new Set(
+        (
+          await ctx.prisma.tagOnGame.findMany({
+            where: { tagId: { in: sourceTagIds } },
+            select: { gameId: true },
+          })
+        ).map((r) => r.gameId),
+      );
+      const affectedImageIds = new Set(
+        (
+          await ctx.prisma.tagOnImagePost.findMany({
+            where: { tagId: { in: sourceTagIds } },
+            select: { imagePostId: true },
+          })
+        ).map((r) => r.imagePostId),
+      );
 
       await ctx.prisma.$transaction(async (tx) => {
         // 迁移视频关联
@@ -360,6 +396,20 @@ export const adminTagsRouter = router({
       await refreshTagCounts([input.targetTagId]);
 
       memDeletePrefix("tag:");
+      for (const sid of sourceTagIds) {
+        void safeSync(deleteTag(sid));
+      }
+      void safeSync(syncTag(input.targetTagId));
+
+      for (const vid of affectedVideoIds) {
+        void safeSync(syncVideo(vid));
+      }
+      for (const gid of affectedGameIds) {
+        void safeSync(syncGame(gid));
+      }
+      for (const pid of affectedImageIds) {
+        void safeSync(syncImagePost(pid));
+      }
 
       return { success: true, mergedCount: sourceTagIds.length };
     }),
@@ -387,6 +437,7 @@ export const adminTagsRouter = router({
         data: { tagId: input.tagId, name: input.name },
       });
       memDeletePrefix("tag:");
+      void safeSync(syncTag(input.tagId));
       return { success: true, alias };
     }),
 
@@ -394,8 +445,13 @@ export const adminTagsRouter = router({
     .use(requireScope("tag:manage"))
     .input(z.object({ aliasId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const row = await ctx.prisma.tagAlias.findUnique({
+        where: { id: input.aliasId },
+        select: { tagId: true },
+      });
       await ctx.prisma.tagAlias.delete({ where: { id: input.aliasId } });
       memDeletePrefix("tag:");
+      if (row) void safeSync(syncTag(row.tagId));
       return { success: true };
     }),
 

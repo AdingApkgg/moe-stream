@@ -1,0 +1,33 @@
+# Meilisearch 全文搜索服务
+# 安装: sudo cp systemd/meilisearch.service /etc/systemd/system/
+# 启用: sudo systemctl enable --now meilisearch
+
+[Unit]
+Description=Meilisearch
+After=network.target
+PartOf=moestream.target
+
+[Service]
+Type=simple
+User=moestream
+Group=moestream
+WorkingDirectory=/opt/moestream
+EnvironmentFile=/opt/moestream/.env.production
+ExecStart=/usr/local/bin/meilisearch \
+  --env production \
+  --http-addr 127.0.0.1:7700 \
+  --db-path /var/lib/meilisearch/data \
+  --dump-dir /var/lib/meilisearch/dumps \
+  --no-analytics
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/meilisearch
+PrivateTmp=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=meilisearch
+
+[Install]
+WantedBy=multi-user.target moestream.target

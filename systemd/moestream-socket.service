@@ -5,7 +5,7 @@
 [Unit]
 Description=MoeStream Socket.io Server
 Documentation=https://github.com/your-org/moestream
-After=network.target postgresql.service redis.service
+After=network.target postgresql.service redis.service meilisearch.service
 PartOf=moestream.target
 
 [Service]
