@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure, adminProcedure } from "../trpc";
 import { memGetOrSet, memDeletePrefix } from "@/lib/memory-cache";
+import { mergeTagSearchIntoWhere } from "@/lib/search";
 
 const tagTypeSchema = z.enum(["video", "game", "image"]).optional();
 
@@ -88,16 +89,16 @@ export const tagRouter = router({
       const h = tagQueryHelpers(input.type);
 
       if (input.search) {
-        return ctx.prisma.tag.findMany({
-          take: input.limit,
-          where: {
+        const tagWhere = mergeTagSearchIntoWhere(
+          {
             ...h.hasContent,
             ...(input.categoryId ? { categoryId: input.categoryId } : {}),
-            OR: [
-              { name: { contains: input.search, mode: "insensitive" } },
-              { aliases: { some: { name: { contains: input.search, mode: "insensitive" } } } },
-            ],
           },
+          input.search,
+        );
+        return ctx.prisma.tag.findMany({
+          take: input.limit,
+          where: tagWhere,
           select: tagSelect,
           orderBy: { name: "asc" },
         });

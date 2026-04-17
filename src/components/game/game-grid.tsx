@@ -8,6 +8,7 @@ interface GameGridProps {
   games: GameCardData[];
   isLoading?: boolean;
   columns?: 3 | 4 | 5;
+  highlightQuery?: string | null;
 }
 
 const gridColumns = {
@@ -16,7 +17,7 @@ const gridColumns = {
   5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function GameGrid({ games, isLoading, columns = 4 }: GameGridProps) {
+export function GameGrid({ games, isLoading, columns = 4, highlightQuery }: GameGridProps) {
   if (isLoading) {
     return (
       <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
@@ -39,7 +40,7 @@ export function GameGrid({ games, isLoading, columns = 4 }: GameGridProps) {
     <MotionList className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
       {games.map((game, index) => (
         <MotionItem key={game.id}>
-          <GameCard game={game} index={index} />
+          <GameCard game={game} index={index} highlightQuery={highlightQuery} />
         </MotionItem>
       ))}
     </MotionList>

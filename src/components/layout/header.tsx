@@ -32,6 +32,7 @@ import {
   Moon,
   Monitor,
   Gamepad2,
+  Images,
   Layers,
   Volume2,
   VolumeX,
@@ -66,7 +67,7 @@ interface HeaderProps {
 // ========== 搜索建议列表（桌面 + 移动端共用） ==========
 
 interface SuggestionItem {
-  type: "search" | "history" | "tag" | "video" | "game" | "hot";
+  type: "search" | "history" | "tag" | "video" | "game" | "imagePost" | "user" | "hot";
   label: string;
   value: string;
   index?: number;
@@ -138,6 +139,8 @@ function SearchSuggestionsList({
                 <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
               {item.type === "game" && <Gamepad2 className="h-4 w-4 text-muted-foreground shrink-0" />}
+              {item.type === "imagePost" && <Images className="h-4 w-4 text-muted-foreground shrink-0" />}
+              {item.type === "user" && <User className="h-4 w-4 text-muted-foreground shrink-0" />}
               {item.type === "hot" && (
                 <span
                   className={cn(
@@ -375,6 +378,14 @@ export function Header({ onMenuClick }: HeaderProps) {
           setSearchQuery("");
           router.push(`/game/${item.value}`);
           break;
+        case "imagePost":
+          setSearchQuery("");
+          router.push(`/image/${item.value}`);
+          break;
+        case "user":
+          setSearchQuery("");
+          router.push(`/user/${item.value}`);
+          break;
       }
     },
     [handleSearch, router],
@@ -416,6 +427,16 @@ export function Header({ onMenuClick }: HeaderProps) {
         if (suggestions.games) {
           for (const game of suggestions.games) {
             items.push({ type: "game", label: game.title, value: game.id });
+          }
+        }
+        if (suggestions.imagePosts) {
+          for (const post of suggestions.imagePosts) {
+            items.push({ type: "imagePost", label: post.title, value: post.id });
+          }
+        }
+        if (suggestions.users) {
+          for (const u of suggestions.users) {
+            items.push({ type: "user", label: u.displayName, value: u.id });
           }
         }
       }

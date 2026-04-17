@@ -8,6 +8,7 @@ import { formatDuration, formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
+import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 
 interface VideoCardProps {
   video: {
@@ -35,9 +36,11 @@ interface VideoCardProps {
     };
   };
   index?: number;
+  /** 搜索结果页传入，用于标题高亮 */
+  highlightQuery?: string | null;
 }
 
-function VideoCardComponent({ video }: VideoCardProps) {
+function VideoCardComponent({ video, highlightQuery }: VideoCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -106,7 +109,7 @@ function VideoCardComponent({ video }: VideoCardProps) {
 
         <div className="mt-2 px-0.5 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
-            {video.title}
+            <SearchHighlightText text={video.title} highlightQuery={highlightQuery} />
           </h3>
           <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
             {authorName} • {formatRelativeTime(video.createdAt)}
@@ -122,6 +125,7 @@ export const VideoCard = memo(VideoCardComponent, (prevProps, nextProps) => {
     prevProps.video.id === nextProps.video.id &&
     prevProps.video.views === nextProps.video.views &&
     prevProps.video._count.likes === nextProps.video._count.likes &&
-    prevProps.index === nextProps.index
+    prevProps.index === nextProps.index &&
+    prevProps.highlightQuery === nextProps.highlightQuery
   );
 });

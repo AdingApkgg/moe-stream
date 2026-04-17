@@ -16,6 +16,7 @@ import {
   assertOwnership,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
+import { mergeContentSearchIntoWhere } from "@/lib/search";
 
 const GAME_CACHE_TTL = 60; // 1 minute
 
@@ -79,13 +80,7 @@ export const gameRouter = router({
         }));
       }
 
-      if (search) {
-        baseWhere.OR = [
-          { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { description: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { tags: { some: { tag: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } } } },
-        ];
-      }
+      Object.assign(baseWhere, mergeContentSearchIntoWhere(baseWhere, search));
 
       if (gameType) {
         baseWhere.gameType = gameType;

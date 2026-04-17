@@ -8,6 +8,7 @@ import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
+import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 
 interface ImagePostCardProps {
   post: {
@@ -27,6 +28,7 @@ interface ImagePostCardProps {
     tags?: { tag: { id: string; name: string; slug: string } }[];
   };
   index?: number;
+  highlightQuery?: string | null;
 }
 
 function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
@@ -36,7 +38,7 @@ function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): strin
   return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
 }
 
-function ImagePostCardComponent({ post }: ImagePostCardProps) {
+function ImagePostCardComponent({ post, highlightQuery }: ImagePostCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -123,10 +125,12 @@ function ImagePostCardComponent({ post }: ImagePostCardProps) {
 
         <div className="mt-2 px-0.5 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
-            {post.title}
+            <SearchHighlightText text={post.title} highlightQuery={highlightQuery} />
           </h3>
           {post.description && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{post.description}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">
+              <SearchHighlightText text={post.description} highlightQuery={highlightQuery} />
+            </p>
           )}
           <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
             {post.uploader.nickname || post.uploader.username} · {formatRelativeTime(post.createdAt)}
@@ -138,5 +142,10 @@ function ImagePostCardComponent({ post }: ImagePostCardProps) {
 }
 
 export const ImagePostCard = memo(ImagePostCardComponent, (prev, next) => {
-  return prev.post.id === next.post.id && prev.post.views === next.post.views && prev.index === next.index;
+  return (
+    prev.post.id === next.post.id &&
+    prev.post.views === next.post.views &&
+    prev.index === next.index &&
+    prev.highlightQuery === next.highlightQuery
+  );
 });

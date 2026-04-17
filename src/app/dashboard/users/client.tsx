@@ -58,7 +58,7 @@ type UserRole = "USER" | "ADMIN" | "OWNER";
 
 interface UserItem {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   nickname: string | null;
   avatar: string | null;

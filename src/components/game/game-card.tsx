@@ -9,6 +9,7 @@ import { formatViews, formatRelativeTime } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
+import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   ADV: "ADV",
@@ -67,6 +68,7 @@ export interface GameCardData {
 interface GameCardProps {
   game: GameCardData;
   index?: number;
+  highlightQuery?: string | null;
 }
 
 function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: string }) {
@@ -96,7 +98,7 @@ function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: 
   );
 }
 
-function GameCardComponent({ game }: GameCardProps) {
+function GameCardComponent({ game, highlightQuery }: GameCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -185,7 +187,7 @@ function GameCardComponent({ game }: GameCardProps) {
 
         <div className="mt-2 px-0.5 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
-            {game.title}
+            <SearchHighlightText text={game.title} highlightQuery={highlightQuery} />
           </h3>
           <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
             {authorName} • {formatRelativeTime(game.createdAt)}
@@ -201,6 +203,7 @@ export const GameCard = memo(GameCardComponent, (prevProps, nextProps) => {
     prevProps.game.id === nextProps.game.id &&
     prevProps.game.views === nextProps.game.views &&
     prevProps.game._count.likes === nextProps.game._count.likes &&
-    prevProps.index === nextProps.index
+    prevProps.index === nextProps.index &&
+    prevProps.highlightQuery === nextProps.highlightQuery
   );
 });

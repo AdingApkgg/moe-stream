@@ -713,7 +713,7 @@ export default function AccountSettingsPage() {
 
   useEffect(() => {
     if (user) {
-      accountForm.reset({ username: user.username, email: user.email });
+      accountForm.reset({ username: user.username, email: user.email ?? "" });
     }
   }, [user, accountForm]);
 

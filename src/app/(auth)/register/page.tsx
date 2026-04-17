@@ -69,12 +69,7 @@ function RegisterForm() {
             .min(3, "用户名至少3个字符")
             .max(20, "用户名最多20个字符")
             .regex(/^[a-zA-Z0-9_]+$/, "用户名只能包含字母、数字和下划线"),
-          email: z
-            .string()
-            .email("请输入有效的邮箱地址")
-            .or(z.literal(""))
-            .optional()
-            .transform((v) => v || undefined),
+          email: z.string().email("请输入有效的邮箱地址").or(z.literal("")),
           password: z.string().min(6, "密码至少6个字符"),
           confirmPassword: z.string(),
           emailCode: z.string().optional(),

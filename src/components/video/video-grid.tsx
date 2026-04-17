@@ -32,6 +32,7 @@ interface VideoGridProps {
   videos: Video[];
   isLoading?: boolean;
   columns?: 3 | 4 | 5;
+  highlightQuery?: string | null;
 }
 
 const gridColumns = {
@@ -40,7 +41,7 @@ const gridColumns = {
   5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function VideoGrid({ videos, isLoading, columns = 4 }: VideoGridProps) {
+export function VideoGrid({ videos, isLoading, columns = 4, highlightQuery }: VideoGridProps) {
   if (isLoading) {
     return (
       <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
@@ -63,7 +64,7 @@ export function VideoGrid({ videos, isLoading, columns = 4 }: VideoGridProps) {
     <MotionList className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
       {videos.map((video, index) => (
         <MotionItem key={video.id}>
-          <VideoCard video={video} index={index} />
+          <VideoCard video={video} index={index} highlightQuery={highlightQuery} />
         </MotionItem>
       ))}
     </MotionList>

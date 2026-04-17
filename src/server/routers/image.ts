@@ -14,6 +14,7 @@ import {
   assertBatchLimit,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
+import { mergeContentSearchIntoWhere } from "@/lib/search";
 
 export const imageRouter = router({
   list: publicProcedure
@@ -52,13 +53,7 @@ export const imageRouter = router({
         }));
       }
 
-      if (search) {
-        where.OR = [
-          { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { description: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { tags: { some: { tag: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } } } },
-        ];
-      }
+      Object.assign(where, mergeContentSearchIntoWhere(where, search));
 
       const orderBy = {
         latest: { createdAt: "desc" as const },

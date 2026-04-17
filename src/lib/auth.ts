@@ -206,6 +206,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, qqConfig: QqOAuthCredentia
                       id: openid,
                       name: info.nickname || "QQ用户",
                       image: info.figureurl_qq_2 || info.figureurl_qq_1 || "",
+                      emailVerified: false,
                     };
                   },
                 },

@@ -19,6 +19,8 @@ import {
   assertBatchLimit,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
+import { mergeContentSearchIntoWhere } from "@/lib/search";
+import { suggestionTextRank } from "@/lib/search-text";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
 const STATS_CACHE_TTL = 15; // 15 seconds - 短缓存，仅防止并发请求
@@ -199,36 +201,109 @@ export const videoRouter = router({
       return memGetOrSet(
         cacheKey,
         async () => {
-          const [videos, tags, games] = await Promise.all([
+          const fetchCap = Math.min(30, Math.max(limit * 3, 12));
+          const insensitive = Prisma.QueryMode.insensitive;
+
+          const [videos, tags, games, imagePosts, users] = await Promise.all([
             ctx.prisma.video.findMany({
               where: {
                 status: "PUBLISHED",
-                title: { contains: query, mode: "insensitive" },
+                title: { contains: query, mode: insensitive },
               },
-              select: { id: true, title: true },
-              take: limit,
+              select: { id: true, title: true, views: true },
+              take: fetchCap,
               orderBy: { views: "desc" },
             }),
             ctx.prisma.tag.findMany({
               where: {
-                name: { contains: query, mode: "insensitive" },
+                OR: [
+                  { name: { contains: query, mode: insensitive } },
+                  { aliases: { some: { name: { contains: query, mode: insensitive } } } },
+                ],
               },
-              select: { id: true, name: true, slug: true },
-              take: 5,
+              select: { id: true, name: true, slug: true, videoCount: true },
+              take: fetchCap,
               orderBy: { videos: { _count: "desc" } },
             }),
             ctx.prisma.game.findMany({
               where: {
                 status: "PUBLISHED",
-                title: { contains: query, mode: "insensitive" },
+                title: { contains: query, mode: insensitive },
               },
-              select: { id: true, title: true },
-              take: limit,
+              select: { id: true, title: true, views: true },
+              take: fetchCap,
               orderBy: { views: "desc" },
+            }),
+            ctx.prisma.imagePost.findMany({
+              where: {
+                status: "PUBLISHED",
+                title: { contains: query, mode: insensitive },
+              },
+              select: { id: true, title: true, views: true },
+              take: fetchCap,
+              orderBy: { views: "desc" },
+            }),
+            ctx.prisma.user.findMany({
+              where: {
+                isBanned: false,
+                OR: [
+                  { username: { contains: query, mode: insensitive } },
+                  { nickname: { contains: query, mode: insensitive } },
+                ],
+              },
+              select: { id: true, username: true, nickname: true },
+              take: fetchCap,
+              orderBy: { createdAt: "desc" },
             }),
           ]);
 
-          return { videos, tags, games };
+          const scoreTitle = (title: string, views: number) =>
+            suggestionTextRank(title, query) * 50_000 + Math.min(views, 999_999);
+
+          const sortedVideos = [...videos]
+            .sort((a, b) => scoreTitle(b.title, b.views) - scoreTitle(a.title, a.views))
+            .slice(0, limit)
+            .map((v) => ({ id: v.id, title: v.title }));
+
+          const sortedGames = [...games]
+            .sort((a, b) => scoreTitle(b.title, b.views) - scoreTitle(a.title, a.views))
+            .slice(0, limit)
+            .map((g) => ({ id: g.id, title: g.title }));
+
+          const sortedImages = [...imagePosts]
+            .sort((a, b) => scoreTitle(b.title, b.views) - scoreTitle(a.title, a.views))
+            .slice(0, limit)
+            .map((p) => ({ id: p.id, title: p.title }));
+
+          const displayName = (u: { username: string; nickname: string | null }) => u.nickname?.trim() || u.username;
+
+          const userRank = (u: { username: string; nickname: string | null }) =>
+            Math.max(suggestionTextRank(u.nickname ?? "", query), suggestionTextRank(u.username, query));
+
+          const sortedUsers = [...users].sort((a, b) => userRank(b) - userRank(a)).slice(0, 5);
+
+          const sortedTags = [...tags]
+            .sort(
+              (a, b) =>
+                suggestionTextRank(b.name, query) * 20_000 +
+                b.videoCount * 2 -
+                (suggestionTextRank(a.name, query) * 20_000 + a.videoCount * 2),
+            )
+            .slice(0, 5)
+            .map((t) => ({ id: t.id, name: t.name, slug: t.slug }));
+
+          return {
+            videos: sortedVideos,
+            tags: sortedTags,
+            games: sortedGames,
+            imagePosts: sortedImages,
+            users: sortedUsers.map((u) => ({
+              id: u.id,
+              username: u.username,
+              nickname: u.nickname,
+              displayName: displayName(u),
+            })),
+          };
         },
         SEARCH_SUGGESTIONS_CACHE_TTL * 1000,
       );
@@ -315,13 +390,7 @@ export const videoRouter = router({
         }));
       }
 
-      if (search) {
-        baseWhere.OR = [
-          { title: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { description: { contains: search, mode: Prisma.QueryMode.insensitive } },
-          { tags: { some: { tag: { name: { contains: search, mode: Prisma.QueryMode.insensitive } } } } },
-        ];
-      }
+      Object.assign(baseWhere, mergeContentSearchIntoWhere(baseWhere, search));
 
       if (timeFilter) {
         baseWhere.createdAt = { gte: timeFilter };
