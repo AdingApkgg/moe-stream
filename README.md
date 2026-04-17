@@ -77,26 +77,26 @@ ACGN 流式媒体内容分享平台。不存储视频文件，仅通过用户提
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| **框架** | Next.js 16 + React 19 + TypeScript |
-| **构建** | Turbopack (开发) |
-| **样式** | Tailwind CSS v4 + shadcn/ui + Framer Motion |
-| **状态** | Zustand + TanStack Query |
-| **API** | tRPC v11 + Zod v4 |
-| **认证** | Better Auth（JWT 策略，邮箱验证码，2FA / Passkey，多账号切换） |
-| **数据库** | PostgreSQL 18 + Prisma 7（pg adapter） |
-| **缓存** | Redis 8 + ioredis |
+| 层级         | 技术                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| **框架**     | Next.js 16 + React 19 + TypeScript                                   |
+| **构建**     | Turbopack (开发)                                                     |
+| **样式**     | Tailwind CSS v4 + shadcn/ui + Framer Motion                          |
+| **状态**     | Zustand + TanStack Query                                             |
+| **API**      | tRPC v11 + Zod v4                                                    |
+| **认证**     | Better Auth（JWT 策略，邮箱验证码，2FA / Passkey，多账号切换）       |
+| **数据库**   | PostgreSQL 18 + Prisma 7（pg adapter）                               |
+| **缓存**     | Redis 8 + ioredis                                                    |
 | **实时通信** | Socket.io + @socket.io/redis-adapter（独立进程，Redis Pub/Sub 扩展） |
-| **对象存储** | AWS S3 兼容（@aws-sdk/client-s3） |
-| **播放器** | react-player + hls.js |
-| **3D** | Three.js + React Three Fiber（登陆页动效） |
-| **内容** | MDX（@next/mdx + next-mdx-remote） |
-| **PWA** | Serwist（Service Worker + 运行时缓存） |
-| **图像** | Sharp（封面生成 & 处理） |
-| **邮件** | Nodemailer（SMTP） |
-| **支付** | USDT TRC-20（tron-monitor） |
-| **部署** | Podman / Docker Compose / PM2 / deploy.sh |
+| **对象存储** | AWS S3 兼容（@aws-sdk/client-s3）                                    |
+| **播放器**   | react-player + hls.js                                                |
+| **3D**       | Three.js + React Three Fiber（登陆页动效）                           |
+| **内容**     | MDX（@next/mdx + next-mdx-remote）                                   |
+| **PWA**      | Serwist（Service Worker + 运行时缓存）                               |
+| **图像**     | Sharp（封面生成 & 处理）                                             |
+| **邮件**     | Nodemailer（SMTP）                                                   |
+| **支付**     | USDT TRC-20（tron-monitor）                                          |
+| **部署**     | Podman / Docker Compose / PM2 / deploy.sh                            |
 
 ## 开始开发
 
@@ -115,16 +115,16 @@ cp .env.example .env.development
 
 编辑 `.env.development`，必填项：
 
-| 变量 | 说明 |
-|------|------|
-| `DATABASE_URL` | PostgreSQL 连接串 |
-| `REDIS_URL` | Redis 连接串 |
-| `MEILISEARCH_URL` | Meilisearch 地址（本地 `http://127.0.0.1:7700`） |
+| 变量                     | 说明                                                                |
+| ------------------------ | ------------------------------------------------------------------- |
+| `DATABASE_URL`           | PostgreSQL 连接串                                                   |
+| `REDIS_URL`              | Redis 连接串                                                        |
+| `MEILISEARCH_URL`        | Meilisearch 地址（本地 `http://127.0.0.1:7700`）                    |
 | `MEILISEARCH_MASTER_KEY` | Meilisearch API 密钥（与 `MEILI_MASTER_KEY` 在 Compose 中保持一致） |
-| `BETTER_AUTH_SECRET` | Auth 密钥（`openssl rand -base64 32`） |
-| `BETTER_AUTH_BASE_URL` | 站点地址（开发环境 `http://localhost:3000`） |
-| `NEXT_PUBLIC_APP_URL` | 前端访问地址 |
-| `NEXT_PUBLIC_APP_NAME` | 站点名称 |
+| `BETTER_AUTH_SECRET`     | Auth 密钥（`openssl rand -base64 32`）                              |
+| `BETTER_AUTH_BASE_URL`   | 站点地址（开发环境 `http://localhost:3000`）                        |
+| `NEXT_PUBLIC_APP_URL`    | 前端访问地址                                                        |
+| `NEXT_PUBLIC_APP_NAME`   | 站点名称                                                            |
 
 可选项：`SMTP_*`（邮件）、`INDEXNOW_KEY`（搜索引擎推送）、`GOOGLE_*`（Search Console）、`S3_*`（对象存储）。
 
@@ -190,56 +190,56 @@ pnpm script:create-owner   # 创建 OWNER 角色用户
 
 ### 开发 & 构建
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev` | 启动开发服务器（Next.js 端口 3000 + Socket.io 端口 3001） |
-| `pnpm dev:next` | 仅启动 Next.js（Turbopack, 端口 3000） |
-| `pnpm dev:socket` | 仅启动 Socket.io 服务器（端口 3001） |
-| `pnpm build` | 构建生产版本（Prisma Generate → Next Build → Serwist Build） |
-| `pnpm start` | 启动生产服务器 |
-| `pnpm lint` | 运行 ESLint + TypeScript 类型检查 |
-| `pnpm lint:eslint` | 仅运行 ESLint |
-| `pnpm typecheck` | 仅运行 TypeScript 类型检查（tsc --noEmit） |
+| 命令               | 说明                                                         |
+| ------------------ | ------------------------------------------------------------ |
+| `pnpm dev`         | 启动开发服务器（Next.js 端口 3000 + Socket.io 端口 3001）    |
+| `pnpm dev:next`    | 仅启动 Next.js（Turbopack, 端口 3000）                       |
+| `pnpm dev:socket`  | 仅启动 Socket.io 服务器（端口 3001）                         |
+| `pnpm build`       | 构建生产版本（Prisma Generate → Next Build → Serwist Build） |
+| `pnpm start`       | 启动生产服务器                                               |
+| `pnpm lint`        | 运行 ESLint + TypeScript 类型检查                            |
+| `pnpm lint:eslint` | 仅运行 ESLint                                                |
+| `pnpm typecheck`   | 仅运行 TypeScript 类型检查（tsc --noEmit）                   |
 
 ### 数据库
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm db:generate` | 生成 Prisma Client |
-| `pnpm db:push` | 推送 schema 到数据库 |
-| `pnpm db:migrate` | 运行数据库迁移 |
-| `pnpm db:studio` | 打开 Prisma Studio |
-| `pnpm db:seed` | 填充初始数据 |
+| 命令               | 说明                 |
+| ------------------ | -------------------- |
+| `pnpm db:generate` | 生成 Prisma Client   |
+| `pnpm db:push`     | 推送 schema 到数据库 |
+| `pnpm db:migrate`  | 运行数据库迁移       |
+| `pnpm db:studio`   | 打开 Prisma Studio   |
+| `pnpm db:seed`     | 填充初始数据         |
 
 ### Podman / Docker Compose
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm compose:infra` | 启动 PostgreSQL + Redis + Meilisearch 容器（开发用） |
-| `pnpm compose:up` | 全栈启动（PostgreSQL + Redis + Meilisearch + Next.js + Socket.io） |
-| `pnpm compose:down` | 停止所有容器 |
-| `pnpm compose:logs` | 查看容器日志 |
-| `pnpm compose:build` | 重新构建应用镜像 |
+| 命令                 | 说明                                                               |
+| -------------------- | ------------------------------------------------------------------ |
+| `pnpm compose:infra` | 启动 PostgreSQL + Redis + Meilisearch 容器（开发用）               |
+| `pnpm compose:up`    | 全栈启动（PostgreSQL + Redis + Meilisearch + Next.js + Socket.io） |
+| `pnpm compose:down`  | 停止所有容器                                                       |
+| `pnpm compose:logs`  | 查看容器日志                                                       |
+| `pnpm compose:build` | 重新构建应用镜像                                                   |
 
 ### PM2
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm pm2:start` | 启动 PM2 进程（Next.js + Socket.io） |
-| `pnpm pm2:stop` | 停止 PM2 进程 |
-| `pnpm pm2:restart` | 重启 PM2 进程 |
-| `pnpm pm2:logs` | 查看 PM2 日志 |
-| `pnpm pm2:status` | 查看 PM2 状态 |
+| 命令               | 说明                                 |
+| ------------------ | ------------------------------------ |
+| `pnpm pm2:start`   | 启动 PM2 进程（Next.js + Socket.io） |
+| `pnpm pm2:stop`    | 停止 PM2 进程                        |
+| `pnpm pm2:restart` | 重启 PM2 进程                        |
+| `pnpm pm2:logs`    | 查看 PM2 日志                        |
+| `pnpm pm2:status`  | 查看 PM2 状态                        |
 
 ### 运维脚本
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm script:create-user` | 创建用户 |
+| 命令                       | 说明                       |
+| -------------------------- | -------------------------- |
+| `pnpm script:create-user`  | 创建用户                   |
 | `pnpm script:create-owner` | 创建站长账号（OWNER 角色） |
-| `pnpm script:migrate-auth` | Better Auth 数据迁移 |
-| `pnpm script:fetch-videos` | 导入旧站视频数据 |
-| `pnpm script:fetch-games` | 导入旧站游戏数据 |
+| `pnpm script:migrate-auth` | Better Auth 数据迁移       |
+| `pnpm script:fetch-videos` | 导入旧站视频数据           |
+| `pnpm script:fetch-games`  | 导入旧站游戏数据           |
 
 `scripts/` 目录下还包含更多维护脚本：`fetch-legacy-images.ts`（导入旧站图片）、`merge-duplicate-videos.ts`（合并重复视频）、`migrate-user-ids.ts` / `migrate-video-ids.ts`（ID 迁移）、`randomize-video-ids.ts`（随机化视频 ID）、`generate-covers.ts`（批量生成封面）。
 
@@ -562,16 +562,16 @@ FriendLink ── 友情链接
 
 ## SEO & AI 端点
 
-| 路径 | 说明 |
-|------|------|
-| `/sitemap.xml` | 动态站点地图索引（拆分：视频/游戏/图片/用户/标签/静态页） |
-| `/robots.txt` | 爬虫规则 |
-| `/feed.xml` | RSS 订阅 |
-| `/llms.txt` | AI/LLM 简要说明 |
-| `/llms-full.txt` | AI/LLM 完整说明 |
-| `/.well-known/ai-plugin.json` | ChatGPT 插件发现 |
-| `/.well-known/openapi.yaml` | OpenAPI 规范 |
-| `/.well-known/security.txt` | 安全联络信息 |
+| 路径                          | 说明                                                      |
+| ----------------------------- | --------------------------------------------------------- |
+| `/sitemap.xml`                | 动态站点地图索引（拆分：视频/游戏/图片/用户/标签/静态页） |
+| `/robots.txt`                 | 爬虫规则                                                  |
+| `/feed.xml`                   | RSS 订阅                                                  |
+| `/llms.txt`                   | AI/LLM 简要说明                                           |
+| `/llms-full.txt`              | AI/LLM 完整说明                                           |
+| `/.well-known/ai-plugin.json` | ChatGPT 插件发现                                          |
+| `/.well-known/openapi.yaml`   | OpenAPI 规范                                              |
+| `/.well-known/security.txt`   | 安全联络信息                                              |
 
 视频和游戏在创建、更新、审核通过时自动提交 IndexNow + Google Search Console，支持手动批量提交。
 

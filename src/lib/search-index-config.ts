@@ -1,6 +1,12 @@
 import type { Settings } from "meilisearch";
 import { meili, INDEX, type SearchIndexKey } from "@/lib/meilisearch";
 
+/** 中文容错阈值：3 字符允许 1 个 typo，6 字符允许 2 个；比默认(5/9)更激进，对短中文更友好 */
+const TYPO_TOLERANCE_CN: Settings["typoTolerance"] = {
+  enabled: true,
+  minWordSizeForTypos: { oneTypo: 3, twoTypos: 6 },
+};
+
 const VIDEO_SETTINGS: Settings = {
   searchableAttributes: [
     "title",
@@ -13,6 +19,7 @@ const VIDEO_SETTINGS: Settings = {
   ],
   filterableAttributes: ["status", "tagSlugs", "tagIds", "uploaderId", "isNsfw", "createdAtTs"],
   sortableAttributes: ["createdAtTs", "views", "likes"],
+  typoTolerance: TYPO_TOLERANCE_CN,
 };
 
 const GAME_SETTINGS: Settings = {
@@ -29,24 +36,28 @@ const GAME_SETTINGS: Settings = {
   ],
   filterableAttributes: ["status", "tagSlugs", "tagIds", "gameType", "isFree", "isNsfw", "createdAtTs"],
   sortableAttributes: ["createdAtTs", "views", "downloads", "likes"],
+  typoTolerance: TYPO_TOLERANCE_CN,
 };
 
 const IMAGE_SETTINGS: Settings = {
   searchableAttributes: ["title", "description", "tagNames", "uploaderNickname", "uploaderUsername"],
   filterableAttributes: ["status", "tagSlugs", "tagIds", "isNsfw", "createdAtTs"],
   sortableAttributes: ["createdAtTs", "views", "likes"],
+  typoTolerance: TYPO_TOLERANCE_CN,
 };
 
 const TAG_SETTINGS: Settings = {
   searchableAttributes: ["name", "slug", "aliasNames", "description"],
   filterableAttributes: ["categoryId", "videoCount", "gameCount", "imagePostCount"],
   sortableAttributes: ["videoCount", "gameCount", "imagePostCount", "name"],
+  typoTolerance: TYPO_TOLERANCE_CN,
 };
 
 const USER_SETTINGS: Settings = {
   searchableAttributes: ["nickname", "username", "bio"],
   filterableAttributes: ["isBanned", "role"],
   sortableAttributes: ["videoCount"],
+  typoTolerance: TYPO_TOLERANCE_CN,
 };
 
 const SETTINGS_BY_UID: Record<(typeof INDEX)[SearchIndexKey], Settings> = {

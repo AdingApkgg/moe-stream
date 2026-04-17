@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
@@ -2147,10 +2149,21 @@ function RedeemCodeCard() {
   );
 }
 
-export default function ReferralPage() {
+export default function PromotionPage() {
   const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("analytics");
   const linkIds = selectedLinkIds.length > 0 ? selectedLinkIds : undefined;
+
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/promotion");
+    }
+  }, [status, router]);
+
+  if (status === "loading" || !session) return null;
 
   return (
     <div className="space-y-6">

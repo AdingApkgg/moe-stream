@@ -292,6 +292,20 @@ export const commentRouter = router({
         });
       }
 
+      // 登录用户必须验证邮箱后才能评论
+      if (userId) {
+        const currentUser = await ctx.prisma.user.findUnique({
+          where: { id: userId },
+          select: { emailVerified: true },
+        });
+        if (!currentUser?.emailVerified) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "请先验证邮箱后再发表评论",
+          });
+        }
+      }
+
       // 基于 visitorId 的匿名评论频率限制（同设备 60 秒内限 1 条）
       const visitorId = deviceInfo?.visitorId;
       if (!userId && visitorId) {

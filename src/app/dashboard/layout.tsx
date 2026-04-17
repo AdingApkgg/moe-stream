@@ -25,7 +25,6 @@ import {
   Link2,
   DatabaseBackup,
   Sticker,
-  TrendingUp,
   Coins,
   Crown,
   UserCog,
@@ -53,7 +52,7 @@ type MenuGroup = {
 
 const menuGroups: MenuGroup[] = [
   {
-    items: [{ href: "/dashboard/stats", label: "数据总览", icon: BarChart3, scope: null }],
+    items: [{ href: "/dashboard/stats", label: "数据总览", icon: BarChart3, scope: "stats:view" }],
   },
   {
     label: "内容",
@@ -76,7 +75,6 @@ const menuGroups: MenuGroup[] = [
   {
     label: "推广",
     items: [
-      { href: "/dashboard/referral", label: "推广中心", icon: TrendingUp, scope: null },
       { href: "/dashboard/referral-admin", label: "全站推广", icon: Link2, scope: "referral:view_all" },
       { href: "/dashboard/points", label: "积分管理", icon: Coins, scope: "settings:manage" },
       { href: "/dashboard/payment", label: "支付管理", icon: Wallet, scope: "settings:manage" },
@@ -220,7 +218,7 @@ function SidebarContent({
       <div className="border-t shrink-0">
         {meData?.points !== undefined && (
           <Link
-            href="/dashboard/referral"
+            href="/promotion"
             onClick={onItemClick}
             className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-accent/50 transition-colors"
           >
@@ -267,6 +265,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [status, router]);
 
+  // 非管理员（普通用户）无权访问后台，重定向到首页
+  useEffect(() => {
+    if (!permissionsLoading && permissions && !permissions.isAdmin && !permissions.isOwner) {
+      router.replace("/");
+    }
+  }, [permissions, permissionsLoading, router]);
+
   // 路由变化时关闭移动端菜单
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -308,6 +313,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!session) {
+    return null;
+  }
+
+  // 非管理员用户不渲染后台 UI（useEffect 已经触发重定向）
+  if (permissions && !permissions.isAdmin && !permissions.isOwner) {
     return null;
   }
 

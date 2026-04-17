@@ -78,7 +78,7 @@ const userNavItems: NavItem[] = [
 
 const moreNavItems: NavItem[] = [
   { href: "/upload", icon: Upload, label: "发布内容", auth: true, requireUpload: true },
-  { href: "/dashboard/referral", icon: TrendingUp, label: "推广中心", auth: true },
+  { href: "/promotion", icon: TrendingUp, label: "推广中心", auth: true },
 ];
 
 function NavLink({

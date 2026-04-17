@@ -283,6 +283,20 @@ export const gameCommentRouter = router({
         });
       }
 
+      // 登录用户必须验证邮箱后才能评论
+      if (userId) {
+        const currentUser = await ctx.prisma.user.findUnique({
+          where: { id: userId },
+          select: { emailVerified: true },
+        });
+        if (!currentUser?.emailVerified) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "请先验证邮箱后再发表评论",
+          });
+        }
+      }
+
       const visitorId = deviceInfo?.visitorId;
       if (!userId && visitorId) {
         const { redisExists } = await import("@/lib/redis");

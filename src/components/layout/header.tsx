@@ -55,6 +55,7 @@ import { useUserStore } from "@/stores/user";
 import { playSound } from "@/lib/audio";
 import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
+import { isPrivileged } from "@/lib/permissions";
 import { useSiteConfig } from "@/contexts/site-config";
 import { showPointsToast } from "@/lib/toast-with-sound";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -748,12 +749,14 @@ export function Header({ onMenuClick }: HeaderProps) {
                       观看历史
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">
-                      <Shield className="mr-2 h-4 w-4" />
-                      管理面板
-                    </Link>
-                  </DropdownMenuItem>
+                  {isPrivileged(session.user.role ?? "") && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">
+                        <Shield className="mr-2 h-4 w-4" />
+                        管理面板
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600"
