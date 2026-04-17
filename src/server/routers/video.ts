@@ -228,7 +228,10 @@ export const videoRouter = router({
             ctx.prisma.game.findMany({
               where: {
                 status: "PUBLISHED",
-                title: { contains: query, mode: insensitive },
+                OR: [
+                  { title: { contains: query, mode: insensitive } },
+                  { aliases: { some: { name: { contains: query, mode: insensitive } } } },
+                ],
               },
               select: { id: true, title: true, views: true },
               take: fetchCap,

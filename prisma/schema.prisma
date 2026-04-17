@@ -438,12 +438,27 @@ model Game {
   comments      GameComment[]
   versions      GameVersion[]
   customTabs    GameCustomTab[]
+  aliases       GameAlias[]
 
   @@index([uploaderId])
   @@index([status])
   @@index([createdAt])
   @@index([gameType])
   @@index([downloads])
+}
+
+/// 游戏别名（原作名 / 日文名 / 缩写 / 昵称），用于提升搜索命中
+model GameAlias {
+  id        String   @id @default(cuid())
+  gameId    String
+  name      String   /// 别名文本
+  createdAt DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, name])
+  @@index([gameId])
+  @@index([name])
 }
 
 model GameVersion {

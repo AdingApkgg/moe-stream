@@ -14,3 +14,4 @@ CREATE INDEX IF NOT EXISTS "ImagePost_description_trgm_idx" ON "ImagePost" USING
 
 CREATE INDEX IF NOT EXISTS "Tag_name_trgm_idx" ON "Tag" USING gin ("name" gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS "TagAlias_name_trgm_idx" ON "TagAlias" USING gin ("name" gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS "GameAlias_name_trgm_idx" ON "GameAlias" USING gin ("name" gin_trgm_ops);

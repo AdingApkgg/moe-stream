@@ -27,6 +27,7 @@ export function GameSingleUpload() {
         version: data.version,
         tagIds: data.tagIds,
         tagNames: data.tagNames,
+        aliases: data.aliases,
         extraInfo: data.extraInfo,
         versions: data.versions,
         customTabs: data.customTabs,

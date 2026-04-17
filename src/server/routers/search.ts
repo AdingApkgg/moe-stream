@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { router, publicProcedure } from "../trpc";
 import { memGetOrSet } from "@/lib/memory-cache";
 import { splitSearchTokens, suggestionTextRank } from "@/lib/search-text";
-import { buildContentSearchWhere, buildTagSearchWhere } from "@/lib/search";
+import { buildContentSearchWhere, buildGameSearchWhere, buildTagSearchWhere } from "@/lib/search";
 
 const SEARCH_COUNTS_TTL_MS = 60_000;
 const SEARCH_ALL_TTL_MS = 60_000;
@@ -29,7 +29,7 @@ export const searchRouter = router({
         key,
         async () => {
           const videoClause = buildContentSearchWhere(raw) as Prisma.VideoWhereInput | undefined;
-          const gameClause = buildContentSearchWhere(raw) as Prisma.GameWhereInput | undefined;
+          const gameClause = buildGameSearchWhere(raw);
           const imageClause = buildContentSearchWhere(raw) as Prisma.ImagePostWhereInput | undefined;
           const tagClause = buildTagSearchWhere(raw);
 
@@ -105,7 +105,7 @@ export const searchRouter = router({
           if (videoSearch) videoWhere.AND = [videoSearch];
 
           const gameWhere: Prisma.GameWhereInput = { status: "PUBLISHED" };
-          const gameSearch = buildContentSearchWhere(raw) as Prisma.GameWhereInput | undefined;
+          const gameSearch = buildGameSearchWhere(raw);
           if (gameSearch) gameWhere.AND = [gameSearch];
 
           const imageWhere: Prisma.ImagePostWhereInput = { status: "PUBLISHED" };

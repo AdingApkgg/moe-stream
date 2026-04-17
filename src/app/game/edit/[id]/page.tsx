@@ -74,6 +74,9 @@ export default function EditGamePage({ params }: Props) {
         content: t.content,
       })) || [];
 
+    const aliases: string[] =
+      (game.aliases as { name: string }[] | undefined)?.map((a) => a.name).filter(Boolean) ?? [];
+
     return {
       title: game.title,
       description: game.description || "",
@@ -87,6 +90,7 @@ export default function EditGamePage({ params }: Props) {
           id: t.tag.id,
           name: t.tag.name,
         })) as TagItem[]) || [],
+      aliases,
       extraInfo,
       versions: gameVersions,
       customTabs: gameCustomTabs,
@@ -109,6 +113,7 @@ export default function EditGamePage({ params }: Props) {
         version: data.version,
         extraInfo: data.extraInfo,
         tagNames: tagNames.length > 0 ? tagNames : undefined,
+        aliases: data.aliases,
         versions: data.versions || [],
         customTabs: data.customTabs || [],
       });

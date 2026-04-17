@@ -81,6 +81,7 @@ export interface GameSubmitData {
   tagIds: string[];
   tagNames: string[];
   existingTagNames: string[];
+  aliases?: string[];
   extraInfo?: Record<string, unknown>;
   versions?: { id?: string; label: string; description?: string }[];
   customTabs?: { id?: string; title: string; icon?: string; content: string }[];
@@ -97,6 +98,7 @@ interface GameFormProps {
     isFree: boolean;
     isNsfw: boolean;
     tags: TagItem[];
+    aliases?: string[];
     extraInfo?: GameExtraInfo;
     versions?: GameVersion[];
     customTabs?: GameCustomTab[];
@@ -135,6 +137,8 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
   const [downloads, setDownloads] = useState<{ name: string; url: string; password?: string }[]>([]);
   const [versions, setVersions] = useState<GameVersion[]>([]);
   const [customTabs, setCustomTabs] = useState<GameCustomTab[]>([]);
+  const [aliases, setAliases] = useState<string[]>([]);
+  const [aliasInput, setAliasInput] = useState("");
 
   const tagQuery = tagQueryType ? { limit: 100, type: tagQueryType } : { limit: 100 };
   const { data: allTags } = trpc.tag.list.useQuery(tagQuery, { staleTime: 10 * 60 * 1000 });
@@ -194,6 +198,9 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
     if (initialData.customTabs?.length) {
       setCustomTabs(initialData.customTabs);
     }
+    if (initialData.aliases?.length) {
+      setAliases(initialData.aliases);
+    }
   }
 
   const toggleTag = (tag: TagItem) => {
@@ -204,14 +211,14 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
 
   const extraFilledCount = useMemo(() => {
     let count = 0;
-    if (originalName || originalAuthor) count++;
+    if (originalName || originalAuthor || aliases.length > 0) count++;
     if (screenshots.filter((s) => s.trim()).length > 0) count++;
     if (videos.filter((v) => v.trim()).length > 0) count++;
     if (downloads.length > 0) count++;
     if (versions.length > 0) count++;
     if (customTabs.length > 0) count++;
     return count;
-  }, [originalName, originalAuthor, screenshots, videos, downloads, versions, customTabs]);
+  }, [originalName, originalAuthor, aliases, screenshots, videos, downloads, versions, customTabs]);
 
   const handleSubmit = async (data: GameFormData) => {
     const extraInfo: Record<string, unknown> = {};
@@ -235,6 +242,15 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
       .filter((t) => t.title.trim() && t.content.trim())
       .map((t) => ({ id: t.id, title: t.title, icon: t.icon || undefined, content: t.content }));
 
+    const normalizedAliases = Array.from(
+      new Map(
+        aliases
+          .map((a) => a.trim())
+          .filter(Boolean)
+          .map((a) => [a.toLowerCase(), a] as const),
+      ).values(),
+    ).slice(0, 20);
+
     await onSubmit({
       title: data.title,
       description: data.description || undefined,
@@ -246,10 +262,33 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
       tagIds: selectedTags.map((t) => t.id),
       tagNames: newTags,
       existingTagNames: selectedTags.map((t) => t.name),
+      aliases: normalizedAliases,
       extraInfo: Object.keys(extraInfo).length > 0 ? extraInfo : undefined,
       versions: validVersions.length > 0 ? validVersions : undefined,
       customTabs: validCustomTabs.length > 0 ? validCustomTabs : undefined,
     });
+  };
+
+  const commitAliasInput = () => {
+    const raw = aliasInput.trim();
+    if (!raw) return;
+    const parts = raw
+      .split(/[,，\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    const lowerExisting = new Set(aliases.map((a) => a.toLowerCase()));
+    const toAdd: string[] = [];
+    for (const p of parts) {
+      const k = p.toLowerCase();
+      if (lowerExisting.has(k)) continue;
+      lowerExisting.add(k);
+      toAdd.push(p);
+    }
+    if (toAdd.length > 0) {
+      setAliases((prev) => [...prev, ...toAdd].slice(0, 20));
+    }
+    setAliasInput("");
   };
 
   const submitButton = (
@@ -677,6 +716,46 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
                               className="pl-9"
                             />
                           </div>
+                        </div>
+                        <div className="space-y-2">
+                          <FormLabel className="flex items-center justify-between">
+                            <span>搜索别名（可选）</span>
+                            <span className="text-xs text-muted-foreground font-normal">{aliases.length}/20</span>
+                          </FormLabel>
+                          <div className="flex flex-wrap gap-1.5 min-h-9 p-2 rounded-md border bg-background">
+                            {aliases.map((a) => (
+                              <Badge key={a} variant="secondary" className="gap-1 pr-1 text-xs font-normal">
+                                {a}
+                                <button
+                                  type="button"
+                                  onClick={() => setAliases(aliases.filter((x) => x !== a))}
+                                  className="hover:text-destructive"
+                                  aria-label={`移除 ${a}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                            <input
+                              value={aliasInput}
+                              onChange={(e) => setAliasInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === ",") {
+                                  e.preventDefault();
+                                  commitAliasInput();
+                                } else if (e.key === "Backspace" && !aliasInput && aliases.length > 0) {
+                                  setAliases(aliases.slice(0, -1));
+                                }
+                              }}
+                              onBlur={commitAliasInput}
+                              placeholder={aliases.length === 0 ? "输入别名回车，如：P5R、女神异闻录5皇家版" : ""}
+                              className="flex-1 min-w-[10ch] bg-transparent outline-none text-sm"
+                              disabled={aliases.length >= 20}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            支持原作名 / 缩写 / 昵称，搜索时会一并匹配；回车或逗号分隔
+                          </p>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">

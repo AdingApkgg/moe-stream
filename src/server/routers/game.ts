@@ -16,12 +16,29 @@ import {
   assertOwnership,
   scheduleTagCountRefresh,
 } from "@/server/publish-utils";
-import { mergeContentSearchIntoWhere } from "@/lib/search";
+import { mergeGameSearchIntoWhere } from "@/lib/search";
 
 const GAME_CACHE_TTL = 60; // 1 minute
 
 import { GAME_TYPES } from "@/lib/constants";
 export { GAME_TYPES };
+
+/** 去空、裁剪、去重（不区分大小写），最多 20 个 */
+function normalizeAliases(aliases?: string[] | null): string[] {
+  if (!aliases) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const a of aliases) {
+    const trimmed = a.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+    if (result.length >= 20) break;
+  }
+  return result;
+}
 
 export const gameRouter = router({
   /** 游戏列表（分页、标签筛选、搜索、排序） */
@@ -80,7 +97,7 @@ export const gameRouter = router({
         }));
       }
 
-      Object.assign(baseWhere, mergeContentSearchIntoWhere(baseWhere, search));
+      Object.assign(baseWhere, mergeGameSearchIntoWhere(baseWhere, search));
 
       if (gameType) {
         baseWhere.gameType = gameType;
@@ -139,6 +156,7 @@ export const gameRouter = router({
         versions: {
           orderBy: { sortOrder: "asc" },
         },
+        aliases: { select: { id: true, name: true }, orderBy: { createdAt: "asc" } },
         _count: {
           select: { likes: true, dislikes: true, favorites: true, comments: true },
         },
@@ -255,6 +273,7 @@ export const gameRouter = router({
         version: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
         tagNames: z.array(z.string()).optional(),
+        aliases: z.array(z.string().min(1).max(100)).max(20).optional(),
         extraInfo: z.any().optional(),
         versions: z
           .array(
@@ -276,7 +295,7 @@ export const gameRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { tagIds, tagNames, versions, customTabs, ...data } = input;
+      const { tagIds, tagNames, aliases, versions, customTabs, ...data } = input;
       const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
       const gameId = await generateContentId(ctx.prisma, "game");
@@ -320,6 +339,11 @@ export const gameRouter = router({
                   })),
                 }
               : undefined,
+          aliases: normalizeAliases(aliases).length
+            ? {
+                create: normalizeAliases(aliases).map((name) => ({ name })),
+              }
+            : undefined,
         },
       });
 
@@ -541,6 +565,7 @@ export const gameRouter = router({
         customTabs: {
           orderBy: { sortOrder: "asc" },
         },
+        aliases: { select: { id: true, name: true }, orderBy: { createdAt: "asc" } },
       },
     });
 
@@ -569,6 +594,7 @@ export const gameRouter = router({
         version: z.string().optional(),
         extraInfo: z.any().optional(),
         tagNames: z.array(z.string()).optional(),
+        aliases: z.array(z.string().min(1).max(100)).max(20).optional(),
         versions: z
           .array(
             z.object({
@@ -591,7 +617,7 @@ export const gameRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { gameId, tagNames, versions, customTabs, ...updateFields } = input;
+      const { gameId, tagNames, aliases, versions, customTabs, ...updateFields } = input;
       const user = await assertCanUpload(ctx.prisma, ctx.session.user.id);
 
       const game = await ctx.prisma.game.findUnique({
@@ -652,6 +678,17 @@ export const gameRouter = router({
               content: t.content,
               sortOrder: i,
             })),
+          });
+        }
+      }
+
+      if (aliases !== undefined) {
+        await ctx.prisma.gameAlias.deleteMany({ where: { gameId } });
+        const normalized = normalizeAliases(aliases);
+        if (normalized.length > 0) {
+          await ctx.prisma.gameAlias.createMany({
+            data: normalized.map((name) => ({ gameId, name })),
+            skipDuplicates: true,
           });
         }
       }

@@ -6,6 +6,9 @@ const insensitive = Prisma.QueryMode.insensitive;
 /**
  * 视频/游戏/图帖：每个分词须至少命中标题、描述或任一标签名之一（分词之间 AND）。
  * 返回可放入 where.AND 的片段；无有效关键词时返回 undefined。
+ *
+ * 注意：**游戏列表**应改用 `buildGameSearchWhere` / `mergeGameSearchIntoWhere`，
+ * 以额外命中 `GameAlias.name`（原作名 / 缩写 / 昵称）。
  */
 export function buildContentSearchWhere(search: string | undefined | null): Prisma.VideoWhereInput | undefined {
   const tokens = search ? splitSearchTokens(search) : [];
@@ -16,6 +19,26 @@ export function buildContentSearchWhere(search: string | undefined | null): Pris
       { title: { contains: token, mode: insensitive } },
       { description: { contains: token, mode: insensitive } },
       { tags: { some: { tag: { name: { contains: token, mode: insensitive } } } } },
+    ],
+  });
+
+  if (tokens.length === 1) return tokenClause(tokens[0]!);
+  return { AND: tokens.map(tokenClause) };
+}
+
+/**
+ * 游戏专用：在 content 搜索基础上再命中 `GameAlias.name`（原作名 / 缩写 / 昵称）。
+ */
+export function buildGameSearchWhere(search: string | undefined | null): Prisma.GameWhereInput | undefined {
+  const tokens = search ? splitSearchTokens(search) : [];
+  if (tokens.length === 0) return undefined;
+
+  const tokenClause = (token: string): Prisma.GameWhereInput => ({
+    OR: [
+      { title: { contains: token, mode: insensitive } },
+      { description: { contains: token, mode: insensitive } },
+      { tags: { some: { tag: { name: { contains: token, mode: insensitive } } } } },
+      { aliases: { some: { name: { contains: token, mode: insensitive } } } },
     ],
   });
 
@@ -41,22 +64,17 @@ export function buildTagSearchWhere(search: string | undefined | null): Prisma.T
   return { AND: tokens.map(tokenClause) };
 }
 
-function mergeContentSearchIntoWhereImpl<
-  T extends Prisma.VideoWhereInput | Prisma.GameWhereInput | Prisma.ImagePostWhereInput,
->(baseWhere: T, search: string | undefined | null): T {
-  const clause = buildContentSearchWhere(search);
-  if (!clause) return baseWhere;
-
-  const existingAnd = baseWhere.AND;
-  const andArray = Array.isArray(existingAnd) ? [...existingAnd] : existingAnd ? [existingAnd] : [];
-
-  return {
-    ...baseWhere,
-    AND: [...andArray, clause],
-  } as T;
+function mergeAnd<T extends { AND?: unknown }>(baseWhere: T, clause: unknown): T {
+  const existingAnd = baseWhere.AND as unknown;
+  const andArray = Array.isArray(existingAnd)
+    ? [...(existingAnd as unknown[])]
+    : existingAnd !== undefined
+      ? [existingAnd]
+      : [];
+  return { ...baseWhere, AND: [...andArray, clause] } as T;
 }
 
-/** 把内容搜索条件并入已有 where（与 tagSlugs 等 AND 共存） */
+/** 把内容搜索条件并入已有 where（与 tagSlugs 等 AND 共存）。游戏请使用 mergeGameSearchIntoWhere。 */
 export function mergeContentSearchIntoWhere(
   baseWhere: Prisma.VideoWhereInput,
   search: string | undefined | null,
@@ -73,19 +91,24 @@ export function mergeContentSearchIntoWhere(
   baseWhere: Prisma.VideoWhereInput | Prisma.GameWhereInput | Prisma.ImagePostWhereInput,
   search: string | undefined | null,
 ): Prisma.VideoWhereInput | Prisma.GameWhereInput | Prisma.ImagePostWhereInput {
-  return mergeContentSearchIntoWhereImpl(baseWhere, search);
+  const clause = buildContentSearchWhere(search);
+  if (!clause) return baseWhere;
+  return mergeAnd(baseWhere, clause);
+}
+
+/** 游戏列表专用：把带 alias 的搜索条件合入已有 where */
+export function mergeGameSearchIntoWhere(
+  baseWhere: Prisma.GameWhereInput,
+  search: string | undefined | null,
+): Prisma.GameWhereInput {
+  const clause = buildGameSearchWhere(search);
+  if (!clause) return baseWhere;
+  return mergeAnd(baseWhere, clause);
 }
 
 /** 把标签搜索条件并入已有 where */
 export function mergeTagSearchIntoWhere(baseWhere: Prisma.TagWhereInput, search: string | undefined | null) {
   const clause = buildTagSearchWhere(search);
   if (!clause) return baseWhere;
-
-  const existingAnd = baseWhere.AND;
-  const andArray = Array.isArray(existingAnd) ? [...existingAnd] : existingAnd ? [existingAnd] : [];
-
-  return {
-    ...baseWhere,
-    AND: [...andArray, clause],
-  };
+  return mergeAnd(baseWhere, clause);
 }
