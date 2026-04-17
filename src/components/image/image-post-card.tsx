@@ -9,6 +9,7 @@ import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 interface ImagePostCardProps {
   post: {
@@ -31,14 +32,8 @@ interface ImagePostCardProps {
   highlightQuery?: string | null;
 }
 
-function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
-  if (!thumb && url.startsWith("/uploads/")) return url;
-  const base = `/api/cover/${encodeURIComponent(url)}`;
-  if (!thumb) return base;
-  return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
-}
-
 function ImagePostCardComponent({ post, highlightQuery }: ImagePostCardProps) {
+  const imageProxy = useImageProxyUrl();
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -62,7 +57,7 @@ function ImagePostCardComponent({ post, highlightQuery }: ImagePostCardProps) {
                 <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={getImageProxyUrl(imageUrls[2], { w: 200, q: 40 })}
+                    src={imageProxy(imageUrls[2], { w: 200, q: 40 })}
                     alt=""
                     className="w-full h-full object-cover brightness-[0.85]"
                     loading="lazy"
@@ -72,7 +67,7 @@ function ImagePostCardComponent({ post, highlightQuery }: ImagePostCardProps) {
               <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getImageProxyUrl(imageUrls[1], { w: 200, q: 40 })}
+                  src={imageProxy(imageUrls[1], { w: 200, q: 40 })}
                   alt=""
                   className="w-full h-full object-cover brightness-90"
                   loading="lazy"
@@ -85,7 +80,7 @@ function ImagePostCardComponent({ post, highlightQuery }: ImagePostCardProps) {
             {imageUrls.length > 0 ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={getImageProxyUrl(imageUrls[0], { w: 400, q: 70 })}
+                src={imageProxy(imageUrls[0], { w: 400, q: 70 })}
                 alt={post.title}
                 className="w-full h-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
                 loading="lazy"

@@ -61,6 +61,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getCoverUrl } from "@/lib/cover";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useSound } from "@/hooks/use-sound";
@@ -87,6 +88,7 @@ type SortBy = "latest" | "views" | "likes";
 type StatusFilter = "ALL" | "PUBLISHED" | "PENDING" | "REJECTED";
 
 function MyVideosContent() {
+  const imageProxy = useImageProxyUrl();
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1435,7 +1437,7 @@ function MyVideosContent() {
                         >
                           {firstImage ? (
                             <Image
-                              src={`/api/cover/${encodeURIComponent(firstImage)}?w=200&h=200&q=60`}
+                              src={imageProxy(firstImage, { w: 200, h: 200, q: 60 })}
                               alt={post.title}
                               fill
                               className="object-cover"

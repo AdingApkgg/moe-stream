@@ -93,7 +93,7 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
             <CardTitle>缩略图与封面代理</CardTitle>
             <CardDescription>
               控制 <code className="text-xs bg-muted px-1 rounded">/api/cover/…?w=&amp;h=&amp;q=</code> 是否生成实时
-              WebP 缩略图；与「上传压缩」无关
+              WebP 缩略图；影响视频列表、图片区、游戏卡片、排行榜等；与「上传压缩」无关
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -105,7 +105,7 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
                   <div className="space-y-0.5">
                     <FormLabel>启用列表缩略图代理</FormLabel>
                     <FormDescription>
-                      开启时卡片/列表会为外链封面请求带尺寸参数并在服务端缩放；关闭则仅走代理原图（体积更大，适合不想二次处理图片时）
+                      开启时视频/图片/游戏列表会为外链资源请求带尺寸参数并在服务端缩放；关闭则仅走代理原图（体积更大）
                     </FormDescription>
                   </div>
                   <FormControl>

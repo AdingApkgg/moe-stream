@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 interface ImageViewerProps {
   images: string[];
@@ -11,14 +12,8 @@ interface ImageViewerProps {
   onClose: () => void;
 }
 
-function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
-  if (!thumb && url.startsWith("/uploads/")) return url;
-  const base = `/api/cover/${encodeURIComponent(url)}`;
-  if (!thumb) return base;
-  return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
-}
-
 export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageViewerProps) {
+  const imageProxy = useImageProxyUrl();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -126,13 +121,13 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
   );
 
   const handleDownload = useCallback(() => {
-    const url = getImageProxyUrl(images[currentIndex]);
+    const url = imageProxy(images[currentIndex]);
     const link = document.createElement("a");
     link.href = url;
     link.download = `image-${currentIndex + 1}`;
     link.target = "_blank";
     link.click();
-  }, [images, currentIndex]);
+  }, [images, currentIndex, imageProxy]);
 
   const handleFitScreen = () => resetTransform();
 
@@ -177,7 +172,7 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={getImageProxyUrl(images[currentIndex])}
+          src={imageProxy(images[currentIndex])}
           alt={`Image ${currentIndex + 1}`}
           className={cn(
             "max-w-[90vw] max-h-[85vh] object-contain transition-transform will-change-transform",
@@ -232,7 +227,7 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getImageProxyUrl(url, { w: 100, q: 50 })}
+                  src={imageProxy(url, { w: 100, q: 50 })}
                   alt={`Thumbnail ${i + 1}`}
                   className="w-full h-full object-cover"
                   loading="lazy"

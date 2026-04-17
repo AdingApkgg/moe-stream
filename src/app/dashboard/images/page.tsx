@@ -62,6 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatViews } from "@/lib/format";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 type ImageStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | ImageStatus;
@@ -136,12 +137,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
   },
 ];
 
-function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
-  const base = `/api/cover/${encodeURIComponent(url)}`;
-  if (!thumb) return url.startsWith("/uploads/") ? url : base;
-  return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
-}
-
 interface ImageItem {
   id: string;
   title: string;
@@ -160,6 +155,7 @@ interface ImageItem {
 }
 
 export default function DashboardImagesPage() {
+  const imageProxy = useImageProxyUrl();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -587,7 +583,7 @@ export default function DashboardImagesPage() {
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 key={i}
-                                src={getImageProxyUrl(url, { w: 100, q: 50 })}
+                                src={imageProxy(url, { w: 100, q: 50 })}
                                 alt=""
                                 className="w-full h-full object-cover"
                               />
@@ -596,7 +592,7 @@ export default function DashboardImagesPage() {
                         ) : previewImages.length > 0 ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={getImageProxyUrl(previewImages[0], { w: 200, q: 60 })}
+                            src={imageProxy(previewImages[0], { w: 200, q: 60 })}
                             alt={post.title}
                             className="w-full h-full object-cover"
                           />
@@ -779,7 +775,7 @@ export default function DashboardImagesPage() {
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                      src={getImageProxyUrl(url, { w: 150, q: 60 })}
+                                      src={imageProxy(url, { w: 150, q: 60 })}
                                       alt={`${post.title} - ${i + 1}`}
                                       className="w-full h-full object-cover"
                                       loading="lazy"

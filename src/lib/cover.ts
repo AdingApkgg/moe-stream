@@ -65,3 +65,31 @@ export function getOriginalCoverUrl(coverUrl?: string | null): string | null {
  * 默认封面 URL
  */
 export const DEFAULT_COVER_URL = "/default-cover.jpg";
+
+/** 图片 / 游戏封面等走 /api/cover 时的缩略参数（与视频列表 CoverThumb 区分：可单独指定 h） */
+export interface ImageProxyThumb {
+  w: number;
+  h?: number;
+  q?: number;
+}
+
+function appendImageThumbQuery(base: string, thumb: ImageProxyThumb): string {
+  const q = thumb.q ?? 60;
+  const h = thumb.h ?? thumb.w;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}w=${thumb.w}&h=${h}&q=${q}`;
+}
+
+/**
+ * 图片帖、游戏封面等外链或本地图走 /api/cover 代理时的 URL。
+ * 与 `getCoverUrl` 相同受后台「封面代理缩略图」开关控制。
+ */
+export function getImageProxyUrl(imageUrl: string, thumb?: ImageProxyThumb, coverProxyThumbEnabled = true): string {
+  const useThumb = coverProxyThumbEnabled && thumb != null;
+  if (!useThumb) {
+    if (imageUrl.startsWith("/uploads/")) return imageUrl;
+    return `/api/cover/${encodeURIComponent(imageUrl)}`;
+  }
+  const base = `/api/cover/${encodeURIComponent(imageUrl)}`;
+  return appendImageThumbQuery(base, thumb);
+}

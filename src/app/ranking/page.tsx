@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { MotionPage } from "@/components/motion";
 import { useSound } from "@/hooks/use-sound";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 import {
   Trophy,
   Eye,
@@ -135,6 +136,7 @@ function ContentRankItem({
   type: ContentType;
   metric: Metric;
 }) {
+  const imageProxy = useImageProxyUrl();
   const Icon = METRIC_ICON_MAP[metric];
   const href = getContentHref(type, item.id);
 
@@ -152,7 +154,7 @@ function ContentRankItem({
         <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0 relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/api/cover/${encodeURIComponent(item.coverUrl)}?w=120&h=80&q=50`}
+            src={imageProxy(item.coverUrl, { w: 120, h: 80, q: 50 })}
             alt=""
             className="w-full h-full object-cover"
           />

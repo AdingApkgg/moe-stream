@@ -64,6 +64,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatViews } from "@/lib/format";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 type GameStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | GameStatus;
@@ -288,6 +289,7 @@ interface GameItem {
 }
 
 export default function DashboardGamesPage() {
+  const imageProxy = useImageProxyUrl();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -710,7 +712,7 @@ export default function DashboardGamesPage() {
                         {game.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={`/api/cover/${encodeURIComponent(game.coverUrl)}?w=200&h=260&q=60`}
+                            src={imageProxy(game.coverUrl, { w: 200, h: 260, q: 60 })}
                             alt={game.title}
                             className="w-full h-full object-cover"
                           />

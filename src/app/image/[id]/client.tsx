@@ -18,19 +18,14 @@ import { cn } from "@/lib/utils";
 import { ImagePostCommentSection } from "@/components/comment/image-post-comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import type { SerializedImagePost } from "./page";
-
-function getImageProxyUrl(url: string, thumb?: { w: number; q?: number }): string {
-  if (!thumb && url.startsWith("/uploads/")) return url;
-  const base = `/api/cover/${encodeURIComponent(url)}`;
-  if (!thumb) return base;
-  return `${base}?w=${thumb.w}&h=${thumb.w}&q=${thumb.q ?? 60}`;
-}
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 interface ImageDetailClientProps {
   post: SerializedImagePost;
 }
 
 export function ImageDetailClient({ post }: ImageDetailClientProps) {
+  const imageProxy = useImageProxyUrl();
   const { data: session } = useSession();
   const { play } = useSound();
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -300,7 +295,7 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getImageProxyUrl(url, { w: 400, q: 70 })}
+                  src={imageProxy(url, { w: 400, q: 70 })}
                   alt={`${post.title} - ${index + 1}`}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"

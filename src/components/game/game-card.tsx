@@ -10,6 +10,7 @@ import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   ADV: "ADV",
@@ -72,9 +73,9 @@ interface GameCardProps {
 }
 
 function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: string }) {
+  const imageProxy = useImageProxyUrl();
   if (coverUrl) {
-    const proxyBase = `/api/cover/${encodeURIComponent(coverUrl)}`;
-    const src = `${proxyBase}?w=480&h=270&q=60`;
+    const src = imageProxy(coverUrl, { w: 480, h: 270, q: 60 });
 
     return (
       <Image

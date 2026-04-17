@@ -51,6 +51,7 @@ import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { useSession } from "@/lib/auth-client";
 import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
+import { useImageProxyUrl } from "@/hooks/use-cover-url";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import type { SerializedGame } from "./page";
 import type { GameExtraInfo } from "./page";
@@ -150,6 +151,7 @@ export function GamePageClient({
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false);
   const { play } = useSound();
   const { data: session } = useSession();
+  const imageProxy = useImageProxyUrl();
 
   const hasMounted = useSyncExternalStore(
     () => () => {},
@@ -256,7 +258,7 @@ export function GamePageClient({
   const coverSrc = initialGame.coverUrl
     ? initialGame.coverUrl.startsWith("/uploads/")
       ? initialGame.coverUrl
-      : `/api/cover/${encodeURIComponent(initialGame.coverUrl)}`
+      : imageProxy(initialGame.coverUrl)
     : null;
 
   const availableTabs = useMemo(() => {
