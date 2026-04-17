@@ -331,7 +331,7 @@ import { Endpoint, CopyBlock, ParamTable, P } from "@/components/mdx/api-doc-com
 
 <Endpoint method="POST" path="referral.createLink" auth="referral:write" />
 
-创建新的推广链接，受站点推广开关和每用户链接上限约束。
+创建新的推广链接，受站点推广开关约束；每用户可创建的链接数上限由**所属用户组**的「每用户推广链接上限」决定（0 表示不限制）。未分配用户组的用户不限制数量。
 
 <ParamTable>
   <P name="label" type="string">链接备注名称（最长 100 字符）</P>

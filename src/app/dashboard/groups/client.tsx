@@ -51,6 +51,7 @@ interface GroupItem {
   permissions: GroupPermissions;
   adminScopes: string[] | null;
   storageQuota: string;
+  referralMaxLinks: number;
   isDefault: boolean;
   isSystem: boolean;
   color: string | null;
@@ -74,6 +75,10 @@ function formatStorageQuota(bytes: string): string {
   if (n >= 1073741824) return `${(n / 1073741824).toFixed(0)} GB`;
   if (n >= 1048576) return `${(n / 1048576).toFixed(0)} MB`;
   return `${n} B`;
+}
+
+function formatReferralLinkCap(n: number): string {
+  return n <= 0 ? "不限制" : `${n} 条/人`;
 }
 
 function RoleBadge({ role }: { role: GroupRole }) {
@@ -138,6 +143,7 @@ interface GroupFormState {
   permissions: GroupPermissions;
   adminScopes: string[];
   storageQuota: string;
+  referralMaxLinks: number;
   color: string;
 }
 
@@ -148,6 +154,7 @@ const defaultFormState: GroupFormState = {
   permissions: { ...DEFAULT_GROUP_PERMISSIONS },
   adminScopes: [],
   storageQuota: "5368709120",
+  referralMaxLinks: 0,
   color: "#6B7280",
 };
 
@@ -221,6 +228,7 @@ export default function GroupsClient() {
       permissions: { ...group.permissions },
       adminScopes: (group.adminScopes ?? []) as string[],
       storageQuota: group.storageQuota,
+      referralMaxLinks: group.referralMaxLinks ?? 0,
       color: group.color ?? "#6B7280",
     });
     setEditingGroup(group);
@@ -236,6 +244,7 @@ export default function GroupsClient() {
         permissions: form.permissions,
         adminScopes: form.adminScopes.length > 0 ? form.adminScopes : null,
         storageQuota: form.storageQuota,
+        referralMaxLinks: form.referralMaxLinks,
         color: form.color || null,
       });
     } else {
@@ -246,6 +255,7 @@ export default function GroupsClient() {
         permissions: form.permissions,
         adminScopes: form.adminScopes.length > 0 ? form.adminScopes : undefined,
         storageQuota: form.storageQuota,
+        referralMaxLinks: form.referralMaxLinks,
         color: form.color || undefined,
       });
     }
@@ -263,7 +273,9 @@ export default function GroupsClient() {
           <UsersRound className="h-6 w-6 text-primary" />
           <div>
             <h1 className="text-xl font-semibold">用户组管理</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">管理用户组的角色级别、功能权限和管理权限模板</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              管理用户组的角色级别、功能权限、推广链接上限和管理权限模板
+            </p>
           </div>
         </div>
         {permissions?.isOwner && (
@@ -369,12 +381,18 @@ export default function GroupsClient() {
                     <span className="text-xs text-amber-600 font-medium">全部权限（站长）</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-sm pt-1 border-t">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-1 border-t">
                   <span className="text-muted-foreground">
                     成员 <span className="font-medium text-foreground">{group._count.users}</span> 人
                   </span>
                   <span className="text-muted-foreground">
                     配额 <span className="font-medium text-foreground">{formatStorageQuota(group.storageQuota)}</span>
+                  </span>
+                  <span className="text-muted-foreground w-full sm:w-auto">
+                    推广链接{" "}
+                    <span className="font-medium text-foreground">
+                      {formatReferralLinkCap(group.referralMaxLinks ?? 0)}
+                    </span>
                   </span>
                 </div>
               </CardContent>
@@ -544,6 +562,19 @@ export default function GroupsClient() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">当前：{formatStorageQuota(form.storageQuota)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="group-referral-max">每用户推广链接上限</Label>
+              <Input
+                id="group-referral-max"
+                type="number"
+                min={0}
+                max={10000}
+                value={form.referralMaxLinks}
+                onChange={(e) => setForm((f) => ({ ...f, referralMaxLinks: parseInt(e.target.value, 10) || 0 }))}
+              />
+              <p className="text-xs text-muted-foreground">0 表示不限制；仅在该组用户创建推广链接时生效</p>
             </div>
           </div>
 

@@ -48,7 +48,6 @@ import {
 const pointsConfigSchema = z.object({
   referralEnabled: z.boolean(),
   referralPointsPerUser: z.number().int().min(1).max(100000),
-  referralMaxLinksPerUser: z.number().int().min(1).max(100),
 
   pointsRules: z.record(
     z.string(),
@@ -280,7 +279,6 @@ function PointsSettingsForm() {
     defaultValues: {
       referralEnabled: false,
       referralPointsPerUser: 100,
-      referralMaxLinksPerUser: 20,
       pointsRules: { ...DEFAULT_POINTS_RULES },
       checkinEnabled: false,
       checkinPointsMin: 1,
@@ -293,7 +291,6 @@ function PointsSettingsForm() {
       form.reset({
         referralEnabled: (cfg.referralEnabled as boolean) ?? false,
         referralPointsPerUser: (cfg.referralPointsPerUser as number) ?? 100,
-        referralMaxLinksPerUser: (cfg.referralMaxLinksPerUser as number) ?? 20,
         pointsRules: {
           ...DEFAULT_POINTS_RULES,
           ...((cfg.pointsRules as PointsConfigValues["pointsRules"]) || {}),
@@ -379,46 +376,26 @@ function PointsSettingsForm() {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="referralPointsPerUser"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>每推广一人奖励积分</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={100000}
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 100)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="referralMaxLinksPerUser"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>每用户最多推广链接数</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={100}
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 20)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="referralPointsPerUser"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>每推广一人奖励积分</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100000}
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 100)}
+                    />
+                  </FormControl>
+                  <FormDescription>每用户可创建的推广链接数量上限请在「用户组管理」中按组配置</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 

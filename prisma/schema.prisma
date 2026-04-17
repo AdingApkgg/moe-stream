@@ -134,6 +134,7 @@ model UserGroup {
   adminScopes Json?                    /// 管理员权限范围 ["video:moderate", ...]（仅 role=ADMIN 时生效）
 
   storageQuota BigInt  @default(5368709120) /// 组默认存储配额（字节），5GB
+  referralMaxLinks Int @default(0) /// 组内每用户可创建的推广链接上限，0 表示不限制
 
   isDefault   Boolean  @default(false) /// 新用户自动加入此组（仅一个组可为 true）
   isSystem    Boolean  @default(false) /// 系统内置组，不可删除
@@ -1269,9 +1270,8 @@ model SiteConfig {
   hcaptchaSecretKey     String?
 
   // 推广系统
-  referralEnabled         Boolean @default(false)
-  referralPointsPerUser   Int     @default(100)
-  referralMaxLinksPerUser Int     @default(20)
+  referralEnabled       Boolean @default(false)
+  referralPointsPerUser Int     @default(100)
 
   // 积分规则 (JSON: Record<ActionType, { enabled, points, dailyLimit }>)
   pointsRules             Json?

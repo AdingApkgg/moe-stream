@@ -100,7 +100,6 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "storagePathPrefix",
   "referralEnabled",
   "referralPointsPerUser",
-  "referralMaxLinksPerUser",
   "pointsRules",
   "checkinEnabled",
   "checkinPointsMin",
@@ -456,7 +455,6 @@ export const adminConfigRouter = router({
         // 推广系统
         referralEnabled: z.boolean().optional(),
         referralPointsPerUser: z.number().int().min(1).max(100000).optional(),
-        referralMaxLinksPerUser: z.number().int().min(1).max(100).optional(),
 
         // 积分规则
         pointsRules: z

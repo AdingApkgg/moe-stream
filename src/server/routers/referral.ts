@@ -510,20 +510,27 @@ export const referralRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      const siteConfig = await ctx.prisma.siteConfig.findUnique({
-        where: { id: "default" },
-        select: { referralEnabled: true, referralMaxLinksPerUser: true },
-      });
+      const [siteConfig, member, currentCount] = await Promise.all([
+        ctx.prisma.siteConfig.findUnique({
+          where: { id: "default" },
+          select: { referralEnabled: true },
+        }),
+        ctx.prisma.user.findUnique({
+          where: { id: userId },
+          select: { group: { select: { referralMaxLinks: true } } },
+        }),
+        ctx.prisma.referralLink.count({ where: { userId } }),
+      ]);
 
       if (!siteConfig?.referralEnabled) {
         throw new TRPCError({ code: "FORBIDDEN", message: "推广系统未启用" });
       }
 
-      const currentCount = await ctx.prisma.referralLink.count({ where: { userId } });
-      if (currentCount >= (siteConfig.referralMaxLinksPerUser || 20)) {
+      const maxLinks = member?.group?.referralMaxLinks ?? 0;
+      if (maxLinks > 0 && currentCount >= maxLinks) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `推广链接数量已达上限（${siteConfig.referralMaxLinksPerUser}）`,
+          message: `推广链接数量已达上限（${maxLinks}）`,
         });
       }
 

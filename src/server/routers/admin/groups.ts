@@ -28,6 +28,7 @@ export const adminGroupsRouter = router({
         permissions: true,
         adminScopes: true,
         storageQuota: true,
+        referralMaxLinks: true,
         isDefault: true,
         isSystem: true,
         color: true,
@@ -58,6 +59,7 @@ export const adminGroupsRouter = router({
           permissions: true,
           adminScopes: true,
           storageQuota: true,
+          referralMaxLinks: true,
           isDefault: true,
           isSystem: true,
           color: true,
@@ -89,6 +91,7 @@ export const adminGroupsRouter = router({
         adminScopes: z.array(z.string()).optional(),
         storageQuota: z.string().optional(),
         color: z.string().max(20).optional(),
+        referralMaxLinks: z.number().int().min(0).max(10000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -116,6 +119,7 @@ export const adminGroupsRouter = router({
           adminScopes: validScopes?.length ? validScopes : undefined,
           storageQuota: input.storageQuota ? BigInt(input.storageQuota) : undefined,
           color: input.color,
+          referralMaxLinks: input.referralMaxLinks ?? 0,
         },
       });
 
@@ -134,6 +138,7 @@ export const adminGroupsRouter = router({
         storageQuota: z.string().optional(),
         color: z.string().max(20).optional().nullable(),
         sortOrder: z.number().int().optional(),
+        referralMaxLinks: z.number().int().min(0).max(10000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -180,6 +185,7 @@ export const adminGroupsRouter = router({
           ...(input.storageQuota && { storageQuota: BigInt(input.storageQuota) }),
           ...(input.color !== undefined && { color: input.color }),
           ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+          ...(input.referralMaxLinks !== undefined && { referralMaxLinks: input.referralMaxLinks }),
         },
       });
 

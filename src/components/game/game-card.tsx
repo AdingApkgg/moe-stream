@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, ThumbsUp, Eye, Download } from "lucide-react";
@@ -10,7 +10,9 @@ import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
+import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useInViewOnce } from "@/hooks/use-in-view-once";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   ADV: "ADV",
@@ -72,34 +74,53 @@ interface GameCardProps {
   highlightQuery?: string | null;
 }
 
-function GameCoverImage({ coverUrl, title }: { coverUrl?: string | null; title: string }) {
-  const imageProxy = useImageProxyUrl();
-  if (coverUrl) {
-    const src = imageProxy(coverUrl, { w: 480, h: 270, q: 60 });
+function GameCoverImageInner({ src, title, priority }: { src: string; title: string; priority: boolean }) {
+  const [loaded, setLoaded] = useState(false);
 
-    return (
+  return (
+    <>
+      {!loaded && <MediaCoverSkeleton className="z-[1]" />}
       <Image
         src={src}
         alt={title}
         fill
-        className="object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
+        priority={priority}
+        className="relative z-[2] object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         unoptimized
+        onLoad={() => setLoaded(true)}
       />
+    </>
+  );
+}
+
+function GameCoverImage({ coverUrl, title, priority }: { coverUrl?: string | null; title: string; priority: boolean }) {
+  const imageProxy = useImageProxyUrl();
+  const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({ disabled: priority });
+
+  if (!coverUrl) {
+    return (
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-muted to-primary/5 flex items-center justify-center">
+        <div className="text-center text-muted-foreground/60">
+          <Gamepad2 className="h-10 w-10 mx-auto" />
+          <span className="text-xs mt-2 block font-medium">暂无封面</span>
+        </div>
+      </div>
     );
   }
 
+  const src = imageProxy(coverUrl, { w: 480, h: 270, q: 60 });
+  const showMedia = inView;
+
   return (
-    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-muted to-primary/5 flex items-center justify-center">
-      <div className="text-center text-muted-foreground/60">
-        <Gamepad2 className="h-10 w-10 mx-auto" />
-        <span className="text-xs mt-2 block font-medium">暂无封面</span>
-      </div>
+    <div ref={viewportRef} className="absolute inset-0 overflow-hidden">
+      {showMedia && <GameCoverImageInner key={src} src={src} title={title} priority={priority} />}
+      {!showMedia && <MediaCoverSkeleton className="z-[1]" />}
     </div>
   );
 }
 
-function GameCardComponent({ game, highlightQuery }: GameCardProps) {
+function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -122,7 +143,7 @@ function GameCardComponent({ game, highlightQuery }: GameCardProps) {
     <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/game/${game.id}`} className="block">
         <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out">
-          <GameCoverImage coverUrl={game.coverUrl} title={game.title} />
+          <GameCoverImage coverUrl={game.coverUrl} title={game.title} priority={index !== undefined && index < 8} />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 

@@ -40,7 +40,7 @@ interface VideoCardProps {
   highlightQuery?: string | null;
 }
 
-function VideoCardComponent({ video, highlightQuery }: VideoCardProps) {
+function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -68,6 +68,7 @@ function VideoCardComponent({ video, highlightQuery }: VideoCardProps) {
             blurDataURL={video.coverBlurHash}
             title={video.title}
             thumbWidth={480}
+            priority={index !== undefined && index < 8}
             className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
           />
 

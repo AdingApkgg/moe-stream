@@ -1595,8 +1595,8 @@ function SidebarRecommendations({ videoId }: { videoId: string }) {
         相关推荐
       </h3>
       <div className="space-y-2">
-        {recommendations.map((v) => (
-          <RecommendationItem key={v.id} video={v} />
+        {recommendations.map((v, index) => (
+          <RecommendationItem key={v.id} video={v} index={index} />
         ))}
       </div>
     </div>
@@ -1605,7 +1605,9 @@ function SidebarRecommendations({ videoId }: { videoId: string }) {
 
 function RecommendationItem({
   video,
+  index,
 }: {
+  index: number;
   video: {
     id: string;
     title: string;
@@ -1639,6 +1641,7 @@ function RecommendationItem({
           blurDataURL={video.coverBlurHash}
           title={video.title}
           thumbWidth={240}
+          priority={index < 4}
           className="transition-transform duration-300 group-hover:scale-105"
         />
         {video.duration != null && (

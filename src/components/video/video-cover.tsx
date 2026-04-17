@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { Film } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useInViewOnce } from "@/hooks/use-in-view-once";
+import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 
 interface VideoCoverProps {
   videoId?: string;
@@ -13,6 +16,8 @@ interface VideoCoverProps {
   className?: string;
   /** 缩略图宽度（不传则使用原图） */
   thumbWidth?: number;
+  /** 首屏优先请求与解码（列表前几项建议开启） */
+  priority?: boolean;
 }
 
 function CoverPlaceholder({ className = "" }: { className?: string }) {
@@ -31,25 +36,102 @@ function CoverPlaceholder({ className = "" }: { className?: string }) {
   );
 }
 
-export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = "", thumbWidth }: VideoCoverProps) {
+function VideoCoverImageContent({
+  coverSrcWithRetry,
+  title,
+  className,
+  priority,
+  blurDataURL,
+  shouldRetry,
+  maxRetries,
+  retryKey,
+  setGiveUp,
+  setRetryKey,
+  retryTimerRef,
+  retryDelayMs,
+}: {
+  coverSrcWithRetry: string;
+  title: string;
+  className: string;
+  priority: boolean;
+  blurDataURL?: string | null;
+  shouldRetry: boolean;
+  maxRetries: number;
+  retryKey: number;
+  setGiveUp: (v: boolean) => void;
+  setRetryKey: React.Dispatch<React.SetStateAction<number>>;
+  retryTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
+  retryDelayMs: number;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const blurProps = blurDataURL ? { placeholder: "blur" as const, blurDataURL } : {};
+
+  return (
+    <>
+      {!loaded && <MediaCoverSkeleton className="z-[1]" />}
+      <Image
+        key={retryKey}
+        src={coverSrcWithRetry}
+        alt={title}
+        fill
+        priority={priority}
+        className={`object-cover relative z-[2] ${className}`}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        unoptimized
+        {...blurProps}
+        onError={() => {
+          if (!shouldRetry) {
+            setGiveUp(true);
+            return;
+          }
+
+          if (retryKey >= maxRetries) {
+            setGiveUp(true);
+            return;
+          }
+
+          if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+          }
+          retryTimerRef.current = setTimeout(() => {
+            setRetryKey((v) => v + 1);
+          }, retryDelayMs);
+        }}
+        onLoad={() => {
+          setLoaded(true);
+        }}
+      />
+    </>
+  );
+}
+
+export function VideoCover({
+  videoId,
+  coverUrl,
+  blurDataURL,
+  title,
+  className = "",
+  thumbWidth,
+  priority = false,
+}: VideoCoverProps) {
   const siteConfig = useSiteConfig();
   const proxyThumbEnabled = siteConfig?.coverProxyThumbEnabled !== false;
   const [retryKey, setRetryKey] = useState(0);
   const [giveUp, setGiveUp] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldRetry = Boolean(videoId && !coverUrl);
   const maxRetries = 12;
   const retryDelayMs = 5000;
 
-  // 封面已经是优化后的 AVIF/WebP，且 /uploads/ 通过 rewrite 到 API route，
-  // Next.js Image 优化器无法处理，统一使用 unoptimized
+  const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({
+    disabled: priority,
+  });
 
   useEffect(() => {
+    const timerRef = retryTimerRef;
     return () => {
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-      }
+      const pending = timerRef.current;
+      if (pending) clearTimeout(pending);
     };
   }, []);
 
@@ -85,43 +167,28 @@ export function VideoCover({ videoId, coverUrl, blurDataURL, title, className = 
     return <CoverPlaceholder className={className} />;
   }
 
-  const placeholderProps = blurDataURL ? { placeholder: "blur" as const, blurDataURL } : {};
+  const showMedia = inView;
 
   return (
-    <>
-      {/* 底层始终渲染占位符，避免重试时闪烁 */}
-      {!loaded && <CoverPlaceholder className={className} />}
-      <Image
-        key={retryKey}
-        src={coverSrcWithRetry}
-        alt={title}
-        fill
-        className={`object-cover ${className}`}
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        unoptimized
-        {...placeholderProps}
-        onError={() => {
-          if (!shouldRetry) {
-            setGiveUp(true);
-            return;
-          }
-
-          if (retryKey >= maxRetries) {
-            setGiveUp(true);
-            return;
-          }
-
-          if (retryTimerRef.current) {
-            clearTimeout(retryTimerRef.current);
-          }
-          retryTimerRef.current = setTimeout(() => {
-            setRetryKey((v) => v + 1);
-          }, retryDelayMs);
-        }}
-        onLoad={() => {
-          setLoaded(true);
-        }}
-      />
-    </>
+    <div ref={viewportRef} className="absolute inset-0 overflow-hidden">
+      {showMedia && (
+        <VideoCoverImageContent
+          key={coverSrcWithRetry}
+          coverSrcWithRetry={coverSrcWithRetry}
+          title={title}
+          className={className}
+          priority={priority}
+          blurDataURL={blurDataURL}
+          shouldRetry={shouldRetry}
+          maxRetries={maxRetries}
+          retryKey={retryKey}
+          setGiveUp={setGiveUp}
+          setRetryKey={setRetryKey}
+          retryTimerRef={retryTimerRef}
+          retryDelayMs={retryDelayMs}
+        />
+      )}
+      {!showMedia && <MediaCoverSkeleton className="z-[1]" />}
+    </div>
   );
 }
