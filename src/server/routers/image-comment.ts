@@ -222,7 +222,7 @@ export const imagePostCommentRouter = router({
 
       const siteConfig = await ctx.prisma.siteConfig.findUnique({
         where: { id: "default" },
-        select: { allowComment: true, requireLoginToComment: true },
+        select: { allowComment: true, requireLoginToComment: true, requireEmailVerify: true },
       });
 
       if (siteConfig && !siteConfig.allowComment) {
@@ -237,13 +237,19 @@ export const imagePostCommentRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "请填写昵称" });
       }
 
-      // 登录用户必须验证邮箱后才能评论
-      if (userId) {
+      // 仅当站点要求邮箱验证时，登录用户需已验证邮箱才能评论
+      if (userId && siteConfig?.requireEmailVerify) {
         const currentUser = await ctx.prisma.user.findUnique({
           where: { id: userId },
-          select: { emailVerified: true },
+          select: { email: true, emailVerified: true },
         });
-        if (!currentUser?.emailVerified) {
+        if (!currentUser?.email) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "请先绑定并验证邮箱后再发表评论",
+          });
+        }
+        if (!currentUser.emailVerified) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "请先验证邮箱后再发表评论",

@@ -196,7 +196,7 @@ export const videoRouter = router({
         limit: z.number().min(1).max(10).default(5),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { query, limit } = input;
       const cacheKey = `search:suggestions:${query.toLowerCase()}`;
 
