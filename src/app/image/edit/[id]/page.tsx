@@ -25,7 +25,16 @@ export default function EditImagePage({ params }: EditImagePageProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: post, isLoading: postLoading } = trpc.image.getForEdit.useQuery({ id }, { enabled: !!session });
+  const { data: post, isLoading: postLoading } = trpc.image.getForEdit.useQuery(
+    { id },
+    {
+      enabled: !!session,
+      // 编辑过程中关闭自动 refetch，防止窗口聚焦时把用户未保存的输入冲掉
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
+  );
 
   const updateMutation = trpc.image.update.useMutation({
     onError: (error) => toast.error("更新失败", { description: error.message }),

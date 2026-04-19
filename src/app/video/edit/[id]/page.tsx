@@ -27,12 +27,29 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const [originalSeriesId, setOriginalSeriesId] = useState<string | null>(null);
   const [initialSeriesData, setInitialSeriesData] = useState<{ seriesId: string; episodeNum: number } | undefined>();
 
-  const { data: video, isLoading: videoLoading } = trpc.video.getForEdit.useQuery({ id }, { enabled: !!session });
+  const { data: video, isLoading: videoLoading } = trpc.video.getForEdit.useQuery(
+    { id },
+    {
+      enabled: !!session,
+      // 编辑过程中关闭自动 refetch，防止窗口聚焦时把用户未保存的输入冲掉
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
+  );
   const { data: userSeries, refetch: refetchSeries } = trpc.series.listByUser.useQuery(
     { limit: 50 },
     { enabled: !!session },
   );
-  const { data: videoSeries } = trpc.series.getByVideoId.useQuery({ videoId: id }, { enabled: !!session });
+  const { data: videoSeries } = trpc.series.getByVideoId.useQuery(
+    { videoId: id },
+    {
+      enabled: !!session,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
+  );
 
   const createSeriesMutation = trpc.series.create.useMutation({
     onSuccess: () => {

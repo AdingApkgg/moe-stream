@@ -32,7 +32,16 @@ export default function EditGamePage({ params }: Props) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: game, isLoading: gameLoading } = trpc.game.getEditData.useQuery({ id }, { enabled: !!session });
+  const { data: game, isLoading: gameLoading } = trpc.game.getEditData.useQuery(
+    { id },
+    {
+      enabled: !!session,
+      // 编辑过程中关闭自动 refetch，防止窗口聚焦时把用户未保存的输入冲掉
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
+  );
 
   const updateMutation = trpc.game.update.useMutation({
     onError: (error) => toast.error("更新失败", { description: error.message }),

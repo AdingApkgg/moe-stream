@@ -1787,17 +1787,39 @@ model GuestbookMessage {
 // ==================== 友情链接 ====================
 
 model FriendLink {
-  id          String   @id @default(cuid())
-  name        String                         // 站点名称
-  url         String                         // 站点链接
-  logo        String?                        // 站点 logo URL
-  description String?                        // 站点描述
-  sort        Int      @default(0)           // 排序（越大越靠前）
-  visible     Boolean  @default(true)        // 是否显示
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String                          // 站点名称
+  url           String                          // 站点链接
+  logo          String?                         // 站点 logo URL
+  description   String?                         // 站点描述
+  sort          Int       @default(0)           // 排序（越大越靠前）
+  visible       Boolean   @default(true)        // 是否显示
+  clicks        Int       @default(0)           // 累计点击数
+  uniqueClicks  Int       @default(0)           // 累计独立访客点击数
+  lastClickedAt DateTime?                       // 最后点击时间
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  dailyStats FriendLinkDailyStat[]
 
   @@index([sort])
+  @@index([clicks])
+}
+
+/// 友情链接每日点击统计
+model FriendLinkDailyStat {
+  id           String   @id @default(cuid())
+  friendLinkId String
+  date         DateTime                            // 当天 0 点（本地）
+  clicks       Int      @default(0)
+  uniqueClicks Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  friendLink FriendLink @relation(fields: [friendLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([friendLinkId, date])
+  @@index([date])
 }
 
 // ==================== 存储策略 & 用户文件 ====================

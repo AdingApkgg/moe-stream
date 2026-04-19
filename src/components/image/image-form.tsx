@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { imageFormSchema, type ImageFormData, type TagItem } from "@/lib/schemas/content";
@@ -65,18 +65,15 @@ export function ImageForm({ mode, initialData, contentId, onSubmit, isSubmitting
     defaultValues: { title: "", description: "" },
   });
 
-  useEffect(() => {
-    if (initialData) {
-      form.reset({
-        title: initialData.title,
-        description: initialData.description || "",
-      });
-    }
-  }, [initialData, form]);
-
-  const [prevInitialData, setPrevInitialData] = useState(initialData);
-  if (initialData && initialData !== prevInitialData) {
-    setPrevInitialData(initialData);
+  // 仅在初次加载到 initialData 时回填表单与本地状态，
+  // 避免后续 tRPC refetch（如窗口聚焦）覆盖用户正在编辑的内容
+  const [hasInitialized, setHasInitialized] = useState(false);
+  if (initialData && !hasInitialized) {
+    setHasInitialized(true);
+    form.reset({
+      title: initialData.title,
+      description: initialData.description || "",
+    });
     setSelectedTags(initialData.tags);
     setIsNsfw(initialData.isNsfw);
     setImageUrls(initialData.imageUrls.length > 0 ? initialData.imageUrls : [""]);

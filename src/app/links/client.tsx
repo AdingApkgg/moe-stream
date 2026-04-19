@@ -12,6 +12,7 @@ import { Link2, Globe, ExternalLink, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 import { getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useFingerprint } from "@/hooks/use-fingerprint";
 
 interface SerializedLink {
   id: string;
@@ -31,11 +32,21 @@ interface LinksClientProps {
 
 export function LinksClient({ links }: LinksClientProps) {
   const redirectOpts = useRedirectOptions();
+  const { getVisitorId } = useFingerprint();
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [logo, setLogo] = useState("");
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const recordClickMutation = trpc.site.recordFriendLinkClick.useMutation();
+
+  const handleLinkClick = (id: string) => {
+    // 上报失败不影响跳转
+    getVisitorId()
+      .then((vid) => recordClickMutation.mutate({ id, visitorId: vid }))
+      .catch(() => recordClickMutation.mutate({ id }));
+  };
 
   const submitMutation = trpc.site.submitFriendLink.useMutation({
     onSuccess: (result) => {
@@ -88,6 +99,10 @@ export function LinksClient({ links }: LinksClientProps) {
               href={getRedirectUrl(link.url, redirectOpts)}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => handleLinkClick(link.id)}
+              onAuxClick={(e) => {
+                if (e.button === 1) handleLinkClick(link.id);
+              }}
               className="group block"
             >
               <div className="rounded-xl border bg-card p-5 transition-all duration-200 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">

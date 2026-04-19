@@ -33,7 +33,9 @@ export function UrlOrUploadInput({
 }: UrlOrUploadInputProps) {
   const siteConfig = useSiteConfig();
   const uploadEnabled = siteConfig?.fileUploadEnabled ?? false;
-  const [tab, setTab] = useState<string>(uploadEnabled ? "upload" : "link");
+  // 已存在外部传入的 URL 时（编辑场景）默认显示「外链」页签，
+  // 让现有 URL 直接可见可改；否则上传可用就默认「上传」，不可用则用「外链」
+  const [tab, setTab] = useState<string>(value ? "link" : uploadEnabled ? "upload" : "link");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [uploadedResult, setUploadedResult] = useState<UploadedFile | null>(null);
 

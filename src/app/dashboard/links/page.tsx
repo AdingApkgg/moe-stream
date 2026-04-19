@@ -28,9 +28,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast-with-sound";
-import { Link2, Plus, Edit2, Trash2, Eye, EyeOff, Loader2, ExternalLink, Globe } from "lucide-react";
+import {
+  Link2,
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+  Loader2,
+  ExternalLink,
+  Globe,
+  MousePointerClick,
+  Users,
+  RotateCcw,
+  BarChart3,
+} from "lucide-react";
 import { cn, getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatRelativeTime } from "@/lib/format";
 
 interface FriendLinkItem {
   id: string;
@@ -40,9 +56,22 @@ interface FriendLinkItem {
   description: string | null;
   sort: number;
   visible: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  clicks: number;
+  uniqueClicks: number;
+  lastClickedAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
+
+type OrderByField = "sort" | "clicks" | "uniqueClicks" | "lastClickedAt" | "createdAt";
+
+const ORDER_LABELS: Record<OrderByField, string> = {
+  sort: "排序",
+  clicks: "总点击",
+  uniqueClicks: "独立访客",
+  lastClickedAt: "最近点击",
+  createdAt: "创建时间",
+};
 
 const emptyForm = {
   name: "",
@@ -58,14 +87,23 @@ export default function AdminLinksPage() {
   const [editingLink, setEditingLink] = useState<FriendLinkItem | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [statsLinkId, setStatsLinkId] = useState<string | null>(null);
+  const [orderBy, setOrderBy] = useState<OrderByField>("sort");
   const [form, setForm] = useState(emptyForm);
 
   const utils = trpc.useUtils();
 
   const { data: permissions } = trpc.admin.getMyPermissions.useQuery();
-  const { data: links, isLoading } = trpc.admin.listFriendLinks.useQuery(undefined, {
-    enabled: permissions?.scopes.includes("settings:manage"),
-  });
+  const { data: links, isLoading } = trpc.admin.listFriendLinks.useQuery(
+    { orderBy, order: "desc" },
+    { enabled: permissions?.scopes.includes("settings:manage") },
+  );
+
+  const { data: statsData, isLoading: statsLoading } = trpc.admin.getFriendLinkStats.useQuery(
+    { id: statsLinkId ?? "", days: 30 },
+    { enabled: !!statsLinkId },
+  );
 
   const createMutation = trpc.admin.createFriendLink.useMutation({
     onSuccess: () => {
@@ -101,6 +139,15 @@ export default function AdminLinksPage() {
       utils.admin.listFriendLinks.invalidate();
     },
     onError: (error) => toast.error(error.message || "更新失败"),
+  });
+
+  const resetStatsMutation = trpc.admin.resetFriendLinkStats.useMutation({
+    onSuccess: () => {
+      toast.success("统计已重置");
+      utils.admin.listFriendLinks.invalidate();
+      setResettingId(null);
+    },
+    onError: (error) => toast.error(error.message || "重置失败"),
   });
 
   const openCreate = () => {
@@ -190,10 +237,24 @@ export default function AdminLinksPage() {
           <Link2 className="h-5 w-5" />
           <h1 className="text-xl font-semibold">友情链接</h1>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" />
-          添加链接
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={orderBy} onValueChange={(v) => setOrderBy(v as OrderByField)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="排序方式" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ORDER_LABELS) as OrderByField[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  按{ORDER_LABELS[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            添加链接
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -248,9 +309,33 @@ export default function AdminLinksPage() {
                     {link.description && (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{link.description}</p>
                     )}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+                      <span>排序: {link.sort}</span>
+                      <span className="flex items-center gap-1" title="总点击数">
+                        <MousePointerClick className="h-3 w-3" />
+                        {link.clicks.toLocaleString()}
+                      </span>
+                      <span className="flex items-center gap-1" title="独立访客点击数">
+                        <Users className="h-3 w-3" />
+                        {link.uniqueClicks.toLocaleString()}
+                      </span>
+                      {link.lastClickedAt && (
+                        <span title={new Date(link.lastClickedAt).toLocaleString()}>
+                          最近: {formatRelativeTime(link.lastClickedAt)}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-muted-foreground">排序: {link.sort}</span>
                       <div className="flex gap-1 ml-auto">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setStatsLinkId(link.id)}
+                          title="查看统计"
+                        >
+                          <BarChart3 className="h-3 w-3" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -273,6 +358,15 @@ export default function AdminLinksPage() {
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(link)}>
                           <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setResettingId(link.id)}
+                          title="重置统计"
+                        >
+                          <RotateCcw className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -377,6 +471,112 @@ export default function AdminLinksPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {editingLink ? "保存" : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 重置统计确认 */}
+      <AlertDialog open={!!resettingId} onOpenChange={() => setResettingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定要重置该友链的统计数据吗？</AlertDialogTitle>
+            <AlertDialogDescription>
+              将累计点击数、独立访客数与最近点击时间归零。每日明细仍会保留。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => resettingId && resetStatsMutation.mutate({ id: resettingId })}>
+              {resetStatsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              确认重置
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 统计详情对话框 */}
+      <Dialog open={!!statsLinkId} onOpenChange={(open) => !open && setStatsLinkId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              {statsData?.link?.name ?? "友链"}统计
+            </DialogTitle>
+            <DialogDescription>近 30 天每日点击趋势</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {statsLoading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-xs text-muted-foreground">总点击</div>
+                      <div className="text-2xl font-semibold mt-1">
+                        {(statsData?.link?.clicks ?? 0).toLocaleString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-xs text-muted-foreground">独立访客</div>
+                      <div className="text-2xl font-semibold mt-1">
+                        {(statsData?.link?.uniqueClicks ?? 0).toLocaleString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-xs text-muted-foreground">最近点击</div>
+                      <div className="text-sm font-medium mt-1">
+                        {statsData?.link?.lastClickedAt ? formatRelativeTime(statsData.link.lastClickedAt) : "—"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {(() => {
+                  const stats = statsData?.stats ?? [];
+                  const maxClicks = Math.max(1, ...stats.map((s) => s.clicks));
+                  return stats.length === 0 ? (
+                    <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
+                      最近 30 天暂无点击数据
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border p-4">
+                      <div className="flex items-end gap-1 h-40">
+                        {stats.map((s) => {
+                          const date = new Date(s.date);
+                          const heightPct = (s.clicks / maxClicks) * 100;
+                          return (
+                            <div
+                              key={date.toISOString()}
+                              className="flex-1 flex flex-col items-center justify-end gap-1 group"
+                              title={`${date.toLocaleDateString()} · ${s.clicks} 点击 / ${s.uniqueClicks} 独立`}
+                            >
+                              <div
+                                className="w-full bg-primary/70 group-hover:bg-primary rounded-sm transition-colors"
+                                style={{ height: `${Math.max(heightPct, 2)}%` }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                        <span>{new Date(stats[0].date).toLocaleDateString()}</span>
+                        <span>{new Date(stats[stats.length - 1].date).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatsLinkId(null)}>
+              关闭
             </Button>
           </DialogFooter>
         </DialogContent>
