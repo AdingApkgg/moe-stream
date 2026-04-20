@@ -227,7 +227,7 @@ paths:
     get:
       operationId: getLinks
       summary: 友情链接
-      description: 获取友情链接页面
+      description: 获取友情链接页面（含所有可见友链的名称、URL、Logo、描述、点击统计）
       responses:
         '200':
           description: 友链页面
@@ -235,6 +235,82 @@ paths:
             text/html:
               schema:
                 type: string
+
+  /api/trpc/site.getFriendLinks:
+    get:
+      operationId: listFriendLinks
+      summary: 获取可见友情链接列表
+      description: |
+        通过 tRPC 端点获取所有可见的友情链接，包含累计点击数 (clicks)、独立访客点击数 (uniqueClicks)
+        以及最后点击时间 (lastClickedAt) 等统计字段，按 sort 降序、createdAt 降序排列。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          json:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/FriendLink'
+
+  /api/trpc/site.recordFriendLinkClick:
+    post:
+      operationId: recordFriendLinkClick
+      summary: 上报友链点击
+      description: |
+        记录一次友链点击。同一 visitorId 在 1 小时内只计为一个独立访客（uniqueClicks 不重复累加），
+        但 clicks 总数始终累加。仅对 \`visible=true\` 的友链生效，避免刷量。
+
+        请求体需要包裹在 tRPC 标准的 \`{ json: {...} }\` 结构中。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                json:
+                  type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: string
+                      description: 友情链接 ID
+                    visitorId:
+                      type: string
+                      description: 浏览器指纹生成的匿名访客 ID（可选，用于 1 小时窗口去重）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          json:
+                            type: object
+                            properties:
+                              success:
+                                type: boolean
+                              deduplicated:
+                                type: boolean
+                                description: 是否被去重（true 表示同一访客 1 小时内重复点击）
 
   /tags:
     get:
@@ -441,6 +517,54 @@ components:
         slug:
           type: string
           description: URL 友好的标识符
+
+    FriendLink:
+      type: object
+      description: 友情链接对象
+      properties:
+        id:
+          type: string
+          description: 唯一标识符
+        name:
+          type: string
+          description: 站点名称
+        url:
+          type: string
+          format: uri
+          description: 站点链接
+        logo:
+          type: string
+          nullable: true
+          description: 站点 Logo URL
+        description:
+          type: string
+          nullable: true
+          description: 站点描述
+        sort:
+          type: integer
+          description: 排序权重（越大越靠前）
+        visible:
+          type: boolean
+          description: 是否在前台展示
+        clicks:
+          type: integer
+          description: 累计点击数
+        uniqueClicks:
+          type: integer
+          description: 累计独立访客点击数（1 小时窗口内同访客只计一次）
+        lastClickedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最后一次被点击的时间
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
 `;
 
   return new NextResponse(openapi, {

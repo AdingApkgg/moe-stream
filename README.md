@@ -558,6 +558,7 @@ User ──┬── Video ──┬── Tag (多对多)
 SiteConfig (单例) ── 站点配置、公告、广告、备案信息
 BackupRecord ── 数据库备份记录
 FriendLink ── 友情链接
+       └── FriendLinkDailyStat (每日点击/独立访客统计)
 ```
 
 ## SEO & AI 端点

@@ -277,7 +277,7 @@ ${statsSection}${videoTagsSection}${gameTagsSection}${imageTagsSection}${recentV
 - 图片标签 (${baseUrl}/image/tag/{slug}): 按标签浏览图片
 - 标签聚合 (${baseUrl}/tag/{slug}): 查看标签下所有类型内容
 - 用户页 (${baseUrl}/user/{id}): 用户主页和上传内容
-- 友链 (${baseUrl}/links): 友情链接
+- 友链 (${baseUrl}/links): 友情链接（含每条友链的累计点击数 clicks、独立访客数 uniqueClicks、最后点击时间 lastClickedAt 统计）
 - 搜索页 (${baseUrl}/search?q={query}): 搜索内容
 
 ## 使用指南
