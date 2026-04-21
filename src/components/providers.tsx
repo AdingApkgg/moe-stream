@@ -13,6 +13,8 @@ import dynamic from "next/dynamic";
 import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { SocketProvider } from "@/components/socket-provider";
 import { MotionProvider } from "@/components/motion";
+import { TmaBootstrap } from "@/components/tma-bootstrap";
+import { isTmaEnvironment } from "@/lib/telegram";
 
 const ParticleBackground = dynamic(() => import("@/components/effects/particle-background"), { ssr: false });
 
@@ -56,13 +58,26 @@ function ServiceWorkerRegistration() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
 
-    // 注册 Service Worker
-    if ("serviceWorker" in navigator) {
+    // TMA 环境下跳过 SW 注册：
+    // - TMA WebView 的缓存策略与浏览器不一致，容易缓存过期页面导致白屏
+    // - Telegram 每次打开 Mini App 会自动走新的 WebView 实例，本来就不需要离线能力
+    // - 同时主动注销已有 SW，避免用户从网页版打开后又进 TMA 触发旧 SW
+    const unregisterAllSw = () => {
+      if (!("serviceWorker" in navigator)) return;
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          for (const reg of registrations) reg.unregister().catch(() => {});
+        })
+        .catch(() => {});
+    };
+
+    const registerSw = () => {
+      if (!("serviceWorker" in navigator)) return;
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
           console.log("Service Worker registered:", registration.scope);
-
           // 当新 SW 接管时，清除旧缓存并刷新
           registration.addEventListener("controllerchange", () => {
             window.location.reload();
@@ -71,6 +86,27 @@ function ServiceWorkerRegistration() {
         .catch((error) => {
           console.error("Service Worker registration failed:", error);
         });
+    };
+
+    // Telegram SDK 是 afterInteractive 异步加载，首次 useEffect 执行时可能还未就绪。
+    // 等 SDK 加载完成（或 1.5s 超时）再决定是否注册 SW。
+    let handled = false;
+    const decide = () => {
+      if (handled) return;
+      handled = true;
+      if (isTmaEnvironment()) {
+        unregisterAllSw();
+      } else {
+        registerSw();
+      }
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (window.Telegram?.WebApp) {
+      decide();
+    } else {
+      window.addEventListener("tma:sdk-loaded", decide, { once: true });
+      timer = setTimeout(decide, 1500);
     }
 
     // 捕获运行时 ChunkLoadError（路由跳转、动态 import 等）
@@ -90,6 +126,8 @@ function ServiceWorkerRegistration() {
     window.addEventListener("error", handleError);
     window.addEventListener("unhandledrejection", handleRejection);
     return () => {
+      window.removeEventListener("tma:sdk-loaded", decide);
+      if (timer) clearTimeout(timer);
       window.removeEventListener("error", handleError);
       window.removeEventListener("unhandledrejection", handleRejection);
     };
@@ -195,6 +233,7 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SiteConfigProvider value={siteConfig}>
+            <TmaBootstrap />
             <ServiceWorkerRegistration />
             {siteConfig.entrySoundUrl && (
               <EntrySound

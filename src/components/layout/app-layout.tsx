@@ -7,11 +7,13 @@ import { Sidebar } from "./sidebar";
 import { Footer } from "./footer";
 import { BottomNav } from "./bottom-nav";
 import { CommandPalette } from "./command-palette";
+import { TmaLayoutBridge } from "./tma-layout-bridge";
 import { AdGate } from "@/components/ads/ad-gate";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
 import { useIsMounted, PageTransition } from "@/components/motion";
+import { useIsTMA } from "@/hooks/use-tma";
 
 const SIDEBAR_COLLAPSED_KEY = "mikiacg-sidebar-collapsed";
 
@@ -33,6 +35,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mounted = useIsMounted();
   const { showHelp, setShowHelp } = useKeyboardShortcuts();
+  // TMA 环境下 Telegram 原生提供 Header/BackButton，前端应隐藏 Footer、Sidebar 以及桌面端 Header
+  const isTMA = useIsTMA();
 
   // 判断页面类型
   const isOverlayMode = isOverlaySidebarPage(pathname);
@@ -82,7 +86,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   // 是否显示侧边栏组件（非覆盖模式始终显示，覆盖模式需等待挂载）
-  const showSidebar = isOverlayMode ? mounted && !isNoSidebarPage : !isNoSidebarPage;
+  // TMA 环境下强制隐藏侧边栏（桌面端布局），统一走移动端底部导航
+  const showSidebar = isTMA ? false : isOverlayMode ? mounted && !isNoSidebarPage : !isNoSidebarPage;
 
   // 侧边栏是否展开
   const isExpanded = isOverlayMode ? videoPageSidebarOpen : sidebarExpanded;
@@ -92,10 +97,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-x-hidden">
-      <Header onMenuClick={toggleSidebar} />
+      {/* TMA 环境下由 Telegram 原生 BackButton 接管顶部导航，隐藏应用 Header */}
+      {!isTMA && <Header onMenuClick={toggleSidebar} />}
 
-      {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
-      <div className="h-14 shrink-0" />
+      {/* Header 是 fixed 定位，需要占位让内容不被遮挡；TMA 下无需占位 */}
+      {!isTMA && <div className="h-14 shrink-0" />}
+
+      {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
+      <TmaLayoutBridge />
 
       <div className="flex flex-1">
         {/* 桌面端侧边栏 */}
@@ -117,12 +126,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 relative">
             <PageTransition>{children}</PageTransition>
           </div>
-          <Footer />
+          {/* TMA 环境下隐藏 Footer：避免长滚动影响体验，且外链会走 openLink 更复杂 */}
+          {!isTMA && <Footer />}
         </main>
       </div>
 
-      {/* 移动端底部导航栏 */}
-      {showSidebar && !isOverlayMode && <BottomNav />}
+      {/* 移动端底部导航栏；TMA 环境也保留（侧边栏已隐藏） */}
+      {(isTMA || showSidebar) && !isOverlayMode && !isNoSidebarPage && <BottomNav />}
 
       {/* 全局命令面板 */}
       <CommandPalette />

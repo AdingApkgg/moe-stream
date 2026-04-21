@@ -18,6 +18,7 @@ import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
 import { useSiteConfig } from "@/contexts/site-config";
 import { getFingerprint } from "@/hooks/use-fingerprint";
+import { useIsTMA } from "@/hooks/use-tma";
 
 function LoginForm() {
   const router = useRouter();
@@ -28,6 +29,8 @@ function LoginForm() {
   const isNewAccount = searchParams.get("new") === "1";
   const [isLoading, setIsLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+  // TMA (Telegram Mini App) WebView 不支持 WebAuthn/Passkey，需要隐藏相关入口
+  const isTMA = useIsTMA();
 
   const turnstileSiteKey = siteConfig?.turnstileSiteKey;
   const recaptchaSiteKey = siteConfig?.recaptchaSiteKey;
@@ -99,6 +102,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (isTMA) return; // TMA 不支持 Passkey，跳过 autoFill 探测
     if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
     Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable())
       .then((available) => {
@@ -115,7 +119,7 @@ function LoginForm() {
           .catch(() => {});
       })
       .catch(() => {});
-  }, [callbackUrl, router]);
+  }, [callbackUrl, router, isTMA]);
 
   const handlePasskeySignIn = useCallback(async () => {
     setPasskeyLoading(true);
@@ -307,29 +311,33 @@ function LoginForm() {
               </form>
             </Form>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">或</span>
-              </div>
-            </div>
+            {!isTMA && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">或</span>
+                  </div>
+                </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={passkeyLoading}
-              onClick={handlePasskeySignIn}
-            >
-              {passkeyLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Fingerprint className="mr-2 h-4 w-4" />
-              )}
-              使用通行密钥登录
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={passkeyLoading}
+                  onClick={handlePasskeySignIn}
+                >
+                  {passkeyLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Fingerprint className="mr-2 h-4 w-4" />
+                  )}
+                  使用通行密钥登录
+                </Button>
+              </>
+            )}
 
             <SocialLoginButtons callbackURL={callbackUrl} />
 

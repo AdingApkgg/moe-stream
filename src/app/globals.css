@@ -390,7 +390,8 @@ header.fixed {
 /* 移动端安全区域适配 (iPhone 底部 Home Indicator 等) */
 @layer utilities {
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* TMA 环境下叠加 Telegram viewportHeight 与 stableHeight 的差值（软键盘/MainButton 预留区） */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tg-bottom-safe-area, 0px));
   }
 
   .safe-area-top {
@@ -404,6 +405,17 @@ header.fixed {
   .safe-area-right {
     padding-right: env(safe-area-inset-right, 0px);
   }
+}
+
+/* Telegram Mini App (TMA) 环境样式 —— 由 TmaBootstrap 在 <html> 上设置 data-tma="1" */
+html[data-tma] {
+  /* TMA WebView 通常会接管地址栏和状态栏，禁用浏览器级别的 overscroll 避免顶部/底部拖拽露白 */
+  overscroll-behavior: none;
+}
+
+html[data-tma] body {
+  /* 使用 Telegram 提供的 viewport 高度保证精确铺满 */
+  min-height: var(--tg-viewport-stable-height, 100vh);
 }
 
 /* 移动端触摸优化 */

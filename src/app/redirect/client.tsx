@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MotionPage } from "@/components/motion";
 import { ExternalLink, ShieldAlert, ArrowLeft, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isTmaEnvironment, openExternalLink } from "@/lib/telegram";
 
 interface RedirectClientProps {
   url?: string;
@@ -59,27 +60,40 @@ export function RedirectClient({
   const [countdown, setCountdown] = useState(countdownSeconds);
   const [autoRedirect, setAutoRedirect] = useState(true);
 
+  // TMA 环境下 window.location 会在当前 WebView 打开外链，体验差；统一走 tg.openLink
+  const goToExternal = useCallback((target: string) => {
+    if (isTmaEnvironment()) {
+      openExternalLink(target);
+    } else {
+      window.location.href = target;
+    }
+  }, []);
+
   useEffect(() => {
     if (shouldSkip && decodedUrl) {
-      window.location.replace(decodedUrl);
+      if (isTmaEnvironment()) {
+        openExternalLink(decodedUrl);
+      } else {
+        window.location.replace(decodedUrl);
+      }
     }
   }, [shouldSkip, decodedUrl]);
 
   useEffect(() => {
     if (!decodedUrl || !isValidUrl(decodedUrl) || !autoRedirect || shouldSkip) return;
     if (countdown <= 0) {
-      window.location.href = decodedUrl;
+      goToExternal(decodedUrl);
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [countdown, decodedUrl, isValidUrl, autoRedirect, shouldSkip]);
+  }, [countdown, decodedUrl, isValidUrl, autoRedirect, shouldSkip, goToExternal]);
 
   const handleStop = () => setAutoRedirect(false);
 
   const handleGo = () => {
     if (decodedUrl && isValidUrl(decodedUrl)) {
-      window.location.href = decodedUrl;
+      goToExternal(decodedUrl);
     }
   };
 

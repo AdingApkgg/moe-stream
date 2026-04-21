@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { PROVIDER_CONFIG, type OAuthProvider } from "@/components/auth/social-login-buttons";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useIsTMA } from "@/hooks/use-tma";
 import QRCode from "react-qr-code";
 
 const accountSchema = z.object({
@@ -248,6 +249,8 @@ interface PasskeyItem {
 }
 
 function PasskeySection() {
+  // TMA (Telegram Mini App) WebView 不支持 WebAuthn/Passkey，整段隐藏
+  const isTMA = useIsTMA();
   const [passkeys, setPasskeys] = useState<PasskeyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addLoading, setAddLoading] = useState(false);
@@ -269,8 +272,11 @@ function PasskeySection() {
   }, []);
 
   useEffect(() => {
+    if (isTMA) return; // TMA 环境不发起 passkey 列表请求
     fetchPasskeys();
-  }, [fetchPasskeys]);
+  }, [fetchPasskeys, isTMA]);
+
+  if (isTMA) return null;
 
   async function handleAdd() {
     setAddLoading(true);
