@@ -14,7 +14,19 @@ import { useSearchEnumParam } from "@/hooks/use-filter-param";
 import { SearchQueryBar } from "@/app/search/_components/search-query-bar";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { SearchAll } from "@/app/search/_components/search-all";
-import { Search, Clock, TrendingUp, X, Play, Gamepad2, Images, Tag, LayoutGrid, type LucideIcon } from "lucide-react";
+import {
+  Search,
+  Clock,
+  TrendingUp,
+  Sparkles,
+  X,
+  Play,
+  Gamepad2,
+  Images,
+  Tag,
+  LayoutGrid,
+  type LucideIcon,
+} from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { useRouter } from "next/navigation";
 import { useSearchHistoryStore } from "@/stores/app";
@@ -78,15 +90,22 @@ function SearchExplore() {
   const { history: searchHistory, removeSearch, clearHistory } = useSearchHistoryStore();
 
   const { data: hotSearches } = trpc.video.getHotSearches.useQuery({ limit: 10 }, { staleTime: 300000 });
+  const { data: guessResult } = trpc.search.guessForMe.useQuery({ limit: 12 }, { staleTime: 300000 });
+  const guessItems = guessResult?.items ?? [];
+  const isPersonalized = guessResult?.source === "personalized";
 
   const goSearch = (keyword: string) => {
     router.push(`/search?q=${encodeURIComponent(keyword)}`);
   };
 
+  const hasAnySection = searchHistory.length > 0 || (hotSearches && hotSearches.length > 0) || guessItems.length > 0;
+
   return (
     <MotionPage>
       <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
         <SearchQueryBar query="" className="mb-8" />
+
+        {/* 搜索历史 */}
         {searchHistory.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-3">
@@ -122,11 +141,12 @@ function SearchExplore() {
           </div>
         )}
 
+        {/* 站内热搜 */}
         {hotSearches && hotSearches.length > 0 && (
-          <div>
+          <div className="mb-8">
             <h2 className="text-base font-semibold flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4" />
-              热搜榜
+              站内热搜
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
               {hotSearches.map((item, index) => (
@@ -153,7 +173,45 @@ function SearchExplore() {
           </div>
         )}
 
-        {searchHistory.length === 0 && (!hotSearches || hotSearches.length === 0) && (
+        {/* 猜你想搜 */}
+        {guessItems.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                猜你想搜
+              </h2>
+              {isPersonalized && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                  已个性化
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {guessItems.map((item) => (
+                <button
+                  key={`${item.keyword}-${item.reason}`}
+                  onClick={() => goSearch(item.keyword)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+                    item.reason === "interest"
+                      ? "bg-primary/10 hover:bg-primary/20 text-foreground"
+                      : "bg-muted hover:bg-accent",
+                  )}
+                  title={REASON_LABELS[item.reason] ?? undefined}
+                >
+                  <span>{item.keyword}</span>
+                  {item.isHot && (
+                    <span className="text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 完全空状态 */}
+        {!hasAnySection && (
           <div className="text-center py-16">
             <Search className="h-12 w-12 mx-auto text-muted-foreground/30" />
             <h1 className="text-xl font-semibold mt-4">搜索</h1>
@@ -164,6 +222,14 @@ function SearchExplore() {
     </MotionPage>
   );
 }
+
+const REASON_LABELS: Record<string, string> = {
+  interest: "基于你的兴趣",
+  related: "你可能也喜欢",
+  hot: "全站热门",
+  trending: "近期热搜",
+  popular: "站内流行",
+};
 
 const contentTypeLabels: Record<SearchTab, string> = {
   all: "结果",
@@ -538,14 +604,49 @@ function EmptyResult({
   timeRange: TimeRange;
   onClear: () => void;
 }) {
+  const router = useRouter();
+  const { data: guessResult } = trpc.search.guessForMe.useQuery({ limit: 10 }, { staleTime: 300000 });
+  const guessItems = guessResult?.items ?? [];
+
   return (
-    <div className="text-center py-16">
-      <Icon className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-      <p className="text-muted-foreground">没有找到相关{label}</p>
-      {(sortBy !== "latest" || timeRange !== "all") && (
-        <Button variant="link" onClick={onClear} className="mt-2">
-          清除筛选条件重试
-        </Button>
+    <div>
+      <div className="text-center py-12">
+        <Icon className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+        <p className="text-muted-foreground">没有找到相关{label}</p>
+        {(sortBy !== "latest" || timeRange !== "all") && (
+          <Button variant="link" onClick={onClear} className="mt-2">
+            清除筛选条件重试
+          </Button>
+        )}
+      </div>
+      {guessItems.length > 0 && (
+        <div className="max-w-2xl mx-auto mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {guessResult?.source === "personalized" ? "猜你想搜" : "试试这些"}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {guessItems.map((item) => (
+              <button
+                key={`${item.keyword}-${item.reason}`}
+                onClick={() => router.push(`/search?q=${encodeURIComponent(item.keyword)}`)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
+                  item.reason === "interest"
+                    ? "bg-primary/10 hover:bg-primary/20 text-foreground"
+                    : "bg-muted hover:bg-accent",
+                )}
+              >
+                <span>{item.keyword}</span>
+                {item.isHot && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
