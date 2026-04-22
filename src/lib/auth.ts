@@ -8,6 +8,7 @@ import { hash, compare } from "@/lib/bcrypt-wasm";
 import { send2faOtpEmail } from "@/lib/email";
 import { isPrivileged } from "@/lib/permissions";
 import { resolvePermissions, resolveRole, type GroupPermissions } from "@/lib/group-permissions";
+import { telegramAuth } from "@/lib/auth-telegram-plugin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,9 +44,14 @@ interface QqOAuthCredentials {
   clientSecret: string;
 }
 
+interface TelegramOAuthCredentials {
+  botToken: string;
+}
+
 interface OAuthAndSiteConfig {
   oauth: OAuthConfig;
   qq: QqOAuthCredentials | null;
+  telegram: TelegramOAuthCredentials | null;
   siteUrl: string | null;
 }
 
@@ -56,7 +62,12 @@ interface OAuthAndSiteConfig {
 const gOAuth = globalThis as unknown as { __oauthConfig?: OAuthAndSiteConfig };
 
 async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
-  const select: Record<string, true> = { siteUrl: true, oauthQqClientId: true, oauthQqClientSecret: true };
+  const select: Record<string, true> = {
+    siteUrl: true,
+    oauthQqClientId: true,
+    oauthQqClientSecret: true,
+    oauthTelegramBotToken: true,
+  };
   for (const k of OAUTH_PROVIDER_KEYS) {
     select[`oauth${k}ClientId`] = true;
     select[`oauth${k}ClientSecret`] = true;
@@ -67,7 +78,7 @@ async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
     select,
   })) as Record<string, string | null> | null;
 
-  if (!config) return { oauth: {}, qq: null, siteUrl: null };
+  if (!config) return { oauth: {}, qq: null, telegram: null, siteUrl: null };
 
   const oauth: OAuthConfig = {};
   for (const key of OAUTH_PROVIDER_KEYS) {
@@ -82,7 +93,10 @@ async function loadOAuthFromDB(): Promise<OAuthAndSiteConfig> {
   const qqSecret = config.oauthQqClientSecret;
   const qq = qqId && qqSecret ? { clientId: qqId, clientSecret: qqSecret } : null;
 
-  return { oauth, qq, siteUrl: config.siteUrl || null };
+  const tgToken = config.oauthTelegramBotToken;
+  const telegram = tgToken ? { botToken: tgToken } : null;
+
+  return { oauth, qq, telegram, siteUrl: config.siteUrl || null };
 }
 
 async function getOAuthAndSiteConfig(): Promise<OAuthAndSiteConfig> {
@@ -120,10 +134,19 @@ function resolveBaseURL(siteUrl?: string): string {
   return siteUrl || process.env.BETTER_AUTH_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
 
-function createAuthInstance(oauthConfig: OAuthConfig, qqConfig: QqOAuthCredentials | null, siteUrl?: string) {
+function createAuthInstance(
+  oauthConfig: OAuthConfig,
+  qqConfig: QqOAuthCredentials | null,
+  telegramConfig: TelegramOAuthCredentials | null,
+  siteUrl?: string,
+) {
   const baseURL = resolveBaseURL(siteUrl);
 
-  const providerNames = [...Object.keys(oauthConfig), ...(qqConfig ? ["qq"] : [])];
+  const providerNames = [
+    ...Object.keys(oauthConfig),
+    ...(qqConfig ? ["qq"] : []),
+    ...(telegramConfig ? ["telegram"] : []),
+  ];
   console.log(`[auth] Creating auth instance: baseURL=${baseURL}, providers=${providerNames.join(",") || "none"}`);
 
   return betterAuth({
@@ -172,6 +195,7 @@ function createAuthInstance(oauthConfig: OAuthConfig, qqConfig: QqOAuthCredentia
         rpID: new URL(baseURL).hostname,
         rpName: process.env.NEXT_PUBLIC_APP_NAME || "ACGN Site",
       }),
+      ...(telegramConfig ? [telegramAuth({ botToken: telegramConfig.botToken })] : []),
       ...(qqConfig
         ? [
             genericOAuth({
@@ -302,8 +326,8 @@ function createAuthInstance(oauthConfig: OAuthConfig, qqConfig: QqOAuthCredentia
       accountLinking: {
         enabled: true,
         allowDifferentEmails: true,
-        trustedProviders: [...OAUTH_PROVIDER_KEYS.map((k) => k.toLowerCase()), "qq"] as Array<
-          Lowercase<OAuthProviderKey> | "qq"
+        trustedProviders: [...OAUTH_PROVIDER_KEYS.map((k) => k.toLowerCase()), "qq", "telegram"] as Array<
+          Lowercase<OAuthProviderKey> | "qq" | "telegram"
         >,
       },
     },
@@ -327,8 +351,8 @@ let _cached: { auth: AuthInstance; hash: string } | null = null;
 let _pending: Promise<AuthInstance> | null = null;
 
 export async function getAuthWithOAuth(): Promise<AuthInstance> {
-  const { oauth, qq, siteUrl } = await getOAuthAndSiteConfig();
-  const configHash = JSON.stringify({ oauth, qq, siteUrl });
+  const { oauth, qq, telegram, siteUrl } = await getOAuthAndSiteConfig();
+  const configHash = JSON.stringify({ oauth, qq, telegram, siteUrl });
 
   if (_cached?.hash === configHash) {
     return _cached.auth;
@@ -338,7 +362,7 @@ export async function getAuthWithOAuth(): Promise<AuthInstance> {
 
   _pending = (async () => {
     try {
-      const instance = createAuthInstance(oauth, qq, siteUrl || undefined);
+      const instance = createAuthInstance(oauth, qq, telegram, siteUrl || undefined);
       _cached = { auth: instance, hash: configHash };
       return instance;
     } finally {

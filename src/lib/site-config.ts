@@ -57,6 +57,10 @@ export interface PublicSiteConfig {
   entrySoundMode: string;
   entrySoundIntervalHours: number;
   oauthProviders: string[];
+  /** Telegram Login Widget 使用的 bot 用户名（不带 @）。启用 TG 登录时非空。 */
+  telegramBotUsername: string | null;
+  /** Telegram Bot 数字 ID（由 botToken 冒号前的部分派生；公开信息，用于 oauth.telegram.org 跳转）。 */
+  telegramBotId: string | null;
   captchaLogin: string;
   captchaRegister: string;
   captchaComment: string;
@@ -138,6 +142,14 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
   for (const k of OAUTH_KEYS) {
     if (c[`oauth${k}ClientId`] && c[`oauth${k}ClientSecret`]) oauthProviders.push(k.toLowerCase());
   }
+  // Telegram 登录：只需 bot token（Mini App 用），Widget 还需要 bot username。
+  // 两者缺一不可才在登录按钮中显示 Telegram（TMA 内部另走按钮隐藏/显示）。
+  const telegramBotToken = (c.oauthTelegramBotToken as string | null) || null;
+  const telegramBotUsername = (c.oauthTelegramBotUsername as string | null) || null;
+  // bot_id 是 token 冒号前的数字部分，公开信息（每个使用 Telegram Login Widget 的站点都暴露）
+  const telegramBotIdRaw = telegramBotToken ? telegramBotToken.split(":")[0] : null;
+  const telegramBotId = telegramBotIdRaw && /^\d+$/.test(telegramBotIdRaw) ? telegramBotIdRaw : null;
+  if (telegramBotToken) oauthProviders.push("telegram");
 
   return {
     siteName: (c.siteName as string) || "ACGN Site",
@@ -194,6 +206,8 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     entrySoundMode: (c.entrySoundMode as string) ?? "session",
     entrySoundIntervalHours: (c.entrySoundIntervalHours as number) ?? 24,
     oauthProviders,
+    telegramBotUsername,
+    telegramBotId,
     captchaLogin: (c.captchaLogin as string) ?? "math",
     captchaRegister: (c.captchaRegister as string) ?? "none",
     captchaComment: (c.captchaComment as string) ?? "none",

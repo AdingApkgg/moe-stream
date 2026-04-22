@@ -222,6 +222,8 @@ export const oauthTabSchema = z.object({
   oauthQqClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
   oauthWechatClientId: z.string().max(500).optional().nullable().or(z.literal("")),
   oauthWechatClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthTelegramBotToken: z.string().max(500).optional().nullable().or(z.literal("")),
+  oauthTelegramBotUsername: z.string().max(100).optional().nullable().or(z.literal("")),
 });
 
 export const seoTabSchema = z.object({
@@ -484,6 +486,8 @@ export function pickOAuthValues(cfg: SiteConfig): OAuthTabValues {
     result[`oauth${k}ClientId`] = s(r[`oauth${k}ClientId`]);
     result[`oauth${k}ClientSecret`] = s(r[`oauth${k}ClientSecret`]);
   }
+  result.oauthTelegramBotToken = s(r.oauthTelegramBotToken);
+  result.oauthTelegramBotUsername = s(r.oauthTelegramBotUsername);
   return result as unknown as OAuthTabValues;
 }
 

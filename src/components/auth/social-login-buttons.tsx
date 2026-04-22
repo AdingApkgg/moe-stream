@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast-with-sound";
 import { Loader2 } from "lucide-react";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useIsTMA } from "@/hooks/use-tma";
+import { getTelegramWebApp } from "@/lib/telegram";
 
 export type OAuthProvider =
   | "google"
@@ -21,7 +23,8 @@ export type OAuthProvider =
   | "gitlab"
   | "reddit"
   | "qq"
-  | "wechat";
+  | "wechat"
+  | "telegram";
 
 export const PROVIDER_CONFIG: Record<OAuthProvider, { label: string; icon: React.ReactNode }> = {
   google: {
@@ -154,6 +157,14 @@ export const PROVIDER_CONFIG: Record<OAuthProvider, { label: string; icon: React
       </svg>
     ),
   },
+  telegram: {
+    label: "Telegram",
+    icon: (
+      <svg viewBox="0 0 24 24" className="size-5" fill="#229ED9">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.05-.19-.07-.06-.17-.04-.25-.02-.11.02-1.81 1.15-5.1 3.39-.48.33-.92.49-1.31.48-.43-.01-1.26-.24-1.87-.45-.75-.24-1.34-.37-1.29-.78.03-.21.32-.43.88-.65 3.43-1.5 5.72-2.48 6.86-2.96 3.27-1.36 3.95-1.59 4.39-1.6.1 0 .32.02.46.14.12.1.15.23.17.33-.01.06.01.24 0 .38z" />
+      </svg>
+    ),
+  },
 };
 
 const LOADING_TIMEOUT_MS = 15_000;
@@ -164,6 +175,7 @@ interface SocialLoginButtonsProps {
 
 export function SocialLoginButtons({ callbackURL = "/" }: SocialLoginButtonsProps) {
   const siteConfig = useSiteConfig();
+  const isTMA = useIsTMA();
   const [loading, setLoading] = useState<OAuthProvider | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -185,7 +197,66 @@ export function SocialLoginButtons({ callbackURL = "/" }: SocialLoginButtonsProp
     }
   }
 
+  async function handleTelegramLogin() {
+    setLoading("telegram");
+    timeoutRef.current = setTimeout(() => setLoading(null), LOADING_TIMEOUT_MS);
+
+    // TMA 内部：直接用 initData 登录
+    if (isTMA) {
+      const webApp = getTelegramWebApp();
+      const initData = webApp?.initData;
+      if (!initData) {
+        toast.error("Telegram 登录失败", { description: "未获取到 initData，请在 Telegram 客户端内打开" });
+        resetLoading();
+        return;
+      }
+      try {
+        const res = await fetch("/api/auth/sign-in/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData, callbackURL }),
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { message?: string };
+          toast.error("Telegram 登录失败", { description: data.message || `HTTP ${res.status}` });
+          resetLoading();
+          return;
+        }
+        window.location.assign(callbackURL || "/");
+      } catch (err) {
+        console.error("[auth] telegram TMA login error:", err);
+        toast.error("Telegram 登录失败", { description: "网络错误，请稍后重试" });
+        resetLoading();
+      }
+      return;
+    }
+
+    // Web 端：跳转 oauth.telegram.org，完成后重定向回 /login/telegram/callback
+    const botId = siteConfig?.telegramBotId;
+    if (!botId) {
+      toast.error("Telegram 登录未配置", { description: "请联系管理员在后台配置 Bot Token" });
+      resetLoading();
+      return;
+    }
+    const origin = window.location.origin;
+    const returnTo = new URL("/login/telegram/callback", origin);
+    if (callbackURL) returnTo.searchParams.set("callbackURL", callbackURL);
+    const authUrl = new URL("https://oauth.telegram.org/auth");
+    authUrl.searchParams.set("bot_id", botId);
+    authUrl.searchParams.set("origin", origin);
+    authUrl.searchParams.set("embed", "0");
+    authUrl.searchParams.set("request_access", "write");
+    authUrl.searchParams.set("return_to", returnTo.toString());
+    window.location.assign(authUrl.toString());
+  }
+
   async function handleSocialLogin(provider: OAuthProvider) {
+    if (provider === "telegram") {
+      await handleTelegramLogin();
+      return;
+    }
+
     setLoading(provider);
 
     timeoutRef.current = setTimeout(() => {

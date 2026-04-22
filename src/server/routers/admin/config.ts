@@ -171,6 +171,8 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "oauthQqClientSecret",
   "oauthWechatClientId",
   "oauthWechatClientSecret",
+  "oauthTelegramBotToken",
+  "oauthTelegramBotUsername",
   "channelEnabled",
   "channelMaxPerUser",
   "channelMaxMembers",
@@ -581,6 +583,8 @@ export const adminConfigRouter = router({
         oauthQqClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
         oauthWechatClientId: z.string().max(500).optional().nullable().or(z.literal("")),
         oauthWechatClientSecret: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthTelegramBotToken: z.string().max(500).optional().nullable().or(z.literal("")),
+        oauthTelegramBotUsername: z.string().max(100).optional().nullable().or(z.literal("")),
       }),
     )
     .mutation(async ({ ctx, input }) => {

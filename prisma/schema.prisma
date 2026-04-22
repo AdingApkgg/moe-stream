@@ -1236,6 +1236,8 @@ model SiteConfig {
   oauthQqClientSecret      String?
   oauthWechatClientId      String?
   oauthWechatClientSecret  String?
+  oauthTelegramBotToken    String?  // Telegram Bot Token（用于 initData / Login Widget 验签）
+  oauthTelegramBotUsername String?  // Telegram Bot 用户名（Login Widget 需要，不带 @）
 
   // SMTP 邮件
   smtpHost        String?

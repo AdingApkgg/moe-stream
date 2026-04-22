@@ -34,6 +34,75 @@ export function TabOauth({ config }: { config: SiteConfig | undefined }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Telegram：与其他 OAuth 不同，用 Bot Token + Bot Username 而非 Client ID/Secret */}
+            {(() => {
+              const tgToken = form.watch("oauthTelegramBotToken");
+              const tgEnabled = Boolean(tgToken?.trim());
+              return (
+                <div className="space-y-3">
+                  <h4 className="flex items-center gap-2 font-medium">
+                    Telegram
+                    {tgEnabled && (
+                      <Badge variant="default" className="text-xs">
+                        已启用
+                      </Badge>
+                    )}
+                  </h4>
+                  <FormDescription>
+                    在{" "}
+                    <a
+                      href={getRedirectUrl("https://t.me/BotFather", redirectOpts)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      BotFather
+                    </a>{" "}
+                    创建 Bot 并获取 Token；通过 <code className="rounded bg-muted px-1 py-0.5 text-xs">/setdomain</code>{" "}
+                    绑定站点域名，再用 <code className="rounded bg-muted px-1 py-0.5 text-xs">/setuserpic</code>{" "}
+                    等命令完善资料。登录回调：{" "}
+                    <code className="rounded bg-muted px-1 py-0.5 text-xs">/login/telegram/callback</code>。TMA
+                    内部自动使用 initData 登录，无需额外配置。
+                  </FormDescription>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="oauthTelegramBotToken"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bot Token</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={(field.value as string) || ""}
+                              type="password"
+                              placeholder="123456789:ABC-..."
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="oauthTelegramBotUsername"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bot Username（可选，不带 @）</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={(field.value as string) || ""} placeholder="my_login_bot" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="border-t" />
+
             {(
               [
                 {
