@@ -4,9 +4,25 @@ import { memGetOrSet } from "@/lib/memory-cache";
 import { splitSearchTokens, suggestionTextRank } from "@/lib/search-text";
 import { meili, INDEX } from "@/lib/meilisearch";
 import { meiliQuoteFilterValue } from "@/lib/search-index-config";
+import { redis, REDIS_AVAILABLE } from "@/lib/redis";
+import {
+  computeUserInterestTags,
+  findCoOccurringTags,
+  buildAnonymousCandidates,
+  getRecentHotKeywords,
+  GUESS_CACHE_TTL_SEC,
+  type GuessCandidate,
+} from "@/lib/search-recommend";
 
 const SEARCH_COUNTS_TTL_MS = 60_000;
 const SEARCH_ALL_TTL_MS = 60_000;
+
+/** 「猜你想搜」混合权重：个人兴趣、共现发现、全站热门 */
+const GUESS_WEIGHT_INTEREST = 100;
+const GUESS_WEIGHT_RELATED = 30;
+const GUESS_WEIGHT_HOT = 10;
+/** 冷启动阈值：兴趣标签 < 3 个则回退到全站热门 */
+const COLD_START_THRESHOLD = 3;
 
 const PUBLISHED = meiliQuoteFilterValue("PUBLISHED");
 
@@ -257,5 +273,122 @@ export const searchRouter = router({
         },
         SEARCH_ALL_TTL_MS,
       );
+    }),
+
+  /**
+   * 猜你想搜：基于用户行为的个性化搜索词推荐。
+   *
+   * 算法：
+   * - 登录用户：用户兴趣标签（收藏×3 + 点赞×2 + 观看×1，14 天半衰期）作为主导信号，
+   *   叠加共现标签（探索发现）和全站热搜（保底多样性），按加权分数排序，最终带 ±10% 随机扰动。
+   * - 匿名/冷启动（兴趣标签 < 3）：全站近 7 天热搜 + 热门标签池随机抽样。
+   *
+   * 缓存：Redis 每用户 10 分钟。
+   */
+  guessForMe: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(20).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id ?? null;
+      const limit = input.limit;
+
+      // Redis 结果缓存
+      const cacheKey = userId ? `recommend:guess:${userId}:${limit}` : `recommend:guess:anon:${limit}`;
+      if (userId && REDIS_AVAILABLE) {
+        try {
+          const cached = await redis.get(cacheKey);
+          if (cached) {
+            return JSON.parse(cached) as {
+              items: Array<{ keyword: string; score: number; isHot: boolean; reason: string }>;
+              source: "personalized" | "hot-fallback";
+            };
+          }
+        } catch {
+          // 静默降级
+        }
+      }
+
+      // 匿名用户直接走兜底
+      if (!userId) {
+        const items = await buildAnonymousCandidates(ctx.prisma, limit);
+        return { items, source: "hot-fallback" as const };
+      }
+
+      // 登录用户：计算兴趣向量
+      const userTags = await computeUserInterestTags(ctx.prisma, userId);
+
+      // 冷启动
+      if (userTags.length < COLD_START_THRESHOLD) {
+        const items = await buildAnonymousCandidates(ctx.prisma, limit);
+        return { items, source: "hot-fallback" as const };
+      }
+
+      // 并行获取共现标签 + 全站热搜
+      const topTagIds = userTags.slice(0, 5).map((t) => t.tagId);
+      const [coTags, hotKeywords] = await Promise.all([
+        findCoOccurringTags(ctx.prisma, topTagIds, 15),
+        getRecentHotKeywords(ctx.prisma, 20),
+      ]);
+
+      // 候选池（按关键词合并，保留最高优先 reason）
+      const candidates = new Map<string, GuessCandidate>();
+      const upsert = (keyword: string, score: number, reason: GuessCandidate["reason"], isHot = false) => {
+        const key = keyword.toLowerCase();
+        if (key.length < 2 || key.length > 20) return;
+        const existing = candidates.get(key);
+        if (existing) {
+          existing.score += score;
+          existing.isHot ||= isHot;
+        } else {
+          candidates.set(key, { keyword, score, isHot, reason });
+        }
+      };
+
+      // 1. 个人兴趣标签（归一化到 0-100 × 100 权重）
+      const maxInterest = userTags[0]?.score || 1;
+      for (const t of userTags.slice(0, limit * 2)) {
+        const normalized = (t.score / maxInterest) * 100;
+        upsert(t.name, normalized * GUESS_WEIGHT_INTEREST, "interest");
+      }
+
+      // 2. 共现标签（探索发现）
+      const maxCo = coTags[0]?.count || 1;
+      for (const t of coTags) {
+        const normalized = (t.count / maxCo) * 100;
+        upsert(t.name, normalized * GUESS_WEIGHT_RELATED, "related");
+      }
+
+      // 3. 全站热搜保底
+      hotKeywords.forEach((h, i) => {
+        const normalized = ((hotKeywords.length - i) / hotKeywords.length) * 100;
+        upsert(h.keyword, normalized * GUESS_WEIGHT_HOT, "hot", h.isHot);
+      });
+
+      // 4. 随机扰动（探索），截取 Top N
+      const items = Array.from(candidates.values())
+        .map((c) => ({ ...c, score: c.score * (0.9 + Math.random() * 0.2) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ keyword, score, isHot, reason }) => ({
+          keyword,
+          score: Math.round(score),
+          isHot,
+          reason,
+        }));
+
+      const result = { items, source: "personalized" as const };
+
+      if (REDIS_AVAILABLE) {
+        try {
+          await redis.set(cacheKey, JSON.stringify(result), "EX", GUESS_CACHE_TTL_SEC);
+        } catch {
+          // 静默降级
+        }
+      }
+
+      return result;
     }),
 });
