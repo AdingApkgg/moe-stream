@@ -25,9 +25,17 @@ import {
   Images,
   Tag,
   LayoutGrid,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useSearchHistoryStore } from "@/stores/app";
 import { cn } from "@/lib/utils";
@@ -71,17 +79,45 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: "month", label: "本月" },
 ];
 
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function FilterDropdown<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const current = options.find((o) => o.value === value);
+  const isDefault = value === options[0]?.value;
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-        active ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80 text-foreground",
-      )}
-    >
-      {label}
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 gap-1.5 rounded-full px-3 text-sm font-normal",
+            !isDefault && "border-primary/50 text-primary hover:text-primary",
+          )}
+        >
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-medium">{current?.label}</span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[10rem]">
+        <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as T)}>
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -368,7 +404,7 @@ export function SearchContent({ query }: SearchContentProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-1 mb-4">
+        <div className="flex gap-6 border-b overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 mb-5">
           {TAB_OPTIONS.map((tab) => {
             const Icon = tab.icon;
             const isActive = searchTab === tab.value;
@@ -378,22 +414,18 @@ export function SearchContent({ query }: SearchContentProps) {
                 key={tab.value}
                 onClick={() => setSearchTab(tab.value)}
                 className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground",
+                  "shrink-0 flex items-center gap-1.5 py-3 border-b-2 -mb-px text-sm font-medium transition-colors whitespace-nowrap",
+                  isActive
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
                 {countBadge !== undefined && (
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "ml-0.5 px-1.5 py-0 text-[10px] font-semibold tabular-nums",
-                      isActive ? "bg-primary-foreground/20 text-primary-foreground" : "",
-                    )}
-                  >
+                  <span className="text-xs font-normal tabular-nums opacity-70">
                     {countBadge > 999 ? "999+" : countBadge}
-                  </Badge>
+                  </span>
                 )}
               </button>
             );
@@ -401,24 +433,22 @@ export function SearchContent({ query }: SearchContentProps) {
         </div>
 
         {showFilters && (
-          <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-            {SORT_OPTIONS.map((option) => (
-              <FilterChip
-                key={option.value}
-                label={option.label}
-                active={sortBy === option.value}
-                onClick={() => setSortBy(option.value)}
-              />
-            ))}
-            <div className="w-px bg-border shrink-0 my-1" />
-            {TIME_RANGE_OPTIONS.map((option) => (
-              <FilterChip
-                key={option.value}
-                label={option.label}
-                active={timeRange === option.value}
-                onClick={() => setTimeRange(option.value)}
-              />
-            ))}
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <FilterDropdown label="排序" options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
+            <FilterDropdown label="时间" options={TIME_RANGE_OPTIONS} value={timeRange} onChange={setTimeRange} />
+            {(sortBy !== "latest" || timeRange !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setSortBy("latest");
+                  setTimeRange("all");
+                }}
+              >
+                清除筛选
+              </Button>
+            )}
           </div>
         )}
 
