@@ -18,6 +18,7 @@ import {
   Search,
   Menu,
   User,
+  Settings as SettingsIcon,
   LogOut,
   Heart,
   History,
@@ -760,9 +761,15 @@ export function Header({ onMenuClick }: HeaderProps) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/settings">
+                    <Link href="/profile">
                       <User className="mr-2 h-4 w-4" />
-                      个人设置
+                      个人中心
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">
+                      <SettingsIcon className="mr-2 h-4 w-4" />
+                      账号设置
                     </Link>
                   </DropdownMenuItem>
                   {session.user?.canUpload && (
