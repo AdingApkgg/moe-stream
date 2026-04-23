@@ -7,7 +7,7 @@
     "prepare": "simple-git-hooks",
     "dev:next": "next dev --turbopack --hostname 0.0.0.0",
     "dev:socket": "DOTENV_CONFIG_PATH=.env.development tsx watch --require dotenv/config src/socket/server.ts",
-    "build": "prisma generate && next build && serwist build",
+    "build": "prisma generate && next build --turbopack && serwist build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
