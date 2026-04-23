@@ -32,12 +32,12 @@ function SectionHeader({
   moreLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <h2 className="text-base font-semibold flex items-center gap-2">
-        <Icon className="h-4 w-4" />
+    <div className="flex items-end justify-between mb-4">
+      <h2 className="text-lg font-bold flex items-center gap-2">
+        <Icon className="h-5 w-5 text-muted-foreground" />
         {title}
         {count > 0 && (
-          <span className="text-xs font-normal text-muted-foreground tabular-nums">{count > 999 ? "999+" : count}</span>
+          <span className="text-sm font-normal text-muted-foreground tabular-nums">{count > 999 ? "999+" : count}</span>
         )}
       </h2>
       {onMore && count > 0 && (
@@ -79,13 +79,13 @@ export function SearchAll({ query, onSelectTab }: SearchAllProps) {
 
   if (isLoading && !data) {
     return (
-      <div className="space-y-10">
-        <div>
-          <div className="h-5 w-24 mb-3 rounded bg-muted animate-pulse" />
+      <div className="divide-y">
+        <div className="pb-8">
+          <div className="h-6 w-28 mb-4 rounded bg-muted animate-pulse" />
           <SectionSkeleton rows={4} />
         </div>
-        <div>
-          <div className="h-5 w-24 mb-3 rounded bg-muted animate-pulse" />
+        <div className="py-8">
+          <div className="h-6 w-28 mb-4 rounded bg-muted animate-pulse" />
           <SectionSkeleton rows={4} square />
         </div>
       </div>
@@ -104,7 +104,7 @@ export function SearchAll({ query, onSelectTab }: SearchAllProps) {
   if (!data) return null;
 
   return (
-    <div className="space-y-10">
+    <div className="divide-y [&>section]:py-8 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
       {/* 用户 */}
       {data.users.items.length > 0 && (
         <section>

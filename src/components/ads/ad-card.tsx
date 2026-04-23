@@ -28,7 +28,7 @@ export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
       target="_blank"
       rel="noopener noreferrer sponsored"
       className={cn(
-        "group block rounded-lg overflow-hidden border border-border/60 bg-muted/40 transition-all hover:shadow-md hover:border-primary/40",
+        "group block rounded-lg overflow-hidden border border-dashed border-border bg-muted/40 transition-all hover:shadow-md hover:border-primary/60 hover:border-solid",
         className,
       )}
     >
@@ -43,7 +43,7 @@ export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
             loading="lazy"
           />
           {/* 广告标记 */}
-          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/60 text-white/90 leading-tight">
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-400 text-black leading-tight shadow-sm">
             广告
           </span>
         </div>
@@ -54,7 +54,7 @@ export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
             compact ? "aspect-[2/1]" : "aspect-video",
           )}
         >
-          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/60 text-white/90 leading-tight">
+          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-400 text-black leading-tight shadow-sm">
             广告
           </span>
           <span>{ad.title}</span>
