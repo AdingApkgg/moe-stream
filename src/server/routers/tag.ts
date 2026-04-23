@@ -253,4 +253,196 @@ export const tagRouter = router({
 
     return { success: true };
   }),
+
+  // 按 ID 获取单个标签（含别名、蕴含关系）
+  getById: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    return memGetOrSet(
+      `tag:id:${input.id}`,
+      async () => {
+        return ctx.prisma.tag.findUnique({
+          where: { id: input.id },
+          select: {
+            ...tagSelect,
+            aliases: { select: { id: true, name: true } },
+            implies: {
+              select: { targetTag: { select: { id: true, name: true, slug: true } } },
+            },
+          },
+        });
+      },
+      CACHE_TTL.tag * 1000,
+    );
+  }),
+
+  // 批量按 ID 获取标签（无缓存，一般用于表单回填/批量选择）
+  getByIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      if (input.ids.length === 0) return [];
+      const tags = await ctx.prisma.tag.findMany({
+        where: { id: { in: input.ids } },
+        select: tagSelect,
+      });
+      // 保持与输入 ID 顺序一致
+      const byId = new Map(tags.map((t) => [t.id, t] as const));
+      return input.ids.map((id) => byId.get(id)).filter((t): t is (typeof tags)[number] => Boolean(t));
+    }),
+
+  // 相关标签（基于与当前标签共同出现的视频/游戏/图片，按共现次数排序）
+  related: publicProcedure
+    .input(
+      z.object({
+        tagId: z.string(),
+        type: z.enum(["video", "game", "image"]).default("video"),
+        limit: z.number().min(1).max(30).default(12),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { tagId, type, limit } = input;
+      return memGetOrSet(
+        `tag:related:${tagId}:${type}:${limit}`,
+        async () => {
+          // 1. 先取蕴含关系（强相关）
+          const impliesRows = await ctx.prisma.tagImplication.findMany({
+            where: { sourceTagId: tagId },
+            select: { targetTag: { select: tagSelect } },
+            take: limit,
+          });
+          const impliedIds = new Set(impliesRows.map((r) => r.targetTag.id));
+          const results = impliesRows.map((r) => r.targetTag);
+          if (results.length >= limit) return results;
+
+          // 2. 共现标签：查与当前标签共同标记的内容，统计其他标签出现频次
+          const remaining = limit - results.length;
+          const poolLimit = 200;
+
+          const cooccurrenceIds: string[] = [];
+
+          if (type === "video") {
+            const rows = await ctx.prisma.tagOnVideo.findMany({
+              where: { tagId, video: { status: "PUBLISHED" } },
+              select: { videoId: true },
+              take: poolLimit,
+            });
+            const videoIds = rows.map((r) => r.videoId);
+            if (videoIds.length > 0) {
+              const coRows = await ctx.prisma.tagOnVideo.findMany({
+                where: { videoId: { in: videoIds }, tagId: { not: tagId } },
+                select: { tagId: true },
+              });
+              const counter = new Map<string, number>();
+              for (const r of coRows) counter.set(r.tagId, (counter.get(r.tagId) ?? 0) + 1);
+              cooccurrenceIds.push(
+                ...[...counter.entries()]
+                  .filter(([id]) => !impliedIds.has(id))
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, remaining)
+                  .map(([id]) => id),
+              );
+            }
+          } else if (type === "game") {
+            const rows = await ctx.prisma.tagOnGame.findMany({
+              where: { tagId, game: { status: "PUBLISHED" } },
+              select: { gameId: true },
+              take: poolLimit,
+            });
+            const gameIds = rows.map((r) => r.gameId);
+            if (gameIds.length > 0) {
+              const coRows = await ctx.prisma.tagOnGame.findMany({
+                where: { gameId: { in: gameIds }, tagId: { not: tagId } },
+                select: { tagId: true },
+              });
+              const counter = new Map<string, number>();
+              for (const r of coRows) counter.set(r.tagId, (counter.get(r.tagId) ?? 0) + 1);
+              cooccurrenceIds.push(
+                ...[...counter.entries()]
+                  .filter(([id]) => !impliedIds.has(id))
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, remaining)
+                  .map(([id]) => id),
+              );
+            }
+          } else {
+            const rows = await ctx.prisma.tagOnImagePost.findMany({
+              where: { tagId, imagePost: { status: "PUBLISHED" } },
+              select: { imagePostId: true },
+              take: poolLimit,
+            });
+            const imageIds = rows.map((r) => r.imagePostId);
+            if (imageIds.length > 0) {
+              const coRows = await ctx.prisma.tagOnImagePost.findMany({
+                where: { imagePostId: { in: imageIds }, tagId: { not: tagId } },
+                select: { tagId: true },
+              });
+              const counter = new Map<string, number>();
+              for (const r of coRows) counter.set(r.tagId, (counter.get(r.tagId) ?? 0) + 1);
+              cooccurrenceIds.push(
+                ...[...counter.entries()]
+                  .filter(([id]) => !impliedIds.has(id))
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, remaining)
+                  .map(([id]) => id),
+              );
+            }
+          }
+
+          if (cooccurrenceIds.length > 0) {
+            const coTags = await ctx.prisma.tag.findMany({
+              where: { id: { in: cooccurrenceIds } },
+              select: tagSelect,
+            });
+            const byId = new Map(coTags.map((t) => [t.id, t] as const));
+            for (const id of cooccurrenceIds) {
+              const tag = byId.get(id);
+              if (tag) results.push(tag);
+            }
+          }
+
+          return results.slice(0, limit);
+        },
+        CACHE_TTL.list * 1000,
+      );
+    }),
+
+  // 标签全站统计
+  stats: publicProcedure.query(async ({ ctx }) => {
+    return memGetOrSet(
+      "tag:stats",
+      async () => {
+        const [total, categoryCount, topVideo, topGame, topImage] = await Promise.all([
+          ctx.prisma.tag.count(),
+          ctx.prisma.tagCategory.count(),
+          ctx.prisma.tag.findMany({
+            where: { videoCount: { gt: 0 } },
+            select: { id: true, name: true, slug: true, videoCount: true },
+            orderBy: { videoCount: "desc" },
+            take: 5,
+          }),
+          ctx.prisma.tag.findMany({
+            where: { gameCount: { gt: 0 } },
+            select: { id: true, name: true, slug: true, gameCount: true },
+            orderBy: { gameCount: "desc" },
+            take: 5,
+          }),
+          ctx.prisma.tag.findMany({
+            where: { imagePostCount: { gt: 0 } },
+            select: { id: true, name: true, slug: true, imagePostCount: true },
+            orderBy: { imagePostCount: "desc" },
+            take: 5,
+          }),
+        ]);
+
+        return {
+          total,
+          categoryCount,
+          topByType: {
+            video: topVideo,
+            game: topGame,
+            image: topImage,
+          },
+        };
+      },
+      CACHE_TTL.popular * 1000,
+    );
+  }),
 });

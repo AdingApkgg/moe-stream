@@ -193,6 +193,7 @@ const API_SCOPE_ROUTER_MAP: Record<string, ScopeMapping> = {
   series: { read: "content:read", write: "content:write" },
   sticker: { read: "content:read" },
   import: { read: "content:read", write: "content:write" },
+  playlist: { read: "content:read", write: "content:write" },
   // 评论
   comment: { read: "comment:read", write: "comment:write" },
   gameComment: { read: "comment:read", write: "comment:write" },

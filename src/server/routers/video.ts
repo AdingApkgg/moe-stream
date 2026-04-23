@@ -1969,4 +1969,214 @@ export const videoRouter = router({
         select: videoSelect,
       });
     }),
+
+  // 批量按 ID 获取视频（输出顺序与输入 IDs 一致）
+  batchGetByIds: publicProcedure
+    .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      if (input.ids.length === 0) return [];
+      const videos = await ctx.prisma.video.findMany({
+        where: { id: { in: input.ids }, status: "PUBLISHED" },
+        include: {
+          uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+          tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+          _count: { select: { likes: true, dislikes: true, confused: true, comments: true, favorites: true } },
+        },
+      });
+      const byId = new Map(videos.map((v) => [v.id, v] as const));
+      return input.ids.map((id) => byId.get(id)).filter((v): v is (typeof videos)[number] => Boolean(v));
+    }),
+
+  // 批量收藏（已收藏的会被跳过）
+  batchFavorite: protectedProcedure
+    .input(z.object({ videoIds: z.array(z.string()).min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      // 过滤已存在的收藏和不存在的视频
+      const [existing, validVideos] = await Promise.all([
+        ctx.prisma.favorite.findMany({
+          where: { userId, videoId: { in: input.videoIds } },
+          select: { videoId: true },
+        }),
+        ctx.prisma.video.findMany({
+          where: { id: { in: input.videoIds } },
+          select: { id: true },
+        }),
+      ]);
+      const existingIds = new Set(existing.map((e) => e.videoId));
+      const validIds = new Set(validVideos.map((v) => v.id));
+      const toAdd = input.videoIds.filter((id) => validIds.has(id) && !existingIds.has(id));
+
+      if (toAdd.length === 0) return { success: true, addedCount: 0 };
+
+      await ctx.prisma.favorite.createMany({
+        data: toAdd.map((videoId) => ({ userId, videoId })),
+        skipDuplicates: true,
+      });
+
+      for (const id of toAdd) memDelete(`video:${id}`);
+
+      return { success: true, addedCount: toAdd.length };
+    }),
+
+  // 批量获取交互状态（点赞/踩/疑惑/收藏）
+  batchInteractionStatus: protectedProcedure
+    .input(z.object({ videoIds: z.array(z.string()).min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const [likes, dislikes, confused, favorites] = await Promise.all([
+        ctx.prisma.like.findMany({
+          where: { userId, videoId: { in: input.videoIds } },
+          select: { videoId: true },
+        }),
+        ctx.prisma.dislike.findMany({
+          where: { userId, videoId: { in: input.videoIds } },
+          select: { videoId: true },
+        }),
+        ctx.prisma.confused.findMany({
+          where: { userId, videoId: { in: input.videoIds } },
+          select: { videoId: true },
+        }),
+        ctx.prisma.favorite.findMany({
+          where: { userId, videoId: { in: input.videoIds } },
+          select: { videoId: true },
+        }),
+      ]);
+      const likeSet = new Set(likes.map((l) => l.videoId));
+      const dislikeSet = new Set(dislikes.map((d) => d.videoId));
+      const confusedSet = new Set(confused.map((c) => c.videoId));
+      const favSet = new Set(favorites.map((f) => f.videoId));
+
+      return Object.fromEntries(
+        input.videoIds.map((id) => [
+          id,
+          {
+            liked: likeSet.has(id),
+            disliked: dislikeSet.has(id),
+            confused: confusedSet.has(id),
+            favorited: favSet.has(id),
+          },
+        ]),
+      );
+    }),
+
+  // 趋势视频（按最近 N 天内的点赞/收藏增长加权）
+  trending: publicProcedure
+    .input(
+      z.object({
+        days: z.number().min(1).max(30).default(7),
+        limit: z.number().min(1).max(50).default(20),
+        excludeNsfw: z.boolean().default(false),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return memGetOrSet(
+        `video:trending:${input.days}:${input.limit}:${input.excludeNsfw}`,
+        async () => {
+          const since = new Date();
+          since.setDate(since.getDate() - input.days);
+
+          // 统计最近点赞数、收藏数、评论数较高的视频
+          const [likesGroup, favGroup, commentGroup] = await Promise.all([
+            ctx.prisma.like.groupBy({
+              by: ["videoId"],
+              where: { createdAt: { gte: since } },
+              _count: { _all: true },
+              orderBy: { _count: { videoId: "desc" } },
+              take: input.limit * 3,
+            }),
+            ctx.prisma.favorite.groupBy({
+              by: ["videoId"],
+              where: { createdAt: { gte: since } },
+              _count: { _all: true },
+              orderBy: { _count: { videoId: "desc" } },
+              take: input.limit * 3,
+            }),
+            ctx.prisma.comment.groupBy({
+              by: ["videoId"],
+              where: { createdAt: { gte: since }, isDeleted: false, isHidden: false },
+              _count: { _all: true },
+              orderBy: { _count: { videoId: "desc" } },
+              take: input.limit * 3,
+            }),
+          ]);
+
+          const scoreMap = new Map<string, number>();
+          for (const r of likesGroup) scoreMap.set(r.videoId, (scoreMap.get(r.videoId) ?? 0) + r._count._all * 3);
+          for (const r of favGroup) scoreMap.set(r.videoId, (scoreMap.get(r.videoId) ?? 0) + r._count._all * 5);
+          for (const r of commentGroup) scoreMap.set(r.videoId, (scoreMap.get(r.videoId) ?? 0) + r._count._all * 2);
+
+          if (scoreMap.size === 0) {
+            // 回退到最近高播放量
+            return ctx.prisma.video.findMany({
+              where: {
+                status: "PUBLISHED",
+                createdAt: { gte: since },
+                ...(input.excludeNsfw ? { isNsfw: false } : {}),
+              },
+              orderBy: { views: "desc" },
+              take: input.limit,
+              include: {
+                uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+                tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+            });
+          }
+
+          const topIds = [...scoreMap.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, input.limit)
+            .map(([id]) => id);
+
+          const videos = await ctx.prisma.video.findMany({
+            where: {
+              id: { in: topIds },
+              status: "PUBLISHED",
+              ...(input.excludeNsfw ? { isNsfw: false } : {}),
+            },
+            include: {
+              uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+              tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+              _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+            },
+          });
+          const byId = new Map(videos.map((v) => [v.id, v] as const));
+          return topIds.map((id) => byId.get(id)).filter((v): v is (typeof videos)[number] => Boolean(v));
+        },
+        300 * 1000,
+      );
+    }),
+
+  // 用户视频总体统计（发布数、总播放量、总点赞、总评论、总收藏）
+  getMyStats: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+    const [agg, byStatus, likeCount, commentCount, favoriteCount] = await Promise.all([
+      ctx.prisma.video.aggregate({
+        where: { uploaderId: userId },
+        _sum: { views: true },
+        _count: { _all: true },
+      }),
+      ctx.prisma.video.groupBy({
+        by: ["status"],
+        where: { uploaderId: userId },
+        _count: { _all: true },
+      }),
+      ctx.prisma.like.count({ where: { video: { uploaderId: userId } } }),
+      ctx.prisma.comment.count({ where: { video: { uploaderId: userId }, isDeleted: false } }),
+      ctx.prisma.favorite.count({ where: { video: { uploaderId: userId } } }),
+    ]);
+
+    const statusCounts = { PUBLISHED: 0, PENDING: 0, REJECTED: 0, DELETED: 0 } as Record<string, number>;
+    for (const s of byStatus) statusCounts[s.status] = s._count._all;
+
+    return {
+      totalVideos: agg._count._all,
+      totalViews: agg._sum.views ?? 0,
+      totalLikes: likeCount,
+      totalComments: commentCount,
+      totalFavorites: favoriteCount,
+      byStatus: statusCounts,
+    };
+  }),
 });
