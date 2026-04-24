@@ -178,8 +178,8 @@ export default function VideoListClient({
   const handleTagClick = useCallback(
     (slug: string) => {
       if (viewMode === "series") return;
-      toggleTag(slug);
       setVideoPage(1);
+      toggleTag(slug);
     },
     [viewMode, toggleTag, setVideoPage],
   );
@@ -188,8 +188,8 @@ export default function VideoListClient({
     (e: React.MouseEvent, slug: string) => {
       e.preventDefault();
       if (viewMode === "series") return;
-      toggleExclude(slug);
       setVideoPage(1);
+      toggleExclude(slug);
     },
     [viewMode, toggleExclude, setVideoPage],
   );

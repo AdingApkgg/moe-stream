@@ -45,10 +45,6 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { SidebarContent } from "./sidebar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AdSlot } from "@/components/ads/ad-slot";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { trpc } from "@/lib/trpc";
 import { useDebounce, useStableSession } from "@/lib/hooks";
@@ -275,7 +271,6 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Zustand 搜索历史
   const { history: searchHistory, addSearch, removeSearch, clearHistory } = useSearchHistoryStore();
@@ -560,34 +555,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Mobile Menu */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" aria-label="打开菜单">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0 flex flex-col">
-                <SheetHeader className="shrink-0 border-b px-4 py-4">
-                  <SheetTitle>
-                    <Link
-                      href="/"
-                      className="flex items-center font-bold text-xl"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      {siteConfig?.siteName || "ACGN Site"}
-                    </Link>
-                  </SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="flex-1 min-h-0 py-4">
-                  <SidebarContent onItemClick={() => setMobileMenuOpen(false)} />
-                </ScrollArea>
-                {/* 广告位 - 固定底部 */}
-                <div className="shrink-0 border-t px-3 py-2">
-                  <AdSlot slotId="sidebar" minHeight={100} />
-                </div>
-              </SheetContent>
-            </Sheet>
+            {/* 移动端菜单入口已迁移至 BottomNav（底部"菜单"按钮） */}
 
             {/* Logo */}
             <Link href="/" className="flex items-center ml-1">

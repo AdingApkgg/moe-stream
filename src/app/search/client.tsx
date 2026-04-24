@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { VideoCard } from "@/components/video/video-card";
@@ -8,6 +9,7 @@ import { GameCard } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatViews } from "@/lib/format";
 import { usePageParam } from "@/hooks/use-page-param";
 import { useTabParam } from "@/hooks/use-tab-param";
 import { useSearchEnumParam } from "@/hooks/use-filter-param";
@@ -121,11 +123,78 @@ function FilterDropdown<T extends string>({
   );
 }
 
+type HotContentItem = {
+  type: "video" | "game" | "image";
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  views: number;
+  isNsfw: boolean;
+  heat: number;
+  rank: number;
+};
+
+const HOT_TYPE_META: Record<HotContentItem["type"], { label: string; href: (id: string) => string; icon: LucideIcon }> =
+  {
+    video: { label: "视频", href: (id) => `/video/${id}`, icon: Play },
+    game: { label: "游戏", href: (id) => `/game/${id}`, icon: Gamepad2 },
+    image: { label: "图片", href: (id) => `/image/${id}`, icon: Images },
+  };
+
+function HotContentRow({ item }: { item: HotContentItem }) {
+  const meta = HOT_TYPE_META[item.type];
+  const TypeIcon = meta.icon;
+  const isTop3 = item.rank <= 3;
+  return (
+    <Link
+      href={meta.href(item.id)}
+      className="group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors"
+    >
+      <span
+        className={cn(
+          "w-6 text-center text-sm font-bold tabular-nums shrink-0",
+          isTop3 ? "text-primary" : "text-muted-foreground",
+        )}
+      >
+        {item.rank}
+      </span>
+      <div className="relative w-16 h-10 shrink-0 rounded overflow-hidden bg-muted">
+        {item.coverUrl ? (
+          <Image src={item.coverUrl} alt={item.title} fill sizes="64px" unoptimized className="object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <TypeIcon className="h-4 w-4 text-muted-foreground/60" />
+          </div>
+        )}
+        {item.isNsfw && (
+          <span className="absolute top-0 right-0 bg-red-500/90 text-white text-[9px] font-bold px-1 leading-tight rounded-bl">
+            NSFW
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm truncate group-hover:text-primary transition-colors">{item.title}</div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-0.5">
+            <TypeIcon className="h-3 w-3" />
+            {meta.label}
+          </span>
+          <span>·</span>
+          <span className="tabular-nums">{formatViews(item.views)}次</span>
+        </div>
+      </div>
+      {isTop3 && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium shrink-0">热</span>
+      )}
+    </Link>
+  );
+}
+
 function SearchExplore() {
   const router = useRouter();
   const { history: searchHistory, removeSearch, clearHistory } = useSearchHistoryStore();
 
-  const { data: hotSearches } = trpc.video.getHotSearches.useQuery({ limit: 10 }, { staleTime: 300000 });
+  const { data: hotContents } = trpc.search.getHotContents.useQuery({ limit: 10 }, { staleTime: 300000 });
   const { data: guessResult } = trpc.search.guessForMe.useQuery({ limit: 12 }, { staleTime: 300000 });
   const guessItems = guessResult?.items ?? [];
   const isPersonalized = guessResult?.source === "personalized";
@@ -134,7 +203,7 @@ function SearchExplore() {
     router.push(`/search?q=${encodeURIComponent(keyword)}`);
   };
 
-  const hasAnySection = searchHistory.length > 0 || (hotSearches && hotSearches.length > 0) || guessItems.length > 0;
+  const hasAnySection = searchHistory.length > 0 || (hotContents && hotContents.length > 0) || guessItems.length > 0;
 
   return (
     <MotionPage>
@@ -177,33 +246,16 @@ function SearchExplore() {
           </div>
         )}
 
-        {/* 站内热搜 */}
-        {hotSearches && hotSearches.length > 0 && (
+        {/* 站内热搜（具体内容，按多维度热力分排序） */}
+        {hotContents && hotContents.length > 0 && (
           <div className="mb-8">
             <h2 className="text-base font-semibold flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4" />
               站内热搜
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {hotSearches.map((item, index) => (
-                <button
-                  key={item.keyword}
-                  onClick={() => goSearch(item.keyword)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent text-left transition-colors"
-                >
-                  <span
-                    className={cn(
-                      "w-6 text-center text-sm font-bold",
-                      index < 3 ? "text-primary" : "text-muted-foreground",
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                  <span className="flex-1 text-sm truncate">{item.keyword}</span>
-                  {item.isHot && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
-                  )}
-                </button>
+              {hotContents.map((item) => (
+                <HotContentRow key={`${item.type}-${item.id}`} item={item} />
               ))}
             </div>
           </div>

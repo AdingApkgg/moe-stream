@@ -102,11 +102,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* 顶部导航进度条 */}
       <NavigationProgress />
 
-      {/* TMA 环境下由 Telegram 原生 BackButton 接管顶部导航，隐藏应用 Header */}
-      {!isTMA && <Header onMenuClick={toggleSidebar} />}
+      {/* TMA 与普通网页共用同一 Header；Telegram 原生 BackButton 仍由 TmaLayoutBridge 处理 */}
+      <Header onMenuClick={toggleSidebar} />
 
-      {/* Header 是 fixed 定位，需要占位让内容不被遮挡；TMA 下无需占位 */}
-      {!isTMA && <div className="h-14 shrink-0" />}
+      {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
+      <div className="h-14 shrink-0" />
 
       {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
       <TmaLayoutBridge />

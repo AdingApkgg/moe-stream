@@ -15,7 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useUIStore, type ContentMode } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
-import { Play, Gamepad2, ImageIcon, Loader2, Sparkles, Zap, Palette } from "lucide-react";
+import { Play, Gamepad2, ImageIcon, Loader2, Sparkles, Zap, Palette, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSound } from "@/hooks/use-sound";
 import { DEFAULT_HOME_LAYOUT, LANDING_CARD_META, type LandingCardConfig, type LandingCardId } from "@/lib/home-layout";
@@ -65,7 +65,9 @@ const CARD_STYLE: Record<LandingCardId, CardStyle> = {
     iconBg: "bg-gradient-to-br from-blue-500/20 via-purple-500/15 to-violet-500/20",
     iconTint: "text-purple-500 dark:text-purple-400",
     iconShadow: "group-hover:shadow-purple-500/30",
-    icon: <Play className="h-10 w-10 transition-transform duration-300 ease-out group-hover:scale-110" />,
+    icon: (
+      <Play className="h-7 w-7 transition-transform duration-300 ease-out sm:h-10 sm:w-10 sm:group-hover:scale-110" />
+    ),
     accent: (
       <Sparkles className="absolute -top-2 -right-2 h-4 w-4 text-purple-400 opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:opacity-100 group-hover:-translate-y-1" />
     ),
@@ -80,7 +82,9 @@ const CARD_STYLE: Record<LandingCardId, CardStyle> = {
     iconBg: "bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-fuchsia-500/20",
     iconTint: "text-pink-500 dark:text-pink-400",
     iconShadow: "group-hover:shadow-pink-500/30",
-    icon: <ImageIcon className="h-10 w-10 transition-transform duration-300 ease-out group-hover:scale-110" />,
+    icon: (
+      <ImageIcon className="h-7 w-7 transition-transform duration-300 ease-out sm:h-10 sm:w-10 sm:group-hover:scale-110" />
+    ),
     accent: (
       <Palette className="absolute -top-2 -right-2 h-4 w-4 text-pink-400 opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:opacity-100 group-hover:-translate-y-1" />
     ),
@@ -95,7 +99,9 @@ const CARD_STYLE: Record<LandingCardId, CardStyle> = {
     iconBg: "bg-gradient-to-br from-green-500/20 via-emerald-500/15 to-teal-500/20",
     iconTint: "text-emerald-500 dark:text-emerald-400",
     iconShadow: "group-hover:shadow-emerald-500/30",
-    icon: <Gamepad2 className="h-10 w-10 transition-transform duration-300 ease-out group-hover:scale-110" />,
+    icon: (
+      <Gamepad2 className="h-7 w-7 transition-transform duration-300 ease-out sm:h-10 sm:w-10 sm:group-hover:scale-110" />
+    ),
     accent: (
       <Zap className="absolute -top-2 -right-2 h-4 w-4 text-emerald-400 opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:opacity-100 group-hover:-translate-y-1" />
     ),
@@ -155,7 +161,7 @@ export default function LandingClient() {
 
   if (!mounted || isContentModeChosen || enabledModes.length <= 1) {
     return (
-      <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
+      <div className="flex min-h-[calc(100dvh-3.5rem)] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -170,24 +176,24 @@ export default function LandingClient() {
   const gridColsClass = visibleCards.length === 2 ? "sm:grid-cols-2 max-w-2xl mx-auto" : "sm:grid-cols-3";
 
   return (
-    <div className="relative flex h-[calc(100vh-3.5rem)] items-center justify-center px-4 overflow-hidden">
+    <div className="relative flex min-h-[calc(100dvh-3.5rem)] items-center justify-center overflow-hidden px-4 py-6 pb-[calc(3.5rem+env(safe-area-inset-bottom)+1rem)] md:pb-6">
       <SceneErrorBoundary>
         <Suspense fallback={null}>
           <LandingScene hoveredMode={hoveredMode} mouse={mouseRef} />
         </Suspense>
       </SceneErrorBoundary>
 
-      <div className="relative z-10 w-full max-w-4xl space-y-8 text-center">
-        <div className="space-y-3">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+      <div className="relative z-10 w-full max-w-4xl space-y-6 text-center sm:space-y-8">
+        <div className="space-y-2 sm:space-y-3">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl md:text-5xl">
             <span className="text-gradient-acgn">{layout.landing.title || DEFAULT_HOME_LAYOUT.landing.title}</span>
           </h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
+          <p className="text-muted-foreground text-xs sm:text-base">
             {layout.landing.subtitle || DEFAULT_HOME_LAYOUT.landing.subtitle}
           </p>
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-5", gridColsClass)}>
+        <div className={cn("grid grid-cols-1 gap-3 sm:gap-5", gridColsClass)}>
           {visibleCards.map((card) => {
             const style = CARD_STYLE[card.id];
             const meta = LANDING_CARD_META[card.id];
@@ -200,38 +206,48 @@ export default function LandingClient() {
                 onMouseEnter={() => setHoveredMode(card.id)}
                 onMouseLeave={() => setHoveredMode(null)}
                 className={cn(
-                  "group relative flex flex-col items-center gap-5 rounded-2xl p-8 sm:p-10",
+                  "group relative flex flex-row items-center gap-4 rounded-2xl p-4",
+                  "sm:flex-col sm:gap-5 sm:p-8 md:p-10",
                   "glass-card",
                   "border",
                   style.borderIdle,
                   style.borderHover,
                   style.shadow,
-                  "transition-[transform,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                  "hover:-translate-y-2 hover:scale-[1.02]",
+                  "transition-[transform,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:duration-500",
+                  "active:scale-[0.98] sm:active:scale-100",
+                  "sm:hover:-translate-y-2 sm:hover:scale-[1.02]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
                   style.ring,
                 )}
               >
                 <div
                   className={cn(
-                    "relative flex h-20 w-20 items-center justify-center rounded-2xl",
+                    "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl",
+                    "sm:h-20 sm:w-20 sm:rounded-2xl",
                     style.iconBg,
                     style.iconTint,
-                    "transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110",
-                    "group-hover:shadow-[0_0_30px_-5px]",
+                    "transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:group-hover:scale-110",
+                    "sm:group-hover:shadow-[0_0_30px_-5px]",
                     style.iconShadow,
                   )}
                 >
                   {style.icon}
                   {style.accent}
                 </div>
-                <div className="space-y-1.5">
-                  <h2 className={cn("text-xl font-semibold transition-colors", style.hoverText)}>{title}</h2>
-                  <p className="text-sm text-muted-foreground">{subtitle}</p>
+                <div className="flex-1 space-y-0.5 text-left sm:flex-initial sm:space-y-1.5 sm:text-center">
+                  <h2 className={cn("text-base font-semibold transition-colors sm:text-xl", style.hoverText)}>
+                    {title}
+                  </h2>
+                  <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
                 </div>
+                <ChevronRight
+                  className={cn(
+                    "h-5 w-5 shrink-0 text-muted-foreground/50 transition-transform duration-300 group-active:translate-x-0.5 sm:hidden",
+                  )}
+                />
                 <div
                   className={cn(
-                    "absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100",
+                    "pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-500 sm:group-hover:opacity-100",
                     style.overlay,
                   )}
                 />

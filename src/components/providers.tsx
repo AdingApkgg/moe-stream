@@ -14,6 +14,7 @@ import { AnalyticsScripts } from "@/components/analytics-scripts";
 import { SocketProvider } from "@/components/socket-provider";
 import { MotionProvider } from "@/components/motion";
 import { TmaBootstrap } from "@/components/tma-bootstrap";
+import { TmaAutoLogin } from "@/components/tma-auto-login";
 import { isTmaEnvironment } from "@/lib/telegram";
 
 const ParticleBackground = dynamic(() => import("@/components/effects/particle-background"), { ssr: false });
@@ -234,6 +235,7 @@ export function Providers({ children, siteConfig }: { children: React.ReactNode;
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <SiteConfigProvider value={siteConfig}>
             <TmaBootstrap />
+            <TmaAutoLogin />
             <ServiceWorkerRegistration />
             {siteConfig.entrySoundUrl && (
               <EntrySound

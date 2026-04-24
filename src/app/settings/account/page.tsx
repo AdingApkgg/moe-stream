@@ -29,6 +29,7 @@ import {
 import { PROVIDER_CONFIG, type OAuthProvider } from "@/components/auth/social-login-buttons";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useIsTMA } from "@/hooks/use-tma";
+import { getTelegramWebApp } from "@/lib/telegram";
 import QRCode from "react-qr-code";
 
 const accountSchema = z.object({
@@ -80,6 +81,7 @@ function OAuthAccountSection() {
   const siteConfig = useSiteConfig();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const isTMA = useIsTMA();
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -132,12 +134,78 @@ function OAuthAccountSection() {
     }
   }
 
+  async function handleLinkTelegram() {
+    // TMA 环境：直接拿 initData 调自定义绑定端点
+    if (isTMA) {
+      const webApp = getTelegramWebApp();
+      const initData = webApp?.initData;
+      if (!initData) {
+        toast.error("绑定失败", { description: "未获取到 initData，请在 Telegram 客户端内打开" });
+        resetLinkLoading();
+        return;
+      }
+      try {
+        const res = await fetch("/api/auth/link/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData }),
+          credentials: "include",
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+          alreadyLinked?: boolean;
+        };
+        if (!res.ok) {
+          const desc = (data.error && LINK_ERROR_MESSAGES[data.error]) || data.message || `HTTP ${res.status}`;
+          toast.error("绑定失败", { description: desc });
+          resetLinkLoading();
+          return;
+        }
+        toast.success(data.alreadyLinked ? "该 Telegram 账号已绑定" : "已绑定 Telegram");
+        await fetchAccounts();
+        resetLinkLoading();
+      } catch (err) {
+        console.error("[settings] link telegram exception:", err);
+        toast.error("绑定失败", { description: "网络错误，请稍后重试" });
+        resetLinkLoading();
+      }
+      return;
+    }
+
+    // Web 端：跳转 oauth.telegram.org，由 callback 页识别 intent=link 后调 /api/auth/link/telegram
+    const botId = siteConfig?.telegramBotId;
+    if (!botId) {
+      toast.error("Telegram 未配置", { description: "请联系管理员在后台配置 Bot Token" });
+      resetLinkLoading();
+      return;
+    }
+    const origin = window.location.origin;
+    const returnTo = new URL("/login/telegram/callback", origin);
+    returnTo.searchParams.set("intent", "link");
+    returnTo.searchParams.set("callbackURL", "/settings/account");
+    const authUrl = new URL("https://oauth.telegram.org/auth");
+    authUrl.searchParams.set("bot_id", botId);
+    authUrl.searchParams.set("origin", origin);
+    authUrl.searchParams.set("embed", "0");
+    authUrl.searchParams.set("request_access", "write");
+    authUrl.searchParams.set("return_to", returnTo.toString());
+    window.location.assign(authUrl.toString());
+  }
+
   async function handleLink(provider: OAuthProvider) {
     setActionLoading(provider);
 
     linkTimeoutRef.current = setTimeout(() => {
       setActionLoading(null);
     }, 15_000);
+
+    // Telegram 是自定义插件（非标准 OAuth），Better Auth 的 linkSocial 不认识它
+    // → 走独立的绑定流程
+    if (provider === "telegram") {
+      await handleLinkTelegram();
+      return;
+    }
 
     try {
       const base = `${window.location.origin}/settings/account`;

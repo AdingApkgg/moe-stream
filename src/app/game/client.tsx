@@ -142,8 +142,8 @@ export function GameListClient({
 
   const handleTagClick = useCallback(
     (slug: string) => {
-      toggleTag(slug);
       setPage(1);
+      toggleTag(slug);
     },
     [toggleTag, setPage],
   );
@@ -151,8 +151,8 @@ export function GameListClient({
   const handleTagRightClick = useCallback(
     (e: React.MouseEvent, slug: string) => {
       e.preventDefault();
-      toggleExclude(slug);
       setPage(1);
+      toggleExclude(slug);
     },
     [toggleExclude, setPage],
   );

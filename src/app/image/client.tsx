@@ -170,13 +170,13 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                 <button
                   key={tag.id}
                   onClick={() => {
-                    toggleTag(tag.slug);
                     setPage(1);
+                    toggleTag(tag.slug);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    toggleExclude(tag.slug);
                     setPage(1);
+                    toggleExclude(tag.slug);
                   }}
                   className={cn(
                     "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",

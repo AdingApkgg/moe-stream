@@ -16,6 +16,16 @@ import {
 
 const SEARCH_COUNTS_TTL_MS = 60_000;
 const SEARCH_ALL_TTL_MS = 60_000;
+const HOT_CONTENTS_TTL_MS = 30 * 60_000;
+
+/** 热力分维度权重：观看 / 点赞 / 收藏 / 评论 / 点踩 */
+const HEAT_WEIGHT_VIEW = 1;
+const HEAT_WEIGHT_LIKE = 10;
+const HEAT_WEIGHT_FAVORITE = 15;
+const HEAT_WEIGHT_COMMENT = 8;
+const HEAT_WEIGHT_DISLIKE = 5;
+/** 时间衰减半衰期（毫秒），7 天 */
+const HEAT_HALF_LIFE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** 「猜你想搜」混合权重：个人兴趣、共现发现、全站热门 */
 const GUESS_WEIGHT_INTEREST = 100;
@@ -390,5 +400,151 @@ export const searchRouter = router({
       }
 
       return result;
+    }),
+
+  /**
+   * 站内热门内容：按多维度热力分排序的具体内容（视频 / 游戏 / 图帖）。
+   *
+   * 热力分：raw = views·1 + likes·10 + favorites·15 + comments·8 - dislikes·5
+   *        heat = max(0, raw) × exp(-age_ms / 7天)  // 指数时间衰减，偏向近期
+   *
+   * 缓存：30 分钟内存缓存，按 (limit, windowDays) 键入。
+   */
+  getHotContents: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(20).default(10),
+        /** 候选时间窗（天），只在窗口内的内容参与热力排序 */
+        windowDays: z.number().min(1).max(90).default(14),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const cacheKey = `search:hot-contents:${input.limit}:${input.windowDays}`;
+      return memGetOrSet(
+        cacheKey,
+        async () => {
+          const since = new Date(Date.now() - input.windowDays * 24 * 60 * 60 * 1000);
+          const now = Date.now();
+
+          const calcHeat = (d: {
+            views: number;
+            createdAt: Date;
+            _count: { likes: number; dislikes: number; favorites: number; comments: number };
+          }) => {
+            const raw =
+              d.views * HEAT_WEIGHT_VIEW +
+              d._count.likes * HEAT_WEIGHT_LIKE +
+              d._count.favorites * HEAT_WEIGHT_FAVORITE +
+              d._count.comments * HEAT_WEIGHT_COMMENT -
+              d._count.dislikes * HEAT_WEIGHT_DISLIKE;
+            const ageMs = Math.max(0, now - new Date(d.createdAt).getTime());
+            return Math.max(0, raw) * Math.exp(-ageMs / HEAT_HALF_LIFE_MS);
+          };
+
+          // 每种内容按浏览量降序预筛候选池（limit × 3），再按热力分统一排序
+          const fetchLimit = input.limit * 3;
+
+          const [videos, games, imagePosts] = await Promise.all([
+            ctx.prisma.video.findMany({
+              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              select: {
+                id: true,
+                title: true,
+                coverUrl: true,
+                views: true,
+                isNsfw: true,
+                createdAt: true,
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+              orderBy: { views: "desc" },
+              take: fetchLimit,
+            }),
+            ctx.prisma.game.findMany({
+              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              select: {
+                id: true,
+                title: true,
+                coverUrl: true,
+                views: true,
+                createdAt: true,
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+              orderBy: { views: "desc" },
+              take: fetchLimit,
+            }),
+            ctx.prisma.imagePost.findMany({
+              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              select: {
+                id: true,
+                title: true,
+                images: true,
+                views: true,
+                isNsfw: true,
+                createdAt: true,
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
+              },
+              orderBy: { views: "desc" },
+              take: fetchLimit,
+            }),
+          ]);
+
+          const pickImageCover = (images: unknown): string | null => {
+            if (Array.isArray(images) && images.length > 0 && typeof images[0] === "string") {
+              return images[0];
+            }
+            return null;
+          };
+
+          type HotItem = {
+            type: "video" | "game" | "image";
+            id: string;
+            title: string;
+            coverUrl: string | null;
+            views: number;
+            isNsfw: boolean;
+            heat: number;
+          };
+
+          const all: HotItem[] = [
+            ...videos.map((v) => ({
+              type: "video" as const,
+              id: v.id,
+              title: v.title,
+              coverUrl: v.coverUrl,
+              views: v.views,
+              isNsfw: v.isNsfw,
+              heat: calcHeat(v),
+            })),
+            ...games.map((g) => ({
+              type: "game" as const,
+              id: g.id,
+              title: g.title,
+              coverUrl: g.coverUrl,
+              views: g.views,
+              isNsfw: false,
+              heat: calcHeat(g),
+            })),
+            ...imagePosts.map((p) => ({
+              type: "image" as const,
+              id: p.id,
+              title: p.title,
+              coverUrl: pickImageCover(p.images),
+              views: p.views,
+              isNsfw: p.isNsfw,
+              heat: calcHeat(p),
+            })),
+          ];
+
+          return all
+            .sort((a, b) => b.heat - a.heat)
+            .slice(0, input.limit)
+            .map((item, index) => ({
+              ...item,
+              rank: index + 1,
+              heat: Math.round(item.heat),
+            }));
+        },
+        HOT_CONTENTS_TTL_MS,
+      );
     }),
 });
