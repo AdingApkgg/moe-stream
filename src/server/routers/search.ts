@@ -408,22 +408,19 @@ export const searchRouter = router({
    * 热力分：raw = views·1 + likes·10 + favorites·15 + comments·8 - dislikes·5
    *        heat = max(0, raw) × exp(-age_ms / 7天)  // 指数时间衰减，偏向近期
    *
-   * 缓存：30 分钟内存缓存，按 (limit, windowDays) 键入。
+   * 缓存：30 分钟内存缓存。
    */
   getHotContents: publicProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(20).default(10),
-        /** 候选时间窗（天），只在窗口内的内容参与热力排序 */
-        windowDays: z.number().min(1).max(90).default(14),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const cacheKey = `search:hot-contents:${input.limit}:${input.windowDays}`;
+      const cacheKey = `search:hot-contents:${input.limit}`;
       return memGetOrSet(
         cacheKey,
         async () => {
-          const since = new Date(Date.now() - input.windowDays * 24 * 60 * 60 * 1000);
           const now = Date.now();
 
           const calcHeat = (d: {
@@ -441,12 +438,13 @@ export const searchRouter = router({
             return Math.max(0, raw) * Math.exp(-ageMs / HEAT_HALF_LIFE_MS);
           };
 
-          // 每种内容按浏览量降序预筛候选池（limit × 3），再按热力分统一排序
+          // 每种内容按浏览量降序预筛候选池（limit × 3），再按热力分统一排序。
+          // 不设时间窗——7 天半衰期的指数衰减已足以让老内容自然沉底。
           const fetchLimit = input.limit * 3;
 
           const [videos, games, imagePosts] = await Promise.all([
             ctx.prisma.video.findMany({
-              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              where: { status: "PUBLISHED" },
               select: {
                 id: true,
                 title: true,
@@ -460,7 +458,7 @@ export const searchRouter = router({
               take: fetchLimit,
             }),
             ctx.prisma.game.findMany({
-              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              where: { status: "PUBLISHED" },
               select: {
                 id: true,
                 title: true,
@@ -473,7 +471,7 @@ export const searchRouter = router({
               take: fetchLimit,
             }),
             ctx.prisma.imagePost.findMany({
-              where: { status: "PUBLISHED", createdAt: { gte: since } },
+              where: { status: "PUBLISHED" },
               select: {
                 id: true,
                 title: true,
@@ -505,38 +503,47 @@ export const searchRouter = router({
             heat: number;
           };
 
-          const all: HotItem[] = [
-            ...videos.map((v) => ({
-              type: "video" as const,
-              id: v.id,
-              title: v.title,
-              coverUrl: v.coverUrl,
-              views: v.views,
-              isNsfw: v.isNsfw,
-              heat: calcHeat(v),
-            })),
-            ...games.map((g) => ({
-              type: "game" as const,
-              id: g.id,
-              title: g.title,
-              coverUrl: g.coverUrl,
-              views: g.views,
-              isNsfw: false,
-              heat: calcHeat(g),
-            })),
-            ...imagePosts.map((p) => ({
-              type: "image" as const,
-              id: p.id,
-              title: p.title,
-              coverUrl: pickImageCover(p.images),
-              views: p.views,
-              isNsfw: p.isNsfw,
-              heat: calcHeat(p),
-            })),
+          const videoItems: HotItem[] = videos.map((v) => ({
+            type: "video" as const,
+            id: v.id,
+            title: v.title,
+            coverUrl: v.coverUrl,
+            views: v.views,
+            isNsfw: v.isNsfw,
+            heat: calcHeat(v),
+          }));
+          const gameItems: HotItem[] = games.map((g) => ({
+            type: "game" as const,
+            id: g.id,
+            title: g.title,
+            coverUrl: g.coverUrl,
+            views: g.views,
+            isNsfw: false,
+            heat: calcHeat(g),
+          }));
+          const imageItems: HotItem[] = imagePosts.map((p) => ({
+            type: "image" as const,
+            id: p.id,
+            title: p.title,
+            coverUrl: pickImageCover(p.images),
+            views: p.views,
+            isNsfw: p.isNsfw,
+            heat: calcHeat(p),
+          }));
+
+          // 每类各取热度前 K 名（K = ⌈limit/3⌉），保证视频/游戏/图片三区都有曝光。
+          // 合并后按热度排序，截到 limit。
+          // 若某类候选不足，多出的名额由热度更高的其它类自然补齐。
+          const perTypeK = Math.ceil(input.limit / 3);
+          const sortByHeat = (a: HotItem, b: HotItem) => b.heat - a.heat;
+          const merged = [
+            ...videoItems.sort(sortByHeat).slice(0, perTypeK),
+            ...gameItems.sort(sortByHeat).slice(0, perTypeK),
+            ...imageItems.sort(sortByHeat).slice(0, perTypeK),
           ];
 
-          return all
-            .sort((a, b) => b.heat - a.heat)
+          return merged
+            .sort(sortByHeat)
             .slice(0, input.limit)
             .map((item, index) => ({
               ...item,

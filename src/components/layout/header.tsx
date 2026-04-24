@@ -25,10 +25,6 @@ import {
   Shield,
   LogIn,
   UserPlus,
-  Clock,
-  TrendingUp,
-  Sparkles,
-  X,
   ArrowLeft,
   Sun,
   Moon,
@@ -58,148 +54,52 @@ import { useSiteConfig } from "@/contexts/site-config";
 import { showPointsToast } from "@/lib/toast-with-sound";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useSocketStore } from "@/stores/socket";
+import { SearchDiscover } from "@/components/search/search-discover";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
-// ========== 搜索建议列表（桌面 + 移动端共用） ==========
+// ========== 搜索建议列表（仅在用户输入时展示，空态由 SearchDiscover 接管） ==========
 
 interface SuggestionItem {
-  type: "search" | "history" | "tag" | "video" | "game" | "imagePost" | "user" | "hot" | "guess";
+  type: "search" | "tag" | "video" | "game" | "imagePost" | "user";
   label: string;
   value: string;
-  index?: number;
-  isHot?: boolean;
-  /** 仅 guess：推荐来源标签，用于给 "已个性化" 等徽章做判断 */
-  guessReason?: string;
 }
 
 function SearchSuggestionsList({
   items,
   activeIndex,
   onSelect,
-  onRemoveHistory,
-  onClearHistory,
-  showHistoryHeader,
-  showHotHeader,
-  showGuessHeader,
-  guessPersonalized,
 }: {
   items: SuggestionItem[];
   activeIndex: number;
   onSelect: (item: SuggestionItem) => void;
-  onRemoveHistory?: (query: string) => void;
-  onClearHistory?: () => void;
-  showHistoryHeader: boolean;
-  showHotHeader: boolean;
-  showGuessHeader: boolean;
-  guessPersonalized: boolean;
 }) {
   return (
     <div className="py-1">
-      {items.map((item, i) => {
-        const needsHeader = i === 0 || items[i - 1].type !== item.type;
+      {items.map((item, i) => (
+        <button
+          key={`${item.type}-${item.value}-${i}`}
+          type="button"
+          data-index={i}
+          onClick={() => onSelect(item)}
+          className={cn(
+            "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
+            activeIndex === i ? "bg-accent" : "hover:bg-accent/50",
+          )}
+        >
+          {(item.type === "search" || item.type === "tag" || item.type === "video") && (
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
+          {item.type === "game" && <Gamepad2 className="h-4 w-4 text-muted-foreground shrink-0" />}
+          {item.type === "imagePost" && <Images className="h-4 w-4 text-muted-foreground shrink-0" />}
+          {item.type === "user" && <User className="h-4 w-4 text-muted-foreground shrink-0" />}
 
-        return (
-          <div key={`${item.type}-${item.value}-${i}`}>
-            {/* 分组标题 */}
-            {needsHeader && item.type === "history" && showHistoryHeader && (
-              <div className="flex items-center justify-between px-4 pt-2 pb-1">
-                <span className="text-xs text-muted-foreground font-medium">搜索历史</span>
-                {onClearHistory && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClearHistory();
-                    }}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    清空
-                  </button>
-                )}
-              </div>
-            )}
-            {needsHeader && item.type === "hot" && showHotHeader && (
-              <div className="flex items-center gap-1.5 px-4 pt-2 pb-1">
-                <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground font-medium">站内热搜</span>
-              </div>
-            )}
-            {needsHeader && item.type === "guess" && showGuessHeader && (
-              <div className="flex items-center justify-between px-4 pt-2 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground font-medium">猜你想搜</span>
-                </div>
-                {guessPersonalized && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                    已个性化
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* 列表项 */}
-            <button
-              type="button"
-              data-index={i}
-              onClick={() => onSelect(item)}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
-                activeIndex === i ? "bg-accent" : "hover:bg-accent/50",
-              )}
-            >
-              {/* 图标 */}
-              {item.type === "history" && <Clock className="h-4 w-4 text-muted-foreground shrink-0" />}
-              {(item.type === "search" || item.type === "tag" || item.type === "video") && (
-                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
-              {item.type === "game" && <Gamepad2 className="h-4 w-4 text-muted-foreground shrink-0" />}
-              {item.type === "imagePost" && <Images className="h-4 w-4 text-muted-foreground shrink-0" />}
-              {item.type === "user" && <User className="h-4 w-4 text-muted-foreground shrink-0" />}
-              {item.type === "guess" && (
-                <Sparkles
-                  className={cn(
-                    "h-4 w-4 shrink-0",
-                    item.guessReason === "interest" ? "text-primary" : "text-muted-foreground",
-                  )}
-                />
-              )}
-              {item.type === "hot" && (
-                <span
-                  className={cn(
-                    "w-5 text-center text-xs font-bold shrink-0",
-                    (item.index ?? 0) < 3 ? "text-primary" : "text-muted-foreground",
-                  )}
-                >
-                  {(item.index ?? 0) + 1}
-                </span>
-              )}
-
-              {/* 文本 */}
-              <span className="flex-1 truncate">{item.type === "tag" ? `#${item.label}` : item.label}</span>
-
-              {/* 右侧操作 */}
-              {item.type === "history" && onRemoveHistory && (
-                <X
-                  className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground shrink-0 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveHistory(item.value);
-                  }}
-                />
-              )}
-              {(item.type === "hot" || item.type === "guess") && item.isHot && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium shrink-0">
-                  热
-                </span>
-              )}
-            </button>
-          </div>
-        );
-      })}
+          <span className="flex-1 truncate">{item.type === "tag" ? `#${item.label}` : item.label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -273,7 +173,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
 
   // Zustand 搜索历史
-  const { history: searchHistory, addSearch, removeSearch, clearHistory } = useSearchHistoryStore();
+  const { addSearch } = useSearchHistoryStore();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
@@ -306,7 +206,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   // 防抖搜索
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // 获取搜索建议
+  // 获取搜索建议（仅输入时）
   const { data: suggestions } = trpc.video.searchSuggestions.useQuery(
     { query: debouncedQuery, limit: 8 },
     {
@@ -314,11 +214,6 @@ export function Header({ onMenuClick }: HeaderProps) {
       staleTime: 60000,
     },
   );
-
-  // 获取热搜
-  const { data: hotSearches } = trpc.video.getHotSearches.useQuery({ limit: 8 }, { staleTime: 300000 });
-  // 猜你想搜（个性化推荐）
-  const { data: guessResult } = trpc.search.guessForMe.useQuery({ limit: 8 }, { staleTime: 300000 });
 
   // 点击外部关闭建议
   useEffect(() => {
@@ -389,9 +284,6 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       switch (item.type) {
         case "search":
-        case "history":
-        case "hot":
-        case "guess":
           handleSearch(item.value);
           break;
         case "tag":
@@ -419,100 +311,25 @@ export function Header({ onMenuClick }: HeaderProps) {
     [handleSearch, router],
   );
 
-  const handleRemoveHistory = useCallback(
-    (query: string) => {
-      removeSearch(query);
-    },
-    [removeSearch],
-  );
-
-  const handleClearHistory = useCallback(() => {
-    clearHistory();
-  }, [clearHistory]);
-
-  // ========== 构建统一的建议项列表 ==========
-  const buildSuggestionItems = useCallback((): SuggestionItem[] => {
-    const items: SuggestionItem[] = [];
-
-    if (debouncedQuery.length >= 1) {
-      // 有输入：显示 "搜索 xxx" + 建议
-      items.push({
-        type: "search",
-        label: searchQuery,
-        value: searchQuery,
-      });
-
-      if (suggestions) {
-        // 标签建议
-        for (const tag of suggestions.tags) {
-          items.push({ type: "tag", label: tag.name, value: tag.slug });
-        }
-        // 视频建议
-        for (const video of suggestions.videos) {
-          items.push({ type: "video", label: video.title, value: video.id });
-        }
-        // 游戏建议
-        if (suggestions.games) {
-          for (const game of suggestions.games) {
-            items.push({ type: "game", label: game.title, value: game.id });
-          }
-        }
-        if (suggestions.imagePosts) {
-          for (const post of suggestions.imagePosts) {
-            items.push({ type: "imagePost", label: post.title, value: post.id });
-          }
-        }
-        if (suggestions.users) {
-          for (const u of suggestions.users) {
-            items.push({ type: "user", label: u.displayName, value: u.id });
-          }
-        }
-      }
-    } else {
-      // 无输入：显示搜索历史 + 站内热搜 + 猜你想搜
-      for (const h of searchHistory.slice(0, 8)) {
-        items.push({ type: "history", label: h, value: h });
-      }
-
-      if (hotSearches) {
-        for (let i = 0; i < hotSearches.length; i++) {
-          items.push({
-            type: "hot",
-            label: hotSearches[i].keyword,
-            value: hotSearches[i].keyword,
-            index: i,
-            isHot: hotSearches[i].isHot,
-          });
-        }
-      }
-
-      if (guessResult && guessResult.items.length > 0) {
-        // 去重：已在热搜/历史中的关键词不再展示
-        const existing = new Set(items.map((i) => i.value.toLowerCase()));
-        for (const g of guessResult.items) {
-          const key = g.keyword.toLowerCase();
-          if (existing.has(key)) continue;
-          existing.add(key);
-          items.push({
-            type: "guess",
-            label: g.keyword,
-            value: g.keyword,
-            isHot: g.isHot,
-            guessReason: g.reason,
-          });
-        }
-      }
+  // ========== 构建输入时的建议项列表（空态由 SearchDiscover 渲染） ==========
+  const hasInput = debouncedQuery.length >= 1;
+  const suggestionItems: SuggestionItem[] = [];
+  if (hasInput) {
+    suggestionItems.push({ type: "search", label: searchQuery, value: searchQuery });
+    if (suggestions) {
+      for (const tag of suggestions.tags) suggestionItems.push({ type: "tag", label: tag.name, value: tag.slug });
+      for (const video of suggestions.videos)
+        suggestionItems.push({ type: "video", label: video.title, value: video.id });
+      for (const game of suggestions.games ?? [])
+        suggestionItems.push({ type: "game", label: game.title, value: game.id });
+      for (const post of suggestions.imagePosts ?? [])
+        suggestionItems.push({ type: "imagePost", label: post.title, value: post.id });
+      for (const u of suggestions.users ?? [])
+        suggestionItems.push({ type: "user", label: u.displayName, value: u.id });
     }
+  }
 
-    return items;
-  }, [debouncedQuery, searchQuery, suggestions, searchHistory, hotSearches, guessResult]);
-
-  const suggestionItems = buildSuggestionItems();
   const hasSuggestionItems = suggestionItems.length > 0;
-  const hasHistoryItems = suggestionItems.some((i) => i.type === "history");
-  const hasHotItems = suggestionItems.some((i) => i.type === "hot");
-  const hasGuessItems = suggestionItems.some((i) => i.type === "guess");
-  const guessPersonalized = guessResult?.source === "personalized";
 
   // 键盘导航
   const handleKeyDown = useCallback(
@@ -603,22 +420,29 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </div>
 
                 {/* 搜索建议下拉 */}
-                {showSuggestions && hasSuggestionItems && (
+                {showSuggestions && (
                   <div
                     ref={suggestionsRef}
-                    className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-2xl shadow-xl z-50 overflow-hidden max-h-[420px] overflow-y-auto"
+                    className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-2xl shadow-xl z-50 overflow-hidden max-h-[480px] overflow-y-auto"
                   >
-                    <SearchSuggestionsList
-                      items={suggestionItems}
-                      activeIndex={activeIndex}
-                      onSelect={handleSuggestionSelect}
-                      onRemoveHistory={handleRemoveHistory}
-                      onClearHistory={handleClearHistory}
-                      showHistoryHeader={hasHistoryItems}
-                      showHotHeader={hasHotItems}
-                      showGuessHeader={hasGuessItems}
-                      guessPersonalized={guessPersonalized}
-                    />
+                    {hasInput ? (
+                      hasSuggestionItems && (
+                        <SearchSuggestionsList
+                          items={suggestionItems}
+                          activeIndex={activeIndex}
+                          onSelect={handleSuggestionSelect}
+                        />
+                      )
+                    ) : (
+                      <SearchDiscover
+                        variant="menu"
+                        onSearchKeyword={handleSearch}
+                        onNavigate={() => {
+                          setShowSuggestions(false);
+                          setActiveIndex(-1);
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -854,28 +678,25 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* 建议内容 */}
           <div className="flex-1 overflow-y-auto">
-            {hasSuggestionItems ? (
-              <SearchSuggestionsList
-                items={suggestionItems}
-                activeIndex={activeIndex}
-                onSelect={handleSuggestionSelect}
-                onRemoveHistory={handleRemoveHistory}
-                onClearHistory={handleClearHistory}
-                showHistoryHeader={hasHistoryItems}
-                showHotHeader={hasHotItems}
-                showGuessHeader={hasGuessItems}
-                guessPersonalized={guessPersonalized}
-              />
-            ) : searchQuery.length > 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Search className="h-10 w-10 mb-3 opacity-30" />
-                <p className="text-sm">输入关键词开始搜索</p>
-              </div>
+            {hasInput ? (
+              hasSuggestionItems ? (
+                <SearchSuggestionsList
+                  items={suggestionItems}
+                  activeIndex={activeIndex}
+                  onSelect={handleSuggestionSelect}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Search className="h-10 w-10 mb-3 opacity-30" />
+                  <p className="text-sm">输入关键词开始搜索</p>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Search className="h-10 w-10 mb-3 opacity-30" />
-                <p className="text-sm">搜索视频、游戏、标签...</p>
-              </div>
+              <SearchDiscover
+                variant="menu"
+                onSearchKeyword={handleSearch}
+                onNavigate={() => setShowMobileSearch(false)}
+              />
             )}
           </div>
         </div>

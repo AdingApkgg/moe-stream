@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { VideoCard } from "@/components/video/video-card";
@@ -9,27 +8,14 @@ import { GameCard } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatViews } from "@/lib/format";
 import { usePageParam } from "@/hooks/use-page-param";
 import { useTabParam } from "@/hooks/use-tab-param";
 import { useSearchEnumParam } from "@/hooks/use-filter-param";
 import { SearchQueryBar } from "@/app/search/_components/search-query-bar";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { SearchAll } from "@/app/search/_components/search-all";
-import {
-  Search,
-  Clock,
-  TrendingUp,
-  Sparkles,
-  X,
-  Play,
-  Gamepad2,
-  Images,
-  Tag,
-  LayoutGrid,
-  ChevronDown,
-  type LucideIcon,
-} from "lucide-react";
+import { SearchDiscover } from "@/components/search/search-discover";
+import { Search, Sparkles, Play, Gamepad2, Images, Tag, LayoutGrid, ChevronDown, type LucideIcon } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import {
   DropdownMenu,
@@ -39,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { useSearchHistoryStore } from "@/stores/app";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { AdCard } from "@/components/ads/ad-card";
@@ -123,201 +108,22 @@ function FilterDropdown<T extends string>({
   );
 }
 
-type HotContentItem = {
-  type: "video" | "game" | "image";
-  id: string;
-  title: string;
-  coverUrl: string | null;
-  views: number;
-  isNsfw: boolean;
-  heat: number;
-  rank: number;
-};
-
-const HOT_TYPE_META: Record<HotContentItem["type"], { label: string; href: (id: string) => string; icon: LucideIcon }> =
-  {
-    video: { label: "视频", href: (id) => `/video/${id}`, icon: Play },
-    game: { label: "游戏", href: (id) => `/game/${id}`, icon: Gamepad2 },
-    image: { label: "图片", href: (id) => `/image/${id}`, icon: Images },
-  };
-
-function HotContentRow({ item }: { item: HotContentItem }) {
-  const meta = HOT_TYPE_META[item.type];
-  const TypeIcon = meta.icon;
-  const isTop3 = item.rank <= 3;
-  return (
-    <Link
-      href={meta.href(item.id)}
-      className="group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent transition-colors"
-    >
-      <span
-        className={cn(
-          "w-6 text-center text-sm font-bold tabular-nums shrink-0",
-          isTop3 ? "text-primary" : "text-muted-foreground",
-        )}
-      >
-        {item.rank}
-      </span>
-      <div className="relative w-16 h-10 shrink-0 rounded overflow-hidden bg-muted">
-        {item.coverUrl ? (
-          <Image src={item.coverUrl} alt={item.title} fill sizes="64px" unoptimized className="object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <TypeIcon className="h-4 w-4 text-muted-foreground/60" />
-          </div>
-        )}
-        {item.isNsfw && (
-          <span className="absolute top-0 right-0 bg-red-500/90 text-white text-[9px] font-bold px-1 leading-tight rounded-bl">
-            NSFW
-          </span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm truncate group-hover:text-primary transition-colors">{item.title}</div>
-        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-0.5">
-            <TypeIcon className="h-3 w-3" />
-            {meta.label}
-          </span>
-          <span>·</span>
-          <span className="tabular-nums">{formatViews(item.views)}次</span>
-        </div>
-      </div>
-      {isTop3 && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium shrink-0">热</span>
-      )}
-    </Link>
-  );
-}
-
 function SearchExplore() {
   const router = useRouter();
-  const { history: searchHistory, removeSearch, clearHistory } = useSearchHistoryStore();
-
-  const { data: hotContents } = trpc.search.getHotContents.useQuery({ limit: 10 }, { staleTime: 300000 });
-  const { data: guessResult } = trpc.search.guessForMe.useQuery({ limit: 12 }, { staleTime: 300000 });
-  const guessItems = guessResult?.items ?? [];
-  const isPersonalized = guessResult?.source === "personalized";
 
   const goSearch = (keyword: string) => {
     router.push(`/search?q=${encodeURIComponent(keyword)}`);
   };
 
-  const hasAnySection = searchHistory.length > 0 || (hotContents && hotContents.length > 0) || guessItems.length > 0;
-
   return (
     <MotionPage>
       <div className="px-4 md:px-6 py-6 max-w-3xl mx-auto">
         <SearchQueryBar query="" className="mb-8" />
-
-        {/* 搜索历史 */}
-        {searchHistory.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                搜索历史
-              </h2>
-              <button
-                onClick={clearHistory}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                全部清除
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {searchHistory.slice(0, 12).map((keyword) => (
-                <button
-                  key={keyword}
-                  onClick={() => goSearch(keyword)}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-accent text-sm transition-colors"
-                >
-                  <span>{keyword}</span>
-                  <X
-                    className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSearch(keyword);
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 站内热搜（具体内容，按多维度热力分排序） */}
-        {hotContents && hotContents.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-base font-semibold flex items-center gap-2 mb-3">
-              <TrendingUp className="h-4 w-4" />
-              站内热搜
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {hotContents.map((item) => (
-                <HotContentRow key={`${item.type}-${item.id}`} item={item} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 猜你想搜 */}
-        {guessItems.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                猜你想搜
-              </h2>
-              {isPersonalized && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                  已个性化
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {guessItems.map((item) => (
-                <button
-                  key={`${item.keyword}-${item.reason}`}
-                  onClick={() => goSearch(item.keyword)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors",
-                    item.reason === "interest"
-                      ? "bg-primary/10 hover:bg-primary/20 text-foreground"
-                      : "bg-muted hover:bg-accent",
-                  )}
-                  title={REASON_LABELS[item.reason] ?? undefined}
-                >
-                  <span>{item.keyword}</span>
-                  {item.isHot && (
-                    <span className="text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 完全空状态 */}
-        {!hasAnySection && (
-          <div className="text-center py-16">
-            <Search className="h-12 w-12 mx-auto text-muted-foreground/30" />
-            <h1 className="text-xl font-semibold mt-4">搜索</h1>
-            <p className="text-muted-foreground mt-2 text-sm">在上方搜索框或顶部栏输入关键词开始搜索</p>
-          </div>
-        )}
+        <SearchDiscover variant="page" onSearchKeyword={goSearch} />
       </div>
     </MotionPage>
   );
 }
-
-const REASON_LABELS: Record<string, string> = {
-  interest: "基于你的兴趣",
-  related: "你可能也喜欢",
-  hot: "全站热门",
-  trending: "近期热搜",
-  popular: "站内流行",
-};
 
 const contentTypeLabels: Record<SearchTab, string> = {
   all: "结果",
