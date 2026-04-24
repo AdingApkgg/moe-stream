@@ -1,6 +1,14 @@
 import { z } from "zod";
 import type { SiteConfig } from "@/generated/prisma/client";
+import {
+  HOME_LAYOUT_PRESET_IDS,
+  LANDING_CARD_IDS,
+  SECTION_MODULE_IDS,
+  mergeHomeLayout,
+  type HomeLayoutConfig,
+} from "@/lib/home-layout";
 import { mergeImageCompressBypassRules, mergeImageCompressProfiles } from "@/lib/image-compress-config";
+import { mergeThumbnailPresets, THUMBNAIL_PRESET_NAMES } from "@/lib/thumbnail-presets";
 
 // ---------------------------------------------------------------------------
 // 工具
@@ -25,6 +33,9 @@ export const mailSendModeEnum = z.enum(["smtp", "http_api"]);
 export const animationPresetEnum = z.enum(["minimal", "standard", "rich"]);
 export const effectTypeEnum = z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]);
 export const entrySoundModeEnum = z.enum(["session", "once", "interval"]);
+export const homeLayoutPresetEnum = z.enum([...HOME_LAYOUT_PRESET_IDS, "custom"] as [string, ...string[]]);
+export const landingCardIdEnum = z.enum(LANDING_CARD_IDS as unknown as [string, ...string[]]);
+export const sectionModuleIdEnum = z.enum(SECTION_MODULE_IDS as unknown as [string, ...string[]]);
 
 // ---------------------------------------------------------------------------
 // Per-tab Schemas（严格校验，不使用 .catch()）
@@ -80,6 +91,39 @@ export const themeTabSchema = z.object({
   animationPreset: animationPresetEnum,
 });
 
+const landingCardFormSchema = z.object({
+  id: landingCardIdEnum,
+  enabled: z.boolean(),
+  title: z.string().max(40),
+  subtitle: z.string().max(100),
+});
+
+const sectionModuleFormSchema = z.object({
+  id: sectionModuleIdEnum,
+  enabled: z.boolean(),
+});
+
+export const homeLayoutSchema = z.object({
+  preset: homeLayoutPresetEnum,
+  landing: z.object({
+    title: z.string().max(50),
+    subtitle: z.string().max(120),
+    cards: z.array(landingCardFormSchema).length(3),
+  }),
+  section: z.object({
+    modules: z.array(sectionModuleFormSchema).length(4),
+    gridColumns: z.object({
+      mobile: z.union([z.literal(1), z.literal(2)]),
+      desktop: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+    }),
+    adDensity: z.number().int().min(0).max(50),
+  }),
+});
+
+export const layoutTabSchema = z.object({
+  homeLayout: homeLayoutSchema,
+});
+
 export const captchaTabSchema = z.object({
   captchaLogin: captchaType,
   captchaRegister: captchaType,
@@ -125,6 +169,20 @@ const imageCompressProfileFormSchema = z.object({
   maxHeight: z.number().int().min(16).max(8192),
 });
 
+const thumbnailPresetSchema = z.object({
+  width: z.number().int().min(16).max(4096),
+  height: z.number().int().min(16).max(4096),
+  quality: z.number().int().min(1).max(100),
+  forceThumb: z.boolean(),
+});
+
+export const thumbnailPresetsSchema = z.object(
+  Object.fromEntries(THUMBNAIL_PRESET_NAMES.map((n) => [n, thumbnailPresetSchema])) as Record<
+    (typeof THUMBNAIL_PRESET_NAMES)[number],
+    typeof thumbnailPresetSchema
+  >,
+);
+
 export const mediaTabSchema = z.object({
   imageCompressEnabled: z.boolean(),
   imageCompressProfiles: z.record(z.enum(["avatar", "cover", "misc", "sticker"]), imageCompressProfileFormSchema),
@@ -153,6 +211,7 @@ export const mediaTabSchema = z.object({
   coverWebpQuality: z.number().int().min(1).max(100),
   coverJpegQuality: z.number().int().min(1).max(100),
   coverProxyThumbEnabled: z.boolean(),
+  thumbnailPresets: thumbnailPresetsSchema,
 });
 
 export const emailTabSchema = z.object({
@@ -277,6 +336,7 @@ export const redirectTabSchema = z.object({
 export type BasicTabValues = z.infer<typeof basicTabSchema>;
 export type FeaturesTabValues = z.infer<typeof featuresTabSchema>;
 export type ThemeTabValues = z.infer<typeof themeTabSchema>;
+export type LayoutTabValues = z.infer<typeof layoutTabSchema>;
 export type CaptchaTabValues = z.infer<typeof captchaTabSchema>;
 export type EffectsTabValues = z.infer<typeof effectsTabSchema>;
 export type ContentTabValues = z.infer<typeof contentTabSchema>;
@@ -352,9 +412,15 @@ export function pickFeaturesValues(cfg: SiteConfig): FeaturesTabValues {
   };
 }
 
+export function pickLayoutValues(cfg: SiteConfig): LayoutTabValues {
+  return {
+    homeLayout: mergeHomeLayout(cfg.homeLayout) as HomeLayoutConfig,
+  };
+}
+
 export function pickThemeValues(cfg: SiteConfig): ThemeTabValues {
   return {
-    themeHue: n(cfg.themeHue, 285),
+    themeHue: n(cfg.themeHue, 350),
     themeColorTemp: n(cfg.themeColorTemp, 0),
     themeBorderRadius: n(cfg.themeBorderRadius, 0.625),
     themeGlassOpacity: n(cfg.themeGlassOpacity, 0.7),
@@ -430,6 +496,7 @@ export function pickMediaValues(cfg: SiteConfig): MediaTabValues {
     coverWebpQuality: n(cfg.coverWebpQuality, 82),
     coverJpegQuality: n(cfg.coverJpegQuality, 88),
     coverProxyThumbEnabled: b(cfg.coverProxyThumbEnabled, true),
+    thumbnailPresets: mergeThumbnailPresets(cfg.thumbnailPresets),
   };
 }
 

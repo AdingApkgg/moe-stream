@@ -33,7 +33,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { useSiteConfig } from "@/contexts/site-config";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useFingerprint } from "@/hooks/use-fingerprint";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { toast } from "@/lib/toast-with-sound";
 
 // ==================== 评论动态 Tab ====================

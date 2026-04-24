@@ -13,7 +13,7 @@ interface ThemeConfig {
 }
 
 const DEFAULTS: ThemeConfig = {
-  themeHue: 285,
+  themeHue: 350,
   themeColorTemp: 0,
   themeBorderRadius: 0.625,
   themeGlassOpacity: 0.7,

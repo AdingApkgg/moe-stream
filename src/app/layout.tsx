@@ -127,8 +127,8 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-// 强制服务端每次请求拉取配置（含广告），避免生产环境使用构建时空配置导致广告不加载
-export const dynamic = "force-dynamic";
+// 站点配置走 globalThis 单例缓存（见 src/lib/site-config.ts），管理员改配置时调用
+// reloadPublicSiteConfig() 刷新；无需 force-dynamic 阻塞所有路由。
 
 export default function RootLayout({
   children,

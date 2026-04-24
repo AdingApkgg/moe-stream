@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 interface CaptchaInputProps {
   value: string;

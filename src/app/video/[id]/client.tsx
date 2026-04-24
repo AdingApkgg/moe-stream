@@ -59,6 +59,7 @@ import { CommentSection } from "@/components/comment/comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getCoverUrl } from "@/lib/cover";
+import { useVideoCoverThumb } from "@/hooks/use-thumb";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useFingerprint } from "@/hooks/use-fingerprint";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -73,6 +74,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   const { data: session } = useSession();
   const router = useRouter();
   const siteConfig = useSiteConfig();
+  const sideListCover = useVideoCoverThumb("sideList");
   const playerRef = useRef<VideoPlayerRef>(null);
   const currentEpisodeRef = useRef<HTMLButtonElement | null>(null);
   const episodeListRef = useRef<HTMLDivElement | null>(null);
@@ -822,7 +824,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                               <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 160 })}
+                                  src={sideListCover(ep.video.id, ep.video.coverUrl)}
                                   alt=""
                                   className="w-full h-full object-cover"
                                 />
@@ -877,7 +879,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                               <div className="relative w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={getCoverUrl(v.id, v.coverUrl, { w: 160 })}
+                                  src={sideListCover(v.id, v.coverUrl)}
                                   alt=""
                                   className="w-full h-full object-cover"
                                 />
@@ -1248,7 +1250,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                               <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 200 })}
+                                  src={sideListCover(ep.video.id, ep.video.coverUrl)}
                                   alt=""
                                   className="w-full h-full object-cover"
                                 />
@@ -1310,7 +1312,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
                               <div className="relative w-20 h-12 rounded overflow-hidden bg-muted shrink-0">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={getCoverUrl(v.id, v.coverUrl, { w: 200 })}
+                                  src={sideListCover(v.id, v.coverUrl)}
                                   alt=""
                                   className="w-full h-full object-cover"
                                 />
@@ -1640,7 +1642,7 @@ function RecommendationItem({
           coverUrl={video.coverUrl}
           blurDataURL={video.coverBlurHash}
           title={video.title}
-          thumbWidth={240}
+          preset="sideList"
           priority={index < 4}
           className="transition-transform duration-300 group-hover:scale-105"
         />

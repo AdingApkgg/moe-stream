@@ -26,6 +26,7 @@ import { apiKeyRouter } from "./api-key";
 import { openApiRouter } from "./open-api";
 import { searchRouter } from "./search";
 import { playlistRouter } from "./playlist";
+import { adRouter } from "./ad";
 
 export const appRouter = router({
   user: userRouter,
@@ -55,6 +56,7 @@ export const appRouter = router({
   openApi: openApiRouter,
   search: searchRouter,
   playlist: playlistRouter,
+  ad: adRouter,
 });
 
 export type AppRouter = typeof appRouter;

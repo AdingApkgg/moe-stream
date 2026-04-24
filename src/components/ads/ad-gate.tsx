@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useSiteConfigForAds } from "@/hooks/use-ads";
+import { useAdTracking } from "@/hooks/use-ad-tracking";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds, getActiveAds, normalizePositions, getAdImage } from "@/lib/ads";
+import { pickWeightedRandomAds, getActiveAds, parseSponsorAds, getAdImage } from "@/lib/ads";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STORAGE_FREE_UNTIL = "acgn_ad_gate_free_until";
@@ -15,41 +16,13 @@ const SESSION_CLICK_AT = "acgn_ad_gate_click_at";
 const MIN_AWAY_MS = 1000;
 const MAX_AWAY_MS = 10 * 60 * 1000;
 
-function parseAdImages(raw: unknown): Ad["images"] {
-  if (!raw || typeof raw !== "object") return undefined;
-  const obj = raw as Record<string, unknown>;
-  const result: NonNullable<Ad["images"]> = {};
-  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
-  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
-  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
-  return Object.keys(result).length > 0 ? result : undefined;
-}
-
-function parseAds(raw: unknown): Ad[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item, idx) => ({
-    id: item.id ?? `legacy-${idx}`,
-    title: item.title ?? "",
-    platform: item.platform ?? "",
-    url: item.url ?? "",
-    description: item.description ?? undefined,
-    imageUrl: item.imageUrl ?? undefined,
-    images: parseAdImages(item.images),
-    weight: typeof item.weight === "number" ? item.weight : 1,
-    enabled: item.enabled !== false,
-    positions: normalizePositions(item),
-    startDate: item.startDate ?? null,
-    endDate: item.endDate ?? null,
-    createdAt: item.createdAt ?? undefined,
-  }));
-}
-
 const AUTO_PLAY_MS = 4000;
 
-function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) => void }) {
+function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (ad: Ad) => void }) {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const total = ads.length;
+  const { trackEvent } = useAdTracking();
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -65,6 +38,12 @@ function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) =>
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [resetTimer]);
+
+  // 当前展示的广告变化时上报 impression
+  useEffect(() => {
+    const ad = ads[current];
+    if (ad) trackEvent(ad.id, "impression");
+  }, [ads, current, trackEvent]);
 
   const go = useCallback(
     (dir: -1 | 1) => {
@@ -89,11 +68,7 @@ function AdCarousel({ ads, onClickAd }: { ads: Ad[]; onClickAd: (url: string) =>
   return (
     <div className="relative rounded-xl overflow-hidden">
       {/* 广告内容 */}
-      <button
-        type="button"
-        onClick={() => onClickAd(ad.url)}
-        className="group relative w-full text-left transition-all"
-      >
+      <button type="button" onClick={() => onClickAd(ad)} className="group relative w-full text-left transition-all">
         {imageUrl ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -185,7 +160,7 @@ export function AdGate() {
   const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState(0);
 
-  const allAds = useMemo(() => parseAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
+  const allAds = useMemo(() => parseSponsorAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
   const enabledAds = useMemo(() => getActiveAds(allAds, "ad-gate"), [allAds]);
 
   const gateOn = siteConfig?.adsEnabled === true && siteConfig?.adGateEnabled === true && enabledAds.length > 0;
@@ -197,14 +172,19 @@ export function AdGate() {
     (session === null ? true : (session.user as { adsEnabled?: boolean })?.adsEnabled !== false);
 
   const randomAd = useMemo(() => pickWeightedRandomAds(enabledAds, 1, "ad-gate")[0] ?? null, [enabledAds]);
+  const { trackEvent } = useAdTracking();
 
-  const openSponsor = useCallback((url: string) => {
-    if (typeof window === "undefined") return;
-    window.open(url, "_blank", "noopener,noreferrer");
-    try {
-      sessionStorage.setItem(SESSION_CLICK_AT, String(Date.now()));
-    } catch {}
-  }, []);
+  const openSponsor = useCallback(
+    (ad: Ad) => {
+      if (typeof window === "undefined") return;
+      trackEvent(ad.id, "click");
+      window.open(ad.url, "_blank", "noopener,noreferrer");
+      try {
+        sessionStorage.setItem(SESSION_CLICK_AT, String(Date.now()));
+      } catch {}
+    },
+    [trackEvent],
+  );
 
   const tryCountReturn = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -320,7 +300,7 @@ export function AdGate() {
             {viewCount}/{required} 已完成
           </span>
           {randomAd && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openSponsor(randomAd.url)}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => openSponsor(randomAd)}>
               🎲 随机观看广告
             </Button>
           )}

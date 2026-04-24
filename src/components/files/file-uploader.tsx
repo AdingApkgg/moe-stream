@@ -859,8 +859,9 @@ function UploadItemRow({ item, onPause, onResume, onRetry, onRemove }: UploadIte
     <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -16, transition: { duration: 0.15 } }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      style={{ willChange: "transform, opacity" }}
       className={cn(
         "flex items-center gap-3 rounded-xl border p-3 transition-colors",
         item.status === "completed" && "bg-green-500/5 border-green-500/20",

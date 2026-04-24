@@ -1,8 +1,11 @@
 "use client";
 
+import { useRef } from "react";
+import Image from "next/image";
 import type { Ad } from "@/lib/ads";
 import { getAdImage } from "@/lib/ads";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
+import { useAdTracking, useAdImpression } from "@/hooks/use-ad-tracking";
 import { cn, getRedirectUrl } from "@/lib/utils";
 
 interface AdCardProps {
@@ -16,17 +19,26 @@ interface AdCardProps {
 
 /**
  * 单条广告卡片：展示图片、平台名、描述，点击跳转。
+ * 进入视口超过 500ms 上报展示，点击时上报点击。
  */
 export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
   const redirectOpts = useRedirectOptions();
   const resolvedSlot = slotId ?? (compact ? "sidebar" : "in-feed");
   const imageUrl = getAdImage(ad, resolvedSlot);
+  const ref = useRef<HTMLAnchorElement | null>(null);
+  const { trackEvent } = useAdTracking();
+  useAdImpression(ref, ad.id);
 
   return (
     <a
+      ref={ref}
       href={getRedirectUrl(ad.url, redirectOpts)}
       target="_blank"
       rel="noopener noreferrer sponsored"
+      onClick={() => trackEvent(ad.id, "click")}
+      onAuxClick={(e) => {
+        if (e.button === 1) trackEvent(ad.id, "click");
+      }}
       className={cn(
         "group block rounded-lg overflow-hidden border border-dashed border-border bg-muted/40 transition-all hover:shadow-md hover:border-primary/60 hover:border-solid",
         className,
@@ -35,12 +47,13 @@ export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
       {/* 图片区域 */}
       {imageUrl ? (
         <div className={cn("relative w-full overflow-hidden bg-muted", compact ? "aspect-[2/1]" : "aspect-video")}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={imageUrl}
             alt={ad.title}
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-            loading="lazy"
+            fill
+            sizes={compact ? "(max-width: 768px) 100vw, 300px" : "(max-width: 768px) 100vw, 50vw"}
+            unoptimized
+            className="object-cover transition-transform group-hover:scale-105"
           />
           {/* 广告标记 */}
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-400 text-black leading-tight shadow-sm">

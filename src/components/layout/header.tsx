@@ -49,7 +49,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { SidebarContent } from "./sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AdSlot } from "@/components/ads/ad-slot";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { trpc } from "@/lib/trpc";
 import { useDebounce, useStableSession } from "@/lib/hooks";
 import { useSearchHistoryStore } from "@/stores/app";

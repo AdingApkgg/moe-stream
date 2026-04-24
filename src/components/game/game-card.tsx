@@ -11,7 +11,7 @@ import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
@@ -95,7 +95,8 @@ function GameCoverImageInner({ src, title, priority }: { src: string; title: str
 }
 
 function GameCoverImage({ coverUrl, title, priority }: { coverUrl?: string | null; title: string; priority: boolean }) {
-  const imageProxy = useImageProxyUrl();
+  // 游戏卡 16:9 展示，h 由 preset.width 按比例推导，admin 改 gridPrimary 就能联动
+  const gridCover = useThumb("gridPrimary", 16 / 9);
   const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({ disabled: priority });
 
   if (!coverUrl) {
@@ -109,7 +110,7 @@ function GameCoverImage({ coverUrl, title, priority }: { coverUrl?: string | nul
     );
   }
 
-  const src = imageProxy(coverUrl, { w: 480, h: 270, q: 60 });
+  const src = gridCover(coverUrl);
   const showMedia = inView;
 
   return (

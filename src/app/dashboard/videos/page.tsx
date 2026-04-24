@@ -72,7 +72,7 @@ import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { SeriesPanel } from "@/components/admin/series-panel";
 import { CoversPanel } from "@/components/admin/covers-panel";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
-import { getCoverUrl } from "@/lib/cover";
+import { useVideoCoverThumb } from "@/hooks/use-thumb";
 
 type VideoStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | VideoStatus;
@@ -246,6 +246,7 @@ interface VideoItem {
 export default function AdminVideosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const adminCover = useVideoCoverThumb("adminTable");
 
   const initialPage = parseInt(searchParams.get("page") || "1");
   const initialStatus = (searchParams.get("status") || "ALL") as StatusFilter;
@@ -713,7 +714,7 @@ export default function AdminVideosPage() {
                           {/* 封面 */}
                           <div className="relative w-40 h-24 rounded-lg bg-muted overflow-hidden shrink-0">
                             <Image
-                              src={getCoverUrl(video.id, video.coverUrl, { w: 320 })}
+                              src={adminCover(video.id, video.coverUrl)}
                               alt={video.title}
                               fill
                               className="object-cover"

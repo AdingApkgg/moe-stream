@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Images, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatViews, formatRelativeTime } from "@/lib/format";
@@ -10,7 +11,7 @@ import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
 
 interface ImagePostCardProps {
@@ -40,14 +41,14 @@ function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; 
   return (
     <>
       {!loaded && <MediaCoverSkeleton className="z-[1]" />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={src}
         alt={alt}
-        className="relative z-[2] w-full h-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
-        loading={priority ? "eager" : "lazy"}
-        decoding="async"
-        fetchPriority={priority ? "high" : "low"}
+        fill
+        priority={priority}
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        unoptimized
+        className="z-[2] object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
         onLoad={() => setLoaded(true)}
       />
     </>
@@ -55,7 +56,8 @@ function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; 
 }
 
 function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardProps) {
-  const imageProxy = useImageProxyUrl();
+  const thumbPrimary = useThumb("gridPrimary");
+  const thumbSecondary = useThumb("gridSecondary");
   const { play } = useSound();
   const animConfig = useAnimationConfig();
   const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
@@ -64,13 +66,16 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
     glareMaxOpacity: 0.1,
     disabled: !animConfig.hover,
   });
-  const priority = index !== undefined && index < 8;
+  // 只有前 4 张首屏封面走高优先级，其余全部懒加载，避免首屏同时下载过多图片
+  const priority = index !== undefined && index < 4;
   const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({ disabled: priority });
 
   const imageUrls = (post.images ?? []) as string[];
   const imageCount = imageUrls.length;
   const hasMultiple = imageCount > 1;
-  const showMedia = inView || priority;
+  const showMain = inView || priority;
+  // 堆叠背景图始终等 inView，不受 priority 影响，减少首屏并发请求
+  const showSecondary = inView && hasMultiple;
   const mainSrcKey = `${post.id}:${imageUrls[0] ?? ""}`;
 
   const assignCardRef = useCallback(
@@ -85,28 +90,30 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
     <div ref={assignCardRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/image/${post.id}`} className="block">
         <div className={cn("relative aspect-square", hasMultiple && "pr-2.5 pb-1")}>
-          {showMedia && hasMultiple && (
+          {showSecondary && (
             <>
               {imageUrls[2] && (
                 <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={imageProxy(imageUrls[2], { w: 200, q: 40 })}
+                    src={thumbSecondary(imageUrls[2])}
                     alt=""
                     className="w-full h-full object-cover brightness-[0.85]"
                     loading="lazy"
                     decoding="async"
+                    fetchPriority="low"
                   />
                 </div>
               )}
               <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={imageProxy(imageUrls[1], { w: 200, q: 40 })}
+                  src={thumbSecondary(imageUrls[1])}
                   alt=""
                   className="w-full h-full object-cover brightness-90"
                   loading="lazy"
                   decoding="async"
+                  fetchPriority="low"
                 />
               </div>
             </>
@@ -114,10 +121,10 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
 
           <div className="relative overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-[shadow,transform] duration-300 ease-out h-full border border-transparent group-hover:border-border/20">
             {imageUrls.length > 0 ? (
-              showMedia ? (
+              showMain ? (
                 <ImagePostMainThumb
                   key={mainSrcKey}
-                  src={imageProxy(imageUrls[0], { w: 400, q: 70 })}
+                  src={thumbPrimary(imageUrls[0])}
                   alt={post.title}
                   priority={priority}
                 />

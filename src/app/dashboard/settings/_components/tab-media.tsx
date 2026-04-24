@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { UPLOAD_IMAGE_TYPES, type UploadImageType } from "@/lib/image-compress-config";
+import { THUMBNAIL_PRESET_META, THUMBNAIL_PRESET_NAMES } from "@/lib/thumbnail-presets";
 import { ChevronDown, ImageIcon, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { mediaTabSchema, pickMediaValues } from "../_lib/schema";
@@ -54,6 +55,14 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
     cover: false,
     misc: false,
     sticker: false,
+  });
+
+  const [openPresets, setOpenPresets] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (let i = 0; i < THUMBNAIL_PRESET_NAMES.length; i++) {
+      init[THUMBNAIL_PRESET_NAMES[i]] = i === 0;
+    }
+    return init;
   });
 
   return (
@@ -114,6 +123,122 @@ export function TabMedia({ config }: { config: SiteConfig | undefined }) {
                 </FormItem>
               )}
             />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>前端缩略图档位</CardTitle>
+            <CardDescription>
+              统一前端所有列表 / 网格 / 侧栏缩略图的宽高与质量。原来散落在代码里的{" "}
+              <code className="text-xs bg-muted px-1 rounded">imageProxy(url, {"{ w, q }"}</code>{" "}
+              <code className="text-xs bg-muted px-1 rounded">)</code>
+              硬编码全部来源于这里；调低一档可直接生效到对应区域。「强制缩略图」打开后，忽略上面的「列表缩略图代理」总开关
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {THUMBNAIL_PRESET_NAMES.map((presetKey) => (
+              <Collapsible
+                key={presetKey}
+                open={openPresets[presetKey]}
+                onOpenChange={(o) => setOpenPresets((s) => ({ ...s, [presetKey]: o }))}
+                className="rounded-lg border"
+              >
+                <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium hover:bg-muted/50">
+                  <span>
+                    {THUMBNAIL_PRESET_META[presetKey].label}{" "}
+                    <span className="text-muted-foreground font-normal">({presetKey})</span>
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                      openPresets[presetKey] ? "rotate-180" : ""
+                    }`}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="border-t px-3 py-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">{THUMBNAIL_PRESET_META[presetKey].description}</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name={`thumbnailPresets.${presetKey}.width`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>宽度 (px)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={16}
+                              max={4096}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 16)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`thumbnailPresets.${presetKey}.height`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>高度 (px)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={16}
+                              max={4096}
+                              value={field.value}
+                              onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 16)}
+                            />
+                          </FormControl>
+                          <FormDescription className="text-[10px]">
+                            与宽度相同时保持正方形；视频 16:9 / 排行 3:2 等由调用处按需覆盖
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name={`thumbnailPresets.${presetKey}.quality`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>质量 ({field.value})</FormLabel>
+                        <FormControl>
+                          <Slider
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={[field.value]}
+                            onValueChange={(v) => field.onChange(v[0])}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`thumbnailPresets.${presetKey}.forceThumb`}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-md border p-2">
+                        <div className="space-y-0.5">
+                          <FormLabel className="!mt-0">强制缩略图</FormLabel>
+                          <FormDescription className="text-[10px]">
+                            打开后此档忽略「列表缩略图代理」开关，永远走 sharp 缩放
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
           </CardContent>
         </Card>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -100,10 +100,15 @@ function LoginForm() {
     });
   }, [searchParams]);
 
+  // Strict Mode 下 effect 会跑两次，第二次启动的 ceremony 会中止第一次，
+  // 控制台随即出现 "Authentication ceremony was sent an abort signal"。用 ref 保证只启动一次。
+  const autoFillStartedRef = useRef(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isTMA) return; // TMA 不支持 Passkey，跳过 autoFill 探测
     if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
+    if (autoFillStartedRef.current) return;
+    autoFillStartedRef.current = true;
     Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable())
       .then((available) => {
         if (!available) return;

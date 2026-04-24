@@ -67,7 +67,7 @@ function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
             coverUrl={video.coverUrl}
             blurDataURL={video.coverBlurHash}
             title={video.title}
-            thumbWidth={480}
+            preset="gridPrimary"
             priority={index !== undefined && index < 8}
             className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
           />

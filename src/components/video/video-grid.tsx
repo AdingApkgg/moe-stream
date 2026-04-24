@@ -31,20 +31,25 @@ interface Video {
 interface VideoGridProps {
   videos: Video[];
   isLoading?: boolean;
-  columns?: 3 | 4 | 5;
+  columns?: 2 | 3 | 4 | 5;
+  /** 自定义栅格 class，优先级高于 columns */
+  columnsClass?: string;
   highlightQuery?: string | null;
 }
 
 const gridColumns = {
+  2: "grid-cols-1 sm:grid-cols-2",
   3: "grid-cols-2 lg:grid-cols-3",
   4: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
   5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function VideoGrid({ videos, isLoading, columns = 4, highlightQuery }: VideoGridProps) {
+export function VideoGrid({ videos, isLoading, columns = 4, columnsClass, highlightQuery }: VideoGridProps) {
+  const colsCls = columnsClass ?? gridColumns[columns];
+
   if (isLoading) {
     return (
-      <div className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
+      <div className={`grid ${colsCls} gap-3 sm:gap-4 lg:gap-5`}>
         {Array.from({ length: 8 }).map((_, i) => (
           <VideoCardSkeleton key={i} />
         ))}
@@ -61,7 +66,7 @@ export function VideoGrid({ videos, isLoading, columns = 4, highlightQuery }: Vi
   }
 
   return (
-    <MotionList className={`grid ${gridColumns[columns]} gap-3 sm:gap-4 lg:gap-5`}>
+    <MotionList className={`grid ${colsCls} gap-3 sm:gap-4 lg:gap-5`}>
       {videos.map((video, index) => (
         <MotionItem key={video.id}>
           <VideoCard video={video} index={index} highlightQuery={highlightQuery} />

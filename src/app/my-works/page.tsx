@@ -60,8 +60,7 @@ import { toast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import Image from "next/image";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getCoverUrl } from "@/lib/cover";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb, useVideoCoverThumb } from "@/hooks/use-thumb";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { useSound } from "@/hooks/use-sound";
@@ -88,7 +87,8 @@ type SortBy = "latest" | "views" | "likes";
 type StatusFilter = "ALL" | "PUBLISHED" | "PENDING" | "REJECTED";
 
 function MyVideosContent() {
-  const imageProxy = useImageProxyUrl();
+  const sideCover = useVideoCoverThumb("sideList");
+  const sideThumb = useThumb("sideList");
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -628,7 +628,7 @@ function MyVideosContent() {
                         className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
                       >
                         <Image
-                          src={getCoverUrl(video.id, video.coverUrl, { w: 320 })}
+                          src={sideCover(video.id, video.coverUrl)}
                           alt={video.title}
                           fill
                           className="object-cover"
@@ -1060,7 +1060,7 @@ function MyVideosContent() {
                       >
                         {game.coverUrl ? (
                           <Image
-                            src={getCoverUrl(game.id, game.coverUrl, { w: 320 })}
+                            src={sideThumb(game.coverUrl)}
                             alt={game.title}
                             fill
                             className="object-cover"
@@ -1437,7 +1437,7 @@ function MyVideosContent() {
                         >
                           {firstImage ? (
                             <Image
-                              src={imageProxy(firstImage, { w: 200, h: 200, q: 60 })}
+                              src={sideThumb(firstImage)}
                               alt={post.title}
                               fill
                               className="object-cover"

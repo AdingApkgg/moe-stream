@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { GameGrid } from "@/components/game/game-grid";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Fragment, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { AlertTriangle, X, Gamepad2 } from "lucide-react";
 import { MotionPage } from "@/components/motion";
@@ -18,6 +18,7 @@ import { useInlineAds } from "@/hooks/use-inline-ads";
 import type { Ad } from "@/lib/ads";
 import { useUIStore } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
+import { DEFAULT_HOME_LAYOUT, isSectionModuleEnabled, sectionGridClass, type SectionModuleId } from "@/lib/home-layout";
 
 /** 游戏类型选项 */
 const GAME_TYPE_OPTIONS: { id: string; label: string }[] = [
@@ -114,11 +115,16 @@ export function GameListClient({
 
   const isFirstPage = page === 1 && !hasFilter && selectedType === "";
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
+  const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
+  const adDensity = layout.section.adDensity;
+  const gridClass = sectionGridClass(layout.section.gridColumns);
   const { gridItems, pickedAds, hasAds } = useInlineAds({
     items: games,
     seed: adSeed,
-    initialAds,
-    useInitialAds: isFirstPage && initialAds.length > 0,
+    initialAds: adDensity === 0 ? [] : initialAds,
+    useInitialAds: isFirstPage && initialAds.length > 0 && adDensity > 0,
+    count: adDensity === 0 ? 0 : 4,
+    interval: adDensity === 0 ? 9999 : adDensity,
   });
 
   const sortOptions = useMemo(() => {
@@ -165,33 +171,29 @@ export function GameListClient({
     return GAME_TYPE_OPTIONS.filter((opt) => opt.id === "" || typeSet.has(opt.id));
   }, [typeStats]);
 
-  return (
-    <MotionPage direction="none">
-      <div className="px-4 md:px-6 py-4 overflow-x-hidden">
-        {/* 横幅轮播广告 */}
-        <HeaderBannerCarousel className="mb-4" />
-
-        {/* 公告横幅 */}
-        {siteConfig?.announcementEnabled && siteConfig.announcement && (
-          <div
-            className={`mb-4 relative overflow-hidden transition-all duration-300 ${
-              showAnnouncement ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
-            }`}
-          >
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-              <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">{siteConfig.announcement}</p>
-              <button
-                onClick={() => setShowAnnouncement(false)}
-                className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+  const modules: Record<SectionModuleId, ReactNode> = {
+    headerBanner: <HeaderBannerCarousel className="mb-4" />,
+    announcement:
+      siteConfig?.announcementEnabled && siteConfig.announcement ? (
+        <div
+          className={`mb-4 relative overflow-hidden transition-all duration-300 ${
+            showAnnouncement ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">{siteConfig.announcement}</p>
+            <button
+              onClick={() => setShowAnnouncement(false)}
+              className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        )}
-
-        {/* 页面标题 */}
+        </div>
+      ) : null,
+    tagBar: (
+      <>
         <MotionPage>
           <div className="flex items-center gap-3 mb-4">
             <Gamepad2 className="h-6 w-6 text-primary" />
@@ -199,7 +201,6 @@ export function GameListClient({
           </div>
         </MotionPage>
 
-        {/* 游戏类型筛选条 */}
         <MotionPage>
           <div className="flex flex-wrap gap-2 mb-4">
             {availableTypes.map((opt) => {
@@ -223,7 +224,6 @@ export function GameListClient({
           </div>
         </MotionPage>
 
-        {/* 排序 + 标签栏 */}
         <MotionPage>
           <CollapsibleTagBar className="mb-6">
             {sortOptions.map((option) => (
@@ -261,51 +261,64 @@ export function GameListClient({
             )}
           </CollapsibleTagBar>
         </MotionPage>
+      </>
+    ),
+    mainGrid: (
+      <section>
+        <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
+          {isLoading && games.length === 0 ? (
+            <GameGrid games={[]} isLoading columnsClass={gridClass} />
+          ) : hasAds ? (
+            <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
+              {gridItems.map((item, index) =>
+                item.type === "ad" ? (
+                  <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
+                ) : (
+                  <GameCard key={item.data.id} game={item.data} index={index} />
+                ),
+              )}
+            </div>
+          ) : (
+            <GameGrid games={games} isLoading={false} columnsClass={gridClass} />
+          )}
 
-        {/* 游戏网格 */}
-        <section>
-          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
-            {isLoading && games.length === 0 ? (
-              <GameGrid games={[]} isLoading />
-            ) : hasAds ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-                {gridItems.map((item, index) =>
-                  item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
-                  ) : (
-                    <GameCard key={item.data.id} game={item.data} index={index} />
-                  ),
-                )}
+          {!isLoading && games.length === 0 && (
+            <div className="text-center py-16">
+              <div className="text-muted-foreground mb-4">
+                <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">没有找到游戏</p>
+                <p className="text-sm mt-1">{hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}</p>
               </div>
-            ) : (
-              <GameGrid games={games} isLoading={false} />
-            )}
+              {(hasFilter || selectedType) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    clearAll();
+                    setSelectedType("");
+                  }}
+                  className="mt-4"
+                >
+                  清除筛选
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
 
-            {!isLoading && games.length === 0 && (
-              <div className="text-center py-16">
-                <div className="text-muted-foreground mb-4">
-                  <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">没有找到游戏</p>
-                  <p className="text-sm mt-1">{hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}</p>
-                </div>
-                {(hasFilter || selectedType) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      clearAll();
-                      setSelectedType("");
-                    }}
-                    className="mt-4"
-                  >
-                    清除筛选
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
+      </section>
+    ),
+  };
 
-          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
-        </section>
+  return (
+    <MotionPage direction="none">
+      <div className="px-4 md:px-6 py-4 overflow-x-hidden">
+        {layout.section.modules.map((m) => {
+          if (!isSectionModuleEnabled(layout, m.id)) return null;
+          const node = modules[m.id];
+          if (!node) return null;
+          return <Fragment key={m.id}>{node}</Fragment>;
+        })}
       </div>
     </MotionPage>
   );

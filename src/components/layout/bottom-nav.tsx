@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Home, Upload, User, Compass, MessageSquare, type LucideIcon } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useSiteConfig } from "@/contexts/site-config";
 
 interface NavItem {

@@ -34,7 +34,7 @@ import { toast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import Image from "next/image";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getCoverUrl } from "@/lib/cover";
+import { useThumb, useVideoCoverThumb } from "@/hooks/use-thumb";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -51,6 +51,8 @@ export default function MySeriesClient({ page }: { page: number }) {
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const seriesThumb = useThumb("sideList");
+  const seriesVideoCover = useVideoCoverThumb("sideList");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditingSeriesData | null>(null);
@@ -232,9 +234,9 @@ export default function MySeriesClient({ page }: { page: number }) {
                     <Image
                       src={
                         series.coverUrl
-                          ? getCoverUrl("", series.coverUrl, { w: 260 })
+                          ? seriesThumb(series.coverUrl)
                           : series.episodes?.[0]?.video
-                            ? getCoverUrl(series.episodes[0].video.id, series.episodes[0].video.coverUrl, { w: 260 })
+                            ? seriesVideoCover(series.episodes[0].video.id, series.episodes[0].video.coverUrl)
                             : "/placeholder.svg"
                       }
                       alt={series.title}

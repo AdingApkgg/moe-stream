@@ -1,4 +1,4 @@
-import { mergeRouters } from "../../trpc";
+import { mergeRouters, router } from "../../trpc";
 import { adminStatsRouter } from "./stats";
 import { adminUsersRouter } from "./users";
 import { adminVideosRouter } from "./videos";
@@ -16,6 +16,7 @@ import { adminStickersRouter } from "./stickers";
 import { adminFilesRouter } from "./files";
 import { adminStoragePoliciesRouter } from "./storage-policies";
 import { adminGroupsRouter } from "./groups";
+import { adminAdsRouter } from "./ads";
 
 export const adminRouter = mergeRouters(
   adminStatsRouter,
@@ -35,4 +36,5 @@ export const adminRouter = mergeRouters(
   adminFilesRouter,
   adminStoragePoliciesRouter,
   adminGroupsRouter,
+  router({ ads: adminAdsRouter }),
 );

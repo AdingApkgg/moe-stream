@@ -58,7 +58,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatDuration } from "@/lib/format";
-import { getCoverUrl } from "@/lib/cover";
+import { useThumb, useVideoCoverThumb } from "@/hooks/use-thumb";
 
 interface SeriesItem {
   id: string;
@@ -95,6 +95,9 @@ interface EditSeriesData {
 }
 
 export function SeriesPanel() {
+  const adminThumb = useThumb("adminTable");
+  const adminVideoCover = useVideoCoverThumb("adminTable");
+  const adminVideoCoverTiny = useVideoCoverThumb("microThumb");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -352,9 +355,9 @@ export function SeriesPanel() {
               const isExpanded = expandedIds.has(series.id);
               const firstEpisodeCover = series.episodes?.[0]?.video;
               const coverSrc = series.coverUrl
-                ? getCoverUrl("", series.coverUrl, { w: 260 })
+                ? adminThumb(series.coverUrl)
                 : firstEpisodeCover
-                  ? getCoverUrl(firstEpisodeCover.id, firstEpisodeCover.coverUrl, { w: 260 })
+                  ? adminVideoCover(firstEpisodeCover.id, firstEpisodeCover.coverUrl)
                   : null;
 
               return (
@@ -541,7 +544,7 @@ export function SeriesPanel() {
                                   >
                                     <div className="relative w-16 h-10 rounded bg-muted overflow-hidden shrink-0">
                                       <Image
-                                        src={getCoverUrl(ep.video.id, ep.video.coverUrl, { w: 160 })}
+                                        src={adminVideoCoverTiny(ep.video.id, ep.video.coverUrl)}
                                         alt={ep.video.title}
                                         fill
                                         className="object-cover"

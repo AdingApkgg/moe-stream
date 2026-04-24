@@ -8,11 +8,13 @@ import { Footer } from "./footer";
 import { BottomNav } from "./bottom-nav";
 import { CommandPalette } from "./command-palette";
 import { TmaLayoutBridge } from "./tma-layout-bridge";
+import { NavigationProgress } from "./navigation-progress";
 import { AdGate } from "@/components/ads/ad-gate";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
-import { useIsMounted, PageTransition } from "@/components/motion";
+import { PageTransition } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useIsTMA } from "@/hooks/use-tma";
 
 const SIDEBAR_COLLAPSED_KEY = "mikiacg-sidebar-collapsed";
@@ -97,6 +99,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-x-hidden">
+      {/* 顶部导航进度条 */}
+      <NavigationProgress />
+
       {/* TMA 环境下由 Telegram 原生 BackButton 接管顶部导航，隐藏应用 Header */}
       {!isTMA && <Header onMenuClick={toggleSidebar} />}
 

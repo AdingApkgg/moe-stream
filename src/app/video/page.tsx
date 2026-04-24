@@ -4,7 +4,7 @@ import VideoListClient from "./client";
 import { WebsiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
-import { pickWeightedRandomAds, normalizePositions, type Ad } from "@/lib/ads";
+import { pickWeightedRandomAds, parseSponsorAds } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,36 +12,6 @@ export const metadata: Metadata = {
   description: "发现最新 ACGN 视频内容，精选动画、漫画、游戏、小说相关视频",
   keywords: ["ACGN", "视频", "动画", "漫画", "游戏"],
 };
-
-function parseAdImages(raw: unknown): Ad["images"] {
-  if (!raw || typeof raw !== "object") return undefined;
-  const obj = raw as Record<string, unknown>;
-  const result: NonNullable<Ad["images"]> = {};
-  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
-  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
-  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
-  return Object.keys(result).length > 0 ? result : undefined;
-}
-
-/** 从 JSON 解析广告列表（兼容旧格式） */
-function parseAds(raw: unknown): Ad[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item, idx) => ({
-    id: item.id ?? `legacy-${idx}`,
-    title: item.title ?? "",
-    platform: item.platform ?? "",
-    url: item.url ?? "",
-    description: item.description ?? undefined,
-    imageUrl: item.imageUrl ?? undefined,
-    images: parseAdImages(item.images),
-    weight: typeof item.weight === "number" ? item.weight : 1,
-    enabled: item.enabled !== false,
-    positions: normalizePositions(item),
-    startDate: item.startDate ?? null,
-    endDate: item.endDate ?? null,
-    createdAt: item.createdAt ?? undefined,
-  }));
-}
 
 // 使用 React cache 避免重复查询
 const getInitialData = cache(async () => {
@@ -93,7 +63,7 @@ const getInitialData = cache(async () => {
   ]);
 
   // 服务端预选 4 条广告（SSR 直出，无需客户端等待）
-  const ads = parseAds(fullConfig.sponsorAds);
+  const ads = parseSponsorAds(fullConfig.sponsorAds);
   const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(ads, 4) : [];
 
   return { tags, videos, siteConfig, initialAds };

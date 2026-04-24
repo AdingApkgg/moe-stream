@@ -62,7 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatViews } from "@/lib/format";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 
 type ImageStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | ImageStatus;
@@ -155,7 +155,8 @@ interface ImageItem {
 }
 
 export default function DashboardImagesPage() {
-  const imageProxy = useImageProxyUrl();
+  const adminThumb = useThumb("adminTable");
+  const microThumb = useThumb("microThumb");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -581,18 +582,13 @@ export default function DashboardImagesPage() {
                           <div className="grid grid-cols-2 grid-rows-2 h-full gap-px">
                             {previewImages.map((url, i) => (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                key={i}
-                                src={imageProxy(url, { w: 100, q: 50 })}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
+                              <img key={i} src={microThumb(url)} alt="" className="w-full h-full object-cover" />
                             ))}
                           </div>
                         ) : previewImages.length > 0 ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={imageProxy(previewImages[0], { w: 200, q: 60 })}
+                            src={adminThumb(previewImages[0])}
                             alt={post.title}
                             className="w-full h-full object-cover"
                           />
@@ -775,7 +771,7 @@ export default function DashboardImagesPage() {
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                      src={imageProxy(url, { w: 150, q: 60 })}
+                                      src={adminThumb(url)}
                                       alt={`${post.title} - ${i + 1}`}
                                       className="w-full h-full object-cover"
                                       loading="lazy"

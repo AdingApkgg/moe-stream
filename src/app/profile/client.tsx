@@ -66,7 +66,7 @@ function HeroCard({ userId }: { userId: string }) {
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 18% 20%, oklch(0.85 0.15 285 / 0.3), transparent 45%), radial-gradient(circle at 85% 80%, oklch(0.85 0.12 220 / 0.25), transparent 50%)",
+            "radial-gradient(circle at 18% 20%, oklch(0.85 0.15 350 / 0.3), transparent 45%), radial-gradient(circle at 85% 80%, oklch(0.85 0.12 220 / 0.25), transparent 50%)",
         }}
       />
 

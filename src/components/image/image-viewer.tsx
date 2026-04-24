@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 
 interface ImageViewerProps {
   images: string[];
@@ -14,6 +15,7 @@ interface ImageViewerProps {
 
 export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageViewerProps) {
   const imageProxy = useImageProxyUrl();
+  const thumbMicro = useThumb("microThumb");
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -227,10 +229,11 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: ImageVi
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={imageProxy(url, { w: 100, q: 50 })}
+                  src={thumbMicro(url)}
                   alt={`Thumbnail ${i + 1}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               </button>
             ))}

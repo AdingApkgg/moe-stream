@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Clock, Eye, ArrowLeft, User, Download, AlertCircle, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { MotionPage } from "@/components/motion";
-import { getCoverUrl } from "@/lib/cover";
+import { useVideoCoverThumb } from "@/hooks/use-thumb";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getRedirectUrl } from "@/lib/utils";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
@@ -25,6 +25,7 @@ export default function SeriesPage() {
   const redirectOpts = useRedirectOptions();
   const params = useParams();
   const seriesId = params.id as string;
+  const gridCover = useVideoCoverThumb("gridPrimary");
 
   const { data: series, isLoading, error } = trpc.series.getById.useQuery({ id: seriesId }, { enabled: !!seriesId });
 
@@ -136,7 +137,7 @@ export default function SeriesPage() {
                   <div className="relative aspect-video bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={getCoverUrl(episode.video.id, episode.video.coverUrl, { w: 400 })}
+                      src={gridCover(episode.video.id, episode.video.coverUrl)}
                       alt={episode.video.title}
                       className="w-full h-full object-cover"
                     />

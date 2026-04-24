@@ -18,14 +18,15 @@ import { cn } from "@/lib/utils";
 import { ImagePostCommentSection } from "@/components/comment/image-post-comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import type { SerializedImagePost } from "./page";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 
 interface ImageDetailClientProps {
   post: SerializedImagePost;
 }
 
 export function ImageDetailClient({ post }: ImageDetailClientProps) {
-  const imageProxy = useImageProxyUrl();
+  const thumbPrimary = useThumb("gridPrimary");
+  const thumbDetail = useThumb("detailGrid");
   const { data: session } = useSession();
   const { play } = useSound();
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -287,22 +288,28 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
         {/* Image grid */}
         <MotionPage>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-            {imageUrls.map((url, index) => (
-              <button
-                key={index}
-                onClick={() => openViewer(index)}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageProxy(url, { w: 400, q: 70 })}
-                  alt={`${post.title} - ${index + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-              </button>
-            ))}
+            {imageUrls.map((url, index) => {
+              // 首张沿用 gridPrimary 做"图集封面"，其余走 detailGrid（更压、尺寸更小），点击由 Lightbox 加载原图
+              const src = index === 0 ? thumbPrimary(url) : thumbDetail(url);
+              return (
+                <button
+                  key={index}
+                  onClick={() => openViewer(index)}
+                  className="group relative aspect-square overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={`${post.title} - ${index + 1}`}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority={index < 4 ? "auto" : "low"}
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                </button>
+              );
+            })}
           </div>
         </MotionPage>
 

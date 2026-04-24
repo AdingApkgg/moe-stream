@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { reloadPublicSiteConfig } from "@/lib/site-config";
 import { reloadServerConfig } from "@/lib/server-config";
+import { HOME_LAYOUT_PRESET_IDS, LANDING_CARD_IDS, SECTION_MODULE_IDS } from "@/lib/home-layout";
 
 const ALLOWED_CONFIG_KEYS = new Set([
   "siteName",
@@ -47,6 +48,7 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "coverWebpQuality",
   "coverJpegQuality",
   "coverProxyThumbEnabled",
+  "thumbnailPresets",
   "contactEmail",
   "socialLinks",
   "privacyPolicy",
@@ -127,6 +129,7 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "animationDialog",
   "animationTab",
   "animationPreset",
+  "homeLayout",
   "effectEnabled",
   "effectType",
   "effectDensity",
@@ -323,6 +326,18 @@ export const adminConfigRouter = router({
         coverWebpQuality: z.number().int().min(1).max(100).optional(),
         coverJpegQuality: z.number().int().min(1).max(100).optional(),
         coverProxyThumbEnabled: z.boolean().optional(),
+        thumbnailPresets: z
+          .record(
+            z.enum(["gridPrimary", "gridSecondary", "detailGrid", "sideList", "microThumb", "adminTable"]),
+            z.object({
+              width: z.number().int().min(16).max(4096),
+              height: z.number().int().min(16).max(4096),
+              quality: z.number().int().min(1).max(100),
+              forceThumb: z.boolean(),
+            }),
+          )
+          .optional()
+          .nullable(),
 
         // 联系方式
         contactEmail: z.string().email().optional().nullable().or(z.literal("")),
@@ -507,6 +522,43 @@ export const adminConfigRouter = router({
         animationTab: z.boolean().optional(),
         animationPreset: z.enum(["minimal", "standard", "rich"]).optional(),
 
+        // 首页与分区页布局
+        homeLayout: z
+          .object({
+            preset: z.enum([...HOME_LAYOUT_PRESET_IDS, "custom"] as [string, ...string[]]),
+            landing: z.object({
+              title: z.string().max(50),
+              subtitle: z.string().max(120),
+              cards: z
+                .array(
+                  z.object({
+                    id: z.enum(LANDING_CARD_IDS as unknown as [string, ...string[]]),
+                    enabled: z.boolean(),
+                    title: z.string().max(40),
+                    subtitle: z.string().max(100),
+                  }),
+                )
+                .length(3),
+            }),
+            section: z.object({
+              modules: z
+                .array(
+                  z.object({
+                    id: z.enum(SECTION_MODULE_IDS as unknown as [string, ...string[]]),
+                    enabled: z.boolean(),
+                  }),
+                )
+                .length(4),
+              gridColumns: z.object({
+                mobile: z.union([z.literal(1), z.literal(2)]),
+                desktop: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+              }),
+              adDensity: z.number().int().min(0).max(50),
+            }),
+          })
+          .optional()
+          .nullable(),
+
         // 视觉效果
         effectEnabled: z.boolean().optional(),
         effectType: z.enum(["sakura", "firefly", "snow", "stars", "aurora", "cyber", "none"]).optional(),
@@ -626,6 +678,12 @@ export const adminConfigRouter = router({
         cleaned.imageCompressBypassRules = JSON.parse(
           JSON.stringify(cleaned.imageCompressBypassRules),
         ) as Prisma.InputJsonValue;
+      }
+      if (cleaned.thumbnailPresets != null && typeof cleaned.thumbnailPresets === "object") {
+        cleaned.thumbnailPresets = JSON.parse(JSON.stringify(cleaned.thumbnailPresets)) as Prisma.InputJsonValue;
+      }
+      if (cleaned.homeLayout != null && typeof cleaned.homeLayout === "object") {
+        cleaned.homeLayout = JSON.parse(JSON.stringify(cleaned.homeLayout)) as Prisma.InputJsonValue;
       }
 
       const config = await ctx.prisma.siteConfig.upsert({
@@ -760,7 +818,7 @@ export const adminConfigRouter = router({
       ) as Record<string, unknown>;
 
       // 保证 Json 字段可序列化
-      for (const jsonKey of ["sponsorAds", "socialLinks", "footerLinks"]) {
+      for (const jsonKey of ["sponsorAds", "socialLinks", "footerLinks", "thumbnailPresets"]) {
         if (cleaned[jsonKey] != null) {
           cleaned[jsonKey] = JSON.parse(JSON.stringify(cleaned[jsonKey])) as Prisma.InputJsonValue;
         }

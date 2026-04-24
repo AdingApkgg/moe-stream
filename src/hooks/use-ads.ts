@@ -4,38 +4,7 @@ import { useMemo } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useSiteConfig } from "@/contexts/site-config";
 import { trpc } from "@/lib/trpc";
-import type { Ad } from "@/lib/ads";
-import { pickWeightedRandomAds, normalizePositions } from "@/lib/ads";
-
-/** 从 JSON 解析广告列表（兼容旧格式） */
-function parseAds(raw: unknown): Ad[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item, idx) => ({
-    id: item.id ?? `legacy-${idx}`,
-    title: item.title ?? "",
-    platform: item.platform ?? "",
-    url: item.url ?? "",
-    description: item.description ?? undefined,
-    imageUrl: item.imageUrl ?? undefined,
-    images: parseAdImages(item.images),
-    weight: typeof item.weight === "number" ? item.weight : 1,
-    enabled: item.enabled !== false,
-    positions: normalizePositions(item),
-    startDate: item.startDate ?? null,
-    endDate: item.endDate ?? null,
-    createdAt: item.createdAt ?? undefined,
-  }));
-}
-
-function parseAdImages(raw: unknown): Ad["images"] {
-  if (!raw || typeof raw !== "object") return undefined;
-  const obj = raw as Record<string, unknown>;
-  const result: NonNullable<Ad["images"]> = {};
-  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
-  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
-  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
-  return Object.keys(result).length > 0 ? result : undefined;
-}
+import { pickWeightedRandomAds, parseSponsorAds } from "@/lib/ads";
 
 /**
  * 站点配置：优先 Context（SSR），Context 为空时用 tRPC 拉取（生产环境兜底）。
@@ -69,7 +38,7 @@ export function useAds() {
 
   const showAds = siteAdsOn && userAllowsAds;
 
-  const allAds = useMemo(() => parseAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
+  const allAds = useMemo(() => parseSponsorAds(siteConfig?.sponsorAds), [siteConfig?.sponsorAds]);
   const enabledAds = useMemo(() => allAds.filter((a) => a.enabled), [allAds]);
 
   return { showAds, allAds, enabledAds, siteConfig };

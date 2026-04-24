@@ -64,7 +64,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TransferOwnerDialog } from "@/components/admin/transfer-owner-dialog";
 import { formatRelativeTime, formatViews } from "@/lib/format";
-import { useImageProxyUrl } from "@/hooks/use-cover-url";
+import { useThumb } from "@/hooks/use-thumb";
 
 type GameStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 type StatusFilter = "ALL" | GameStatus;
@@ -289,7 +289,8 @@ interface GameItem {
 }
 
 export default function DashboardGamesPage() {
-  const imageProxy = useImageProxyUrl();
+  // 后台游戏缩略展示是 200x260 竖版（w-[120px] h-[160px] 容器），保留 200 宽度通过 override
+  const adminPortrait = useThumb("adminTable");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -712,7 +713,7 @@ export default function DashboardGamesPage() {
                         {game.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={imageProxy(game.coverUrl, { w: 200, h: 260, q: 60 })}
+                            src={adminPortrait(game.coverUrl, { w: 200, h: 260 })}
                             alt={game.title}
                             className="w-full h-full object-cover"
                           />

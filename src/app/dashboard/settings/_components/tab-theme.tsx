@@ -47,7 +47,7 @@ export function TabTheme({ config }: { config: SiteConfig | undefined }) {
                           variant="ghost"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={() => field.onChange(285)}
+                          onClick={() => field.onChange(350)}
                         >
                           重置
                         </Button>
@@ -86,8 +86,8 @@ export function TabTheme({ config }: { config: SiteConfig | undefined }) {
                             { hue: 145, label: "绿" },
                             { hue: 200, label: "蓝" },
                             { hue: 270, label: "紫" },
-                            { hue: 285, label: "默认" },
-                            { hue: 330, label: "粉" },
+                            { hue: 285, label: "经典紫" },
+                            { hue: 350, label: "默认" },
                           ] as const
                         ).map(({ hue, label }) => (
                           <button
@@ -537,7 +537,8 @@ export function TabTheme({ config }: { config: SiteConfig | undefined }) {
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {(
                     [
-                      { label: "默认紫", hue: 285, temp: 0, radius: 0.625, desc: "经典 ACGN 紫" },
+                      { label: "默认粉", hue: 350, temp: 0, radius: 0.625, desc: "清新萌系粉" },
+                      { label: "经典紫", hue: 285, temp: 0, radius: 0.625, desc: "经典 ACGN 紫" },
                       { label: "海洋蓝", hue: 210, temp: -30, radius: 0.75, desc: "冷色调科技感" },
                       { label: "樱花粉", hue: 340, temp: 20, radius: 1.0, desc: "温暖少女风" },
                       { label: "森林绿", hue: 145, temp: 15, radius: 0.5, desc: "自然清新感" },
@@ -589,7 +590,7 @@ export function TabTheme({ config }: { config: SiteConfig | undefined }) {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  form.setValue("themeHue", 285, { shouldDirty: true });
+                  form.setValue("themeHue", 350, { shouldDirty: true });
                   form.setValue("themeColorTemp", 0, { shouldDirty: true });
                   form.setValue("themeBorderRadius", 0.625, { shouldDirty: true });
                   form.setValue("themeGlassOpacity", 0.7, { shouldDirty: true });

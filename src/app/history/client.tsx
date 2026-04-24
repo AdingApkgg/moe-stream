@@ -24,7 +24,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 import Image from "next/image";
 import { formatViews, formatRelativeTime } from "@/lib/format";
-import { getCoverUrl } from "@/lib/cover";
+import { useVideoCoverThumb } from "@/hooks/use-thumb";
 import { Pagination } from "@/components/ui/pagination";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
@@ -46,6 +46,7 @@ export default function HistoryClient({ page }: { page: number }) {
   const utils = trpc.useUtils();
   const { play } = useSound();
 
+  const sideListCover = useVideoCoverThumb("sideList");
   const [activeTab, setActiveTab] = useState<ContentTab>("video");
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -359,7 +360,7 @@ export default function HistoryClient({ page }: { page: number }) {
                             className="relative w-40 h-24 flex-shrink-0 rounded-md overflow-hidden bg-muted"
                           >
                             <Image
-                              src={getCoverUrl(video.id, video.coverUrl, { w: 320 })}
+                              src={sideListCover(video.id, video.coverUrl)}
                               alt={video.title}
                               fill
                               className="object-cover"

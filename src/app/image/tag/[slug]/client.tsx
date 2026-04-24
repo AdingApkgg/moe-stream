@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
@@ -27,16 +28,25 @@ export function ImageTagPageClient({ slug, initialTag }: ImageTagPageClientProps
 
   const displayTag = tag || initialTag;
 
-  const { data, isLoading } = trpc.image.list.useQuery(
+  // 翻页时立即切换到骨架屏，避免旧图还在占位时用户以为没响应
+  const { data, isLoading, isFetching } = trpc.image.list.useQuery(
     { limit: 20, page, tagId: displayTag?.id },
-    {
-      enabled: !!displayTag?.id,
-      placeholderData: (prev) => prev,
-    },
+    { enabled: !!displayTag?.id },
   );
 
   const posts = data?.posts ?? [];
   const totalPages = data?.totalPages ?? 1;
+  const showSkeleton = (isLoading || isFetching || (!initialTag && tagLoading)) && posts.length === 0;
+
+  const handlePageChange = useCallback(
+    (next: number) => {
+      setPage(next);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+    },
+    [setPage],
+  );
 
   if (!initialTag && !displayTag && !tagLoading) {
     return (
@@ -69,7 +79,7 @@ export function ImageTagPageClient({ slug, initialTag }: ImageTagPageClientProps
         </div>
       </div>
 
-      {isLoading || (!initialTag && tagLoading) ? (
+      {showSkeleton ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
@@ -83,9 +93,9 @@ export function ImageTagPageClient({ slug, initialTag }: ImageTagPageClientProps
         </div>
       )}
 
-      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} className="mt-8" />
 
-      {!isLoading && posts.length === 0 && displayTag && (
+      {!isLoading && !isFetching && posts.length === 0 && displayTag && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">该标签下暂无图片</p>
           <Button asChild variant="outline" className="mt-4">

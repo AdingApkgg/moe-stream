@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useReducedMotion } from "framer-motion";
 import { useSiteConfig } from "@/contexts/site-config";
+import { useReducedMotion } from "./use-reduced-motion";
 
 export type AnimationPreset = "minimal" | "standard" | "rich";
 

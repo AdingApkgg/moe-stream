@@ -16,7 +16,7 @@ import { ImagePostCommentItem } from "./image-post-comment-item";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useFingerprint } from "@/hooks/use-fingerprint";
-import { useIsMounted } from "@/components/motion";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useSiteConfig } from "@/contexts/site-config";
 import { UnifiedCaptcha, type CaptchaType } from "@/components/ui/unified-captcha";
 

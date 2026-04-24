@@ -1128,6 +1128,9 @@ model SiteConfig {
   coverJpegQuality Int @default(88)
   /// /api/cover 是否按 ?w/h/q 生成列表缩略图（关闭则仅代理原图，不做 sharp 缩放）
   coverProxyThumbEnabled Boolean @default(true)
+  /// 前端缩略图档位配置（gridPrimary/gridSecondary/detailGrid/sideList/microThumb/adminTable）
+  /// 每档含 { width, height, quality, forceThumb }；forceThumb=true 时忽略 coverProxyThumbEnabled 开关
+  thumbnailPresets Json?
 
   // 联系方式
   contactEmail    String?
@@ -1179,7 +1182,7 @@ model SiteConfig {
   storagePathPrefix   String?  // 存储路径前缀
 
   // 个性化样式
-  themeHue            Int     @default(285)         // 主题色相 0-360（OKLCH hue）
+  themeHue            Int     @default(350)         // 主题色相 0-360（OKLCH hue）
   themeColorTemp      Int     @default(0)           // 色温 -100(冷色调) 到 100(暖色调)
   themeBorderRadius   Float   @default(0.625)       // 全局圆角基准值 (rem)
   themeGlassOpacity   Float   @default(0.7)         // 玻璃态透明度 0-1
@@ -1193,6 +1196,10 @@ model SiteConfig {
   animationDialog         Boolean @default(true)       // 弹窗动画
   animationTab            Boolean @default(true)       // Tab 切换动画
   animationPreset         String  @default("standard") // minimal | standard | rich
+
+  /// 首页与分区页布局配置（落地页卡片顺序/文案、分区页模块排列、列数、广告密度等）
+  /// 结构见 src/lib/home-layout.ts HomeLayoutConfig
+  homeLayout              Json?
 
   // 视觉效果
   effectEnabled       Boolean @default(true)
@@ -1947,4 +1954,18 @@ model ApiKey {
 
   @@index([keyHash])
   @@index([userId])
+}
+
+/// 广告展示/点击指标（按天聚合，每个广告每天一行）
+/// adId 对应 SiteConfig.sponsorAds JSON 中的广告 ID
+model AdMetric {
+  adId        String
+  date        DateTime /// 当天 UTC 00:00:00
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@id([adId, date])
+  @@index([adId])
+  @@index([date])
 }

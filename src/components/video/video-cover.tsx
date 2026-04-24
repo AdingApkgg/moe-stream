@@ -7,6 +7,7 @@ import type { MutableRefObject } from "react";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
+import { DEFAULT_THUMBNAIL_PRESETS, getVideoCoverThumbUrl, type ThumbnailPresetName } from "@/lib/thumbnail-presets";
 
 interface VideoCoverProps {
   videoId?: string;
@@ -14,8 +15,10 @@ interface VideoCoverProps {
   blurDataURL?: string | null;
   title: string;
   className?: string;
-  /** 缩略图宽度（不传则使用原图） */
-  thumbWidth?: number;
+  /** 缩略图档位名。不传走原图（适合播放器 poster） */
+  preset?: ThumbnailPresetName;
+  /** 视频封面目标宽高比，默认 16/9；会与 preset.width 组合成 h = w / aspect */
+  aspect?: number;
   /** 首屏优先请求与解码（列表前几项建议开启） */
   priority?: boolean;
 }
@@ -111,7 +114,8 @@ export function VideoCover({
   blurDataURL,
   title,
   className = "",
-  thumbWidth,
+  preset,
+  aspect = 16 / 9,
   priority = false,
 }: VideoCoverProps) {
   const siteConfig = useSiteConfig();
@@ -135,29 +139,25 @@ export function VideoCover({
     };
   }, []);
 
-  const getCoverSrc = () => {
+  const getCoverSrc = (): string | null => {
     if (giveUp) return null;
 
-    const thumbSuffix =
-      proxyThumbEnabled && thumbWidth
-        ? `${(coverUrl && !coverUrl.startsWith("/uploads/")) || !coverUrl ? "?" : "?"}w=${thumbWidth}&h=${Math.round((thumbWidth * 9) / 16)}&q=60`
-        : "";
-
-    if (coverUrl) {
-      if (coverUrl.startsWith("/uploads/")) {
-        if (thumbWidth) {
-          return `/api/cover/${encodeURIComponent(coverUrl)}${thumbSuffix}`;
-        }
-        return coverUrl;
+    if (!preset) {
+      // 无 preset：走原图（适用于播放器 poster 等需要最高画质的场景）
+      if (coverUrl) {
+        if (coverUrl.startsWith("/uploads/")) return coverUrl;
+        return `/api/cover/${encodeURIComponent(coverUrl)}`;
       }
-      return `/api/cover/${encodeURIComponent(coverUrl)}${thumbSuffix}`;
+      if (videoId) return `/api/cover/video/${videoId}`;
+      return null;
     }
 
-    if (videoId) {
-      return `/api/cover/video/${videoId}${thumbSuffix}`;
-    }
+    if (!coverUrl && !videoId) return null;
 
-    return null;
+    const p = siteConfig?.thumbnailPresets?.[preset] ?? DEFAULT_THUMBNAIL_PRESETS[preset];
+    // 视频封面统一按传入宽高比裁剪；默认 16:9
+    const height = Math.max(16, Math.round(p.width / aspect));
+    return getVideoCoverThumbUrl(videoId ?? "", coverUrl, p, proxyThumbEnabled, { h: height });
   };
 
   const coverSrc = getCoverSrc();

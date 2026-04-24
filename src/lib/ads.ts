@@ -19,22 +19,6 @@ export const AD_POSITION_SPECIFIC: { value: AdPosition; label: string }[] = AD_P
   (p) => p.value !== "all",
 );
 
-const SLOT_ID_TO_POSITION: Record<string, AdPosition> = {
-  sidebar: "sidebar",
-  header: "header",
-  "header-carousel": "header-carousel",
-  "in-feed": "in-feed",
-  "video-sidebar": "sidebar",
-  "ad-gate": "ad-gate",
-};
-
-/** 从 slotId 推导对应的 AdPosition，未知 slotId 返回 undefined（仅匹配 "all" 广告） */
-export function resolveSlotPosition(slotId: string): AdPosition | undefined {
-  return SLOT_ID_TO_POSITION[slotId];
-}
-
-const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
-
 /** 不同广告位的专用图片尺寸标识 */
 export type AdImageSize = "banner" | "card" | "sidebar";
 
@@ -43,6 +27,33 @@ export const AD_IMAGE_SIZES: { value: AdImageSize; label: string; hint: string }
   { value: "card", label: "卡片图", hint: "用于信息流，推荐 640×360" },
   { value: "sidebar", label: "侧栏图", hint: "用于侧边栏，推荐 400×200" },
 ];
+
+/** 广告位 slotId 的统一配置表：映射到 AdPosition 和 AdImageSize */
+interface SlotConfig {
+  position: AdPosition;
+  imageSize: AdImageSize;
+}
+
+const SLOT_CONFIG: Record<string, SlotConfig> = {
+  sidebar: { position: "sidebar", imageSize: "sidebar" },
+  "video-sidebar": { position: "sidebar", imageSize: "sidebar" },
+  header: { position: "header", imageSize: "banner" },
+  "header-carousel": { position: "header-carousel", imageSize: "banner" },
+  "in-feed": { position: "in-feed", imageSize: "card" },
+  "ad-gate": { position: "ad-gate", imageSize: "card" },
+};
+
+/** 从 slotId 推导对应的 AdPosition，未知 slotId 返回 undefined（仅匹配 "all" 广告） */
+export function resolveSlotPosition(slotId: string): AdPosition | undefined {
+  return SLOT_CONFIG[slotId]?.position;
+}
+
+/** 从 slotId 推导对应的图片尺寸类型 */
+export function resolveSlotImageSize(slotId: string): AdImageSize | undefined {
+  return SLOT_CONFIG[slotId]?.imageSize;
+}
+
+const VALID_POSITIONS: Set<string> = new Set(AD_POSITIONS.map((p) => p.value));
 
 /** 各广告位尺寸的专用图片 URL */
 export interface AdImages {
@@ -81,28 +92,53 @@ export interface Ad {
   createdAt?: string;
 }
 
-const SLOT_TO_IMAGE_SIZE: Record<string, AdImageSize> = {
-  sidebar: "sidebar",
-  "video-sidebar": "sidebar",
-  header: "banner",
-  "header-carousel": "banner",
-  "in-feed": "card",
-  "ad-gate": "card",
-};
-
 /**
  * 根据广告位选取最合适的图片 URL。
  * 优先使用该位置对应尺寸的专用图，未配置则回退到默认 imageUrl。
  */
 export function getAdImage(ad: Ad, slotId?: string): string | undefined {
   if (slotId && ad.images) {
-    const size = SLOT_TO_IMAGE_SIZE[slotId];
+    const size = resolveSlotImageSize(slotId);
     if (size) {
       const url = ad.images[size];
       if (url) return url;
     }
   }
   return ad.imageUrl;
+}
+
+/** 从原始对象解析各广告位专用图片 URL */
+export function parseAdImages(raw: unknown): AdImages | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const result: AdImages = {};
+  if (typeof obj.banner === "string" && obj.banner) result.banner = obj.banner;
+  if (typeof obj.card === "string" && obj.card) result.card = obj.card;
+  if (typeof obj.sidebar === "string" && obj.sidebar) result.sidebar = obj.sidebar;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
+ * 从 SiteConfig.sponsorAds JSON 字段解析广告列表。
+ * 统一处理旧数据兼容、字段缺省、类型校验，供客户端和管理端共用。
+ */
+export function parseSponsorAds(raw: unknown): Ad[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, idx) => ({
+    id: item?.id ?? `legacy-${idx}`,
+    title: item?.title ?? "",
+    platform: item?.platform ?? "",
+    url: item?.url ?? "",
+    description: item?.description || undefined,
+    imageUrl: item?.imageUrl || undefined,
+    images: parseAdImages(item?.images),
+    weight: typeof item?.weight === "number" ? item.weight : 1,
+    enabled: item?.enabled !== false,
+    positions: normalizePositions(item ?? {}),
+    startDate: item?.startDate ?? null,
+    endDate: item?.endDate ?? null,
+    createdAt: item?.createdAt ?? undefined,
+  }));
 }
 
 /** 将旧版单一 position 字段规范化为 positions 数组（兼容旧数据） */

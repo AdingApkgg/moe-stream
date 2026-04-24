@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Ad } from "@/lib/ads";
+import { mergeHomeLayout, type HomeLayoutConfig } from "@/lib/home-layout";
+import { mergeThumbnailPresets, type ThumbnailPresets } from "@/lib/thumbnail-presets";
 
 /** 公开站点配置（不含敏感字段，可安全传给客户端） */
 export interface PublicSiteConfig {
@@ -103,6 +105,10 @@ export interface PublicSiteConfig {
   redirectDisclaimer: string | null;
   /** /api/cover 是否启用 ?w/h/q 列表缩略图；为 false 时前端不带缩略参数、接口仅代理原图 */
   coverProxyThumbEnabled: boolean;
+  /** 前端缩略图档位（6 档语义预设，合并缺省值后永远完整） */
+  thumbnailPresets: ThumbnailPresets;
+  /** 首页与分区页布局（落地页卡片、分区模块顺序、列数、广告密度） */
+  homeLayout: HomeLayoutConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +188,7 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     adGateViewsRequired: (c.adGateViewsRequired as number) ?? 3,
     adGateHours: (c.adGateHours as number) ?? 12,
     sponsorAds: c.sponsorAds as Ad[] | null,
-    themeHue: (c.themeHue as number) ?? 285,
+    themeHue: (c.themeHue as number) ?? 350,
     themeColorTemp: (c.themeColorTemp as number) ?? 0,
     themeBorderRadius: (c.themeBorderRadius as number) ?? 0.625,
     themeGlassOpacity: (c.themeGlassOpacity as number) ?? 0.7,
@@ -249,6 +255,8 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     redirectDescription: (c.redirectDescription as string) ?? null,
     redirectDisclaimer: (c.redirectDisclaimer as string) ?? null,
     coverProxyThumbEnabled: typeof c.coverProxyThumbEnabled === "boolean" ? c.coverProxyThumbEnabled : true,
+    thumbnailPresets: mergeThumbnailPresets(c.thumbnailPresets),
+    homeLayout: mergeHomeLayout(c.homeLayout),
   };
 }
 
