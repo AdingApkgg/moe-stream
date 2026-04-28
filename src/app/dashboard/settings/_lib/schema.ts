@@ -153,6 +153,7 @@ export const effectsTabSchema = z.object({
 
 export const contentTabSchema = z.object({
   videoSelectorMode: videoSelectorModeEnum,
+  videoSelectorMaxCount: z.number().int().min(10).max(10000),
   videosPerPage: z.number().int().min(5).max(100),
   commentsPerPage: z.number().int().min(5).max(100),
   maxUploadSize: z.number().int().min(10).max(10000),
@@ -470,6 +471,7 @@ export function pickEffectsValues(cfg: SiteConfig): EffectsTabValues {
 export function pickContentValues(cfg: SiteConfig): ContentTabValues {
   return {
     videoSelectorMode: validEnum(cfg.videoSelectorMode, ["series", "author", "uploader", "disabled"], "series"),
+    videoSelectorMaxCount: n(cfg.videoSelectorMaxCount, 100),
     videosPerPage: cfg.videosPerPage,
     commentsPerPage: cfg.commentsPerPage,
     maxUploadSize: cfg.maxUploadSize,

@@ -72,6 +72,7 @@ export interface PublicSiteConfig {
   hcaptchaSiteKey: string | null;
   referralEnabled: boolean;
   videoSelectorMode: string;
+  videoSelectorMaxCount: number;
   sectionVideoEnabled: boolean;
   sectionImageEnabled: boolean;
   sectionGameEnabled: boolean;
@@ -223,6 +224,7 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     hcaptchaSiteKey: (c.hcaptchaSiteKey as string) ?? null,
     referralEnabled: (c.referralEnabled as boolean) ?? false,
     videoSelectorMode: (c.videoSelectorMode as string) ?? "series",
+    videoSelectorMaxCount: (c.videoSelectorMaxCount as number) ?? 100,
     sectionVideoEnabled: (c.sectionVideoEnabled as boolean) ?? true,
     sectionImageEnabled: (c.sectionImageEnabled as boolean) ?? true,
     sectionGameEnabled: (c.sectionGameEnabled as boolean) ?? true,

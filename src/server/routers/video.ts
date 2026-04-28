@@ -23,6 +23,7 @@ import { meili, INDEX, safeSync } from "@/lib/meilisearch";
 import { syncVideo, deleteVideo } from "@/lib/search-sync";
 import { shouldMeiliListSearch, videoListMeiliFilter, videoListMeiliSort } from "@/lib/meili-filters";
 import { suggestionTextRank } from "@/lib/search-text";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
 const VIDEO_CACHE_TTL = 60; // 1 minute
 const STATS_CACHE_TTL = 15; // 15 seconds - 短缓存，仅防止并发请求
@@ -1824,10 +1825,10 @@ export const videoRouter = router({
       z.object({
         author: z.string().min(1),
         excludeVideoId: z.string().optional(),
-        limit: z.number().int().min(1).max(100).default(30),
       }),
     )
     .query(async ({ ctx, input }) => {
+      const cfg = await getPublicSiteConfig();
       const where = {
         status: "PUBLISHED" as const,
         extraInfo: { path: ["author" as string], equals: input.author },
@@ -1838,7 +1839,7 @@ export const videoRouter = router({
         ctx.prisma.video.findMany({
           where,
           orderBy: { createdAt: "desc" },
-          take: input.limit,
+          take: cfg.videoSelectorMaxCount,
           select: {
             id: true,
             title: true,
@@ -1861,10 +1862,10 @@ export const videoRouter = router({
       z.object({
         uploaderId: z.string(),
         excludeVideoId: z.string().optional(),
-        limit: z.number().int().min(1).max(100).default(30),
       }),
     )
     .query(async ({ ctx, input }) => {
+      const cfg = await getPublicSiteConfig();
       const where = {
         uploaderId: input.uploaderId,
         status: "PUBLISHED" as const,
@@ -1875,7 +1876,7 @@ export const videoRouter = router({
         ctx.prisma.video.findMany({
           where,
           orderBy: { createdAt: "desc" },
-          take: input.limit,
+          take: cfg.videoSelectorMaxCount,
           select: {
             id: true,
             title: true,

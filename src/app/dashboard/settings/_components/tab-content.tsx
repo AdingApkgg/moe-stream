@@ -54,6 +54,30 @@ export function TabContent({ config }: { config: SiteConfig | undefined }) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="videoSelectorMaxCount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>选集器视频上限</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={10}
+                      max={10000}
+                      className="w-full md:w-64"
+                      {...field}
+                      onChange={(e) => field.onChange(Number.parseInt(e.target.value, 10) || 100)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    原作者 / 上传者模式下选集器最多拉取的视频数量（合集模式不受此限制，始终全量加载）
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}

@@ -1102,7 +1102,8 @@ model SiteConfig {
   imageDefaultSort     String  @default("latest")             /// 图片分区默认排序
   
   // 内容设置
-  videoSelectorMode   String  @default("series") /// 选集器模式: series | author | uploader | disabled
+  videoSelectorMode      String  @default("series") /// 选集器模式: series | author | uploader | disabled
+  videoSelectorMaxCount  Int     @default(100)     /// 选集器（author/uploader 模式）拉取的视频数量上限
   videosPerPage       Int     @default(20)     // 每页视频数
   commentsPerPage     Int     @default(20)     // 每页评论数
   maxUploadSize       Int     @default(500)    // 最大上传大小 (MB)
