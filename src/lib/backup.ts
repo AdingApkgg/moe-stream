@@ -3,7 +3,7 @@ import { promisify } from "util";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { prisma } from "@/lib/prisma";
-import { getStorageConfig, uploadToS3, deleteFromS3, downloadFromS3, type StorageConfig } from "@/lib/s3-client";
+import { getStorageConfig, uploadFileToS3, deleteFromS3, downloadFromS3, type StorageConfig } from "@/lib/s3-client";
 import type { BackupType } from "@/generated/prisma/client";
 import { getServerConfig } from "@/lib/server-config";
 
@@ -21,7 +21,42 @@ async function ensureTempDir() {
 }
 
 async function cleanTempDir() {
-  await fs.rm(TEMP_DIR, { recursive: true, force: true }).catch(() => {});
+  try {
+    await fs.rm(TEMP_DIR, { recursive: true, force: true });
+  } catch (err) {
+    // 不让清理失败遮蔽主流程错误，但要 log 出来
+    log("清理临时目录失败:", err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * 兜底：清理 TEMP_DIR 中超过 1 小时的孤儿文件。
+ * 用于防止历史 OOM/进程崩溃留下的备份临时文件持续累积。
+ */
+async function cleanStaleTempFiles(maxAgeMs = 60 * 60 * 1000): Promise<void> {
+  try {
+    const entries = await fs.readdir(TEMP_DIR).catch(() => [] as string[]);
+    if (entries.length === 0) return;
+    const cutoff = Date.now() - maxAgeMs;
+    let removed = 0;
+    for (const name of entries) {
+      const full = path.join(TEMP_DIR, name);
+      try {
+        const stat = await fs.stat(full);
+        if (stat.mtimeMs < cutoff) {
+          await fs.rm(full, { recursive: true, force: true });
+          removed++;
+        }
+      } catch {
+        // ignore single-file failures
+      }
+    }
+    if (removed > 0) {
+      log(`清理了 ${removed} 个超过 ${Math.round(maxAgeMs / 60_000)} 分钟的临时备份残留`);
+    }
+  } catch (err) {
+    log("扫描临时目录失败:", err instanceof Error ? err.message : err);
+  }
 }
 
 const PG_SEARCH_PATHS = [
@@ -184,6 +219,8 @@ export async function createBackup(options: CreateBackupOptions): Promise<string
   });
 
   try {
+    // 兜底：清理上一轮可能因 OOM/异常崩溃留下的孤儿临时文件
+    await cleanStaleTempFiles();
     await ensureTempDir();
     const parts: string[] = [];
 
@@ -215,10 +252,10 @@ export async function createBackup(options: CreateBackupOptions): Promise<string
     await mergeArchives(parts, finalPath);
 
     const stat = await fs.stat(finalPath);
-    const fileBuffer = await fs.readFile(finalPath);
 
     log(`正在上传至对象存储... (${(stat.size / 1024 / 1024).toFixed(2)} MB)`);
-    await uploadToS3(storageConfig, storagePath, fileBuffer, "application/gzip");
+    // 流式上传，避免 fs.readFile 把整个 tar.gz 加载到内存触发 OOM
+    await uploadFileToS3(storageConfig, storagePath, finalPath, "application/gzip");
     log("上传完成");
 
     await prisma.backupRecord.update({

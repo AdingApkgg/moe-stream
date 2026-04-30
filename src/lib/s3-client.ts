@@ -10,6 +10,8 @@ import {
   AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import * as fs from "fs";
+import * as fsp from "fs/promises";
 import { prisma } from "@/lib/prisma";
 
 export interface StorageConfig {
@@ -94,6 +96,37 @@ export async function uploadToS3(
     }),
   );
   client.destroy();
+}
+
+/**
+ * 从本地文件流式上传到 S3，避免 fs.readFile 把整个文件读进内存触发 OOM。
+ * 适用于大文件（如数据库/uploads 备份包）；< 5GB 单次 PutObject 即可。
+ */
+export async function uploadFileToS3(
+  config: StorageConfig,
+  key: string,
+  filePath: string,
+  contentType = "application/octet-stream",
+): Promise<void> {
+  const stat = await fsp.stat(filePath);
+  const client = createS3Client(config);
+  const fullKey = resolveKey(config, key);
+  const stream = fs.createReadStream(filePath);
+
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket!,
+        Key: fullKey,
+        Body: stream,
+        ContentType: contentType,
+        ContentLength: stat.size,
+      }),
+    );
+  } finally {
+    stream.destroy();
+    client.destroy();
+  }
 }
 
 export async function deleteFromS3(config: StorageConfig, key: string): Promise<void> {
