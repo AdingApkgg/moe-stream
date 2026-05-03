@@ -857,10 +857,20 @@ function UploadItemRow({ item, onPause, onResume, onRetry, onRemove }: UploadIte
 
   return (
     <m.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
+      }}
+      exit={{
+        opacity: 0,
+        y: -8,
+        scale: 0.96,
+        transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
+      }}
+      layout="position"
       style={{ willChange: "transform, opacity" }}
       className={cn(
         "flex items-center gap-3 rounded-xl border p-3 transition-colors",
