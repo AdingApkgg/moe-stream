@@ -13,6 +13,12 @@ export default function config(phase: string) {
     output: isServerless ? undefined : "standalone",
     pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
     turbopack: {},
+    // SEO: 移除 X-Powered-By 响应头，减少指纹信息暴露
+    poweredByHeader: false,
+    // SEO: 启用 gzip/br 压缩（Next.js 默认行为，显式声明）
+    compress: true,
+    // SEO: ETag 帮助缓存验证
+    generateEtags: true,
     images: {
       unoptimized: false,
       remotePatterns: [

@@ -8,6 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `服务条款 - ${config.siteName}`,
     description: `${config.siteName} 的服务条款`,
+    alternates: { canonical: `${config.siteUrl}/terms` },
   };
 }
 

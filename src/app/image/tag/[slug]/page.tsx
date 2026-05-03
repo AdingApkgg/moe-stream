@@ -51,13 +51,18 @@ export async function generateMetadata({ params }: ImageTagPageProps): Promise<M
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
   const description = `浏览 ${tag.name} 标签下的 ${tag.imagePostCount} 组图片`;
+  const url = `${siteConfig.siteUrl}/image/tag/${tag.slug}`;
 
   return {
     title: `#${tag.name} - 图片`,
     description,
     keywords: [tag.name, "ACGN", "图片", "标签"],
+    alternates: { canonical: url },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName,
+      url,
       title: `#${tag.name} 图片 - ${siteName}`,
       description,
     },

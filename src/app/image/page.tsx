@@ -3,13 +3,27 @@ import { notFound } from "next/navigation";
 import { ImageListClient } from "./client";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { ImageListJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "图片",
-  description: "发现精选 ACGN 插画、同人图、壁纸等图片内容",
-  keywords: ["ACGN", "图片", "插画", "同人", "壁纸"],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  const url = `${config.siteUrl}/image`;
+  return {
+    title: "图片",
+    description: `发现 ${config.siteName} 精选 ACGN 插画、同人图、壁纸等图片内容`,
+    keywords: ["ACGN", "图片", "插画", "同人", "壁纸"],
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      locale: "zh_CN",
+      siteName: config.siteName,
+      url,
+      title: `图片 - ${config.siteName}`,
+      description: `发现 ${config.siteName} 精选 ACGN 插画`,
+    },
+  };
+}
 
 const getInitialData = cache(async () => {
   const fullConfig = await getPublicSiteConfig();
@@ -70,5 +84,10 @@ export default async function ImageListPage() {
   const { tags, posts } = await getInitialData();
   const serializedPosts = serializePosts(posts);
 
-  return <ImageListClient initialTags={tags} initialPosts={serializedPosts} />;
+  return (
+    <>
+      <ImageListJsonLd posts={serializedPosts} baseUrl={config.siteUrl} />
+      <ImageListClient initialTags={tags} initialPosts={serializedPosts} />
+    </>
+  );
 }

@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { LinksClient } from "./client";
+import { getPublicSiteConfig } from "@/lib/site-config";
 
-export const metadata: Metadata = {
-  title: "友情链接",
-  description: "友情链接",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  return {
+    title: "友情链接",
+    description: `${config.siteName} 的友情链接`,
+    alternates: { canonical: `${config.siteUrl}/links` },
+  };
+}
 
 export default async function LinksPage() {
   const links = await prisma.friendLink.findMany({

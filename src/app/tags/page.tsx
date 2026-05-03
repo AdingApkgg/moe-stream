@@ -6,10 +6,20 @@ import { getPublicSiteConfig } from "@/lib/site-config";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
+  const url = `${config.siteUrl}/tags`;
   return {
     title: "标签",
     description: `浏览 ${config.siteName} 的所有标签，按分类查找 ACGN 相关内容`,
     keywords: ["标签", "分类", "ACGN", "动漫", "视频", "游戏", "图片"],
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      locale: "zh_CN",
+      siteName: config.siteName,
+      url,
+      title: `标签 - ${config.siteName}`,
+      description: `浏览 ${config.siteName} 的所有标签`,
+    },
   };
 }
 

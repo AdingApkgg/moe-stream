@@ -4,13 +4,27 @@ import { GameListClient } from "./client";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
 import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
+import { GameListJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "游戏",
-  description: "发现精选 ACGN 游戏，免费下载各种 ADV、SLG、RPG、ACT 类型游戏",
-  keywords: ["ACGN", "游戏", "ADV", "SLG", "RPG", "免费游戏", "galgame"],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  const url = `${config.siteUrl}/game`;
+  return {
+    title: "游戏",
+    description: `发现 ${config.siteName} 精选 ACGN 游戏，免费下载各种 ADV、SLG、RPG、ACT 类型游戏`,
+    keywords: ["ACGN", "游戏", "ADV", "SLG", "RPG", "免费游戏", "galgame"],
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      locale: "zh_CN",
+      siteName: config.siteName,
+      url,
+      title: `游戏 - ${config.siteName}`,
+      description: `发现 ${config.siteName} 精选 ACGN 游戏`,
+    },
+  };
+}
 
 const getInitialData = cache(async () => {
   const fullConfig = await getPublicSiteConfig();
@@ -109,12 +123,15 @@ export default async function GameListPage() {
   const serializedGames = serializeGames(games);
 
   return (
-    <GameListClient
-      initialTags={tags}
-      initialGames={serializedGames}
-      typeStats={typeStats}
-      siteConfig={siteConfig}
-      initialAds={initialAds}
-    />
+    <>
+      <GameListJsonLd games={serializedGames} baseUrl={fullSiteConfig.siteUrl} />
+      <GameListClient
+        initialTags={tags}
+        initialGames={serializedGames}
+        typeStats={typeStats}
+        siteConfig={siteConfig}
+        initialAds={initialAds}
+      />
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPublicSiteConfig } from "@/lib/site-config";
 import { MdxContent } from "@/components/mdx/mdx-remote";
+import { VideoGameJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 interface GamePageProps {
   params: Promise<{ id: string }>;
@@ -75,8 +76,13 @@ export async function generateMetadata({ params }: GamePageProps): Promise<Metad
     description,
     keywords: ["ACGN", "游戏", game.gameType || "", ...keywords].filter(Boolean),
     authors: [{ name: uploaderName }],
+    alternates: {
+      canonical: `${baseUrl}/game/${id}`,
+    },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName: siteConfig.siteName,
       title: game.title,
       description,
       url: `${baseUrl}/game/${id}`,
@@ -95,6 +101,9 @@ export async function generateMetadata({ params }: GamePageProps): Promise<Metad
       card: "summary_large_image",
       title: game.title,
       description,
+      ...(game.coverUrl && {
+        images: [game.coverUrl.startsWith("http") ? game.coverUrl : `${baseUrl}${game.coverUrl}`],
+      }),
     },
   };
 }
@@ -193,17 +202,30 @@ export default async function GamePage({ params }: GamePageProps) {
     customTabContentMap[ct.id] = ct.content;
   }
 
+  const baseUrl = siteConfig.siteUrl;
+
   return (
-    <Suspense fallback={<GamePageSkeleton />}>
-      <GamePageClient
-        id={id}
-        initialGame={serializedGame}
-        descriptionContent={descriptionContent}
-        characterIntroContent={characterIntroContent}
-        versionContents={versionContentMap}
-        customTabContents={customTabContentMap}
+    <>
+      {/* SEO 结构化数据 - SSR 输出供搜索引擎首次抓取 */}
+      <VideoGameJsonLd game={game} baseUrl={baseUrl} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "首页", url: baseUrl },
+          { name: "游戏", url: `${baseUrl}/game` },
+          { name: game.title, url: `${baseUrl}/game/${id}` },
+        ]}
       />
-    </Suspense>
+      <Suspense fallback={<GamePageSkeleton />}>
+        <GamePageClient
+          id={id}
+          initialGame={serializedGame}
+          descriptionContent={descriptionContent}
+          characterIntroContent={characterIntroContent}
+          versionContents={versionContentMap}
+          customTabContents={customTabContentMap}
+        />
+      </Suspense>
+    </>
   );
 }
 

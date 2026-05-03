@@ -39,13 +39,18 @@ export async function generateMetadata({ params }: TagPageProps): Promise<Metada
   const siteName = siteConfig.siteName;
   const total = tag.videoCount + tag.gameCount + tag.imagePostCount;
   const description = `浏览 ${tag.name} 标签下的 ${total} 个内容`;
+  const url = `${siteConfig.siteUrl}/tag/${tag.slug}`;
 
   return {
     title: `#${tag.name}`,
     description,
     keywords: [tag.name, "ACGN", "标签"],
+    alternates: { canonical: url },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName,
+      url,
       title: `#${tag.name} - ${siteName}`,
       description,
     },

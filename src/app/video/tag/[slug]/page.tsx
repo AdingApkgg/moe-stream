@@ -51,13 +51,18 @@ export async function generateMetadata({ params }: VideoTagPageProps): Promise<M
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
   const description = `浏览 ${tag.name} 标签下的 ${tag.videoCount} 个视频`;
+  const url = `${siteConfig.siteUrl}/video/tag/${tag.slug}`;
 
   return {
     title: `#${tag.name} - 视频`,
     description,
     keywords: [tag.name, "ACGN", "视频", "标签"],
+    alternates: { canonical: url },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName,
+      url,
       title: `#${tag.name} 视频 - ${siteName}`,
       description,
     },

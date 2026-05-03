@@ -51,13 +51,18 @@ export async function generateMetadata({ params }: GameTagPageProps): Promise<Me
   const siteConfig = await getPublicSiteConfig();
   const siteName = siteConfig.siteName;
   const description = `浏览 ${tag.name} 标签下的 ${tag.gameCount} 个游戏`;
+  const url = `${siteConfig.siteUrl}/game/tag/${tag.slug}`;
 
   return {
     title: `#${tag.name} - 游戏`,
     description,
     keywords: [tag.name, "ACGN", "游戏", "标签"],
+    alternates: { canonical: url },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName,
+      url,
       title: `#${tag.name} 游戏 - ${siteName}`,
       description,
     },

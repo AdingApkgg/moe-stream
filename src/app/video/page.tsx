@@ -1,17 +1,31 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import VideoListClient from "./client";
-import { WebsiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld";
+import { WebsiteJsonLd, OrganizationJsonLd, VideoListJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
 import { pickWeightedRandomAds, parseSponsorAds } from "@/lib/ads";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "视频",
-  description: "发现最新 ACGN 视频内容，精选动画、漫画、游戏、小说相关视频",
-  keywords: ["ACGN", "视频", "动画", "漫画", "游戏"],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicSiteConfig();
+  return {
+    title: "视频",
+    description: `发现 ${config.siteName} 最新 ACGN 视频内容，精选动画、漫画、游戏、小说相关视频`,
+    keywords: ["ACGN", "视频", "动画", "漫画", "游戏"],
+    alternates: {
+      canonical: `${config.siteUrl}/video`,
+    },
+    openGraph: {
+      title: `视频 - ${config.siteName}`,
+      description: `发现 ${config.siteName} 最新 ACGN 视频内容`,
+      url: `${config.siteUrl}/video`,
+      type: "website",
+      siteName: config.siteName,
+      locale: "zh_CN",
+    },
+  };
+}
 
 // 使用 React cache 避免重复查询
 const getInitialData = cache(async () => {
@@ -91,11 +105,23 @@ export default async function VideoListPage() {
   const { tags, videos, siteConfig, initialAds } = await getInitialData();
   const serializedVideos = serializeVideos(videos);
 
+  const description = fullSiteConfig.siteDescription || `${fullSiteConfig.siteName} ACGN 内容平台`;
+  const logo =
+    fullSiteConfig.siteLogo && fullSiteConfig.siteLogo.startsWith("http")
+      ? fullSiteConfig.siteLogo
+      : `${fullSiteConfig.siteUrl}${fullSiteConfig.siteLogo || "/Mikiacg-logo.webp"}`;
+
   return (
     <>
       {/* SEO 结构化数据 */}
-      <WebsiteJsonLd />
-      <OrganizationJsonLd />
+      <WebsiteJsonLd siteName={fullSiteConfig.siteName} siteUrl={fullSiteConfig.siteUrl} description={description} />
+      <OrganizationJsonLd
+        name={fullSiteConfig.siteName}
+        url={fullSiteConfig.siteUrl}
+        logo={logo}
+        contactEmail={fullSiteConfig.contactEmail}
+      />
+      <VideoListJsonLd videos={serializedVideos} baseUrl={fullSiteConfig.siteUrl} />
 
       <VideoListClient
         initialTags={tags}

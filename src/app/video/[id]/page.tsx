@@ -6,6 +6,7 @@ import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCoverFullUrl } from "@/lib/cover";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 interface VideoPageProps {
   params: Promise<{ id: string }>;
@@ -71,8 +72,13 @@ export async function generateMetadata({ params }: VideoPageProps): Promise<Meta
     description,
     keywords: ["ACGN", "视频", ...keywords],
     authors: [{ name: uploaderName }],
+    alternates: {
+      canonical: `${baseUrl}/video/${id}`,
+    },
     openGraph: {
       type: "video.other",
+      locale: "zh_CN",
+      siteName: siteConfig.siteName,
       title: video.title,
       description,
       url: `${baseUrl}/video/${id}`,
@@ -130,11 +136,23 @@ export default async function VideoPage({ params }: VideoPageProps) {
 
   // 在服务端序列化数据，传递给客户端
   const serializedVideo = serializeVideo(video);
+  const baseUrl = siteConfig.siteUrl;
 
   return (
-    <Suspense fallback={<VideoPageSkeleton />}>
-      <VideoPageClient id={id} initialVideo={serializedVideo} />
-    </Suspense>
+    <>
+      {/* SEO 结构化数据 - SSR 输出供搜索引擎首次抓取 */}
+      <VideoJsonLd video={serializedVideo} baseUrl={baseUrl} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "首页", url: baseUrl },
+          { name: "视频", url: `${baseUrl}/video` },
+          { name: serializedVideo.title, url: `${baseUrl}/video/${id}` },
+        ]}
+      />
+      <Suspense fallback={<VideoPageSkeleton />}>
+        <VideoPageClient id={id} initialVideo={serializedVideo} />
+      </Suspense>
+    </>
   );
 }
 

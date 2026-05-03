@@ -5,6 +5,7 @@ import { ImageDetailClient } from "./client";
 import { cache, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { ImagePostJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 interface ImagePageProps {
   params: Promise<{ id: string }>;
@@ -48,8 +49,13 @@ export async function generateMetadata({ params }: ImagePageProps): Promise<Meta
     description,
     keywords: ["ACGN", "图片", "插画", ...keywords],
     authors: [{ name: uploaderName }],
+    alternates: {
+      canonical: `${baseUrl}/image/${id}`,
+    },
     openGraph: {
       type: "website",
+      locale: "zh_CN",
+      siteName: siteConfig.siteName,
       title: post.title,
       description,
       url: `${baseUrl}/image/${id}`,
@@ -62,7 +68,14 @@ export async function generateMetadata({ params }: ImagePageProps): Promise<Meta
         ],
       }),
     },
-    twitter: { card: "summary_large_image", title: post.title, description },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+      ...(images.length > 0 && {
+        images: [images[0].startsWith("http") ? images[0] : `${baseUrl}${images[0]}`],
+      }),
+    },
   };
 }
 
@@ -94,11 +107,23 @@ export default async function ImagePage({ params }: ImagePageProps) {
   if (!post) notFound();
 
   const serialized = serializePost(post);
+  const baseUrl = siteConfig.siteUrl;
 
   return (
-    <Suspense fallback={<ImagePageSkeleton />}>
-      <ImageDetailClient post={serialized} />
-    </Suspense>
+    <>
+      {/* SEO 结构化数据 - SSR 输出供搜索引擎首次抓取 */}
+      <ImagePostJsonLd post={post} baseUrl={baseUrl} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "首页", url: baseUrl },
+          { name: "图片", url: `${baseUrl}/image` },
+          { name: post.title, url: `${baseUrl}/image/${id}` },
+        ]}
+      />
+      <Suspense fallback={<ImagePageSkeleton />}>
+        <ImageDetailClient post={serialized} />
+      </Suspense>
+    </>
   );
 }
 

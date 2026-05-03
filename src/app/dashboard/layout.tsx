@@ -5,6 +5,16 @@ import { ADMIN_SCOPES } from "@/lib/constants";
 import { isOwner as isOwnerRole, isPrivileged } from "@/lib/permissions";
 import { resolveAdminScopes, resolveRole } from "@/lib/group-permissions";
 import { DashboardShell } from "./_components/dashboard-shell";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "管理后台",
+  robots: {
+    index: false, // 管理后台不索引
+    follow: false,
+    nocache: true,
+  },
+};
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();

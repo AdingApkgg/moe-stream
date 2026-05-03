@@ -8,6 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `隐私政策 - ${config.siteName}`,
     description: `${config.siteName} 的隐私政策`,
+    alternates: { canonical: `${config.siteUrl}/privacy` },
   };
 }
 

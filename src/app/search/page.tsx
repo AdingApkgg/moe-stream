@@ -18,6 +18,7 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
     return {
       title: "搜索",
       description: `在 ${siteName} 搜索 ACGN 相关视频和游戏内容`,
+      alternates: { canonical: `${config.siteUrl}/search` },
     };
   }
 

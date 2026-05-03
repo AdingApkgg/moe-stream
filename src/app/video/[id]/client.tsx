@@ -57,7 +57,6 @@ import { useSound } from "@/hooks/use-sound";
 import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
-import { VideoJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { getCoverUrl } from "@/lib/cover";
 import { useVideoCoverThumb } from "@/hooks/use-thumb";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -536,19 +535,8 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     );
   }
 
-  const baseUrl = siteConfig?.siteUrl || "http://localhost:3000";
-
   return (
     <>
-      {/* SEO 结构化数据 */}
-      <VideoJsonLd video={displayVideo} />
-      <BreadcrumbJsonLd
-        items={[
-          { name: "首页", url: baseUrl },
-          { name: displayVideo.title, url: `${baseUrl}/video/${displayVideo.id}` },
-        ]}
-      />
-
       <div className="md:px-6 md:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 md:gap-6 items-start">
           <div className="lg:col-span-2 space-y-0 md:space-y-4">
