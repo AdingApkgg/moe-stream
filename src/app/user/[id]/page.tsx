@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { UserPageClient } from "./client";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
@@ -11,13 +11,13 @@ interface UserPageProps {
 }
 
 // 使用 React cache 避免重复查询
-const getUser = cache(async (id: string) => {
+const getUser = cache(async (id: string, includeEmail: boolean) => {
   return prisma.user.findUnique({
     where: { id },
     select: {
       id: true,
       username: true,
-      email: true,
+      email: includeEmail,
       nickname: true,
       avatar: true,
       bio: true,
@@ -48,17 +48,19 @@ const getUser = cache(async (id: string) => {
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
   const { id } = await params;
 
-  // /user/0 → 重定向到当前用户，metadata 不重要
+  // /user/0 → 重定向到当前用户，避免被搜索引擎索引
   if (id === "0") {
-    return { title: "正在跳转..." };
+    return { title: "正在跳转...", robots: { index: false, follow: false } };
   }
 
-  const user = await getUser(id);
+  // metadata 中不需要 email
+  const user = await getUser(id, false);
 
   if (!user) {
     return {
       title: "用户不存在",
       description: "该用户可能已被删除或不存在",
+      robots: { index: false, follow: false },
     };
   }
 
@@ -98,11 +100,11 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
 }
 
 // 序列化用户数据
-function serializeUser(user: NonNullable<Awaited<ReturnType<typeof getUser>>>) {
+function serializeUser(user: NonNullable<Awaited<ReturnType<typeof getUser>>>, includeEmail: boolean) {
   return {
     id: user.id,
     username: user.username,
-    email: user.email,
+    email: includeEmail ? (user.email ?? null) : null,
     nickname: user.nickname,
     avatar: user.avatar,
     bio: user.bio,
@@ -131,14 +133,17 @@ export default async function UserPage({ params }: UserPageProps) {
     }
   }
 
-  // 并行获取用户数据和当前会话
-  const [user, session] = await Promise.all([getUser(id), getSession()]);
-
-  // 服务端预取用户数据
-  const initialUser = user ? serializeUser(user) : null;
-
-  // 服务端判断是否为本人主页，作为客户端的可信初始值
+  // 先取 session，再据此决定是否查询 email 字段
+  const session = await getSession();
   const isOwnProfile = session?.user?.id === id;
+
+  const user = await getUser(id, isOwnProfile);
+
+  if (!user) {
+    notFound();
+  }
+
+  const initialUser = serializeUser(user, isOwnProfile);
 
   return <UserPageClient key={id} id={id} initialUser={initialUser} isOwnProfile={isOwnProfile} />;
 }

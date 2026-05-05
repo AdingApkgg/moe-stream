@@ -16,33 +16,45 @@ const permissionsSchema = z.object({
 
 const groupRoleSchema = z.enum(["USER", "ADMIN", "OWNER"]);
 
+const groupSelect = {
+  id: true,
+  name: true,
+  description: true,
+  role: true,
+  permissions: true,
+  adminScopes: true,
+  storageQuota: true,
+  referralMaxLinks: true,
+  isDefault: true,
+  isSystem: true,
+  color: true,
+  sortOrder: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserGroupSelect;
+
+type GroupFromDb = {
+  storageQuota: bigint;
+  permissions: Prisma.JsonValue;
+  [k: string]: unknown;
+};
+
+function serializeGroup<T extends GroupFromDb>(group: T) {
+  return {
+    ...group,
+    storageQuota: group.storageQuota.toString(),
+    permissions: { ...DEFAULT_GROUP_PERMISSIONS, ...(group.permissions as Partial<GroupPermissions>) },
+  };
+}
+
 export const adminGroupsRouter = router({
   listGroups: adminProcedure.use(requireScope("user:manage")).query(async ({ ctx }) => {
     const groups = await ctx.prisma.userGroup.findMany({
       orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        role: true,
-        permissions: true,
-        adminScopes: true,
-        storageQuota: true,
-        referralMaxLinks: true,
-        isDefault: true,
-        isSystem: true,
-        color: true,
-        sortOrder: true,
-        createdAt: true,
-        _count: { select: { users: true } },
-      },
+      select: { ...groupSelect, _count: { select: { users: true } } },
     });
 
-    return groups.map((g) => ({
-      ...g,
-      storageQuota: g.storageQuota.toString(),
-      permissions: { ...DEFAULT_GROUP_PERMISSIONS, ...(g.permissions as Partial<GroupPermissions>) },
-    }));
+    return groups.map(serializeGroup);
   }),
 
   getGroup: adminProcedure
@@ -51,34 +63,14 @@ export const adminGroupsRouter = router({
     .query(async ({ ctx, input }) => {
       const group = await ctx.prisma.userGroup.findUnique({
         where: { id: input.id },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          role: true,
-          permissions: true,
-          adminScopes: true,
-          storageQuota: true,
-          referralMaxLinks: true,
-          isDefault: true,
-          isSystem: true,
-          color: true,
-          sortOrder: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: { select: { users: true } },
-        },
+        select: { ...groupSelect, _count: { select: { users: true } } },
       });
 
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "用户组不存在" });
       }
 
-      return {
-        ...group,
-        storageQuota: group.storageQuota.toString(),
-        permissions: { ...DEFAULT_GROUP_PERMISSIONS, ...(group.permissions as Partial<GroupPermissions>) },
-      };
+      return serializeGroup(group);
     }),
 
   createGroup: ownerProcedure
@@ -103,7 +95,7 @@ export const adminGroupsRouter = router({
       if (input.role === "OWNER") {
         const ownerGroup = await ctx.prisma.userGroup.findFirst({ where: { role: "OWNER" } });
         if (ownerGroup) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "站长组已存在，不能创建多个" });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "站长组已存在,不能创建多个" });
         }
       }
 
@@ -121,9 +113,10 @@ export const adminGroupsRouter = router({
           color: input.color,
           referralMaxLinks: input.referralMaxLinks ?? 0,
         },
+        select: groupSelect,
       });
 
-      return { success: true, group: { ...group, storageQuota: group.storageQuota.toString() } };
+      return { success: true, group: serializeGroup(group) };
     }),
 
   updateGroup: ownerProcedure
@@ -147,14 +140,16 @@ export const adminGroupsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "用户组不存在" });
       }
 
-      if (input.role && input.role !== group.role) {
+      const roleChanged = input.role !== undefined && input.role !== group.role;
+
+      if (roleChanged) {
         if (group.role === "OWNER") {
           throw new TRPCError({ code: "FORBIDDEN", message: "不能修改站长组的角色级别" });
         }
         if (input.role === "OWNER") {
           const existingOwner = await ctx.prisma.userGroup.findFirst({ where: { role: "OWNER" } });
           if (existingOwner) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "站长组已存在，不能将其他组设为站长级别" });
+            throw new TRPCError({ code: "BAD_REQUEST", message: "站长组已存在,不能将其他组设为站长级别" });
           }
         }
       }
@@ -172,32 +167,35 @@ export const adminGroupsRouter = router({
       const adminScopesData =
         validScopes === null ? Prisma.DbNull : validScopes !== undefined ? validScopes : undefined;
 
-      const effectiveRole = input.role ?? group.role;
+      const updateData: Prisma.UserGroupUpdateInput = {
+        ...(input.name && { name: input.name }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.role && { role: input.role }),
+        ...(newPerms && { permissions: newPerms }),
+        ...(adminScopesData !== undefined && { adminScopes: adminScopesData }),
+        ...(input.storageQuota && { storageQuota: BigInt(input.storageQuota) }),
+        ...(input.color !== undefined && { color: input.color }),
+        ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+        ...(input.referralMaxLinks !== undefined && { referralMaxLinks: input.referralMaxLinks }),
+      };
 
-      const updated = await ctx.prisma.userGroup.update({
-        where: { id: input.id },
-        data: {
-          ...(input.name && { name: input.name }),
-          ...(input.description !== undefined && { description: input.description }),
-          ...(input.role && { role: input.role }),
-          ...(newPerms && { permissions: newPerms }),
-          ...(adminScopesData !== undefined && { adminScopes: adminScopesData }),
-          ...(input.storageQuota && { storageQuota: BigInt(input.storageQuota) }),
-          ...(input.color !== undefined && { color: input.color }),
-          ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
-          ...(input.referralMaxLinks !== undefined && { referralMaxLinks: input.referralMaxLinks }),
-        },
+      // role 变更时同步成员的 User.role,放在同一事务保证一致性
+      const updated = await ctx.prisma.$transaction(async (tx) => {
+        const result = await tx.userGroup.update({
+          where: { id: input.id },
+          data: updateData,
+          select: groupSelect,
+        });
+        if (roleChanged && input.role) {
+          await tx.user.updateMany({
+            where: { groupId: input.id },
+            data: { role: input.role },
+          });
+        }
+        return result;
       });
 
-      // 如果 role 变更了，同步该组所有成员的 User.role
-      if (input.role && input.role !== group.role) {
-        await ctx.prisma.user.updateMany({
-          where: { groupId: input.id },
-          data: { role: effectiveRole },
-        });
-      }
-
-      return { success: true, group: { ...updated, storageQuota: updated.storageQuota.toString() } };
+      return { success: true, group: serializeGroup(updated) };
     }),
 
   deleteGroup: ownerProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
@@ -223,7 +221,7 @@ export const adminGroupsRouter = router({
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未找到默认用户组" });
     }
 
-    // 将该组成员迁移到默认组，同时同步 role
+    // 将该组成员迁移到默认组,同时同步 role
     await ctx.prisma.$transaction([
       ctx.prisma.user.updateMany({
         where: { groupId: input.id },
@@ -235,7 +233,7 @@ export const adminGroupsRouter = router({
     return { success: true };
   }),
 
-  // 批量将用户分配到指定组，同时同步 User.role
+  // 批量将用户分配到指定组,同时同步 User.role
   assignUsersToGroup: ownerProcedure
     .input(
       z.object({
@@ -283,4 +281,23 @@ export const adminGroupsRouter = router({
 
     return { success: true };
   }),
+
+  // 拖拽排序后批量更新 sortOrder
+  reorderGroups: ownerProcedure
+    .input(z.object({ groupIds: z.array(z.string()).min(1).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.userGroup.findMany({
+        where: { id: { in: input.groupIds } },
+        select: { id: true },
+      });
+      if (existing.length !== input.groupIds.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "包含不存在的用户组" });
+      }
+
+      await ctx.prisma.$transaction(
+        input.groupIds.map((id, index) => ctx.prisma.userGroup.update({ where: { id }, data: { sortOrder: index } })),
+      );
+
+      return { success: true };
+    }),
 });

@@ -61,7 +61,7 @@ export function DashboardShell({ permissions, children }: { permissions: Permiss
 
           {/* Mobile drawer */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent side="left" className="p-0 w-60">
+            <SheetContent side="left" showCloseButton={false} className="p-0 w-[86vw] max-w-[320px] sm:max-w-sm gap-0">
               <SheetHeader className="sr-only">
                 <SheetTitle>管理面板导航</SheetTitle>
               </SheetHeader>
@@ -71,6 +71,7 @@ export function DashboardShell({ permissions, children }: { permissions: Permiss
                 collapsed={false}
                 variant="mobile"
                 onItemClick={() => setMobileOpen(false)}
+                onClose={() => setMobileOpen(false)}
               />
             </SheetContent>
           </Sheet>

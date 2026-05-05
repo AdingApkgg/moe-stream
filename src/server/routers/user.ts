@@ -187,13 +187,14 @@ export const userRouter = router({
       return { id: result.id, email: result.email ?? null, username: result.username };
     }),
 
-  // 获取用户公开资料
+  // 获取用户公开资料（email 仅本人可见）
   getProfile: publicProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    const isOwn = ctx.session?.user?.id === input.id;
     const user = await ctx.prisma.user.findUnique({
       where: { id: input.id },
       select: {
         id: true,
-        email: true,
+        email: isOwn,
         username: true,
         nickname: true,
         avatar: true,
@@ -224,7 +225,7 @@ export const userRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "用户不存在" });
     }
 
-    return user;
+    return { ...user, email: isOwn ? (user.email ?? null) : null };
   }),
 
   getVideos: publicProcedure

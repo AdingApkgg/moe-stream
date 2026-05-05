@@ -38,6 +38,37 @@ type Permissions = {
   allScopes: Record<string, string>;
 };
 
+function MobileTitle({ pathname }: { pathname: string }) {
+  const item = findMenuItemByPath(pathname);
+  const group = item ? findGroupByItem(item.href) : undefined;
+
+  if (!item) {
+    return (
+      <Link href="/dashboard" className="lg:hidden flex items-center gap-2 min-w-0 flex-1">
+        <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
+          <Shield className="h-3.5 w-3.5 text-primary-foreground" />
+        </div>
+        <span className="text-[15px] font-semibold tracking-tight truncate">控制台</span>
+      </Link>
+    );
+  }
+
+  const Icon = item.icon;
+  return (
+    <div className="lg:hidden flex items-center gap-2 min-w-0 flex-1">
+      <div className="h-7 w-7 rounded-md bg-accent flex items-center justify-center shrink-0">
+        <Icon className="h-3.5 w-3.5 text-foreground/80" />
+      </div>
+      <div className="flex flex-col min-w-0 leading-tight">
+        <span className="text-[15px] font-semibold tracking-tight truncate">{item.label}</span>
+        {group?.label && (
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{group.label}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Crumbs({ pathname }: { pathname: string }) {
   const item = findMenuItemByPath(pathname);
   const group = item ? findGroupByItem(item.href) : undefined;
@@ -107,24 +138,19 @@ export function DashboardTopbar({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <header className="h-[52px] border-b bg-card flex items-center px-3 lg:px-4 gap-2 lg:gap-3 shrink-0">
-        {/* Mobile: 菜单按钮 */}
+      <header className="h-14 lg:h-[52px] border-b bg-card flex items-center px-2 lg:px-4 gap-1.5 lg:gap-3 shrink-0">
+        {/* Mobile: 菜单按钮（更大触摸目标） */}
         <button
           type="button"
-          className="lg:hidden h-8 w-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
+          className="lg:hidden h-10 w-10 -ml-1 rounded-md flex items-center justify-center hover:bg-accent active:bg-accent transition-colors"
           aria-label="打开菜单"
           onClick={onOpenMobileMenu}
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </button>
 
-        {/* Mobile: 品牌 */}
-        <Link href="/dashboard" className="lg:hidden flex items-center gap-2 min-w-0">
-          <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center shrink-0">
-            <Shield className="h-3 w-3 text-primary-foreground" />
-          </div>
-          <span className="text-[15px] font-semibold tracking-tight truncate">控制台</span>
-        </Link>
+        {/* Mobile: 当前页面标题 */}
+        <MobileTitle pathname={pathname} />
 
         {/* Desktop: 折叠按钮（侧栏收起时） */}
         {sidebarCollapsed && (
@@ -150,20 +176,17 @@ export function DashboardTopbar({
           <Crumbs pathname={pathname} />
         </div>
 
-        {/* Mobile: spacer */}
-        <div className="lg:hidden flex-1" />
-
         {/* 搜索按钮 */}
         <button
           type="button"
           onClick={onOpenCommand}
           className={cn(
-            "inline-flex items-center gap-2 h-8 rounded-md border border-border/60 bg-background hover:bg-accent/50 transition-colors",
-            "px-2.5 lg:px-2 lg:pr-1.5 text-[13px] text-muted-foreground",
+            "inline-flex items-center gap-2 rounded-md border border-border/60 bg-background hover:bg-accent/50 active:bg-accent transition-colors text-muted-foreground",
+            "h-9 w-9 justify-center lg:h-8 lg:w-auto lg:justify-start lg:px-2 lg:pr-1.5 text-[13px]",
           )}
           aria-label="搜索 (⌘K)"
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
           <span className="hidden lg:inline">搜索...</span>
           <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono text-muted-foreground/80">
             <span className="text-[11px]">⌘</span>K
@@ -193,10 +216,10 @@ export function DashboardTopbar({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 h-8 pl-1 pr-1.5 rounded-md hover:bg-accent transition-colors"
+              className="flex items-center gap-2 h-9 lg:h-8 pl-1 pr-1 lg:pr-1.5 rounded-md hover:bg-accent active:bg-accent transition-colors"
               aria-label="用户菜单"
             >
-              <Avatar className="size-6">
+              <Avatar className="size-7 lg:size-6">
                 {meData?.avatar && <AvatarImage src={meData.avatar} alt={displayName} />}
                 <AvatarFallback className="text-[11px]">{initial}</AvatarFallback>
               </Avatar>
