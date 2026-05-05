@@ -354,7 +354,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur-md shadow-sm">
         <div className="flex h-14 items-center">
           {/* Left: Menu + Logo */}
           <div className="flex items-center shrink-0 h-full px-2 md:px-4">

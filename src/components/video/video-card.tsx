@@ -59,9 +59,13 @@ function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
   const likeColor = likeRatio >= 90 ? "text-green-400" : likeRatio >= 70 ? "text-yellow-400" : "text-red-400";
 
   return (
-    <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
+    <div
+      ref={tiltRef}
+      className="group bg-card rounded-xl overflow-hidden shadow-sm ring-1 ring-border/40 hover:shadow-lg hover:ring-border/70 transition-[box-shadow,outline-color] duration-300 ease-out"
+      onMouseEnter={() => play("hover")}
+    >
       <Link href={`/video/${video.id}`} className="block">
-        <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out">
+        <div className="relative aspect-video overflow-hidden bg-muted">
           <VideoCover
             videoId={video.id}
             coverUrl={video.coverUrl}
@@ -108,7 +112,7 @@ function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
           />
         </div>
 
-        <div className="mt-2 px-0.5 space-y-0.5">
+        <div className="px-2.5 pb-2.5 pt-2 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
             <SearchHighlightText text={video.title} highlightQuery={highlightQuery} />
           </h3>

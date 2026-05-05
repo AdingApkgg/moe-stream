@@ -368,7 +368,7 @@ export function Sidebar({ collapsed, onToggle, overlay = false }: SidebarProps) 
 
       <aside
         className={cn(
-          "fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] bg-background transition-[width,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "fixed left-0 top-14 z-40 h-[calc(100vh-3.5rem)] bg-sidebar border-r border-sidebar-border transition-[width,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
           "hidden md:flex md:flex-col",
           overlay
             ? collapsed
