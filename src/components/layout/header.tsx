@@ -206,7 +206,6 @@ function MessageButton() {
 export function Header({ onMenuClick }: HeaderProps) {
   const siteConfig = useSiteConfig();
   const { session, isLoading: sessionLoading } = useStableSession();
-  const { theme, setTheme } = useTheme();
   const { play } = useSound();
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
@@ -447,7 +446,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                         play("click");
                       }}
                       onKeyDown={handleKeyDown}
-                      className="h-10 rounded-l-full rounded-r-none border border-r-0 pl-4 pr-3 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="h-10 sm:h-10 rounded-l-full rounded-r-none border border-r-0 pl-4 pr-3 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                       autoComplete="off"
                     />
                   </div>
@@ -652,7 +651,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="flex-1 rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                className="flex-1 rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 sm:h-10"
                 autoComplete="off"
               />
               <Button
