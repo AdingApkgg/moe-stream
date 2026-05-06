@@ -39,6 +39,8 @@ interface VideoGridProps {
   progressMap?: Record<string, { progress: number; duration: number | null }>;
   /** 排行榜场景：从第一项起的起始排名（首页排行 section 通常 1） */
   startRank?: number;
+  /** 当前用户已收藏的视频 ID 集合（来自 video.favoritedMap） */
+  favoritedSet?: Set<string>;
 }
 
 const gridColumns = {
@@ -56,6 +58,7 @@ export function VideoGrid({
   highlightQuery,
   progressMap,
   startRank,
+  favoritedSet,
 }: VideoGridProps) {
   const colsCls = columnsClass ?? gridColumns[columns];
 
@@ -87,6 +90,7 @@ export function VideoGrid({
             highlightQuery={highlightQuery}
             watchProgress={progressMap?.[video.id]}
             rank={startRank !== undefined ? startRank + index : undefined}
+            isFavorited={favoritedSet?.has(video.id)}
           />
         </MotionItem>
       ))}

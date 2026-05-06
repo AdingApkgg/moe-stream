@@ -89,6 +89,11 @@ function FeedSection({ section, limit }: { section: SectionDef; limit: number })
     { enabled: videoIds.length > 0, staleTime: 30_000 },
   );
   const progressMap = progressData?.progressByVideoId;
+  const { data: favoritedData } = trpc.video.favoritedMap.useQuery(
+    { videoIds },
+    { enabled: videoIds.length > 0, staleTime: 30_000 },
+  );
+  const favoritedSet = new Set(favoritedData?.favoritedIds ?? []);
 
   const { Icon } = section;
 
@@ -123,6 +128,7 @@ function FeedSection({ section, limit }: { section: SectionDef; limit: number })
               index={i}
               watchProgress={progressMap?.[v.id]}
               rank={section.showRank ? i + 1 : undefined}
+              isFavorited={favoritedSet.has(v.id)}
             />
           ))}
         </div>

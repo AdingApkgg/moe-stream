@@ -1,14 +1,18 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import { VideoCover } from "./video-cover";
-import { Play, ThumbsUp, MessageCircle, Check, Crown } from "lucide-react";
+import { Play, ThumbsUp, MessageCircle, Check, Crown, Heart, Loader2 } from "lucide-react";
 import { formatDuration, formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
+import { useStableSession } from "@/lib/hooks";
+import { trpc } from "@/lib/trpc";
+import { toast } from "@/lib/toast-with-sound";
+import { useRouter } from "next/navigation";
 
 const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 小时内视为「新」
 const WATCHED_THRESHOLD = 0.95; // 看完进度阈值
@@ -46,9 +50,11 @@ interface VideoCardProps {
   watchProgress?: { progress: number; duration: number | null };
   /** 排行榜场景：1/2/3 显示金/银/铜冠图标，其它整数显示数字徽章 */
   rank?: number;
+  /** 当前用户是否已收藏该视频（来自 video.favoritedMap）。控制浮动按钮的填充态 */
+  isFavorited?: boolean;
 }
 
-function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank }: VideoCardProps) {
+function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank, isFavorited }: VideoCardProps) {
   const { play } = useSound();
 
   const extra =
@@ -139,6 +145,9 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank 
             <span className="text-white/80">{formatViews(video.views)}次</span>
           </div>
 
+          {/* 浮动快捷收藏按钮（hover 时浮出，desktop only） */}
+          <FavoriteFab videoId={video.id} isFavorited={isFavorited ?? false} />
+
           {/* 已看完角标 */}
           {watched && (
             <div className="absolute top-1.5 right-1.5 bg-green-500/95 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 shadow-sm">
@@ -178,6 +187,70 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank 
         </div>
       </Link>
     </div>
+  );
+}
+
+/**
+ * 浮动收藏按钮：卡片左下角，hover 时浮出（移动端隐藏避免误触）。
+ * 点击不会触发外层 Link 跳转，直接 toggle favorite。
+ * 未登录时跳到登录页。
+ */
+function FavoriteFab({ videoId, isFavorited }: { videoId: string; isFavorited: boolean }) {
+  const router = useRouter();
+  const { session } = useStableSession();
+  const utils = trpc.useUtils();
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const favorited = optimistic ?? isFavorited;
+
+  const mutation = trpc.video.favorite.useMutation({
+    onMutate: () => {
+      setOptimistic(!favorited);
+    },
+    onSuccess: (data) => {
+      setOptimistic(data.favorited);
+      // 让其他页面（收藏列表/详情页）能感知到变化
+      void utils.video.favoritedMap.invalidate();
+      toast.success(data.favorited ? "已收藏" : "已取消收藏");
+    },
+    onError: () => {
+      setOptimistic(null);
+      toast.error("操作失败，请稍后再试");
+    },
+  });
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!session?.user) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/video/${videoId}`)}`);
+      return;
+    }
+    if (mutation.isPending) return;
+    mutation.mutate({ videoId });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label={favorited ? "取消收藏" : "加入收藏"}
+      aria-pressed={favorited}
+      className={cn(
+        "absolute bottom-1.5 left-1.5 grid h-8 w-8 place-items-center rounded-full",
+        "bg-black/55 backdrop-blur-sm text-white shadow-lg",
+        "transition-[opacity,transform,background-color] duration-200",
+        // 移动端隐藏（避免误触 + 列表页节省空间）
+        "hidden md:grid",
+        favorited ? "opacity-100" : "opacity-0 group-hover:opacity-100 -translate-y-0.5 group-hover:translate-y-0",
+        "hover:bg-black/75 active:scale-90",
+      )}
+    >
+      {mutation.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Heart className={cn("h-4 w-4 transition-colors", favorited ? "fill-pink-500 text-pink-500" : "text-white")} />
+      )}
+    </button>
   );
 }
 
@@ -222,6 +295,7 @@ export const VideoCard = memo(VideoCardComponent, (prevProps, nextProps) => {
     prevProps.index === nextProps.index &&
     prevProps.highlightQuery === nextProps.highlightQuery &&
     prevProps.rank === nextProps.rank &&
+    prevProps.isFavorited === nextProps.isFavorited &&
     prevProps.watchProgress?.progress === nextProps.watchProgress?.progress &&
     prevProps.watchProgress?.duration === nextProps.watchProgress?.duration
   );

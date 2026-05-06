@@ -164,6 +164,15 @@ export default function VideoListClient({
   );
   const progressMap = progressData?.progressByVideoId;
 
+  const { data: favoritedData } = trpc.video.favoritedMap.useQuery(
+    { videoIds },
+    {
+      enabled: viewMode === "videos" && videoIds.length > 0,
+      staleTime: 30_000,
+    },
+  );
+  const favoritedSet = useMemo(() => new Set(favoritedData?.favoritedIds ?? []), [favoritedData?.favoritedIds]);
+
   const isFirstPage = videoPage === 1 && !hasFilter && !authorFilter;
   /**
    * 「首页模式」判定：用户进入 /video 没做任何筛选时，主区域改为分区 Feed
@@ -375,12 +384,19 @@ export default function VideoListClient({
                         video={item.data}
                         index={index}
                         watchProgress={progressMap?.[item.data.id]}
+                        isFavorited={favoritedSet.has(item.data.id)}
                       />
                     ),
                   )}
                 </div>
               ) : (
-                <VideoGrid videos={videos} isLoading={false} columnsClass={gridClass} progressMap={progressMap} />
+                <VideoGrid
+                  videos={videos}
+                  isLoading={false}
+                  columnsClass={gridClass}
+                  progressMap={progressMap}
+                  favoritedSet={favoritedSet}
+                />
               )}
 
               {/* 无结果提示 */}

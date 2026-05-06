@@ -490,6 +490,24 @@ export const videoRouter = router({
     }),
 
   /**
+   * 批量查询当前登录用户已收藏的视频 ID 列表。
+   * 用于列表卡片显示心形按钮的填充态。未登录返回空数组。
+   */
+  favoritedMap: publicProcedure
+    .input(z.object({ videoIds: z.array(z.string()).max(60) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId || input.videoIds.length === 0) {
+        return { favoritedIds: [] as string[] };
+      }
+      const records = await ctx.prisma.favorite.findMany({
+        where: { userId, videoId: { in: input.videoIds } },
+        select: { videoId: true },
+      });
+      return { favoritedIds: records.map((r) => r.videoId) };
+    }),
+
+  /**
    * 按投稿时填写的「原作者」(extraInfo.author) 聚合视频列表。
    * 用于视频列表页「作者」tab：每个 item 是一位原作者及其视频统计 + 4 张预览封面。
    * 点击后跳转到 /video?author=xxx，复用 list 的 author 筛选。
