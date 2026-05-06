@@ -3,18 +3,16 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { VideoCover } from "./video-cover";
-import { Play, ThumbsUp, MessageCircle, Check, Crown, Heart, Loader2 } from "lucide-react";
+import { Play, ThumbsUp, MessageCircle, Check } from "lucide-react";
 import { formatDuration, formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { cn } from "@/lib/utils";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
-import { useStableSession } from "@/lib/hooks";
+import { NewBadge, RankBadge, isNewlyUploaded } from "@/components/shared/card-badges";
+import { HoverFavoriteButton } from "@/components/shared/hover-favorite-button";
 import { trpc } from "@/lib/trpc";
-import { toast } from "@/lib/toast-with-sound";
-import { useRouter } from "next/navigation";
 
-const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 小时内视为「新」
 const WATCHED_THRESHOLD = 0.95; // 看完进度阈值
 
 interface VideoCardProps {
@@ -76,14 +74,6 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
   const likeRatio = totalVotes > 0 ? Math.round((video._count.likes / totalVotes) * 100) : 100;
   const likeColor = likeRatio >= 90 ? "text-green-400" : likeRatio >= 70 ? "text-yellow-400" : "text-red-400";
   const commentCount = video._count.comments ?? 0;
-
-  // 24h 内上传 → NEW 徽章。
-  // 注：渲染中调 Date.now() 严格意义上不是纯函数，但每次 render 取的"现在时间"
-  // 用作 NEW 标记是 acceptable 的——它不会引起循环更新（仅决定徽章是否显示），
-  // 且每个 VideoCard 都被 memo 包裹只在 props 变更时重渲染。
-  const createdMs = new Date(video.createdAt).getTime();
-  // eslint-disable-next-line react-hooks/purity
-  const isNew = Number.isFinite(createdMs) && Date.now() - createdMs < NEW_THRESHOLD_MS;
 
   // 进度比例 0..1（仅当 duration 已知）。watchHistory 用 progress 字段（秒）
   const progressDuration = watchProgress?.duration ?? video.duration ?? null;
@@ -150,24 +140,23 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
           {rank !== undefined && <RankBadge rank={rank} />}
 
           {/* 左上：NEW（仅当未在排行榜场景下） */}
-          {rank === undefined && isNew && (
-            <div className="absolute top-1.5 left-1.5 bg-orange-500/95 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold shadow-sm">
-              NEW
-            </div>
-          )}
+          {rank === undefined && <NewBadge createdAt={video.createdAt} />}
 
-          {/* 中部偏左下：时长（在排行榜场景下下移避免与 RankBadge 重叠） */}
-          {video.duration && (
-            <div
-              className={cn(
-                "absolute bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium tabular-nums",
-                isNew && rank === undefined ? "top-9 left-1.5" : "top-1.5 left-1.5",
-                rank !== undefined && "left-12 top-1.5",
-              )}
-            >
-              {formatDuration(video.duration)}
-            </div>
-          )}
+          {/* 时长徽章：避开左上角的 RankBadge / NewBadge */}
+          {video.duration &&
+            (() => {
+              const hasTopLeftBadge = rank !== undefined || isNewlyUploaded(video.createdAt);
+              return (
+                <div
+                  className={cn(
+                    "absolute bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium tabular-nums",
+                    hasTopLeftBadge ? "top-9 left-1.5" : "top-1.5 left-1.5",
+                  )}
+                >
+                  {formatDuration(video.duration)}
+                </div>
+              );
+            })()}
 
           {video.isNsfw && (
             <div className="absolute top-1.5 right-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
@@ -184,7 +173,7 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
           </div>
 
           {/* 浮动快捷收藏按钮（hover 时浮出，desktop only） */}
-          <FavoriteFab videoId={video.id} isFavorited={isFavorited ?? false} />
+          <VideoFavoriteFab videoId={video.id} isFavorited={isFavorited ?? false} />
 
           {/* 已看完角标 */}
           {watched && (
@@ -228,99 +217,20 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
   );
 }
 
-/**
- * 浮动收藏按钮：卡片左下角，hover 时浮出（移动端隐藏避免误触）。
- * 点击不会触发外层 Link 跳转，直接 toggle favorite。
- * 未登录时跳到登录页。
- */
-function FavoriteFab({ videoId, isFavorited }: { videoId: string; isFavorited: boolean }) {
-  const router = useRouter();
-  const { session } = useStableSession();
+/** 视频卡片的浮动收藏按钮：用通用 HoverFavoriteButton，注入 video.favorite mutation */
+function VideoFavoriteFab({ videoId, isFavorited }: { videoId: string; isFavorited: boolean }) {
   const utils = trpc.useUtils();
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
-  const favorited = optimistic ?? isFavorited;
-
-  const mutation = trpc.video.favorite.useMutation({
-    onMutate: () => {
-      setOptimistic(!favorited);
-    },
-    onSuccess: (data) => {
-      setOptimistic(data.favorited);
-      // 让其他页面（收藏列表/详情页）能感知到变化
-      void utils.video.favoritedMap.invalidate();
-      toast.success(data.favorited ? "已收藏" : "已取消收藏");
-    },
-    onError: () => {
-      setOptimistic(null);
-      toast.error("操作失败，请稍后再试");
-    },
-  });
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!session?.user) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(`/video/${videoId}`)}`);
-      return;
-    }
-    if (mutation.isPending) return;
-    mutation.mutate({ videoId });
-  };
-
+  const mutation = trpc.video.favorite.useMutation();
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-label={favorited ? "取消收藏" : "加入收藏"}
-      aria-pressed={favorited}
-      className={cn(
-        "absolute bottom-1.5 left-1.5 grid h-8 w-8 place-items-center rounded-full",
-        "bg-black/55 backdrop-blur-sm text-white shadow-lg",
-        "transition-[opacity,transform,background-color] duration-200",
-        // 移动端隐藏（避免误触 + 列表页节省空间）
-        "hidden md:grid",
-        favorited ? "opacity-100" : "opacity-0 group-hover:opacity-100 -translate-y-0.5 group-hover:translate-y-0",
-        "hover:bg-black/75 active:scale-90",
-      )}
-    >
-      {mutation.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Heart className={cn("h-4 w-4 transition-colors", favorited ? "fill-pink-500 text-pink-500" : "text-white")} />
-      )}
-    </button>
-  );
-}
-
-/** 排行榜徽章：前 3 名金/银/铜冠 + 数字，其它名次仅显示「#N」 */
-function RankBadge({ rank }: { rank: number }) {
-  if (rank <= 0) return null;
-  if (rank <= 3) {
-    const tier =
-      rank === 1
-        ? { ring: "from-amber-300 to-yellow-500", text: "text-amber-50" }
-        : rank === 2
-          ? { ring: "from-slate-200 to-slate-400", text: "text-slate-50" }
-          : { ring: "from-orange-300 to-amber-700", text: "text-orange-50" };
-    return (
-      <div
-        className={cn(
-          "absolute top-1.5 left-1.5 z-[1] inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold shadow-lg",
-          "bg-gradient-to-br",
-          tier.ring,
-          tier.text,
-        )}
-        aria-label={`排名第 ${rank}`}
-      >
-        <Crown className="h-3.5 w-3.5" />
-        <span className="tabular-nums">{rank}</span>
-      </div>
-    );
-  }
-  return (
-    <div className="absolute top-1.5 left-1.5 z-[1] inline-flex items-center rounded-full bg-black/65 backdrop-blur-sm px-2 py-0.5 text-xs font-bold text-white tabular-nums">
-      #{rank}
-    </div>
+    <HoverFavoriteButton
+      favorited={isFavorited}
+      unauthCallbackUrl={`/video/${videoId}`}
+      onToggle={async () => {
+        const data = await mutation.mutateAsync({ videoId });
+        void utils.video.favoritedMap.invalidate();
+        return data.favorited;
+      }}
+    />
   );
 }
 

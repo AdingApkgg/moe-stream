@@ -114,6 +114,14 @@ export function GameListClient({
   );
   const totalPages = gameData?.totalPages ?? 1;
 
+  // 当前页游戏的收藏状态（已登录才查；未登录返回空）
+  const gameIds = useMemo(() => games.map((g) => g.id), [games]);
+  const { data: favoritedData } = trpc.game.favoritedMap.useQuery(
+    { gameIds },
+    { enabled: gameIds.length > 0, staleTime: 30_000 },
+  );
+  const favoritedSet = useMemo(() => new Set(favoritedData?.favoritedIds ?? []), [favoritedData?.favoritedIds]);
+
   const isFirstPage = page === 1 && !hasFilter && selectedType === "";
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
@@ -255,12 +263,17 @@ export function GameListClient({
                 item.type === "ad" ? (
                   <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
                 ) : (
-                  <GameCard key={item.data.id} game={item.data} index={index} />
+                  <GameCard
+                    key={item.data.id}
+                    game={item.data}
+                    index={index}
+                    isFavorited={favoritedSet.has(item.data.id)}
+                  />
                 ),
               )}
             </div>
           ) : (
-            <GameGrid games={games} isLoading={false} columnsClass={gridClass} />
+            <GameGrid games={games} isLoading={false} columnsClass={gridClass} favoritedSet={favoritedSet} />
           )}
 
           {!isLoading && games.length === 0 && (

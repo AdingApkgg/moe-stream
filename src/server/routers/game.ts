@@ -800,6 +800,22 @@ export const gameRouter = router({
     return { success: true, count: gameIds.length };
   }),
 
+  /**
+   * 批量查询当前登录用户已收藏的游戏 ID。
+   * 用于列表卡片显示心形按钮的填充态。未登录返回空数组。
+   */
+  favoritedMap: publicProcedure
+    .input(z.object({ gameIds: z.array(z.string()).max(60) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId || input.gameIds.length === 0) return { favoritedIds: [] as string[] };
+      const records = await ctx.prisma.gameFavorite.findMany({
+        where: { userId, gameId: { in: input.gameIds } },
+        select: { gameId: true },
+      });
+      return { favoritedIds: records.map((r) => r.gameId) };
+    }),
+
   /** 切换收藏 */
   toggleFavorite: protectedProcedure.input(z.object({ gameId: z.string() })).mutation(async ({ ctx, input }) => {
     const userId = ctx.session.user.id;

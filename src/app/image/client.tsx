@@ -96,6 +96,14 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   const totalPages = postData?.totalPages ?? 1;
   const showSkeleton = (isLoading || isFetching) && posts.length === 0;
 
+  // 当前页图集的收藏状态（已登录才查；未登录返回空）
+  const imagePostIds = useMemo(() => posts.map((p) => p.id), [posts]);
+  const { data: favoritedData } = trpc.image.favoritedMap.useQuery(
+    { imagePostIds },
+    { enabled: imagePostIds.length > 0, staleTime: 30_000 },
+  );
+  const favoritedSet = useMemo(() => new Set(favoritedData?.favoritedIds ?? []), [favoritedData?.favoritedIds]);
+
   const handlePageChange = useCallback(
     (next: number) => {
       setPage(next);
@@ -192,14 +200,19 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
                 item.type === "ad" ? (
                   <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
                 ) : (
-                  <ImagePostCard key={item.data.id} post={item.data} index={index} />
+                  <ImagePostCard
+                    key={item.data.id}
+                    post={item.data}
+                    index={index}
+                    isFavorited={favoritedSet.has(item.data.id)}
+                  />
                 ),
               )}
             </div>
           ) : (
             <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
               {posts.map((post, index) => (
-                <ImagePostCard key={post.id} post={post} index={index} />
+                <ImagePostCard key={post.id} post={post} index={index} isFavorited={favoritedSet.has(post.id)} />
               ))}
             </div>
           )}

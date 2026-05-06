@@ -9,9 +9,12 @@ import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
+import { NewBadge, RankBadge } from "@/components/shared/card-badges";
+import { HoverFavoriteButton } from "@/components/shared/hover-favorite-button";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
+import { trpc } from "@/lib/trpc";
 
 interface ImagePostCardProps {
   post: {
@@ -32,6 +35,10 @@ interface ImagePostCardProps {
   };
   index?: number;
   highlightQuery?: string | null;
+  /** 排行榜场景：1/2/3 显示金/银/铜冠 */
+  rank?: number;
+  /** 当前用户是否已收藏 */
+  isFavorited?: boolean;
 }
 
 function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; priority: boolean }) {
@@ -54,7 +61,7 @@ function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; 
   );
 }
 
-function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardProps) {
+function ImagePostCardComponent({ post, index, highlightQuery, rank, isFavorited }: ImagePostCardProps) {
   const thumbPrimary = useThumb("gridPrimary");
   const thumbSecondary = useThumb("gridSecondary");
   const { play } = useSound();
@@ -123,14 +130,22 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
+            {/* 排行榜徽章 / NEW 徽章（左上角，二选一）*/}
+            {rank !== undefined ? <RankBadge rank={rank} /> : <NewBadge createdAt={post.createdAt} />}
+
             {post.isNsfw && (
-              <div className="absolute top-1.5 left-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
+              <div className="absolute top-1.5 right-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
                 NSFW
               </div>
             )}
 
             {imageCount > 1 && (
-              <div className="absolute top-1.5 right-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+              <div
+                className={cn(
+                  "absolute right-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1",
+                  post.isNsfw ? "top-9" : "top-1.5",
+                )}
+              >
                 <Images className="h-3 w-3" />
                 {imageCount}
               </div>
@@ -140,6 +155,9 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
               <Eye className="h-3 w-3" />
               {formatViews(post.views)}
             </div>
+
+            {/* 浮动快捷收藏（hover 浮出，desktop only） */}
+            <ImagePostFavoriteFab postId={post.id} isFavorited={isFavorited ?? false} />
           </div>
         </div>
 
@@ -159,11 +177,29 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
   );
 }
 
+function ImagePostFavoriteFab({ postId, isFavorited }: { postId: string; isFavorited: boolean }) {
+  const utils = trpc.useUtils();
+  const mutation = trpc.image.toggleFavorite.useMutation();
+  return (
+    <HoverFavoriteButton
+      favorited={isFavorited}
+      unauthCallbackUrl={`/image/${postId}`}
+      onToggle={async () => {
+        const data = await mutation.mutateAsync({ imagePostId: postId });
+        void utils.image.favoritedMap.invalidate();
+        return data.favorited;
+      }}
+    />
+  );
+}
+
 export const ImagePostCard = memo(ImagePostCardComponent, (prev, next) => {
   return (
     prev.post.id === next.post.id &&
     prev.post.views === next.post.views &&
     prev.index === next.index &&
-    prev.highlightQuery === next.highlightQuery
+    prev.highlightQuery === next.highlightQuery &&
+    prev.rank === next.rank &&
+    prev.isFavorited === next.isFavorited
   );
 });

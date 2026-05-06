@@ -9,9 +9,13 @@ import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
+import { NewBadge, RankBadge, isNewlyUploaded } from "@/components/shared/card-badges";
+import { HoverFavoriteButton } from "@/components/shared/hover-favorite-button";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
+import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   ADV: "ADV",
@@ -71,6 +75,10 @@ interface GameCardProps {
   game: GameCardData;
   index?: number;
   highlightQuery?: string | null;
+  /** 排行榜场景：1/2/3 显示金/银/铜冠 */
+  rank?: number;
+  /** 当前用户是否已收藏 */
+  isFavorited?: boolean;
 }
 
 function GameCoverImageInner({ src, title, priority }: { src: string; title: string; priority: boolean }) {
@@ -120,7 +128,7 @@ function GameCoverImage({ coverUrl, title, priority }: { coverUrl?: string | nul
   );
 }
 
-function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
+function GameCardComponent({ game, index, highlightQuery, rank, isFavorited }: GameCardProps) {
   const { play } = useSound();
 
   const extra =
@@ -147,14 +155,28 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
             </div>
           </div>
 
-          {/* Game type badge */}
-          {game.gameType && (
-            <div
-              className={`absolute top-1.5 left-1.5 ${GAME_TYPE_COLORS[game.gameType] || GAME_TYPE_COLORS.OTHER} backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold`}
-            >
-              {GAME_TYPE_LABELS[game.gameType] || game.gameType}
-            </div>
-          )}
+          {/* 排行榜徽章（左上角，覆盖 game type）*/}
+          {rank !== undefined && <RankBadge rank={rank} />}
+
+          {/* NEW 徽章（仅当未在排行榜场景下，且 24h 内上传）*/}
+          {rank === undefined && <NewBadge createdAt={game.createdAt} />}
+
+          {/* Game type badge: 避开左上角的 Rank/NEW 徽章 */}
+          {game.gameType &&
+            (() => {
+              const hasTopLeftBadge = rank !== undefined || isNewlyUploaded(game.createdAt);
+              return (
+                <div
+                  className={cn(
+                    "absolute backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold",
+                    GAME_TYPE_COLORS[game.gameType] || GAME_TYPE_COLORS.OTHER,
+                    hasTopLeftBadge ? "top-9 left-1.5" : "top-1.5 left-1.5",
+                  )}
+                >
+                  {GAME_TYPE_LABELS[game.gameType] || game.gameType}
+                </div>
+              );
+            })()}
 
           <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 items-end">
             {game.isNsfw && (
@@ -192,6 +214,9 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
               )}
             </div>
           </div>
+
+          {/* 浮动快捷收藏（hover 浮出，desktop only） */}
+          <GameFavoriteFab gameId={game.id} isFavorited={isFavorited ?? false} />
         </div>
 
         <div className="mt-2 px-0.5 space-y-0.5">
@@ -205,12 +230,30 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
   );
 }
 
+function GameFavoriteFab({ gameId, isFavorited }: { gameId: string; isFavorited: boolean }) {
+  const utils = trpc.useUtils();
+  const mutation = trpc.game.toggleFavorite.useMutation();
+  return (
+    <HoverFavoriteButton
+      favorited={isFavorited}
+      unauthCallbackUrl={`/game/${gameId}`}
+      onToggle={async () => {
+        const data = await mutation.mutateAsync({ gameId });
+        void utils.game.favoritedMap.invalidate();
+        return data.favorited;
+      }}
+    />
+  );
+}
+
 export const GameCard = memo(GameCardComponent, (prevProps, nextProps) => {
   return (
     prevProps.game.id === nextProps.game.id &&
     prevProps.game.views === nextProps.game.views &&
     prevProps.game._count.likes === nextProps.game._count.likes &&
     prevProps.index === nextProps.index &&
-    prevProps.highlightQuery === nextProps.highlightQuery
+    prevProps.highlightQuery === nextProps.highlightQuery &&
+    prevProps.rank === nextProps.rank &&
+    prevProps.isFavorited === nextProps.isFavorited
   );
 });

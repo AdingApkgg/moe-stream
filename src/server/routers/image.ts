@@ -591,6 +591,22 @@ export const imageRouter = router({
       }
     }),
 
+  /**
+   * 批量查询当前登录用户已收藏的图集 ID。
+   * 用于列表卡片显示心形按钮的填充态。未登录返回空数组。
+   */
+  favoritedMap: publicProcedure
+    .input(z.object({ imagePostIds: z.array(z.string()).max(60) }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId || input.imagePostIds.length === 0) return { favoritedIds: [] as string[] };
+      const records = await ctx.prisma.imagePostFavorite.findMany({
+        where: { userId, imagePostId: { in: input.imagePostIds } },
+        select: { imagePostId: true },
+      });
+      return { favoritedIds: records.map((r) => r.imagePostId) };
+    }),
+
   toggleFavorite: protectedProcedure.input(z.object({ imagePostId: z.string() })).mutation(async ({ ctx, input }) => {
     const userId = ctx.session.user.id;
     const existing = await ctx.prisma.imagePostFavorite.findUnique({

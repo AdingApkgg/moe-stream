@@ -11,6 +11,10 @@ interface GameGridProps {
   /** 自定义栅格 class，优先级高于 columns */
   columnsClass?: string;
   highlightQuery?: string | null;
+  /** 当前用户已收藏的游戏 ID 集合（来自 game.favoritedMap） */
+  favoritedSet?: Set<string>;
+  /** 排行榜场景：从第一项起的起始排名 */
+  startRank?: number;
 }
 
 const gridColumns = {
@@ -20,7 +24,15 @@ const gridColumns = {
   5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function GameGrid({ games, isLoading, columns = 4, columnsClass, highlightQuery }: GameGridProps) {
+export function GameGrid({
+  games,
+  isLoading,
+  columns = 4,
+  columnsClass,
+  highlightQuery,
+  favoritedSet,
+  startRank,
+}: GameGridProps) {
   const colsCls = columnsClass ?? gridColumns[columns];
 
   if (isLoading) {
@@ -45,7 +57,13 @@ export function GameGrid({ games, isLoading, columns = 4, columnsClass, highligh
     <MotionList className={`grid ${colsCls} gap-3 sm:gap-4 lg:gap-5`}>
       {games.map((game, index) => (
         <MotionItem key={game.id}>
-          <GameCard game={game} index={index} highlightQuery={highlightQuery} />
+          <GameCard
+            game={game}
+            index={index}
+            highlightQuery={highlightQuery}
+            isFavorited={favoritedSet?.has(game.id)}
+            rank={startRank !== undefined ? startRank + index : undefined}
+          />
         </MotionItem>
       ))}
     </MotionList>
