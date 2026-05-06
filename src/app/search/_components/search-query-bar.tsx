@@ -80,11 +80,11 @@ export function SearchQueryBar({ query, className }: SearchQueryBarProps) {
             }}
             onFocus={() => setOpen(true)}
             placeholder="搜索视频、游戏、图片、标签…"
-            className="pl-9 h-10"
+            className="pl-9 h-10 sm:h-10"
             aria-label="搜索关键词"
           />
         </div>
-        <Button type="submit" className="shrink-0">
+        <Button type="submit" className="shrink-0 h-10">
           搜索
         </Button>
       </form>

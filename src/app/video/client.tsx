@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
+import { ContentModeHeader } from "@/components/shared/content-mode-header";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -278,10 +279,7 @@ export default function VideoListClient({
     ),
     tagBar: (
       <MotionPage>
-        <div className="flex items-center gap-3 mb-4">
-          <Play className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">视频</h1>
-        </div>
+        <ContentModeHeader current="video" />
         {viewMode === "videos" && sortOptions.length > 0 && (
           <SectionTabs<SortBy>
             className="mb-3"

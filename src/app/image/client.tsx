@@ -13,6 +13,7 @@ import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
+import { ContentModeHeader } from "@/components/shared/content-mode-header";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
@@ -161,10 +162,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     ),
     tagBar: (
       <MotionPage>
-        <div className="flex items-center gap-3 mb-4">
-          <Images className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">图片</h1>
-        </div>
+        <ContentModeHeader current="image" />
         {sortOptions.length > 0 && (
           <SectionTabs<SortBy>
             className="mb-3"
