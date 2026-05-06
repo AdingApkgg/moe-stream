@@ -6,10 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   Upload,
-  Heart,
-  History,
   User,
-  Layers,
   MessageCircle,
   Trophy,
   Image,
@@ -18,7 +15,6 @@ import {
   TrendingUp,
   Hash,
   Mail,
-  HardDrive,
   Link2,
   type LucideIcon,
 } from "lucide-react";
@@ -69,12 +65,10 @@ const allCommunityNavItems: NavItem[] = [
   { href: "/messages", icon: Mail, label: "私信", auth: true },
 ];
 
-const userNavItems: NavItem[] = [
-  { href: "/my-works", icon: Layers, label: "我的作品", auth: true, requireUpload: true },
-  { href: "/my-files", icon: HardDrive, label: "我的文件", auth: true },
-  { href: "/favorites", icon: Heart, label: "收藏", auth: true },
-  { href: "/history", icon: History, label: "历史", auth: true },
-];
+// 「我的xxx」原本分散为作品/文件/收藏/历史 4 个 sidebar 入口，
+// 合并到一个「我的主页」-> /profile dashboard，dashboard 内已有快捷入口跳转到子页面，
+// 减少 sidebar 视觉噪声。
+const userNavItems: NavItem[] = [{ href: "/profile", icon: User, label: "我的主页", auth: true }];
 
 const moreNavItems: NavItem[] = [
   { href: "/upload", icon: Upload, label: "发布内容", auth: true, requireUpload: true },

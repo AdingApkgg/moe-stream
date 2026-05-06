@@ -1,7 +1,6 @@
-import LandingClient from "./client";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getPublicSiteConfig } from "@/lib/site-config";
-import { WebsiteJsonLd, OrganizationJsonLd } from "@/components/seo/json-ld";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
@@ -23,20 +22,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * 首页：直接重定向到默认内容区，避免让用户做"先选视频/图片/游戏"的选择题。
+ * 优先级：视频 → 图片 → 游戏（按已启用的第一个）；全部禁用时回退到 /video（404 由各分区处理）。
+ */
 export default async function HomePage() {
   const config = await getPublicSiteConfig();
-  const description = config.siteDescription || `${config.siteName} 流式媒体内容分享平台`;
-  const logo =
-    config.siteLogo && config.siteLogo.startsWith("http")
-      ? config.siteLogo
-      : `${config.siteUrl}${config.siteLogo || "/Mikiacg-logo.webp"}`;
-
-  return (
-    <>
-      {/* SEO 结构化数据 - 首页站点信息 */}
-      <WebsiteJsonLd siteName={config.siteName} siteUrl={config.siteUrl} description={description} />
-      <OrganizationJsonLd name={config.siteName} url={config.siteUrl} logo={logo} contactEmail={config.contactEmail} />
-      <LandingClient />
-    </>
-  );
+  if (config.sectionVideoEnabled !== false) redirect("/video");
+  if (config.sectionImageEnabled !== false) redirect("/image");
+  if (config.sectionGameEnabled !== false) redirect("/game");
+  redirect("/video");
 }

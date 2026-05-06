@@ -24,7 +24,6 @@ import {
   History,
   Shield,
   LogIn,
-  UserPlus,
   ArrowLeft,
   Sun,
   Moon,
@@ -104,25 +103,67 @@ function SearchSuggestionsList({
   );
 }
 
-function SoundToggleButton() {
+/** 偏好设置：在用户菜单下拉里展示 主题三选 + 音效开关，避免常驻 header */
+function ThemeSoundPrefs() {
+  const { theme, setTheme } = useTheme();
+  const mounted = useIsMounted();
   const soundEnabled = useUserStore((s) => s.preferences.soundEnabled);
   const soundVolume = useUserStore((s) => s.preferences.soundVolume);
   const setPreference = useUserStore((s) => s.setPreference);
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-9 w-9 rounded-full"
-      onClick={() => {
-        const next = !soundEnabled;
-        setPreference("soundEnabled", next);
-        if (next) playSound("toggle", soundVolume);
-      }}
-      aria-label={soundEnabled ? "关闭音效" : "开启音效"}
-    >
-      {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
-    </Button>
+    <div className="px-2 py-1.5 space-y-1.5">
+      {/* 主题三选 */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground w-10 shrink-0 pl-1">主题</span>
+        <div className="flex flex-1 items-center rounded-full bg-muted/60 p-0.5 gap-0.5">
+          {(
+            [
+              { value: "system", icon: Monitor, label: "跟随" },
+              { value: "light", icon: Sun, label: "浅色" },
+              { value: "dark", icon: Moon, label: "深色" },
+            ] as const
+          ).map(({ value, icon: Icon, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTheme(value)}
+              aria-label={label}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1 h-7 rounded-full transition-colors text-xs",
+                mounted && theme === value
+                  ? "bg-background shadow-sm text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 音效开关 */}
+      <button
+        type="button"
+        onClick={() => {
+          const next = !soundEnabled;
+          setPreference("soundEnabled", next);
+          if (next) playSound("toggle", soundVolume);
+        }}
+        className="w-full flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-accent text-sm transition-colors"
+      >
+        <span className="flex items-center gap-2 text-muted-foreground">
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          界面音效
+        </span>
+        <span
+          className={cn("text-xs font-medium tabular-nums", soundEnabled ? "text-primary" : "text-muted-foreground")}
+        >
+          {soundEnabled ? "开" : "关"}
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -465,53 +506,6 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Search className="h-5 w-5" />
             </Button>
 
-            {/* 主题三选：跟随系统 / 浅色 / 深色 */}
-            <div className="hidden sm:flex items-center h-8 rounded-full bg-muted/60 p-0.5 gap-0.5">
-              {(
-                [
-                  { value: "system", icon: Monitor, label: "跟随系统" },
-                  { value: "light", icon: Sun, label: "浅色" },
-                  { value: "dark", icon: Moon, label: "深色" },
-                ] as const
-              ).map(({ value, icon: Icon, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    setTheme(value);
-                    play("toggle");
-                  }}
-                  aria-label={label}
-                  className={cn(
-                    "flex items-center justify-center h-7 w-7 rounded-full transition-colors",
-                    mounted && theme === value
-                      ? "bg-background shadow-sm text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </button>
-              ))}
-            </div>
-            {/* 移动端：单按钮循环切换 */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="sm:hidden h-9 w-9 rounded-full"
-              onClick={() => {
-                const next = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
-                setTheme(next);
-                play("toggle");
-              }}
-              aria-label="切换主题"
-            >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
-            </Button>
-
-            {/* Sound Toggle */}
-            <SoundToggleButton />
-
             {/* Messages */}
             {!isLoading && session?.user && <MessageButton />}
 
@@ -609,6 +603,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
+                  {/* 偏好设置：主题 + 音效（从 header 工具栏迁移） */}
+                  <ThemeSoundPrefs />
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-red-600"
                     onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => window.location.reload() } })}
@@ -619,20 +616,12 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" asChild className="rounded-full px-3">
-                  <Link href="/login">
-                    <LogIn className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">登录</span>
-                  </Link>
-                </Button>
-                <Button size="sm" asChild className="rounded-full px-3">
-                  <Link href="/register">
-                    <UserPlus className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">注册</span>
-                  </Link>
-                </Button>
-              </div>
+              <Button size="sm" asChild className="rounded-full px-4 h-9 gap-1.5 ml-1">
+                <Link href="/login">
+                  <LogIn className="h-4 w-4" />
+                  <span>登录</span>
+                </Link>
+              </Button>
             )}
           </div>
         </div>
