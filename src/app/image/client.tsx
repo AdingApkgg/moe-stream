@@ -78,10 +78,13 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
   // 时间范围筛选（仅 URL ?timeRange 驱动）
-  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const urlTimeRangeRaw = searchParams.get("timeRange");
+  const urlTimeRange = (urlTimeRangeRaw as "all" | "today" | "week" | "month" | null) ?? "all";
   const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
     ? urlTimeRange
     : "all";
+  // URL 显式带了 sortBy 或 timeRange → 用户从「查看更多」过来，强制脱出首页模式
+  const hasExplicitListIntent = urlSortBy !== null || urlTimeRangeRaw !== null;
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [page, setPage] = usePageParam();
@@ -130,7 +133,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
    * 「首页模式」判定：用户进入 /image 没做任何筛选时，主区域改为分区 Feed
    * (最新 / 本日热门 / 本周排行)，参考 hanime1.me。
    */
-  const isHomeMode = page === 1 && !hasFilter && sortBy === "latest" && timeRange === "all";
+  const isHomeMode = page === 1 && !hasFilter && sortBy === "latest" && timeRange === "all" && !hasExplicitListIntent;
   const adSeed = `image-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;

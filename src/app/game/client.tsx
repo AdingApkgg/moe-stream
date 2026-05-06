@@ -101,10 +101,13 @@ export function GameListClient({
     const configured = (siteConfigCtx?.gameDefaultSort as SortBy) || "latest";
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
-  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const urlTimeRangeRaw = searchParams.get("timeRange");
+  const urlTimeRange = (urlTimeRangeRaw as "all" | "today" | "week" | "month" | null) ?? "all";
   const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
     ? urlTimeRange
     : "all";
+  // URL 显式带了 sortBy 或 timeRange → 用户从「查看更多」过来，强制脱出首页模式
+  const hasExplicitListIntent = urlSortBy !== null || urlTimeRangeRaw !== null;
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");
@@ -166,7 +169,8 @@ export function GameListClient({
     selectedType === "" &&
     sortBy === "latest" &&
     timeRange === "all" &&
-    !originalAuthorFilter;
+    !originalAuthorFilter &&
+    !hasExplicitListIntent;
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;

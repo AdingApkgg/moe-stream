@@ -107,10 +107,14 @@ export default function VideoListClient({
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
   // 时间范围筛选（仅 list 用，无 UI 控件，仅由 ?timeRange URL 参数驱动）
-  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const urlTimeRangeRaw = searchParams.get("timeRange");
+  const urlTimeRange = (urlTimeRangeRaw as "all" | "today" | "week" | "month" | null) ?? "all";
   const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
     ? urlTimeRange
     : "all";
+  // URL 显式带了 sortBy 或 timeRange 参数 → 用户从「查看更多」过来，
+  // 即使值跟默认一致也要展开成完整列表 (不再回到首页模式)
+  const hasExplicitListIntent = urlSortBy !== null || urlTimeRangeRaw !== null;
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [videoPage, setVideoPage] = usePageParam("page");
@@ -184,7 +188,8 @@ export default function VideoListClient({
     !hasFilter &&
     !authorFilter &&
     sortBy === "latest" &&
-    timeRange === "all";
+    timeRange === "all" &&
+    !hasExplicitListIntent;
   const adSeed = `${videoPage}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${authorFilter}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
