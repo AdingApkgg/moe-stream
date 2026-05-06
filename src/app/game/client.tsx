@@ -10,6 +10,8 @@ import { AlertTriangle, X, Gamepad2 } from "lucide-react";
 import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
+import { SidebarRanking } from "@/components/shared/sidebar-ranking";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { AdCard } from "@/components/ads/ad-card";
@@ -225,41 +227,34 @@ export function GameListClient({
         </MotionPage>
 
         <MotionPage>
-          <CollapsibleTagBar className="mb-6">
-            {sortOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => handleSortClick(option.id)}
-                className={cn(
-                  "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                  sortBy === option.id ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80 text-foreground",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-            {initialTags.length > 0 && (
-              <>
-                <div className="shrink-0 w-px bg-border my-1" />
-                {initialTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleTagClick(tag.slug)}
-                    onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
-                    className={cn(
-                      "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                      isSelected(tag.slug) && "bg-foreground text-background",
-                      isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
-                      !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
-                    )}
-                    title="左键选择，右键排除"
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </>
-            )}
-          </CollapsibleTagBar>
+          {sortOptions.length > 0 && (
+            <SectionTabs<SortBy>
+              className="mb-3"
+              tabs={sortOptions as SectionTabItem<SortBy>[]}
+              value={sortBy}
+              onChange={handleSortClick}
+            />
+          )}
+          {initialTags.length > 0 && (
+            <CollapsibleTagBar className="mb-6">
+              {initialTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => handleTagClick(tag.slug)}
+                  onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                    isSelected(tag.slug) && "bg-foreground text-background",
+                    isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
+                    !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
+                  )}
+                  title="左键选择，右键排除"
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </CollapsibleTagBar>
+          )}
         </MotionPage>
       </>
     ),
@@ -313,12 +308,21 @@ export function GameListClient({
   return (
     <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
-        {layout.section.modules.map((m) => {
-          if (!isSectionModuleEnabled(layout, m.id)) return null;
-          const node = modules[m.id];
-          if (!node) return null;
-          return <Fragment key={m.id}>{node}</Fragment>;
-        })}
+        <div className="flex gap-6">
+          <div className="flex-1 min-w-0">
+            {layout.section.modules.map((m) => {
+              if (!isSectionModuleEnabled(layout, m.id)) return null;
+              const node = modules[m.id];
+              if (!node) return null;
+              return <Fragment key={m.id}>{node}</Fragment>;
+            })}
+          </div>
+          <aside className="hidden xl:block w-[300px] shrink-0">
+            <div className="sticky top-[6.5rem]">
+              <SidebarRanking kind="game" />
+            </div>
+          </aside>
+        </div>
       </div>
     </MotionPage>
   );

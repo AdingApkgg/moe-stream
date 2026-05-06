@@ -10,6 +10,8 @@ import { AlertTriangle, X, Play, Layers } from "lucide-react";
 import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
+import { SidebarRanking } from "@/components/shared/sidebar-ranking";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -217,57 +219,74 @@ export default function VideoListClient({
       ) : null,
     tagBar: (
       <MotionPage>
-        <CollapsibleTagBar className="mb-6">
-          {viewModeOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => handleViewModeClick(option.id)}
-              className={cn(
-                "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                viewMode === option.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80 text-foreground",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-          <div className="shrink-0 w-px bg-border my-1" />
-          {viewMode === "videos" &&
-            sortOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => handleSortClick(option.id)}
-                className={cn(
-                  "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                  sortBy === option.id ? "bg-foreground text-background" : "bg-muted hover:bg-muted/80 text-foreground",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          {viewMode === "videos" && initialTags.length > 0 && (
-            <>
-              <div className="shrink-0 w-px bg-border my-1" />
-              {initialTags.map((tag) => (
+        {viewMode === "videos" && sortOptions.length > 0 && (
+          <SectionTabs<SortBy>
+            className="mb-3"
+            tabs={sortOptions as SectionTabItem<SortBy>[]}
+            value={sortBy}
+            onChange={handleSortClick}
+            trailing={
+              <div className="flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
+                {viewModeOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => handleViewModeClick(option.id)}
+                    className={cn(
+                      "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                      viewMode === option.id
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+        )}
+        {viewMode === "series" && (
+          <div className="mb-3 border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1 rounded-full bg-muted/60 p-0.5 w-fit">
+              {viewModeOptions.map((option) => (
                 <button
-                  key={tag.id}
-                  onClick={() => handleTagClick(tag.slug)}
-                  onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
+                  key={option.id}
+                  onClick={() => handleViewModeClick(option.id)}
                   className={cn(
-                    "shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                    isSelected(tag.slug) && "bg-foreground text-background",
-                    isExcluded(tag.slug) && "bg-destructive/20 text-destructive line-through",
-                    !isSelected(tag.slug) && !isExcluded(tag.slug) && "bg-muted hover:bg-muted/80 text-foreground",
+                    "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                    viewMode === option.id
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
-                  title="左键选择，右键排除"
                 >
-                  {tag.name}
+                  {option.label}
                 </button>
               ))}
-            </>
-          )}
-        </CollapsibleTagBar>
+            </div>
+          </div>
+        )}
+        {viewMode === "videos" && initialTags.length > 0 && (
+          <CollapsibleTagBar className="mb-6">
+            {initialTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => handleTagClick(tag.slug)}
+                onContextMenu={(e) => handleTagRightClick(e, tag.slug)}
+                className={cn(
+                  "shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap border",
+                  isSelected(tag.slug) && "bg-primary text-primary-foreground border-primary",
+                  isExcluded(tag.slug) && "bg-destructive/15 text-destructive line-through border-destructive/30",
+                  !isSelected(tag.slug) &&
+                    !isExcluded(tag.slug) &&
+                    "bg-card hover:bg-accent text-foreground border-border",
+                )}
+                title="左键选择，右键排除"
+              >
+                {tag.name}
+              </button>
+            ))}
+          </CollapsibleTagBar>
+        )}
       </MotionPage>
     ),
     mainGrid: (
@@ -420,12 +439,23 @@ export default function VideoListClient({
   return (
     <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
-        {layout.section.modules.map((m) => {
-          if (!isSectionModuleEnabled(layout, m.id)) return null;
-          const node = modules[m.id];
-          if (!node) return null;
-          return <Fragment key={m.id}>{node}</Fragment>;
-        })}
+        <div className="flex gap-6">
+          <div className="flex-1 min-w-0">
+            {layout.section.modules.map((m) => {
+              if (!isSectionModuleEnabled(layout, m.id)) return null;
+              const node = modules[m.id];
+              if (!node) return null;
+              return <Fragment key={m.id}>{node}</Fragment>;
+            })}
+          </div>
+          {viewMode === "videos" && (
+            <aside className="hidden xl:block w-[300px] shrink-0">
+              <div className="sticky top-[6.5rem]">
+                <SidebarRanking kind="video" />
+              </div>
+            </aside>
+          )}
+        </div>
       </div>
     </MotionPage>
   );

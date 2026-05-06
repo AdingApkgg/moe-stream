@@ -62,6 +62,7 @@ export const imageRouter = router({
         tags: {
           include: { tag: { select: { id: true, name: true, slug: true } } },
         },
+        _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
       } as const;
 
       if (shouldMeiliListSearch(search)) {
@@ -702,7 +703,7 @@ export const imageRouter = router({
               include: {
                 uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
                 tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-                _count: { select: { likes: true, dislikes: true, favorites: true } },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
               },
             },
           },
@@ -744,7 +745,7 @@ export const imageRouter = router({
               include: {
                 uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
                 tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-                _count: { select: { likes: true, dislikes: true, favorites: true } },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
               },
             },
           },
@@ -786,7 +787,7 @@ export const imageRouter = router({
               include: {
                 uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
                 tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
-                _count: { select: { likes: true, dislikes: true, favorites: true } },
+                _count: { select: { likes: true, dislikes: true, favorites: true, comments: true } },
               },
             },
           },
