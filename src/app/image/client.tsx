@@ -2,9 +2,11 @@
 
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
+import { ImageFeedSections } from "@/components/image/image-feed-sections";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { Button } from "@/components/ui/button";
 import { Fragment, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { usePageParam } from "@/hooks/use-page-param";
 import { Images } from "lucide-react";
 import { MotionPage } from "@/components/motion";
@@ -61,16 +63,25 @@ interface ImageListClientProps {
 export function ImageListClient({ initialTags, initialPosts }: ImageListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
   const siteConfigCtx = useSiteConfig();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setContentMode("image");
   }, [setContentMode]);
 
+  // URL ?sortBy 优先级最高（来自首页 section "查看更多" 链接）
+  const urlSortBy = searchParams.get("sortBy") as SortBy | null;
   const [sortBy, setSortBy] = useState<SortBy>(() => {
     const enabled = (siteConfigCtx?.imageSortOptions ?? "latest,views").split(",").map((s) => s.trim());
+    if (urlSortBy && enabled.includes(urlSortBy)) return urlSortBy;
     const configured = (siteConfigCtx?.imageDefaultSort as SortBy) || "latest";
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
+  // 时间范围筛选（仅 URL ?timeRange 驱动）
+  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
+    ? urlTimeRange
+    : "all";
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [page, setPage] = usePageParam();
@@ -87,6 +98,7 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     sortBy,
     tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
     excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
+    timeRange,
   });
 
   const posts = useMemo(
@@ -114,6 +126,11 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     [setPage],
   );
 
+  /**
+   * 「首页模式」判定：用户进入 /image 没做任何筛选时，主区域改为分区 Feed
+   * (最新 / 本日热门 / 本周排行)，参考 hanime1.me。
+   */
+  const isHomeMode = page === 1 && !hasFilter && sortBy === "latest" && timeRange === "all";
   const adSeed = `image-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
@@ -183,57 +200,63 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
     ),
     mainGrid: (
       <section>
-        <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${page}`}>
-          {showSkeleton ? (
-            <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="aspect-square w-full rounded-lg" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : hasAds ? (
-            <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-              {gridItems.map((item, index) =>
-                item.type === "ad" ? (
-                  <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
-                ) : (
-                  <ImagePostCard
-                    key={item.data.id}
-                    post={item.data}
-                    index={index}
-                    isFavorited={favoritedSet.has(item.data.id)}
-                  />
-                ),
-              )}
-            </div>
-          ) : (
-            <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-              {posts.map((post, index) => (
-                <ImagePostCard key={post.id} post={post} index={index} isFavorited={favoritedSet.has(post.id)} />
-              ))}
-            </div>
-          )}
-
-          {!isLoading && !isFetching && posts.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-muted-foreground mb-4">
-                <Images className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">没有找到图片</p>
-                <p className="text-sm mt-1">{hasFilter ? "尝试调整标签筛选条件" : "暂无图片内容"}</p>
+        {isHomeMode ? (
+          <ImageFeedSections />
+        ) : (
+          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${page}`}>
+            {showSkeleton ? (
+              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="aspect-square w-full rounded-lg" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                ))}
               </div>
-              {hasFilter && (
-                <Button variant="outline" onClick={clearAll} className="mt-4">
-                  清除筛选
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+            ) : hasAds ? (
+              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
+                {gridItems.map((item, index) =>
+                  item.type === "ad" ? (
+                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
+                  ) : (
+                    <ImagePostCard
+                      key={item.data.id}
+                      post={item.data}
+                      index={index}
+                      isFavorited={favoritedSet.has(item.data.id)}
+                    />
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
+                {posts.map((post, index) => (
+                  <ImagePostCard key={post.id} post={post} index={index} isFavorited={favoritedSet.has(post.id)} />
+                ))}
+              </div>
+            )}
 
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} className="mt-8" />
+            {!isLoading && !isFetching && posts.length === 0 && (
+              <div className="text-center py-16">
+                <div className="text-muted-foreground mb-4">
+                  <Images className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">没有找到图片</p>
+                  <p className="text-sm mt-1">{hasFilter ? "尝试调整标签筛选条件" : "暂无图片内容"}</p>
+                </div>
+                {hasFilter && (
+                  <Button variant="outline" onClick={clearAll} className="mt-4">
+                    清除筛选
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isHomeMode && (
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} className="mt-8" />
+        )}
       </section>
     ),
   };

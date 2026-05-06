@@ -3,9 +3,11 @@
 import { trpc } from "@/lib/trpc";
 import { GameGrid } from "@/components/game/game-grid";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
+import { GameFeedSections } from "@/components/game/game-feed-sections";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { Button } from "@/components/ui/button";
 import { Fragment, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { usePageParam } from "@/hooks/use-page-param";
 import { Gamepad2 } from "lucide-react";
 import { MotionPage } from "@/components/motion";
@@ -78,17 +80,25 @@ export function GameListClient({
 }: GameListClientProps) {
   const setContentMode = useUIStore((s) => s.setContentMode);
   const siteConfigCtx = useSiteConfig();
+  const searchParams = useSearchParams();
 
   // 记录用户访问了游戏区
   useEffect(() => {
     setContentMode("game");
   }, [setContentMode]);
 
+  // URL ?sortBy 优先级最高（来自首页 section "查看更多" 链接）
+  const urlSortBy = searchParams.get("sortBy") as SortBy | null;
   const [sortBy, setSortBy] = useState<SortBy>(() => {
     const enabled = (siteConfigCtx?.gameSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    if (urlSortBy && enabled.includes(urlSortBy)) return urlSortBy;
     const configured = (siteConfigCtx?.gameDefaultSort as SortBy) || "latest";
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
+  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
+    ? urlTimeRange
+    : "all";
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");
@@ -102,6 +112,7 @@ export function GameListClient({
       tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
       excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
       gameType: selectedType || undefined,
+      timeRange,
     },
     {
       placeholderData: (prev) => prev,
@@ -123,6 +134,11 @@ export function GameListClient({
   const favoritedSet = useMemo(() => new Set(favoritedData?.favoritedIds ?? []), [favoritedData?.favoritedIds]);
 
   const isFirstPage = page === 1 && !hasFilter && selectedType === "";
+  /**
+   * 「首页模式」判定：用户进入 /game 没做任何筛选时，主区域改为分区 Feed
+   * (最新/本周热门/本月排行)，参考 hanime1.me。
+   */
+  const isHomeMode = page === 1 && !hasFilter && selectedType === "" && sortBy === "latest" && timeRange === "all";
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
@@ -254,52 +270,58 @@ export function GameListClient({
     ),
     mainGrid: (
       <section>
-        <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
-          {isLoading && games.length === 0 ? (
-            <GameGrid games={[]} isLoading columnsClass={gridClass} />
-          ) : hasAds ? (
-            <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-              {gridItems.map((item, index) =>
-                item.type === "ad" ? (
-                  <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
-                ) : (
-                  <GameCard
-                    key={item.data.id}
-                    game={item.data}
-                    index={index}
-                    isFavorited={favoritedSet.has(item.data.id)}
-                  />
-                ),
-              )}
-            </div>
-          ) : (
-            <GameGrid games={games} isLoading={false} columnsClass={gridClass} favoritedSet={favoritedSet} />
-          )}
-
-          {!isLoading && games.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-muted-foreground mb-4">
-                <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">没有找到游戏</p>
-                <p className="text-sm mt-1">{hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}</p>
+        {isHomeMode ? (
+          <GameFeedSections />
+        ) : (
+          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
+            {isLoading && games.length === 0 ? (
+              <GameGrid games={[]} isLoading columnsClass={gridClass} />
+            ) : hasAds ? (
+              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
+                {gridItems.map((item, index) =>
+                  item.type === "ad" ? (
+                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
+                  ) : (
+                    <GameCard
+                      key={item.data.id}
+                      game={item.data}
+                      index={index}
+                      isFavorited={favoritedSet.has(item.data.id)}
+                    />
+                  ),
+                )}
               </div>
-              {(hasFilter || selectedType) && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    clearAll();
-                    setSelectedType("");
-                  }}
-                  className="mt-4"
-                >
-                  清除筛选
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+            ) : (
+              <GameGrid games={games} isLoading={false} columnsClass={gridClass} favoritedSet={favoritedSet} />
+            )}
 
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
+            {!isLoading && games.length === 0 && (
+              <div className="text-center py-16">
+                <div className="text-muted-foreground mb-4">
+                  <Gamepad2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">没有找到游戏</p>
+                  <p className="text-sm mt-1">{hasFilter || selectedType ? "尝试调整筛选条件" : "暂无游戏内容"}</p>
+                </div>
+                {(hasFilter || selectedType) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      clearAll();
+                      setSelectedType("");
+                    }}
+                    className="mt-4"
+                  >
+                    清除筛选
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isHomeMode && (
+          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
+        )}
       </section>
     ),
   };

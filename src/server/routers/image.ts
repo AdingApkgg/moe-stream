@@ -29,10 +29,26 @@ export const imageRouter = router({
         excludeTagSlugs: z.array(z.string()).max(10).optional(),
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
+        timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy, timeRange } = input;
+
+      const getTimeFilter = () => {
+        const now = new Date();
+        switch (timeRange) {
+          case "today":
+            return new Date(now.setHours(0, 0, 0, 0));
+          case "week":
+            return new Date(now.setDate(now.getDate() - 7));
+          case "month":
+            return new Date(now.setMonth(now.getMonth() - 1));
+          default:
+            return undefined;
+        }
+      };
+      const timeFilter = getTimeFilter();
 
       const where: Prisma.ImagePostWhereInput = { status: "PUBLISHED" };
 
@@ -53,6 +69,10 @@ export const imageRouter = router({
         where.NOT = excludeTagSlugs.map((slug) => ({
           tags: { some: { tag: { slug } } },
         }));
+      }
+
+      if (timeFilter) {
+        where.createdAt = { gte: timeFilter };
       }
 
       const listInclude = {
