@@ -143,6 +143,17 @@ export default function VideoListClient({
   const authorItems = authorsData?.items ?? [];
   const authorsTotalPages = authorsData?.totalPages ?? 1;
 
+  // 当前页视频的观看进度（已登录才查；未登录返回空 map）
+  const videoIds = useMemo(() => videos.map((v) => v.id), [videos]);
+  const { data: progressData } = trpc.video.progressMap.useQuery(
+    { videoIds },
+    {
+      enabled: viewMode === "videos" && videoIds.length > 0,
+      staleTime: 30_000,
+    },
+  );
+  const progressMap = progressData?.progressByVideoId;
+
   const isFirstPage = videoPage === 1 && !hasFilter && !authorFilter;
   const adSeed = `${videoPage}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${authorFilter}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
@@ -334,12 +345,17 @@ export default function VideoListClient({
                     item.type === "ad" ? (
                       <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
                     ) : (
-                      <VideoCard key={item.data.id} video={item.data} index={index} />
+                      <VideoCard
+                        key={item.data.id}
+                        video={item.data}
+                        index={index}
+                        watchProgress={progressMap?.[item.data.id]}
+                      />
                     ),
                   )}
                 </div>
               ) : (
-                <VideoGrid videos={videos} isLoading={false} columnsClass={gridClass} />
+                <VideoGrid videos={videos} isLoading={false} columnsClass={gridClass} progressMap={progressMap} />
               )}
 
               {/* 无结果提示 */}

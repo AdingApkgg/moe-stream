@@ -35,6 +35,10 @@ interface VideoGridProps {
   /** 自定义栅格 class，优先级高于 columns */
   columnsClass?: string;
   highlightQuery?: string | null;
+  /** 当前用户对每个视频的观看进度（来自 video.progressMap）。Key 为 videoId */
+  progressMap?: Record<string, { progress: number; duration: number | null }>;
+  /** 排行榜场景：从第一项起的起始排名（首页排行 section 通常 1） */
+  startRank?: number;
 }
 
 const gridColumns = {
@@ -44,7 +48,15 @@ const gridColumns = {
   5: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
 };
 
-export function VideoGrid({ videos, isLoading, columns = 4, columnsClass, highlightQuery }: VideoGridProps) {
+export function VideoGrid({
+  videos,
+  isLoading,
+  columns = 4,
+  columnsClass,
+  highlightQuery,
+  progressMap,
+  startRank,
+}: VideoGridProps) {
   const colsCls = columnsClass ?? gridColumns[columns];
 
   if (isLoading) {
@@ -69,7 +81,13 @@ export function VideoGrid({ videos, isLoading, columns = 4, columnsClass, highli
     <MotionList className={`grid ${colsCls} gap-3 sm:gap-4 lg:gap-5`}>
       {videos.map((video, index) => (
         <MotionItem key={video.id}>
-          <VideoCard video={video} index={index} highlightQuery={highlightQuery} />
+          <VideoCard
+            video={video}
+            index={index}
+            highlightQuery={highlightQuery}
+            watchProgress={progressMap?.[video.id]}
+            rank={startRank !== undefined ? startRank + index : undefined}
+          />
         </MotionItem>
       ))}
     </MotionList>
