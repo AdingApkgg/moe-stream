@@ -346,10 +346,12 @@ export const videoRouter = router({
         search: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes", "titleAsc", "titleDesc"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
+        /** 按投稿时填写的原作者 (extraInfo.author) 筛选 */
+        author: z.string().min(1).max(120).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy, timeRange } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, sortBy, timeRange, author } = input;
 
       const getTimeFilter = () => {
         const now = new Date();
@@ -430,6 +432,11 @@ export const videoRouter = router({
         baseWhere.createdAt = { gte: timeFilter };
       }
 
+      if (author) {
+        // 按 extraInfo->>'author' 精确筛选
+        baseWhere.extraInfo = { path: ["author"], equals: author };
+      }
+
       const orderBy = {
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
@@ -454,6 +461,89 @@ export const videoRouter = router({
       const totalPages = Math.ceil(totalCount / limit);
 
       return { videos, totalCount, totalPages, currentPage: page };
+    }),
+
+  /**
+   * 按投稿时填写的「原作者」(extraInfo.author) 聚合视频列表。
+   * 用于视频列表页「作者」tab：每个 item 是一位原作者及其视频统计 + 4 张预览封面。
+   * 点击后跳转到 /video?author=xxx，复用 list 的 author 筛选。
+   */
+  listAuthors: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(12),
+        page: z.number().min(1).default(1),
+        sortBy: z.enum(["latest", "videoCount", "views"]).default("latest"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page, sortBy } = input;
+      const offset = (page - 1) * limit;
+
+      // 排序列：latest=最新发布、videoCount=视频数、views=总播放
+      const orderColumn = sortBy === "videoCount" ? "video_count" : sortBy === "views" ? "total_views" : "latest_at";
+
+      // 聚合查询：按 extraInfo->>'author' 分组
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ author: string; video_count: bigint; total_views: bigint; latest_at: Date }>
+      >(
+        Prisma.sql`
+          SELECT
+            "extraInfo"->>'author' AS author,
+            COUNT(*)::bigint AS video_count,
+            COALESCE(SUM(views), 0)::bigint AS total_views,
+            MAX("createdAt") AS latest_at
+          FROM "Video"
+          WHERE status = 'PUBLISHED'
+            AND "extraInfo" ? 'author'
+            AND "extraInfo"->>'author' IS NOT NULL
+            AND "extraInfo"->>'author' <> ''
+          GROUP BY "extraInfo"->>'author'
+          ORDER BY ${Prisma.raw(`"${orderColumn}"`)} DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `,
+      );
+
+      const totalRows = await ctx.prisma.$queryRaw<Array<{ count: bigint }>>(
+        Prisma.sql`
+          SELECT COUNT(DISTINCT "extraInfo"->>'author')::bigint AS count
+          FROM "Video"
+          WHERE status = 'PUBLISHED'
+            AND "extraInfo" ? 'author'
+            AND "extraInfo"->>'author' IS NOT NULL
+            AND "extraInfo"->>'author' <> ''
+        `,
+      );
+      const totalCount = Number(totalRows[0]?.count ?? 0);
+
+      // 为每位原作者拉 4 张最近预览（顺序保留，方便组件按返回顺序渲染）
+      const items = await Promise.all(
+        rows.map(async (r) => {
+          const previewVideos = await ctx.prisma.video.findMany({
+            where: {
+              status: "PUBLISHED",
+              extraInfo: { path: ["author"], equals: r.author },
+            },
+            select: { id: true, coverUrl: true, title: true },
+            orderBy: { createdAt: "desc" },
+            take: 4,
+          });
+          return {
+            author: r.author,
+            videoCount: Number(r.video_count),
+            totalViews: Number(r.total_views),
+            latestAt: r.latest_at,
+            previewVideos,
+          };
+        }),
+      );
+
+      return {
+        items,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   // 获取单个视频
