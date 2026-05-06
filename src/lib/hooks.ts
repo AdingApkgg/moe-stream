@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useSyncExternalStore } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -120,52 +120,53 @@ interface UseDeviceInfoReturn {
   error: string | null;
 }
 
+// 设备信息只在客户端首次访问时计算一次，缓存复用
+type DeviceInfoSnapshot = { info: DeviceInfo | null; error: string | null };
+let cachedDeviceInfo: DeviceInfoSnapshot | undefined;
+const SERVER_DEVICE_INFO: DeviceInfoSnapshot = { info: null, error: null };
+
+function readDeviceInfo(): DeviceInfoSnapshot {
+  if (cachedDeviceInfo) return cachedDeviceInfo;
+  try {
+    const nav = navigator as Navigator & {
+      deviceMemory?: number;
+      connection?: { effectiveType?: string };
+    };
+    const info: DeviceInfo = {
+      userAgent: nav.userAgent || "",
+      screenResolution: `${window.screen.width}x${window.screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      language: nav.language || "",
+      platform: nav.platform || "",
+      cookiesEnabled: nav.cookieEnabled ?? false,
+      doNotTrack: nav.doNotTrack === "1",
+      touchSupport: "ontouchstart" in window || nav.maxTouchPoints > 0,
+      colorDepth: window.screen.colorDepth || 24,
+      deviceMemory: nav.deviceMemory ?? null,
+      hardwareConcurrency: nav.hardwareConcurrency ?? null,
+      connectionType: nav.connection?.effectiveType ?? null,
+    };
+    cachedDeviceInfo = { info, error: null };
+  } catch (err) {
+    cachedDeviceInfo = { info: null, error: err instanceof Error ? err.message : "获取设备信息失败" };
+  }
+  return cachedDeviceInfo;
+}
+
+const subscribeDeviceInfo = () => () => {};
+const getServerDeviceInfo = (): DeviceInfoSnapshot => SERVER_DEVICE_INFO;
+
 /**
  * 设备信息获取 hook
- * 在客户端收集设备信息，用于评论、访问记录等
+ * 在客户端收集设备信息，用于评论、访问记录等。
+ * 用 useSyncExternalStore 实现：SSR 返回 null，客户端 hydration 后返回真实数据。
  */
 export function useDeviceInfo(): UseDeviceInfoReturn {
-  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // 获取设备信息
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const nav = navigator as Navigator & {
-        deviceMemory?: number;
-        connection?: { effectiveType?: string };
-      };
-
-      const info: DeviceInfo = {
-        userAgent: nav.userAgent || "",
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
-        language: nav.language || "",
-        platform: nav.platform || "",
-        cookiesEnabled: nav.cookieEnabled ?? false,
-        doNotTrack: nav.doNotTrack === "1",
-        touchSupport: "ontouchstart" in window || nav.maxTouchPoints > 0,
-        colorDepth: window.screen.colorDepth || 24,
-        deviceMemory: nav.deviceMemory ?? null,
-        hardwareConcurrency: nav.hardwareConcurrency ?? null,
-        connectionType: nav.connection?.effectiveType ?? null,
-      };
-
-      setDeviceInfo(info);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "获取设备信息失败");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
+  const snapshot = useSyncExternalStore(subscribeDeviceInfo, readDeviceInfo, getServerDeviceInfo);
   return {
-    deviceInfo,
-    isLoading,
-    error,
+    deviceInfo: snapshot.info,
+    isLoading: snapshot === SERVER_DEVICE_INFO,
+    error: snapshot.error,
   };
 }
 
@@ -222,14 +223,13 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
 // ==================== useMounted ====================
 // 组件挂载状态 hook - 使用 useSyncExternalStore 避免 effect 中 setState
-import { useSyncExternalStore } from "react";
 
 const emptySubscribe = () => () => {};
 const getClientSnapshot = () => true;
-const getServerSnapshot = () => false;
+const getMountedServerSnapshot = () => false;
 
 export function useMounted(): boolean {
-  return useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+  return useSyncExternalStore(emptySubscribe, getClientSnapshot, getMountedServerSnapshot);
 }
 
 // ==================== useMediaQuery ====================

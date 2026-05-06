@@ -66,7 +66,10 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
   const addToSeriesMutation = trpc.series.addVideo.useMutation();
   const removeFromSeriesMutation = trpc.series.removeVideo.useMutation();
 
-  useEffect(() => {
+  // videoSeries 变化时同步快照：渲染阶段 setState（参考 React 文档 storing-information-from-previous-renders）
+  const [prevVideoSeries, setPrevVideoSeries] = useState(videoSeries);
+  if (videoSeries !== prevVideoSeries) {
+    setPrevVideoSeries(videoSeries);
     if (videoSeries) {
       setOriginalSeriesId(videoSeries.series.id);
       setInitialSeriesData({
@@ -74,7 +77,7 @@ export default function EditVideoPage({ params }: EditVideoPageProps) {
         episodeNum: videoSeries.currentEpisode,
       });
     }
-  }, [videoSeries]);
+  }
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {

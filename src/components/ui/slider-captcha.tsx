@@ -45,6 +45,8 @@ export function SliderCaptcha({ onVerify, error }: SliderCaptchaProps) {
   }, []);
 
   useEffect(() => {
+    // mount 时拉取一次 captcha；规则不喜欢在 effect 里 setState，但数据获取 + 清理 blob URL 是公认场景
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchChallenge();
     return () => {
       setSvgUrl((prev) => {

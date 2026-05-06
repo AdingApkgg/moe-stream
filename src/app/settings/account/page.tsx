@@ -119,6 +119,8 @@ function OAuthAccountSection() {
   }, []);
 
   useEffect(() => {
+    // 挂载时拉一次绑定账号列表
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAccounts();
   }, [fetchAccounts]);
 
@@ -341,6 +343,7 @@ function PasskeySection() {
 
   useEffect(() => {
     if (isTMA) return; // TMA 环境不发起 passkey 列表请求
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPasskeys();
   }, [fetchPasskeys, isTMA]);
 

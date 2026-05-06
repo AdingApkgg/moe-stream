@@ -107,29 +107,30 @@ export default function ProfileSettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (user) {
-      const socialLinks = (user.socialLinks as Record<string, string>) || {};
-      const pronounsValue = user.pronouns || "";
-      const isCustom = Boolean(pronounsValue && !PRONOUNS_OPTIONS.find((p) => p.value === pronounsValue));
-      setCustomPronouns(isCustom);
+  // user 首次加载或引用变化时填充表单：渲染阶段同步
+  const [prevUser, setPrevUser] = useState(user);
+  if (user && user !== prevUser) {
+    setPrevUser(user);
+    const socialLinks = (user.socialLinks as Record<string, string>) || {};
+    const pronounsValue = user.pronouns || "";
+    const isCustom = Boolean(pronounsValue && !PRONOUNS_OPTIONS.find((p) => p.value === pronounsValue));
+    setCustomPronouns(isCustom);
 
-      form.reset({
-        nickname: user.nickname || "",
-        bio: user.bio || "",
-        pronouns: pronounsValue,
-        website: user.website || "",
-        location: user.location || "",
-        socialLinks: {
-          twitter: socialLinks.twitter || "",
-          github: socialLinks.github || "",
-          discord: socialLinks.discord || "",
-          youtube: socialLinks.youtube || "",
-          pixiv: socialLinks.pixiv || "",
-        },
-      });
-    }
-  }, [user, form]);
+    form.reset({
+      nickname: user.nickname || "",
+      bio: user.bio || "",
+      pronouns: pronounsValue,
+      website: user.website || "",
+      location: user.location || "",
+      socialLinks: {
+        twitter: socialLinks.twitter || "",
+        github: socialLinks.github || "",
+        discord: socialLinks.discord || "",
+        youtube: socialLinks.youtube || "",
+        pixiv: socialLinks.pixiv || "",
+      },
+    });
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {

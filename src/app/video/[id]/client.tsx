@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useSession } from "@/lib/auth-client";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { trpc } from "@/lib/trpc";
 import { VideoPlayer, type VideoPlayerRef } from "@/components/video/video-player";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,15 +88,32 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     }
     return initialId;
   });
-  const currentVideoIdRef = useRef(currentVideoId);
-  currentVideoIdRef.current = currentVideoId;
 
-  // 检测是否是从外部导航进入（URL 的 id 变化）
-  useEffect(() => {
-    if (initialId !== currentVideoIdRef.current) {
-      setCurrentVideoId(initialId);
+  // 检测是否是从外部导航进入（URL 的 initialId prop 变化）：在渲染阶段同步
+  const [prevInitialId, setPrevInitialId] = useState(initialId);
+  if (initialId !== prevInitialId) {
+    setPrevInitialId(initialId);
+    setCurrentVideoId(initialId);
+  }
+
+  // URL 分P参数 / 移动端 UI 状态（提前到上方，使下方回调能引用 setter）
+  const searchParams = useSearchParams();
+  const urlPage = searchParams.get("p");
+  const initialPage = urlPage ? parseInt(urlPage, 10) : 1;
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [mobileSeriesExpanded, setMobileSeriesExpanded] = useState(false);
+  const [mobilePagesExpanded, setMobilePagesExpanded] = useState(false);
+
+  // URL 参数变化时同步状态：渲染阶段同步，避免 setState-in-effect
+  const [prevUrlPage, setPrevUrlPage] = useState(urlPage);
+  if (urlPage !== prevUrlPage) {
+    setPrevUrlPage(urlPage);
+    const pageNum = urlPage ? parseInt(urlPage, 10) : 1;
+    if (pageNum >= 1 && pageNum !== currentPage) {
+      setCurrentPage(pageNum);
     }
-  }, [initialId]);
+  }
 
   // 客户端获取视频数据
   const { data: video } = trpc.video.getById.useQuery(
@@ -106,33 +124,33 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
     },
   );
 
-  // 缓存上一次成功加载的视频，避免切换时闪烁"视频不存在"
-  const lastVideoRef = useRef<typeof video | SerializedVideo>(initialVideo);
+  // 缓存上一次成功加载的视频，避免切换时闪烁"视频不存在"。
+  // 用 state + 渲染阶段同步，避免 ref 在 render 中读写。
+  const [cachedVideo, setCachedVideo] = useState<typeof video | SerializedVideo>(initialVideo);
+  if (video && video !== cachedVideo) {
+    setCachedVideo(video);
+  }
 
   // 优先使用客户端数据（包含最新的点赞等），然后是服务端数据，最后用缓存
-  const displayVideo = video || (currentVideoId === initialId ? initialVideo : null) || lastVideoRef.current;
-
-  // 更新缓存
-  useEffect(() => {
-    if (video) {
-      lastVideoRef.current = video;
-    }
-  }, [video]);
+  const displayVideo = video || (currentVideoId === initialId ? initialVideo : null) || cachedVideo;
 
   // 剧集切换 - 只更新状态和 URL，不触发路由导航
-  const switchToEpisode = useCallback((videoId: string) => {
-    if (videoId === currentVideoIdRef.current) return;
-    setCurrentVideoId(videoId);
-    setCurrentPage(1);
-    // 绕过 Next.js 对 pushState 的拦截，避免触发 soft navigation / Suspense 闪烁
-    History.prototype.pushState.call(window.history, {}, "", `/video/${videoId}`);
-  }, []);
+  const switchToEpisode = useCallback(
+    (videoId: string) => {
+      if (videoId === currentVideoId) return;
+      setCurrentVideoId(videoId);
+      setCurrentPage(1);
+      // 绕过 Next.js 对 pushState 的拦截，避免触发 soft navigation / Suspense 闪烁
+      History.prototype.pushState.call(window.history, {}, "", `/video/${videoId}`);
+    },
+    [currentVideoId],
+  );
 
   // 监听浏览器前进/后退（capture 阶段拦截，阻止 Next.js 将 popstate 当做路由导航）
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       const match = window.location.pathname.match(/^\/video\/(.+)$/);
-      if (match && match[1] !== currentVideoIdRef.current) {
+      if (match && match[1] !== currentVideoId) {
         e.stopImmediatePropagation();
         setCurrentVideoId(match[1]);
       }
@@ -140,30 +158,9 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
     window.addEventListener("popstate", handlePopState, true);
     return () => window.removeEventListener("popstate", handlePopState, true);
-  }, []);
+  }, [currentVideoId]);
 
-  // 分P状态管理
-  const searchParams = useSearchParams();
   const hasPages = displayVideo?.pages && Array.isArray(displayVideo.pages) && displayVideo.pages.length > 1;
-
-  // 从 URL 参数读取当前分P
-  const urlPage = searchParams.get("p");
-  const initialPage = urlPage ? parseInt(urlPage, 10) : 1;
-
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  // 移动端 UI 状态
-  const [descExpanded, setDescExpanded] = useState(false);
-  const [mobileSeriesExpanded, setMobileSeriesExpanded] = useState(false);
-  const [mobilePagesExpanded, setMobilePagesExpanded] = useState(false);
-
-  // URL 参数变化时同步状态
-  useEffect(() => {
-    const p = searchParams.get("p");
-    const pageNum = p ? parseInt(p, 10) : 1;
-    if (pageNum !== currentPage && pageNum >= 1) {
-      setCurrentPage(pageNum);
-    }
-  }, [searchParams, currentPage]);
 
   // 切换分P时更新 URL
   const handlePageChange = useCallback((page: number) => {
@@ -179,13 +176,14 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
   }, []);
 
   // 计算当前视频URL
+  const videoUrl = displayVideo?.videoUrl;
   const currentVideoUrl = useMemo(() => {
-    if (!displayVideo?.videoUrl || !hasPages) return displayVideo?.videoUrl;
+    if (!videoUrl || !hasPages) return videoUrl;
     // 替换或添加p参数
-    const baseUrl = displayVideo.videoUrl.replace(/[?&]p=\d+/, "");
+    const baseUrl = videoUrl.replace(/[?&]p=\d+/, "");
     const separator = baseUrl.includes("?") ? "&" : "?";
     return `${baseUrl}${separator}p=${currentPage}`;
-  }, [displayVideo?.videoUrl, hasPages, currentPage]);
+  }, [videoUrl, hasPages, currentPage]);
 
   // 正在切换剧集（已选中但尚未加载完成）
   const isEpisodeSwitching = currentVideoId !== displayVideo?.id;
@@ -407,8 +405,7 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   // 延迟 isOwner 判断到客户端挂载后，避免 SSR/CSR 不一致导致水合失败
   // （SSR 时 session 为 null → isOwner=false，客户端 session 可能立即有值 → isOwner=true）
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => setHasMounted(true), []);
+  const hasMounted = useIsMounted();
   const isOwner = hasMounted && session?.user?.id === displayVideo?.uploader?.id;
 
   useEffect(() => {

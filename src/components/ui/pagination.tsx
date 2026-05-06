@@ -166,10 +166,12 @@ function JumpInput({
   const [val, setVal] = useState(String(currentPage));
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 外部 currentPage 变化时同步
-  useEffect(() => {
+  // 外部 currentPage 变化时同步：渲染阶段 setState
+  const [prevCurrentPage, setPrevCurrentPage] = useState(currentPage);
+  if (currentPage !== prevCurrentPage) {
+    setPrevCurrentPage(currentPage);
     setVal(String(currentPage));
-  }, [currentPage]);
+  }
 
   const submit = () => {
     const n = parseInt(val, 10);

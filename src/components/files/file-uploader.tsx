@@ -211,7 +211,9 @@ export function FileUploader({
   const completedPartsRef = useRef<Map<string, { partNumber: number; etag: string }[]>>(new Map());
   const dragCounterRef = useRef(0);
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const checkHash = trpc.file.checkHash.useMutation();
   const initUpload = trpc.file.initUpload.useMutation();

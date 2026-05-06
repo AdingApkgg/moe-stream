@@ -1,12 +1,16 @@
 "use client";
 
-import { useIsMounted as useIsMountedFn } from "usehooks-ts";
+import { useSyncExternalStore } from "react";
+
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 /**
  * 客户端挂载检测 Hook
- * 纯 React hook，不依赖 framer-motion，避免不必要的 bundle 开销
+ * 用 useSyncExternalStore 实现：SSR 返回 false，客户端 hydration 后返回 true
+ * 不读取 ref，不在 effect 里 setState，符合 React Compiler 规范
  */
 export function useIsMounted(): boolean {
-  const isMountedFn = useIsMountedFn();
-  return isMountedFn();
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

@@ -1858,6 +1858,8 @@ function RechargeDialog({
 
   useEffect(() => {
     if (orderStatus?.status === "PAID" && step === "paying") {
+      // 订单状态变 PAID 时切到 success 并刷新点数缓存
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep("success");
       utils.user.me.invalidate();
       utils.referral.getMyStats.invalidate();
@@ -1878,6 +1880,8 @@ function RechargeDialog({
   }, []);
 
   useEffect(() => {
+    // 弹窗关闭时清掉所有支付相关状态
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) reset();
   }, [open, reset]);
 

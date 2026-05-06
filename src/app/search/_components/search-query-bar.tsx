@@ -27,9 +27,12 @@ export function SearchQueryBar({ query, className }: SearchQueryBarProps) {
   const { addSearch } = useSearchHistoryStore();
   const recordSearchMutation = trpc.video.recordSearch.useMutation();
 
-  useEffect(() => {
+  // 外部 query 变化时同步 draft：渲染阶段 setState
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     setDraft(query);
-  }, [query]);
+  }
 
   const debounced = useDebounce(draft, 300);
   const { data: suggestions } = trpc.video.searchSuggestions.useQuery(
