@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { VideoCover } from "./video-cover";
 import { Play, ThumbsUp, MessageCircle, Check, Crown, Heart, Loader2 } from "lucide-react";
@@ -56,10 +56,21 @@ interface VideoCardProps {
 
 function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank, isFavorited }: VideoCardProps) {
   const { play } = useSound();
+  // hover 预览状态机：mouse enter 600ms 后才 mount <video>，离开立即销毁
+  const [showPreview, setShowPreview] = useState(false);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    };
+  }, []);
 
   const extra =
     video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? video.extraInfo : null;
   const authorName = extra?.author || video.uploader.nickname || video.uploader.username;
+  // hover 视频预览：仅当上传时填入了 extraInfo.previewUrl 才启用 (后端切片产物)，
+  // 没有 fallback 到原视频 (避免无意中播放完整视频的流量)
+  const previewUrl: string | null = typeof extra?.previewUrl === "string" ? extra.previewUrl : null;
 
   const totalVotes = video._count.likes + (video._count.dislikes || 0);
   const likeRatio = totalVotes > 0 ? Math.round((video._count.likes / totalVotes) * 100) : 100;
@@ -82,8 +93,22 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
       : 0;
   const watched = progressRatio >= WATCHED_THRESHOLD;
 
+  const handleMouseEnter = () => {
+    play("hover");
+    if (!previewUrl) return;
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => setShowPreview(true), 600);
+  };
+  const handleMouseLeave = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    setShowPreview(false);
+  };
+
   return (
-    <div className="group" onMouseEnter={() => play("hover")}>
+    <div className="group" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <Link href={`/video/${video.id}`} className="block">
         <div className="relative aspect-video overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_0_rgb(0_0_0_/_0.05)] group-hover:shadow-lg transition-shadow duration-300 ease-out">
           <VideoCover
@@ -99,7 +124,20 @@ function VideoCardComponent({ video, index, highlightQuery, watchProgress, rank,
             )}
           />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+          {/* hover 视频预览：覆盖在封面之上，桌面端启用 */}
+          {previewUrl && showPreview && (
+            <video
+              className="hidden md:block absolute inset-0 w-full h-full object-cover z-[1]"
+              src={previewUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="none"
+            />
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-[2]" />
 
           {/* Play hover */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-250 ease-out">
