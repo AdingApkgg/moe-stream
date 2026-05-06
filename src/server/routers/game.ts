@@ -56,10 +56,13 @@ export const gameRouter = router({
         gameType: z.string().optional(),
         sortBy: z.enum(["latest", "views", "likes", "downloads", "titleAsc", "titleDesc"]).default("latest"),
         timeRange: z.enum(["all", "today", "week", "month"]).default("all"),
+        /** 按投稿时填写的「原作者」(extraInfo.originalAuthor) 筛选 */
+        originalAuthor: z.string().min(1).max(120).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, gameType, sortBy, timeRange } = input;
+      const { limit, page, tagId, tagSlugs, excludeTagSlugs, search, gameType, sortBy, timeRange, originalAuthor } =
+        input;
 
       const getTimeFilter = () => {
         const now = new Date();
@@ -105,6 +108,11 @@ export const gameRouter = router({
 
       if (timeFilter) {
         baseWhere.createdAt = { gte: timeFilter };
+      }
+
+      if (originalAuthor) {
+        // 按 extraInfo->>'originalAuthor' 精确筛选
+        baseWhere.extraInfo = { path: ["originalAuthor"], equals: originalAuthor };
       }
 
       const listInclude = {
@@ -169,6 +177,82 @@ export const gameRouter = router({
       const totalPages = Math.ceil(totalCount / limit);
 
       return { games, totalCount, totalPages, currentPage: page };
+    }),
+
+  /**
+   * 按投稿时填写的「原作者」(extraInfo.originalAuthor) 聚合游戏列表。
+   * 用于 /game 页「作者」tab：每个 item 是一位原作者及其游戏统计 + 4 张代表作封面。
+   * 点击后跳转到 /game?originalAuthor=xxx，复用 list 的 originalAuthor 筛选。
+   */
+  listAuthors: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(50).default(12),
+        page: z.number().min(1).default(1),
+        sortBy: z.enum(["latest", "gameCount", "views"]).default("gameCount"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, page, sortBy } = input;
+      const offset = (page - 1) * limit;
+
+      const orderColumn = sortBy === "gameCount" ? "game_count" : sortBy === "views" ? "total_views" : "latest_at";
+
+      const rows = await ctx.prisma.$queryRaw<
+        Array<{ author: string; game_count: bigint; total_views: bigint; latest_at: Date }>
+      >(Prisma.sql`
+        SELECT
+          "extraInfo"->>'originalAuthor' AS author,
+          COUNT(*)::bigint AS game_count,
+          COALESCE(SUM(views), 0)::bigint AS total_views,
+          MAX("createdAt") AS latest_at
+        FROM "Game"
+        WHERE status = 'PUBLISHED'
+          AND "extraInfo" ? 'originalAuthor'
+          AND "extraInfo"->>'originalAuthor' IS NOT NULL
+          AND "extraInfo"->>'originalAuthor' <> ''
+        GROUP BY "extraInfo"->>'originalAuthor'
+        ORDER BY ${Prisma.raw(`"${orderColumn}"`)} DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+
+      const totalRows = await ctx.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(DISTINCT "extraInfo"->>'originalAuthor')::bigint AS count
+        FROM "Game"
+        WHERE status = 'PUBLISHED'
+          AND "extraInfo" ? 'originalAuthor'
+          AND "extraInfo"->>'originalAuthor' IS NOT NULL
+          AND "extraInfo"->>'originalAuthor' <> ''
+      `);
+      const totalCount = Number(totalRows[0]?.count ?? 0);
+
+      const items = await Promise.all(
+        rows.map(async (r) => {
+          const previewGames = await ctx.prisma.game.findMany({
+            where: {
+              status: "PUBLISHED",
+              extraInfo: { path: ["originalAuthor"], equals: r.author },
+            },
+            select: { id: true, coverUrl: true, title: true },
+            orderBy: { createdAt: "desc" },
+            take: 4,
+          });
+          return {
+            author: r.author,
+            gameCount: Number(r.game_count),
+            totalViews: Number(r.total_views),
+            latestAt: r.latest_at,
+            previewGames,
+          };
+        }),
+      );
+
+      return {
+        items,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+      };
     }),
 
   /** 获取单个游戏详情 */

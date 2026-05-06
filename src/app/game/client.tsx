@@ -3,11 +3,12 @@
 import { trpc } from "@/lib/trpc";
 import { GameGrid } from "@/components/game/game-grid";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
+import Link from "next/link";
 import { GameFeedSections } from "@/components/game/game-feed-sections";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { Button } from "@/components/ui/button";
 import { Fragment, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePageParam } from "@/hooks/use-page-param";
 import { Gamepad2 } from "lucide-react";
 import { MotionPage } from "@/components/motion";
@@ -81,6 +82,11 @@ export function GameListClient({
   const setContentMode = useUIStore((s) => s.setContentMode);
   const siteConfigCtx = useSiteConfig();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // URL ?originalAuthor=xxx 用作"按原作者筛选"，由作者卡片点击时设置
+  const originalAuthorFilter = searchParams.get("originalAuthor") || "";
 
   // 记录用户访问了游戏区
   useEffect(() => {
@@ -102,7 +108,9 @@ export function GameListClient({
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [selectedType, setSelectedType] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"games" | "authors">("games");
   const [page, setPage] = usePageParam();
+  const [authorsPage, setAuthorsPage] = usePageParam("ap");
 
   const { data: gameData, isLoading } = trpc.game.list.useQuery(
     {
@@ -113,11 +121,24 @@ export function GameListClient({
       excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
       gameType: selectedType || undefined,
       timeRange,
+      originalAuthor: originalAuthorFilter || undefined,
     },
     {
+      enabled: viewMode === "games",
       placeholderData: (prev) => prev,
     },
   );
+
+  // 原作者聚合查询：「作者」tab 用，按 extraInfo.originalAuthor 分组
+  const { data: authorsData, isLoading: authorsLoading } = trpc.game.listAuthors.useQuery(
+    { limit: 12, page: authorsPage, sortBy: "gameCount" },
+    {
+      enabled: viewMode === "authors",
+      placeholderData: (prev) => prev,
+    },
+  );
+  const authorItems = authorsData?.items ?? [];
+  const authorsTotalPages = authorsData?.totalPages ?? 1;
 
   const games = useMemo(
     () => gameData?.games ?? (page === 1 && !hasFilter && !selectedType ? initialGames : []),
@@ -138,7 +159,14 @@ export function GameListClient({
    * 「首页模式」判定：用户进入 /game 没做任何筛选时，主区域改为分区 Feed
    * (最新/本周热门/本月排行)，参考 hanime1.me。
    */
-  const isHomeMode = page === 1 && !hasFilter && selectedType === "" && sortBy === "latest" && timeRange === "all";
+  const isHomeMode =
+    viewMode === "games" &&
+    page === 1 &&
+    !hasFilter &&
+    selectedType === "" &&
+    sortBy === "latest" &&
+    timeRange === "all" &&
+    !originalAuthorFilter;
   const adSeed = `game-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
@@ -156,6 +184,33 @@ export function GameListClient({
     const enabledKeys = (siteConfigCtx?.gameSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
     return ALL_SORT_OPTIONS.filter((opt) => enabledKeys.includes(opt.id));
   }, [siteConfigCtx?.gameSortOptions]);
+
+  /** 切换"作品/作者"视图。切到 authors 时清空 tag 与 originalAuthor URL 参数 */
+  const handleViewModeClick = useCallback(
+    (mode: "games" | "authors") => {
+      setViewMode(mode);
+      if (mode === "authors") {
+        clearAll();
+        setSelectedType("");
+        if (originalAuthorFilter) {
+          const params = new URLSearchParams(window.location.search);
+          params.delete("originalAuthor");
+          const qs = params.toString();
+          router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+        }
+      }
+    },
+    [clearAll, originalAuthorFilter, pathname, router],
+  );
+
+  /** 清除"按原作者筛选" */
+  const handleClearAuthorFilter = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("originalAuthor");
+    params.delete("page");
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`);
+  }, [pathname, router]);
 
   const handleSortClick = useCallback(
     (id: SortBy) => {
@@ -243,9 +298,45 @@ export function GameListClient({
               tabs={sortOptions as SectionTabItem<SortBy>[]}
               value={sortBy}
               onChange={handleSortClick}
+              trailing={
+                <div className="flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
+                  {(["games", "authors"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => handleViewModeClick(mode)}
+                      className={cn(
+                        "px-2.5 py-1 text-xs font-medium rounded-full transition-colors",
+                        viewMode === mode
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {mode === "games" ? "作品" : "作者"}
+                    </button>
+                  ))}
+                </div>
+              }
             />
           )}
-          {initialTags.length > 0 && (
+
+          {/* 当前正在按某位原作者筛选时显示横幅 */}
+          {viewMode === "games" && originalAuthorFilter && (
+            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-primary/8 border border-primary/20 px-4 py-2.5">
+              <Gamepad2 className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm flex-1 min-w-0 truncate">
+                正在按原作者筛选：<strong className="font-semibold">{originalAuthorFilter}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={handleClearAuthorFilter}
+                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+              >
+                清除
+              </button>
+            </div>
+          )}
+
+          {viewMode === "games" && initialTags.length > 0 && (
             <CollapsibleTagBar className="mb-6">
               {initialTags.map((tag) => (
                 <button
@@ -270,10 +361,21 @@ export function GameListClient({
     ),
     mainGrid: (
       <section>
-        {isHomeMode ? (
+        {viewMode === "authors" ? (
+          <GameAuthorsGrid
+            items={authorItems}
+            isLoading={authorsLoading}
+            page={authorsPage}
+            totalPages={authorsTotalPages}
+            onPageChange={setAuthorsPage}
+            onAuthorClick={() => setViewMode("games")}
+          />
+        ) : isHomeMode ? (
           <GameFeedSections />
         ) : (
-          <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}`}>
+          <div
+            key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${selectedType}-${page}-${originalAuthorFilter}`}
+          >
             {isLoading && games.length === 0 ? (
               <GameGrid games={[]} isLoading columnsClass={gridClass} />
             ) : hasAds ? (
@@ -337,5 +439,100 @@ export function GameListClient({
         })}
       </div>
     </MotionPage>
+  );
+}
+
+interface AuthorItem {
+  author: string;
+  gameCount: number;
+  totalViews: number;
+  previewGames: { id: string; coverUrl: string | null; title: string }[];
+}
+
+/** 「作者」tab 的原作者卡片网格：参考视频区，带分页 + 2x2 预览封面 */
+function GameAuthorsGrid({
+  items,
+  isLoading,
+  page,
+  totalPages,
+  onPageChange,
+  onAuthorClick,
+}: {
+  items: AuthorItem[];
+  isLoading: boolean;
+  page: number;
+  totalPages: number;
+  onPageChange: (n: number) => void;
+  onAuthorClick: () => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {isLoading && items.length === 0
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="aspect-video w-full rounded-2xl bg-muted animate-pulse" />
+                <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+                <div className="h-3 w-1/2 bg-muted rounded animate-pulse" />
+              </div>
+            ))
+          : items.map((a) => (
+              <Link
+                key={a.author}
+                href={`/game?originalAuthor=${encodeURIComponent(a.author)}`}
+                onClick={onAuthorClick}
+                className="group block"
+              >
+                <div className="overflow-hidden rounded-2xl bg-card border shadow-sm hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+                  <div className="relative aspect-video bg-muted">
+                    {a.previewGames.length > 0 ? (
+                      <div className="grid grid-cols-2 grid-rows-2 h-full">
+                        {[0, 1, 2, 3].map((idx) => {
+                          const g = a.previewGames[idx];
+                          return (
+                            <div key={idx} className="relative overflow-hidden">
+                              {g?.coverUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={g.coverUrl} alt={g.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-muted flex items-center justify-center">
+                                  <Gamepad2 className="w-6 h-6 text-muted-foreground/40" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Gamepad2 className="w-12 h-12 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                      {a.gameCount} 个作品
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-medium line-clamp-1 group-hover:text-primary transition-colors">{a.author}</h3>
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                      <span>{a.gameCount} 个作品</span>
+                      <span>·</span>
+                      <span>{a.totalViews.toLocaleString()} 播放</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+      </div>
+
+      {!isLoading && items.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-lg font-medium">暂无原作者数据</p>
+          <p className="text-sm mt-1">投稿时填写「原作者」后，将自动出现在此</p>
+        </div>
+      )}
+
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-8" />
+    </>
   );
 }
