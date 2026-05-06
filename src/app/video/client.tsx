@@ -3,6 +3,7 @@
 import { trpc } from "@/lib/trpc";
 import { VideoGrid } from "@/components/video/video-grid";
 import { VideoCard } from "@/components/video/video-card";
+import { VideoFeedSections } from "@/components/video/video-feed-sections";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -98,11 +99,19 @@ export default function VideoListClient({
   }, [setContentMode]);
 
   const [viewMode, setViewMode] = useState<ViewMode>("videos");
+  // URL ?sortBy 优先级最高（来自首页 section "查看更多" 链接），其次站点默认
+  const urlSortBy = searchParams.get("sortBy") as SortBy | null;
   const [sortBy, setSortBy] = useState<SortBy>(() => {
     const enabled = (siteConfigCtx?.videoSortOptions ?? "latest,views,likes").split(",").map((s) => s.trim());
+    if (urlSortBy && enabled.includes(urlSortBy)) return urlSortBy;
     const configured = (siteConfigCtx?.videoDefaultSort as SortBy) || "latest";
     return enabled.includes(configured) ? configured : ((enabled[0] as SortBy) ?? "latest");
   });
+  // 时间范围筛选（仅 list 用，无 UI 控件，仅由 ?timeRange URL 参数驱动）
+  const urlTimeRange = (searchParams.get("timeRange") as "all" | "today" | "week" | "month" | null) ?? "all";
+  const timeRange: "all" | "today" | "week" | "month" = ["all", "today", "week", "month"].includes(urlTimeRange)
+    ? urlTimeRange
+    : "all";
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
   const [videoPage, setVideoPage] = usePageParam("page");
@@ -116,6 +125,7 @@ export default function VideoListClient({
       tagSlugs: selectedSlugs.length > 0 ? selectedSlugs : undefined,
       excludeTagSlugs: excludedSlugs.length > 0 ? excludedSlugs : undefined,
       author: authorFilter || undefined,
+      timeRange,
     },
     {
       enabled: viewMode === "videos",
@@ -155,6 +165,18 @@ export default function VideoListClient({
   const progressMap = progressData?.progressByVideoId;
 
   const isFirstPage = videoPage === 1 && !hasFilter && !authorFilter;
+  /**
+   * 「首页模式」判定：用户进入 /video 没做任何筛选时，主区域改为分区 Feed
+   * (最新 / 本日热门 / 本周排行)，参考 hanime1.me。一旦用户切排序、加 tag、
+   * 选作者或翻页，就回退到普通网格。
+   */
+  const isHomeMode =
+    viewMode === "videos" &&
+    videoPage === 1 &&
+    !hasFilter &&
+    !authorFilter &&
+    sortBy === "latest" &&
+    timeRange === "all";
   const adSeed = `${videoPage}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${authorFilter}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
@@ -333,7 +355,10 @@ export default function VideoListClient({
     ),
     mainGrid: (
       <section>
-        {viewMode === "videos" ? (
+        {isHomeMode ? (
+          // 首页模式：分区 Feed
+          <VideoFeedSections />
+        ) : viewMode === "videos" ? (
           // 视频网格
           <>
             <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${videoPage}`}>
