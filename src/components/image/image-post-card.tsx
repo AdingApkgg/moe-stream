@@ -5,11 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { Images, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatViews, formatRelativeTime } from "@/lib/format";
+import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
+import { CardMeta } from "@/components/shared/card-meta";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
@@ -93,7 +94,7 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
           {showSecondary && (
             <>
               {imageUrls[2] && (
-                <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
+                <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={thumbSecondary(imageUrls[2])}
@@ -105,7 +106,7 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
                   />
                 </div>
               )}
-              <div className="absolute inset-0 rounded-lg overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
+              <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={thumbSecondary(imageUrls[1])}
@@ -119,7 +120,7 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
             </>
           )}
 
-          <div className="relative overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-[shadow,transform] duration-300 ease-out h-full border border-transparent group-hover:border-border/20">
+          <div className="relative overflow-hidden rounded-2xl bg-muted shadow-sm group-hover:shadow-xl transition-[shadow,transform] duration-300 ease-out h-full border border-transparent group-hover:border-border/20">
             {imageUrls.length > 0 ? (
               showMain ? (
                 <ImagePostMainThumb
@@ -159,7 +160,7 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
 
             <div
               ref={glareRef}
-              className="absolute inset-0 rounded-lg pointer-events-none opacity-0 transition-opacity duration-300 z-10"
+              className="absolute inset-0 rounded-2xl pointer-events-none opacity-0 transition-opacity duration-300 z-10"
             />
           </div>
         </div>
@@ -173,9 +174,7 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
               <SearchHighlightText text={post.description} highlightQuery={highlightQuery} />
             </p>
           )}
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-            {post.uploader.nickname || post.uploader.username} · {formatRelativeTime(post.createdAt)}
-          </p>
+          <CardMeta author={post.uploader.nickname || post.uploader.username} createdAt={post.createdAt} />
         </div>
       </Link>
     </div>

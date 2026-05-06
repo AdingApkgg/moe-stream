@@ -137,10 +137,10 @@ function PgBtn({
       disabled={disabled}
       className={cn(
         "inline-flex items-center justify-center select-none tabular-nums",
-        "h-8 min-w-8 rounded px-1.5 text-sm font-medium transition-colors",
+        "h-9 min-w-9 rounded-xl px-2 text-sm font-medium transition-colors",
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "bg-card text-foreground border border-border hover:bg-accent hover:border-accent",
         disabled && "pointer-events-none opacity-30",
       )}
       {...rest}

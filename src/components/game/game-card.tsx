@@ -5,11 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { Gamepad2, ThumbsUp, Eye, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatViews, formatRelativeTime } from "@/lib/format";
+import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
 import { useTilt } from "@/hooks/use-tilt";
 import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
+import { CardMeta } from "@/components/shared/card-meta";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
@@ -212,9 +213,7 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
             <SearchHighlightText text={game.title} highlightQuery={highlightQuery} />
           </h3>
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-            {authorName} • {formatRelativeTime(game.createdAt)}
-          </p>
+          <CardMeta author={authorName} createdAt={game.createdAt} />
         </div>
       </Link>
     </div>
