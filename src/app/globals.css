@@ -49,10 +49,8 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
-  /* ACGN gradient colors —— 与设计稿 #fb7299 主色调协调 */
+  /* ACGN gradient color —— 与设计稿 #fb7299 主色调协调 */
   --gradient-acgn: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #fb7299 100%);
-  --gradient-anime: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #fb7299 100%);
-  --gradient-cyber: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
 }
 
 :root {
@@ -155,18 +153,6 @@
 
 /* ACGN 风格渐变 */
 @layer utilities {
-  .gradient-acgn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  }
-
-  .gradient-anime {
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
-  }
-
-  .gradient-cyber {
-    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
-  }
-
   .gradient-text {
     background-clip: text;
     -webkit-background-clip: text;
@@ -175,13 +161,6 @@
 
   .text-gradient-acgn {
     background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #fb7299 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .text-gradient-anime {
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #fb7299 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

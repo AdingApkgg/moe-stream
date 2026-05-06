@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Home, Upload, Menu, Compass, MessageSquare, type LucideIcon } from "lucide-react";
+import { Home, Menu, Compass, MessageSquare, User, type LucideIcon } from "lucide-react";
 import { useStableSession } from "@/lib/hooks";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -24,11 +24,12 @@ interface NavItem {
 }
 
 // 前 4 项为直达链接；最后一项固定为"菜单"，接手原 Header 移动端左上角的汉堡菜单入口。
+// 「发布内容」对普通用户隐藏（需要 canUpload 权限），有权限的用户可从菜单里进入。
 const navItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/search", icon: Compass, label: "发现" },
   { href: "/channels", icon: MessageSquare, label: "消息", auth: true, loginHref: "/login" },
-  { href: "/upload", icon: Upload, label: "发布内容", auth: true, loginHref: "/login", requireUpload: true },
+  { href: "/profile", icon: User, label: "我的", auth: true, loginHref: "/login" },
 ];
 
 export function BottomNav() {
