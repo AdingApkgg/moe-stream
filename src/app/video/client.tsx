@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
-import { SidebarRanking } from "@/components/shared/sidebar-ranking";
 import { useTagFilter } from "@/hooks/use-tag-filter";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -529,23 +528,12 @@ export default function VideoListClient({
   return (
     <MotionPage direction="none">
       <div className="px-4 md:px-6 py-4 overflow-x-hidden">
-        <div className="flex gap-6">
-          <div className="flex-1 min-w-0">
-            {layout.section.modules.map((m) => {
-              if (!isSectionModuleEnabled(layout, m.id)) return null;
-              const node = modules[m.id];
-              if (!node) return null;
-              return <Fragment key={m.id}>{node}</Fragment>;
-            })}
-          </div>
-          {viewMode === "videos" && (
-            <aside className="hidden xl:block w-[300px] shrink-0">
-              <div className="sticky top-[6.5rem]">
-                <SidebarRanking kind="video" />
-              </div>
-            </aside>
-          )}
-        </div>
+        {layout.section.modules.map((m) => {
+          if (!isSectionModuleEnabled(layout, m.id)) return null;
+          const node = modules[m.id];
+          if (!node) return null;
+          return <Fragment key={m.id}>{node}</Fragment>;
+        })}
       </div>
     </MotionPage>
   );
