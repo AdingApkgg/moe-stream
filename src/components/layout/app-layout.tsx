@@ -6,7 +6,6 @@ import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { Footer } from "./footer";
 import { BottomNav } from "./bottom-nav";
-import { CategoryNav } from "./category-nav";
 import { CommandPalette } from "./command-palette";
 import { TmaLayoutBridge } from "./tma-layout-bridge";
 import { NavigationProgress } from "./navigation-progress";
@@ -109,9 +108,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
       <div className="h-14 shrink-0" />
-
-      {/* 二级横向分类导航（Bilibili / luyouji 风格）：非登录/注册页 + 非 TMA 时显示 */}
-      {!isNoSidebarPage && !isTMA && <CategoryNav />}
 
       {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
       <TmaLayoutBridge />

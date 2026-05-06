@@ -48,8 +48,9 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
-  { href: "/comments", icon: MessageCircle, label: "评论动态" },
   { href: "/ranking", icon: Trophy, label: "热门排行" },
+  { href: "/tags", icon: Hash, label: "标签广场" },
+  { href: "/comments", icon: MessageCircle, label: "评论动态" },
   { href: "/links", icon: Link2, label: "友情链接" },
 ];
 
