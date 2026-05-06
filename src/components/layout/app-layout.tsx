@@ -6,10 +6,12 @@ import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 import { Footer } from "./footer";
 import { BottomNav } from "./bottom-nav";
+import { CategoryNav } from "./category-nav";
 import { CommandPalette } from "./command-palette";
 import { TmaLayoutBridge } from "./tma-layout-bridge";
 import { NavigationProgress } from "./navigation-progress";
 import { AdGate } from "@/components/ads/ad-gate";
+import { FloatingAd } from "@/components/ads/floating-ad";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
@@ -108,6 +110,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
       <div className="h-14 shrink-0" />
 
+      {/* 二级横向分类导航（Bilibili / luyouji 风格）：非登录/注册页 + 非 TMA 时显示 */}
+      {!isNoSidebarPage && !isTMA && <CategoryNav />}
+
       {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
       <TmaLayoutBridge />
 
@@ -144,6 +149,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* 赞助商广告门（启用且未达免广告时段时显示） */}
       <AdGate />
+
+      {/* 左下角悬浮广告（桌面端） */}
+      {!isTMA && !isNoSidebarPage && <FloatingAd />}
 
       {/* 快捷键帮助对话框 */}
       <KeyboardShortcutsDialog open={showHelp} onOpenChange={setShowHelp} />
