@@ -7,8 +7,6 @@ import { Gamepad2, ThumbsUp, Eye, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
-import { useTilt } from "@/hooks/use-tilt";
-import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
@@ -124,13 +122,6 @@ function GameCoverImage({ coverUrl, title, priority }: { coverUrl?: string | nul
 
 function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
   const { play } = useSound();
-  const animConfig = useAnimationConfig();
-  const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
-    maxTilt: 8,
-    scale: 1.03,
-    glareMaxOpacity: 0.12,
-    disabled: !animConfig.hover,
-  });
 
   const extra =
     game.extraInfo && typeof game.extraInfo === "object" && !Array.isArray(game.extraInfo) ? game.extraInfo : null;
@@ -142,9 +133,9 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
   const likeColor = likeRatio >= 90 ? "text-green-400" : likeRatio >= 70 ? "text-yellow-400" : "text-red-400";
 
   return (
-    <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
+    <div className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/game/${game.id}`} className="block">
-        <div className="relative aspect-video overflow-hidden rounded-lg bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out">
+        <div className="relative aspect-video overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_0_rgb(0_0_0_/_0.05)] group-hover:shadow-lg transition-shadow duration-300 ease-out">
           <GameCoverImage coverUrl={game.coverUrl} title={game.title} priority={index !== undefined && index < 8} />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -201,12 +192,6 @@ function GameCardComponent({ game, index, highlightQuery }: GameCardProps) {
               )}
             </div>
           </div>
-
-          {/* Tilt glare overlay */}
-          <div
-            ref={glareRef}
-            className="absolute inset-0 rounded-lg pointer-events-none opacity-0 transition-opacity duration-300 z-10"
-          />
         </div>
 
         <div className="mt-2 px-0.5 space-y-0.5">

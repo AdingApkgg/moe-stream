@@ -1,14 +1,12 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Images, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
-import { useTilt } from "@/hooks/use-tilt";
-import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
@@ -60,13 +58,6 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
   const thumbPrimary = useThumb("gridPrimary");
   const thumbSecondary = useThumb("gridSecondary");
   const { play } = useSound();
-  const animConfig = useAnimationConfig();
-  const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
-    maxTilt: 6,
-    scale: 1.02,
-    glareMaxOpacity: 0.1,
-    disabled: !animConfig.hover,
-  });
   // 只有前 4 张首屏封面走高优先级，其余全部懒加载，避免首屏同时下载过多图片
   const priority = index !== undefined && index < 4;
   const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({ disabled: priority });
@@ -79,16 +70,8 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
   const showSecondary = inView && hasMultiple;
   const mainSrcKey = `${post.id}:${imageUrls[0] ?? ""}`;
 
-  const assignCardRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      tiltRef.current = el;
-      viewportRef.current = el;
-    },
-    [tiltRef, viewportRef],
-  );
-
   return (
-    <div ref={assignCardRef} className="group" onMouseEnter={() => play("hover")}>
+    <div ref={viewportRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/image/${post.id}`} className="block">
         <div className={cn("relative aspect-square", hasMultiple && "pr-2.5 pb-1")}>
           {showSecondary && (
@@ -157,11 +140,6 @@ function ImagePostCardComponent({ post, index, highlightQuery }: ImagePostCardPr
               <Eye className="h-3 w-3" />
               {formatViews(post.views)}
             </div>
-
-            <div
-              ref={glareRef}
-              className="absolute inset-0 rounded-2xl pointer-events-none opacity-0 transition-opacity duration-300 z-10"
-            />
           </div>
         </div>
 

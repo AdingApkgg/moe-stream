@@ -6,8 +6,6 @@ import { VideoCover } from "./video-cover";
 import { Play, ThumbsUp, MessageCircle } from "lucide-react";
 import { formatDuration, formatViews } from "@/lib/format";
 import { useSound } from "@/hooks/use-sound";
-import { useTilt } from "@/hooks/use-tilt";
-import { useAnimationConfig } from "@/hooks/use-animation-config";
 import { SearchHighlightText } from "@/components/shared/search-highlight-text";
 import { CardMeta } from "@/components/shared/card-meta";
 
@@ -44,13 +42,6 @@ interface VideoCardProps {
 
 function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
   const { play } = useSound();
-  const animConfig = useAnimationConfig();
-  const { ref: tiltRef, glareRef } = useTilt<HTMLDivElement>({
-    maxTilt: 8,
-    scale: 1.03,
-    glareMaxOpacity: 0.12,
-    disabled: !animConfig.hover,
-  });
 
   const extra =
     video.extraInfo && typeof video.extraInfo === "object" && !Array.isArray(video.extraInfo) ? video.extraInfo : null;
@@ -62,7 +53,7 @@ function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
   const commentCount = video._count.comments ?? 0;
 
   return (
-    <div ref={tiltRef} className="group" onMouseEnter={() => play("hover")}>
+    <div className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/video/${video.id}`} className="block">
         <div className="relative aspect-video overflow-hidden rounded-2xl bg-muted shadow-[0_1px_2px_0_rgb(0_0_0_/_0.05)] group-hover:shadow-lg transition-shadow duration-300 ease-out">
           <VideoCover
@@ -103,12 +94,6 @@ function VideoCardComponent({ video, index, highlightQuery }: VideoCardProps) {
             </span>
             <span className="text-white/80">{formatViews(video.views)}次</span>
           </div>
-
-          {/* Tilt glare overlay */}
-          <div
-            ref={glareRef}
-            className="absolute inset-0 rounded-lg pointer-events-none opacity-0 transition-opacity duration-300 z-10"
-          />
         </div>
 
         <div className="mt-2 px-0.5 space-y-0.5">
