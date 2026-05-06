@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Hash,
   Mail,
-  Link2,
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -46,12 +45,13 @@ interface NavItem {
   requireUpload?: boolean;
 }
 
+// 主菜单：4 项高频入口。「友情链接」属于站点级别信息，已通过 footer 触达，
+// 不必再占主菜单位置。
 const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/ranking", icon: Trophy, label: "热门排行" },
   { href: "/tags", icon: Hash, label: "标签广场" },
   { href: "/comments", icon: MessageCircle, label: "评论动态" },
-  { href: "/links", icon: Link2, label: "友情链接" },
 ];
 
 /** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
@@ -67,9 +67,9 @@ const allCommunityNavItems: NavItem[] = [
 ];
 
 // 「我的xxx」原本分散为作品/文件/收藏/历史 4 个 sidebar 入口，
-// 合并到一个「我的主页」-> /profile dashboard，dashboard 内已有快捷入口跳转到子页面，
-// 减少 sidebar 视觉噪声。
-const userNavItems: NavItem[] = [{ href: "/profile", icon: User, label: "我的主页", auth: true }];
+// 合并到一个「个人中心」-> /profile dashboard，dashboard 内已有快捷入口跳转到子页面。
+// 命名上避免和 UserProfileLink (头像 → /user/[id] 对外主页) 混淆。
+const userNavItems: NavItem[] = [{ href: "/profile", icon: User, label: "个人中心", auth: true }];
 
 const moreNavItems: NavItem[] = [
   { href: "/upload", icon: Upload, label: "发布内容", auth: true, requireUpload: true },
@@ -316,9 +316,9 @@ export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?:
 
           <UserProfileLink collapsed={collapsed} session={session} />
 
+          {/* 个人中心紧贴头像下方，单项无需分组标题 */}
           <NavGroup
-            title={collapsed ? undefined : "社区"}
-            items={communityNavItems}
+            items={userNavItems}
             collapsed={collapsed}
             pathname={pathname}
             session={session}
@@ -326,8 +326,8 @@ export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?:
           />
 
           <NavGroup
-            title={collapsed ? undefined : "你的内容"}
-            items={userNavItems}
+            title={collapsed ? undefined : "社区"}
+            items={communityNavItems}
             collapsed={collapsed}
             pathname={pathname}
             session={session}
