@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COLLAPSED_HEIGHT = 80;
+// 收起态默认 1 行高度（约一个 tag pill 的高度），用户主动展开才看更多
+const COLLAPSED_HEIGHT = 44;
 
 interface CollapsibleTagBarProps {
   children: ReactNode;

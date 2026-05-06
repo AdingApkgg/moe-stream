@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePageParam } from "@/hooks/use-page-param";
-import { AlertTriangle, X, Play, User2, Layers } from "lucide-react";
+import { X, Play, User2, Layers } from "lucide-react";
 import { MotionPage } from "@/components/motion";
 import { cn } from "@/lib/utils";
 import { CollapsibleTagBar } from "@/components/ui/collapsible-tag-bar";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { SectionTabs, type SectionTabItem } from "@/components/shared/section-tabs";
 import { SidebarRanking } from "@/components/shared/sidebar-ranking";
 import { useTagFilter } from "@/hooks/use-tag-filter";
@@ -104,7 +105,6 @@ export default function VideoListClient({
   });
   const { selectedSlugs, excludedSlugs, toggleTag, toggleExclude, clearAll, isSelected, isExcluded, hasFilter } =
     useTagFilter();
-  const [showAnnouncement, setShowAnnouncement] = useState(true);
   const [videoPage, setVideoPage] = usePageParam("page");
   const [authorsPage, setAuthorsPage] = usePageParam("ap");
 
@@ -224,25 +224,12 @@ export default function VideoListClient({
 
   const modules: Record<SectionModuleId, ReactNode> = {
     headerBanner: <HeaderBannerCarousel className="mb-4" />,
-    announcement:
-      siteConfig?.announcementEnabled && siteConfig.announcement ? (
-        <div
-          className={`mb-4 relative overflow-hidden transition-all duration-300 ${
-            showAnnouncement ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-            <p className="text-sm text-yellow-600 dark:text-yellow-400 flex-1">{siteConfig.announcement}</p>
-            <button
-              onClick={() => setShowAnnouncement(false)}
-              className="text-yellow-500 hover:text-yellow-600 dark:hover:text-yellow-300 transition-all hover:scale-110 active:scale-90"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null,
+    announcement: (
+      <AnnouncementBanner
+        enabled={siteConfig?.announcementEnabled ?? false}
+        announcement={siteConfig?.announcement ?? null}
+      />
+    ),
     tagBar: (
       <MotionPage>
         {viewMode === "videos" && sortOptions.length > 0 && (
