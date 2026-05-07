@@ -132,8 +132,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 relative">
             <PageTransition>{children}</PageTransition>
           </div>
-          {/* TMA 环境下隐藏 Footer：避免长滚动影响体验，且外链会走 openLink 更复杂 */}
-          {!isTMA && <Footer />}
+          {/* TMA 环境下隐藏 Footer。
+              桌面端: footer 内容已挪到 sidebar 底部 (参考抖音/YouTube)，主区不再渲染。
+              移动端 (<md): sidebar 是抽屉式的常态隐藏，主区底部仍渲染 Footer 让用户能看到版权/备案。 */}
+          {!isTMA && (
+            <div className="md:hidden">
+              <Footer />
+            </div>
+          )}
         </main>
       </div>
 

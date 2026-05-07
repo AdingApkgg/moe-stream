@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useStableSession } from "@/lib/hooks";
 import type { AppSession } from "@/lib/auth";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { SidebarFooter } from "./sidebar-footer";
 import { useSiteConfig } from "@/contexts/site-config";
 
 /** 侧栏仅需 user，兼容服务端 AppSession 与客户端 useSession 的 data */
@@ -347,6 +348,16 @@ export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?:
         session={session}
         onItemClick={onItemClick}
       />
+
+      {/* 紧凑版 footer：参考抖音/YouTube，把备案/链接/版权放在 sidebar 底部，
+          主内容区不再渲染 Footer (移动端例外)。collapsed 状态下 sidebar 太窄塞不下，
+          隐藏。 */}
+      {!collapsed && (
+        <>
+          <Separator className="my-2" />
+          <SidebarFooter />
+        </>
+      )}
     </div>
   );
 }
