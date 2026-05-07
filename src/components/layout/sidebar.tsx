@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  Home,
   Upload,
   User,
   MessageCircle,
@@ -18,7 +17,6 @@ import {
   Link2,
   type LucideIcon,
 } from "lucide-react";
-import { useUIStore, type ContentMode } from "@/stores/app";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,21 +45,21 @@ interface NavItem {
   requireUpload?: boolean;
 }
 
-// 主菜单：5 项一级入口。友情链接虽是次级功能，但 footer 没承载它（footer
-// 只展示 footerLinks 配置 + 隐私/条款），删掉的话用户没地方能进 /links。
+// 「视频 / 图片 / 游戏」是分区入口，由站点 config 控制是否启用，sidebar 渲染时
+// 通过 useEnabledContentModes() 动态过滤后插入到主菜单顶部。
+const sectionNavItems: NavItem[] = [
+  { href: "/video", icon: Play, label: "视频" },
+  { href: "/image", icon: Image, label: "图片" },
+  { href: "/game", icon: Gamepad2, label: "游戏" },
+];
+
+// 主菜单（站点级功能）：「首页 /」原本就 redirect /video，跟分区入口里的
+// 「视频」完全重复，删掉。
 const mainNavItems: NavItem[] = [
-  { href: "/", icon: Home, label: "首页" },
   { href: "/ranking", icon: Trophy, label: "热门排行" },
   { href: "/tags", icon: Hash, label: "标签广场" },
   { href: "/comments", icon: MessageCircle, label: "评论动态" },
   { href: "/links", icon: Link2, label: "友情链接" },
-];
-
-/** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
-const CONTENT_MODE_OPTIONS: { id: ContentMode; label: string; icon: LucideIcon }[] = [
-  { id: "video", label: "视频", icon: Play },
-  { id: "image", label: "图片", icon: Image },
-  { id: "game", label: "游戏", icon: Gamepad2 },
 ];
 
 const allCommunityNavItems: NavItem[] = [
@@ -163,87 +161,15 @@ function NavGroup({
   );
 }
 
-/** 内容模式对应的路由路径 */
-const CONTENT_MODE_ROUTES: Record<ContentMode, string> = {
-  video: "/video",
-  image: "/image",
-  game: "/game",
-};
-
-/** 根据站点配置过滤可用的内容分区 */
-function useEnabledContentModes() {
+/** 根据站点配置过滤可用的内容分区 NavItem */
+function useEnabledSectionNavItems(): NavItem[] {
   const config = useSiteConfig();
-  return CONTENT_MODE_OPTIONS.filter((opt) => {
-    if (opt.id === "video") return config?.sectionVideoEnabled !== false;
-    if (opt.id === "image") return config?.sectionImageEnabled !== false;
-    if (opt.id === "game") return config?.sectionGameEnabled !== false;
+  return sectionNavItems.filter((item) => {
+    if (item.href === "/video") return config?.sectionVideoEnabled !== false;
+    if (item.href === "/image") return config?.sectionImageEnabled !== false;
+    if (item.href === "/game") return config?.sectionGameEnabled !== false;
     return true;
   });
-}
-
-/** 内容模式切换条（视频 / 图片 / 游戏），显示在「首页」上方 */
-function ContentModeSwitcher({ collapsed }: { collapsed: boolean }) {
-  const contentMode = useUIStore((s) => s.contentMode);
-  const chooseContentMode = useUIStore((s) => s.chooseContentMode);
-  const router = useRouter();
-  const enabledOptions = useEnabledContentModes();
-
-  const handleModeChange = (mode: ContentMode) => {
-    chooseContentMode(mode);
-    router.push(CONTENT_MODE_ROUTES[mode]);
-  };
-
-  if (enabledOptions.length <= 1) return null;
-
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        {enabledOptions.map((opt) => {
-          const Icon = opt.icon;
-          const isSelected = contentMode === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => handleModeChange(opt.id)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 w-full transition-colors",
-                isSelected ? "bg-accent font-semibold" : "text-muted-foreground hover:bg-accent/60",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="text-[10px] leading-tight">{opt.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1 rounded-xl bg-muted/50 p-1">
-      {enabledOptions.map((opt) => {
-        const Icon = opt.icon;
-        const isSelected = contentMode === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => handleModeChange(opt.id)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-xs whitespace-nowrap transition-colors",
-              isSelected
-                ? "bg-background text-foreground font-medium shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 // 用户个人主页链接
@@ -300,10 +226,23 @@ export function SidebarContent({ collapsed = false, onItemClick }: { collapsed?:
   const pathname = usePathname();
   const { session } = useStableSession();
   const communityNavItems = useCommunityNavItems();
+  const enabledSectionItems = useEnabledSectionNavItems();
 
   return (
     <div className={cn(collapsed ? "px-1" : "px-2 space-y-2")}>
-      <ContentModeSwitcher collapsed={collapsed} />
+      {/* 内容分区：视频/图片/游戏。跟主菜单都用 NavLink 风格，避免 sidebar 顶部
+          再单独塞一个 segmented control (顶部 ContentModeHeader 已承担分区切换)。 */}
+      {enabledSectionItems.length > 0 && (
+        <NavGroup
+          items={enabledSectionItems}
+          collapsed={collapsed}
+          pathname={pathname}
+          session={session}
+          onItemClick={onItemClick}
+        />
+      )}
+
+      {enabledSectionItems.length > 0 && <Separator className={collapsed ? "mx-auto w-10 my-1" : "my-2"} />}
 
       <NavGroup
         items={mainNavItems}
