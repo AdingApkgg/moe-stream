@@ -2,6 +2,10 @@ import { router, adminProcedure, requireScope } from "../../trpc";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 
+// 与 site.ts / 评论模块保持一致：仅校验协议前缀，避免 z.string().url() 拒绝
+// 含畸形 Punycode 的合法主机（例如 xn--biroov.xoavxo028.sbs）
+const urlRegex = /^https?:\/\/.+/;
+
 export const adminLinksRouter = router({
   // ========== 友情链接管理 ==========
 
@@ -79,8 +83,11 @@ export const adminLinksRouter = router({
     .input(
       z.object({
         name: z.string().min(1).max(100),
-        url: z.string().url(),
-        logo: z.string().optional(),
+        url: z.string().refine((v) => urlRegex.test(v), { message: "请输入有效的网址（以 http:// 或 https:// 开头）" }),
+        logo: z
+          .string()
+          .refine((v) => !v || urlRegex.test(v), { message: "Logo 地址格式不正确" })
+          .optional(),
         description: z.string().max(200).optional(),
         sort: z.number().int().default(0),
         visible: z.boolean().default(true),
@@ -96,8 +103,14 @@ export const adminLinksRouter = router({
       z.object({
         id: z.string(),
         name: z.string().min(1).max(100).optional(),
-        url: z.string().url().optional(),
-        logo: z.string().optional(),
+        url: z
+          .string()
+          .refine((v) => urlRegex.test(v), { message: "请输入有效的网址（以 http:// 或 https:// 开头）" })
+          .optional(),
+        logo: z
+          .string()
+          .refine((v) => !v || urlRegex.test(v), { message: "Logo 地址格式不正确" })
+          .optional(),
         description: z.string().max(200).optional(),
         sort: z.number().int().optional(),
         visible: z.boolean().optional(),

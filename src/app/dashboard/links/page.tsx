@@ -176,10 +176,8 @@ export default function AdminLinksPage() {
       toast.error("请输入站点链接");
       return;
     }
-    try {
-      new URL(form.url);
-    } catch {
-      toast.error("请输入有效的 URL");
+    if (!/^https?:\/\/.+/.test(form.url.trim())) {
+      toast.error("请输入有效的 URL（以 http:// 或 https:// 开头）");
       return;
     }
     await createMutation.mutateAsync({
@@ -202,10 +200,8 @@ export default function AdminLinksPage() {
       toast.error("请输入站点链接");
       return;
     }
-    try {
-      new URL(form.url);
-    } catch {
-      toast.error("请输入有效的 URL");
+    if (!/^https?:\/\/.+/.test(form.url.trim())) {
+      toast.error("请输入有效的 URL（以 http:// 或 https:// 开头）");
       return;
     }
     await updateMutation.mutateAsync({
