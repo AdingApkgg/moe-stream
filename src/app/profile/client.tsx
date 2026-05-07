@@ -27,6 +27,7 @@ import {
   Clock,
   Video,
   Images,
+  Layers,
   Bell,
   Mail,
   MessageSquare,
@@ -261,6 +262,13 @@ function Shortcuts() {
       label: "我的作品",
       icon: Video,
       tint: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+      hidden: !session?.user?.canUpload,
+    },
+    {
+      href: "/my-series",
+      label: "我的合集",
+      icon: Layers,
+      tint: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
       hidden: !session?.user?.canUpload,
     },
     {
