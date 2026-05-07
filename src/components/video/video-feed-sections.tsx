@@ -34,10 +34,15 @@ interface SectionDef {
   showRank?: boolean;
 }
 
+// 用三种不同的排序维度差异化 section，而不是用时间窗口切割
+// (时间窗口在新发布内容少的站点会让 section 直接空掉)：
+//   - 最新发布: createdAt desc
+//   - 热门视频: views desc (历史累计播放量)
+//   - 高赞作品: likes count desc
 const SECTIONS: SectionDef[] = [
   {
     id: "latest",
-    title: "最新上传",
+    title: "最新发布",
     Icon: Sparkles,
     iconClass: "text-sky-500",
     sortBy: "latest",
@@ -45,23 +50,21 @@ const SECTIONS: SectionDef[] = [
     layout: "horizontal",
   },
   {
-    id: "trending-today",
-    title: "本日热门",
+    id: "trending",
+    title: "热门视频",
     Icon: Flame,
     iconClass: "text-orange-500",
     sortBy: "views",
-    timeRange: "today",
-    moreParams: "?sortBy=views&timeRange=today",
+    moreParams: "?sortBy=views",
     layout: "grid",
   },
   {
-    id: "weekly-rank",
-    title: "本周排行",
+    id: "top-rated",
+    title: "高赞排行",
     Icon: Trophy,
     iconClass: "text-amber-500",
-    sortBy: "views",
-    timeRange: "week",
-    moreParams: "?sortBy=views&timeRange=week",
+    sortBy: "likes",
+    moreParams: "?sortBy=likes",
     layout: "hero",
     showRank: true,
   },

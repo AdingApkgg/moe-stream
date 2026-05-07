@@ -115,7 +115,7 @@ export const imageRouter = router({
       const orderBy = {
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
-        likes: { createdAt: "desc" as const },
+        likes: { likes: { _count: "desc" as const } },
         titleAsc: { title: "asc" as const },
         titleDesc: { title: "desc" as const },
       }[sortBy];
@@ -446,7 +446,7 @@ export const imageRouter = router({
       const orderBy = {
         latest: { createdAt: "desc" as const },
         views: { views: "desc" as const },
-        likes: { createdAt: "desc" as const },
+        likes: { likes: { _count: "desc" as const } },
         titleAsc: { title: "asc" as const },
         titleDesc: { title: "desc" as const },
       }[sortBy];

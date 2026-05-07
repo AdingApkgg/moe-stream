@@ -26,6 +26,7 @@ interface SectionDef {
   showRank?: boolean;
 }
 
+// 三种差异化排序，避免时间窗口空数据
 const SECTIONS: SectionDef[] = [
   {
     id: "latest",
@@ -36,22 +37,20 @@ const SECTIONS: SectionDef[] = [
     moreParams: "?sortBy=latest",
   },
   {
-    id: "trending-today",
-    title: "本日热门",
+    id: "trending",
+    title: "热门图集",
     Icon: Flame,
     iconClass: "text-orange-500",
     sortBy: "views",
-    timeRange: "today",
-    moreParams: "?sortBy=views&timeRange=today",
+    moreParams: "?sortBy=views",
   },
   {
-    id: "weekly-rank",
-    title: "本周排行",
+    id: "top-rated",
+    title: "高赞排行",
     Icon: Trophy,
     iconClass: "text-amber-500",
-    sortBy: "views",
-    timeRange: "week",
-    moreParams: "?sortBy=views&timeRange=week",
+    sortBy: "likes",
+    moreParams: "?sortBy=likes",
     showRank: true,
   },
 ];
