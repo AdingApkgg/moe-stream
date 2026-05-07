@@ -15,6 +15,7 @@ export function SidebarFooter() {
 
   const siteName = config?.siteName || "ACGN Site";
   const footerLinks = config?.footerLinks || [];
+  const footerText = config?.footerText;
   const icpBeian = config?.icpBeian;
   const publicSecurityBeian = config?.publicSecurityBeian;
   const githubUrl = config?.githubUrl;
@@ -90,6 +91,15 @@ export function SidebarFooter() {
       <p className="opacity-70">
         © {new Date().getFullYear()} {siteName}
       </p>
+
+      {/* 自定义页脚文本 (HTML)：管理员在站点配置里填写的备注/联系方式等 */}
+      {footerText && (
+        <div
+          className="opacity-70 [&_a]:underline [&_a]:hover:text-foreground [&_a]:transition-colors"
+           
+          dangerouslySetInnerHTML={{ __html: footerText }}
+        />
+      )}
     </div>
   );
 }

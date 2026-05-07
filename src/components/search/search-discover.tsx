@@ -173,27 +173,7 @@ export function SearchDiscover({ variant = "page", onSearchKeyword, onNavigate, 
         </section>
       )}
 
-      {/* 站内热搜（具体内容，多维度热力分） */}
-      {hasHot && (
-        <section>
-          <h3
-            className={cn(
-              "font-semibold flex items-center gap-2 mb-2",
-              isPage ? "text-base" : "text-xs text-muted-foreground",
-            )}
-          >
-            <TrendingUp className={cn(isPage ? "h-4 w-4" : "h-3 w-3")} />
-            站内热搜
-          </h3>
-          <div className={cn("grid gap-1", isPage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
-            {hotContents?.map((item) => (
-              <HotContentRow key={`${item.type}-${item.id}`} item={item} onNavigate={onNavigate} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 猜你想搜 */}
+      {/* 猜你想搜：紧跟搜索历史之后，跟用户个体行为强相关，先于全站热搜 */}
       {hasGuess && (
         <section>
           <div className="flex items-center justify-between mb-2">
@@ -228,6 +208,26 @@ export function SearchDiscover({ variant = "page", onSearchKeyword, onNavigate, 
                   <span className="text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">热</span>
                 )}
               </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 站内热搜（具体内容，多维度热力分）*/}
+      {hasHot && (
+        <section>
+          <h3
+            className={cn(
+              "font-semibold flex items-center gap-2 mb-2",
+              isPage ? "text-base" : "text-xs text-muted-foreground",
+            )}
+          >
+            <TrendingUp className={cn(isPage ? "h-4 w-4" : "h-3 w-3")} />
+            站内热搜
+          </h3>
+          <div className={cn("grid gap-1", isPage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+            {hotContents?.map((item) => (
+              <HotContentRow key={`${item.type}-${item.id}`} item={item} onNavigate={onNavigate} />
             ))}
           </div>
         </section>
