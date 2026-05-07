@@ -96,7 +96,6 @@ export function SidebarFooter() {
       {footerText && (
         <div
           className="opacity-70 [&_a]:underline [&_a]:hover:text-foreground [&_a]:transition-colors"
-           
           dangerouslySetInnerHTML={{ __html: footerText }}
         />
       )}

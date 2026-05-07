@@ -41,7 +41,7 @@ export function useDismissedAnnouncement(announcement: string | null | undefined
     if (!announcement) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHidden(true);
-       
+
       setHydrated(true);
       return;
     }
@@ -56,11 +56,11 @@ export function useDismissedAnnouncement(announcement: string | null | undefined
         }
       }
     } catch {}
-     
+
     setHash(h);
-     
+
     setHidden(stillDismissed);
-     
+
     setHydrated(true);
   }, [announcement]);
 

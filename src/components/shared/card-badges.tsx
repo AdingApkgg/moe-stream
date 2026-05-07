@@ -9,7 +9,7 @@ const NEW_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 小时内视为「新」
 export function isNewlyUploaded(createdAt: Date | string | null | undefined): boolean {
   if (!createdAt) return false;
   const ms = new Date(createdAt).getTime();
-   
+
   return Number.isFinite(ms) && Date.now() - ms < NEW_THRESHOLD_MS;
 }
 
