@@ -61,7 +61,7 @@ export function HorizontalScroller<T>({
         ref={scrollerRef}
         className={cn(
           "flex overflow-x-auto scroll-smooth scrollbar-hide snap-x snap-mandatory",
-          "-mx-4 px-4 md:-mx-6 md:px-6", // 让卡片能贴页面左右边
+          // 卡片严格在父容器 padding 内，第一张跟下方 grid section 卡片左对齐
           gapClass,
         )}
       >
