@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Hash,
   Mail,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -45,13 +46,14 @@ interface NavItem {
   requireUpload?: boolean;
 }
 
-// 主菜单：4 项高频入口。「友情链接」属于站点级别信息，已通过 footer 触达，
-// 不必再占主菜单位置。
+// 主菜单：5 项一级入口。友情链接虽是次级功能，但 footer 没承载它（footer
+// 只展示 footerLinks 配置 + 隐私/条款），删掉的话用户没地方能进 /links。
 const mainNavItems: NavItem[] = [
   { href: "/", icon: Home, label: "首页" },
   { href: "/ranking", icon: Trophy, label: "热门排行" },
   { href: "/tags", icon: Hash, label: "标签广场" },
   { href: "/comments", icon: MessageCircle, label: "评论动态" },
+  { href: "/links", icon: Link2, label: "友情链接" },
 ];
 
 /** 首页右侧模式切换：视频 / 图片 / 游戏（入口预留） */
