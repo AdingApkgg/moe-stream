@@ -112,6 +112,9 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     val settings = webView.settings
 
+    // 允许 Chrome 远程调试(USB 连电脑后,chrome://inspect/#devices 可看 console/network)
+    WebView.setWebContentsDebuggingEnabled(true)
+
     // 去掉 UA 里的 "wv" 标记,绕过 Google/Apple 等 OAuth 提供方对 WebView 的拦截
     var ua = settings.userAgentString ?: ""
     ua = ua.replace("; wv)", ")").replace(" wv", "")
