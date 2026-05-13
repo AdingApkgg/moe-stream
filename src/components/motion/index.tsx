@@ -53,6 +53,10 @@ interface PageTransitionProps {
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   const config = useAnimationConfig();
+  // 首次进入页面时（SSR 水合 + 第一次客户端渲染）跳过 enter 动画。
+  // 否则若任何环节阻塞 framer-motion 接管（chunk 加载慢、hydration 延迟等），
+  // 内容会长时间停在 opacity:0 → 用户看到「空白页」直到下次路由切换才恢复。
+  const isMounted = useIsMounted();
 
   // 后台使用 fixed 全屏布局，无需页面过渡；用稳定 key 避免重挂载导致闪烁
   const transitionKey = pathname.startsWith("/dashboard") ? "/dashboard" : pathname;
@@ -64,7 +68,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <m.div
       key={transitionKey}
-      initial={{ opacity: 0, y: 20 }}
+      initial={isMounted ? { opacity: 0, y: 20 } : false}
       animate={{
         opacity: 1,
         y: 0,
@@ -97,6 +101,7 @@ const ENTER_OFFSET: Record<NonNullable<MotionPageProps["direction"]>, { x: numbe
 
 export function MotionPage({ children, className, direction = "up" }: MotionPageProps) {
   const config = useAnimationConfig();
+  const isMounted = useIsMounted();
 
   if (!config.enabled || !config.pageTransition || direction === "none") {
     return <div className={className}>{children}</div>;
@@ -107,7 +112,9 @@ export function MotionPage({ children, className, direction = "up" }: MotionPage
   return (
     <m.div
       className={className}
-      initial={{ opacity: 0, x: offset.x, y: offset.y }}
+      // 首次水合时跳过初始状态：避免 SSR 输出的 opacity:0 在 framer-motion 接管
+      // 前长期可见，造成「首次访问空白、切走再回来才出来」。后续路由切换 / 重挂载仍正常入场。
+      initial={isMounted ? { opacity: 0, x: offset.x, y: offset.y } : false}
       animate={{
         opacity: 1,
         x: 0,
