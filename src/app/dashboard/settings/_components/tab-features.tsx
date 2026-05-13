@@ -144,6 +144,21 @@ export function TabFeatures({ config }: { config: SiteConfig | undefined }) {
           <CardContent className="space-y-4">
             <FormField
               control={form.control}
+              name="sectionCompositeEnabled"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>综合分区</FormLabel>
+                    <FormDescription>聚合首页，混合展示视频、图片、游戏的最新内容</FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="sectionVideoEnabled"
               render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">

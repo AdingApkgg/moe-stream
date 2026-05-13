@@ -88,14 +88,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "替换图片 CDN 域名",
-    description: "替换图片链接中的 CDN 域名（请修改域名）",
-    field: "images",
-    pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.example.com",
-    flags: "g",
-  },
-  {
     name: "去除图片链接查询参数",
     description: "移除图片链接中 ? 后的所有查询参数",
     field: "images",

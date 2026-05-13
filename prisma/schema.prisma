@@ -1089,6 +1089,7 @@ model SiteConfig {
   requireEmailVerify     Boolean @default(false)  // 注册需要邮箱验证
   
   // 内容分区开关
+  sectionCompositeEnabled Boolean @default(true)  // 综合分区（聚合首页）
   sectionVideoEnabled  Boolean @default(true)   // 视频分区
   sectionImageEnabled  Boolean @default(true)   // 图片分区
   sectionGameEnabled   Boolean @default(true)   // 游戏分区

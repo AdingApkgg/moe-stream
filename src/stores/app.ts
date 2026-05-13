@@ -42,8 +42,8 @@ export const useSearchHistoryStore = create<SearchHistoryState>()(
 
 // ==================== UI Store ====================
 
-/** 首页内容模式（视频/图片/游戏），入口预留 */
-export type ContentMode = "video" | "image" | "game";
+/** 首页内容模式（综合/视频/图片/游戏），入口预留 */
+export type ContentMode = "composite" | "video" | "image" | "game";
 
 interface UIState {
   // 侧边栏状态

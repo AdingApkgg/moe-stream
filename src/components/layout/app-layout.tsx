@@ -13,6 +13,7 @@ import { AdGate } from "@/components/ads/ad-gate";
 import { FloatingAd } from "@/components/ads/floating-ad";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { ShortcutRegistryProvider } from "@/contexts/shortcut-registry";
 import { cn } from "@/lib/utils";
 import { PageTransition } from "@/components/motion";
 import { useIsMounted } from "@/hooks/use-is-mounted";
@@ -99,64 +100,66 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const useOverlayMode = isOverlayMode;
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-x-hidden">
-      {/* 顶部导航进度条 */}
-      <NavigationProgress />
+    <ShortcutRegistryProvider>
+      <div className="relative min-h-screen flex flex-col overflow-x-hidden">
+        {/* 顶部导航进度条 */}
+        <NavigationProgress />
 
-      {/* TMA 与普通网页共用同一 Header；Telegram 原生 BackButton 仍由 TmaLayoutBridge 处理 */}
-      <Header onMenuClick={toggleSidebar} />
+        {/* TMA 与普通网页共用同一 Header；Telegram 原生 BackButton 仍由 TmaLayoutBridge 处理 */}
+        <Header onMenuClick={toggleSidebar} />
 
-      {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
-      <div className="h-14 shrink-0" />
+        {/* Header 是 fixed 定位，需要占位让内容不被遮挡 */}
+        <div className="h-14 shrink-0" />
 
-      {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
-      <TmaLayoutBridge />
+        {/* TMA 侧路由桥接：将 next/navigation 与 tg.BackButton 联动 */}
+        <TmaLayoutBridge />
 
-      <div className="flex flex-1">
-        {/* 桌面端侧边栏 */}
-        {showSidebar && <Sidebar collapsed={!isExpanded} onToggle={toggleSidebar} overlay={useOverlayMode} />}
+        <div className="flex flex-1">
+          {/* 桌面端侧边栏 */}
+          {showSidebar && <Sidebar collapsed={!isExpanded} onToggle={toggleSidebar} overlay={useOverlayMode} />}
 
-        {/* 主内容区 */}
-        <main
-          className={cn(
-            "flex-1 flex flex-col min-h-[calc(100vh-3.5rem)] min-w-0 overflow-x-hidden transition-[margin] duration-200",
-            // YouTube 风格：展开时内容区推移（非覆盖模式）
-            showSidebar && !useOverlayMode && isExpanded && "md:ml-[220px]",
-            showSidebar && !useOverlayMode && !isExpanded && "md:ml-[72px]",
-            // 覆盖模式：固定小边距
-            showSidebar && useOverlayMode && "md:ml-0",
-            // 移动端为底部导航栏留出空间
-            !isOverlayMode && "pb-16 md:pb-0",
-          )}
-        >
-          <div className="flex-1 relative">
-            <PageTransition>{children}</PageTransition>
-          </div>
-          {/* TMA 环境下隐藏 Footer。
+          {/* 主内容区 */}
+          <main
+            className={cn(
+              "flex-1 flex flex-col min-h-[calc(100vh-3.5rem)] min-w-0 overflow-x-hidden transition-[margin] duration-200",
+              // YouTube 风格：展开时内容区推移（非覆盖模式）
+              showSidebar && !useOverlayMode && isExpanded && "md:ml-[220px]",
+              showSidebar && !useOverlayMode && !isExpanded && "md:ml-[72px]",
+              // 覆盖模式：固定小边距
+              showSidebar && useOverlayMode && "md:ml-0",
+              // 移动端为底部导航栏留出空间
+              !isOverlayMode && "pb-16 md:pb-0",
+            )}
+          >
+            <div className="flex-1 relative">
+              <PageTransition>{children}</PageTransition>
+            </div>
+            {/* TMA 环境下隐藏 Footer。
               桌面端: footer 内容已挪到 sidebar 底部 (参考抖音/YouTube)，主区不再渲染。
               移动端 (<md): sidebar 是抽屉式的常态隐藏，主区底部仍渲染 Footer 让用户能看到版权/备案。 */}
-          {!isTMA && (
-            <div className="md:hidden">
-              <Footer />
-            </div>
-          )}
-        </main>
+            {!isTMA && (
+              <div className="md:hidden">
+                <Footer />
+              </div>
+            )}
+          </main>
+        </div>
+
+        {/* 移动端底部导航栏；TMA 环境也保留（侧边栏已隐藏） */}
+        {(isTMA || showSidebar) && !isOverlayMode && !isNoSidebarPage && <BottomNav />}
+
+        {/* 全局命令面板 */}
+        <CommandPalette />
+
+        {/* 赞助商广告门（启用且未达免广告时段时显示） */}
+        <AdGate />
+
+        {/* 左下角悬浮广告（桌面端） */}
+        {!isTMA && !isNoSidebarPage && <FloatingAd />}
+
+        {/* 快捷键帮助对话框 */}
+        <KeyboardShortcutsDialog open={showHelp} onOpenChange={setShowHelp} />
       </div>
-
-      {/* 移动端底部导航栏；TMA 环境也保留（侧边栏已隐藏） */}
-      {(isTMA || showSidebar) && !isOverlayMode && !isNoSidebarPage && <BottomNav />}
-
-      {/* 全局命令面板 */}
-      <CommandPalette />
-
-      {/* 赞助商广告门（启用且未达免广告时段时显示） */}
-      <AdGate />
-
-      {/* 左下角悬浮广告（桌面端） */}
-      {!isTMA && !isNoSidebarPage && <FloatingAd />}
-
-      {/* 快捷键帮助对话框 */}
-      <KeyboardShortcutsDialog open={showHelp} onOpenChange={setShowHelp} />
-    </div>
+    </ShortcutRegistryProvider>
   );
 }

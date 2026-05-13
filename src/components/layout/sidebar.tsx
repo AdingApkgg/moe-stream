@@ -11,6 +11,7 @@ import {
   Image,
   Gamepad2,
   Play,
+  LayoutGrid,
   TrendingUp,
   Hash,
   Mail,
@@ -45,9 +46,11 @@ interface NavItem {
   requireUpload?: boolean;
 }
 
-// 「视频 / 图片 / 游戏」是分区入口，由站点 config 控制是否启用，sidebar 渲染时
-// 通过 useEnabledContentModes() 动态过滤后插入到主菜单顶部。
+// 「综合 / 视频 / 图片 / 游戏」是分区入口，由站点 config 控制是否启用，sidebar 渲染时
+// 通过 useEnabledContentModes() 动态过滤后插入到主菜单顶部。综合 = 站点首页 `/`，
+// 由 `src/app/page.tsx` 直接渲染聚合内容。
 const sectionNavItems: NavItem[] = [
+  { href: "/", icon: LayoutGrid, label: "综合" },
   { href: "/video", icon: Play, label: "视频" },
   { href: "/image", icon: Image, label: "图片" },
   { href: "/game", icon: Gamepad2, label: "游戏" },
@@ -151,10 +154,9 @@ function NavGroup({
     <div className={collapsed ? "space-y-0.5" : "space-y-0.5"}>
       {title && !collapsed && <h3 className="mb-1 px-3 pt-1 text-sm font-semibold text-foreground">{title}</h3>}
       {filteredItems.map((item) => {
+        // 根路径 `/` 只在路径完全相等时激活，避免 `pathname.startsWith("/")` 永远命中
         const isActive =
-          item.href === "/"
-            ? pathname === "/" || pathname === "/video" || pathname === "/image" || pathname === "/game"
-            : pathname === item.href || pathname.startsWith(item.href);
+          item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href);
         return <NavLink key={item.href} item={item} collapsed={collapsed} isActive={isActive} onClick={onItemClick} />;
       })}
     </div>
@@ -165,6 +167,7 @@ function NavGroup({
 function useEnabledSectionNavItems(): NavItem[] {
   const config = useSiteConfig();
   return sectionNavItems.filter((item) => {
+    if (item.href === "/") return config?.sectionCompositeEnabled !== false;
     if (item.href === "/video") return config?.sectionVideoEnabled !== false;
     if (item.href === "/image") return config?.sectionImageEnabled !== false;
     if (item.href === "/game") return config?.sectionGameEnabled !== false;

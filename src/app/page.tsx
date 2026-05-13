@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
-import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
+import { CompositeClient } from "@/components/composite/composite-client";
+import type { Metadata } from "next";
+
+/** 综合页是否隐藏 NSFW 内容的 cookie 名；值 "1" = 隐藏，缺省或其它值 = 展示。 */
+const NSFW_COOKIE = "composite-hide-nsfw";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicSiteConfig();
@@ -22,14 +29,199 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// 综合页用到的全部查询参数集中在这里，方便后续按需调整窗口期 / 每段条数
+const HOT_WINDOW_DAYS = 30;
+const LATEST_VIDEO_COUNT = 12;
+const LATEST_IMAGE_COUNT = 8;
+const LATEST_GAME_COUNT = 8;
+const WEEKLY_TOP_COUNT = 10;
+const TRENDING_TAG_COUNT = 20;
+
 /**
- * 首页：直接重定向到默认内容区，避免让用户做"先选视频/图片/游戏"的选择题。
- * 优先级：视频 → 图片 → 游戏（按已启用的第一个）；全部禁用时回退到 /video（404 由各分区处理）。
+ * 综合分区首屏数据：每类各取若干条最新 + 本月热门 + 热门标签，SSR 直出避免空骨架闪烁。
+ * 单分区被关闭时跳过该类型的查询，对应 section 在客户端也不渲染。
+ * `hideNsfw` 来自 cookie，控制是否在所有查询里附加 `isNsfw: false`。
+ */
+const getInitialData = cache(async (hideNsfw: boolean) => {
+  const cfg = await getPublicSiteConfig();
+  const hotSince = new Date(Date.now() - HOT_WINDOW_DAYS * 86400_000);
+  const nsfwFilter = hideNsfw ? { isNsfw: false } : {};
+
+  const videoInclude = {
+    uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+    tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+    _count: { select: { likes: true, dislikes: true, favorites: true } },
+  } as const;
+  const imageInclude = {
+    uploader: { select: { id: true, username: true, nickname: true, avatar: true } },
+    tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+  } as const;
+  const gameInclude = videoInclude;
+
+  const [videos, images, games, hotVideos, hotImages, hotGames, trendingTags] = await Promise.all([
+    // 最新视频（横向滚动）
+    cfg.sectionVideoEnabled
+      ? prisma.video.findMany({
+          take: LATEST_VIDEO_COUNT,
+          where: { status: "PUBLISHED", ...nsfwFilter },
+          orderBy: { createdAt: "desc" },
+          include: videoInclude,
+        })
+      : Promise.resolve([]),
+    // 最新图集（瀑布流）
+    cfg.sectionImageEnabled
+      ? prisma.imagePost.findMany({
+          take: LATEST_IMAGE_COUNT,
+          where: { status: "PUBLISHED", ...nsfwFilter },
+          orderBy: { createdAt: "desc" },
+          include: imageInclude,
+        })
+      : Promise.resolve([]),
+    // 最新游戏
+    cfg.sectionGameEnabled
+      ? prisma.game.findMany({
+          take: LATEST_GAME_COUNT,
+          where: { status: "PUBLISHED", ...nsfwFilter },
+          orderBy: { createdAt: "desc" },
+          include: gameInclude,
+        })
+      : Promise.resolve([]),
+    // 本月热门视频（hero 用第 1 名，混合热门用 2-5 名，本周排行用全部 10）
+    cfg.sectionVideoEnabled
+      ? prisma.video.findMany({
+          take: WEEKLY_TOP_COUNT,
+          where: { status: "PUBLISHED", createdAt: { gte: hotSince }, ...nsfwFilter },
+          orderBy: { views: "desc" },
+          include: videoInclude,
+        })
+      : Promise.resolve([]),
+    cfg.sectionImageEnabled
+      ? prisma.imagePost.findMany({
+          take: WEEKLY_TOP_COUNT,
+          where: { status: "PUBLISHED", createdAt: { gte: hotSince }, ...nsfwFilter },
+          orderBy: { views: "desc" },
+          include: imageInclude,
+        })
+      : Promise.resolve([]),
+    cfg.sectionGameEnabled
+      ? prisma.game.findMany({
+          take: WEEKLY_TOP_COUNT,
+          where: { status: "PUBLISHED", createdAt: { gte: hotSince }, ...nsfwFilter },
+          orderBy: { views: "desc" },
+          include: gameInclude,
+        })
+      : Promise.resolve([]),
+    // 热门标签：按三类「已发布」内容的关联数总和排序。直接从关联表 live 统计，
+    // 避开 Tag.videoCount/imagePostCount/gameCount 这套去规范化字段（部分环境未维护）。
+    prisma.$queryRaw<{ id: string; name: string; slug: string; total: number }[]>`
+      SELECT t.id, t.name, t.slug,
+        (COALESCE(v.cnt, 0) + COALESCE(i.cnt, 0) + COALESCE(g.cnt, 0))::int AS total
+      FROM "Tag" t
+      LEFT JOIN (
+        SELECT tov."tagId", count(*)::int AS cnt
+        FROM "TagOnVideo" tov
+        JOIN "Video" vd ON vd.id = tov."videoId" AND vd.status = 'PUBLISHED'
+        GROUP BY tov."tagId"
+      ) v ON v."tagId" = t.id
+      LEFT JOIN (
+        SELECT toi."tagId", count(*)::int AS cnt
+        FROM "TagOnImagePost" toi
+        JOIN "ImagePost" ip ON ip.id = toi."imagePostId" AND ip.status = 'PUBLISHED'
+        GROUP BY toi."tagId"
+      ) i ON i."tagId" = t.id
+      LEFT JOIN (
+        SELECT tog."tagId", count(*)::int AS cnt
+        FROM "TagOnGame" tog
+        JOIN "Game" gm ON gm.id = tog."gameId" AND gm.status = 'PUBLISHED'
+        GROUP BY tog."tagId"
+      ) g ON g."tagId" = t.id
+      WHERE COALESCE(v.cnt, 0) + COALESCE(i.cnt, 0) + COALESCE(g.cnt, 0) > 0
+      ORDER BY total DESC
+      LIMIT ${TRENDING_TAG_COUNT}
+    `,
+  ]);
+
+  return { videos, images, games, hotVideos, hotImages, hotGames, trendingTags };
+});
+
+function serializeVideos(videos: Awaited<ReturnType<typeof getInitialData>>["videos"]) {
+  return videos.map((v) => ({
+    id: v.id,
+    title: v.title,
+    coverUrl: v.coverUrl,
+    coverBlurHash: v.coverBlurHash,
+    duration: v.duration,
+    views: v.views,
+    isNsfw: v.isNsfw,
+    createdAt: v.createdAt.toISOString(),
+    extraInfo: v.extraInfo,
+    uploader: v.uploader,
+    tags: v.tags,
+    _count: v._count,
+  }));
+}
+
+function serializeImages(images: Awaited<ReturnType<typeof getInitialData>>["images"]) {
+  return images.map((p) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    images: p.images as string[],
+    views: p.views,
+    isNsfw: p.isNsfw,
+    createdAt: p.createdAt.toISOString(),
+    uploader: p.uploader,
+    tags: p.tags,
+  }));
+}
+
+function serializeGames(games: Awaited<ReturnType<typeof getInitialData>>["games"]) {
+  return games.map((g) => ({
+    id: g.id,
+    title: g.title,
+    description: g.description,
+    coverUrl: g.coverUrl,
+    gameType: g.gameType,
+    isFree: g.isFree,
+    version: g.version,
+    views: g.views,
+    isNsfw: g.isNsfw,
+    createdAt: g.createdAt.toISOString(),
+    extraInfo: g.extraInfo,
+    uploader: g.uploader,
+    tags: g.tags,
+    _count: g._count,
+  }));
+}
+
+/**
+ * 站点首页 `/` —— 综合分区开启时直接渲染聚合首页；
+ * 关闭时按 视频 → 图片 → 游戏 顺序跳到第一个启用的分区。
  */
 export default async function HomePage() {
-  const config = await getPublicSiteConfig();
-  if (config.sectionVideoEnabled !== false) redirect("/video");
-  if (config.sectionImageEnabled !== false) redirect("/image");
-  if (config.sectionGameEnabled !== false) redirect("/game");
-  redirect("/video");
+  const cfg = await getPublicSiteConfig();
+  if (!cfg.sectionCompositeEnabled) {
+    if (cfg.sectionVideoEnabled !== false) redirect("/video");
+    if (cfg.sectionImageEnabled !== false) redirect("/image");
+    if (cfg.sectionGameEnabled !== false) redirect("/game");
+    redirect("/video");
+  }
+
+  const cookieStore = await cookies();
+  const hideNsfw = cookieStore.get(NSFW_COOKIE)?.value === "1";
+
+  const { videos, images, games, hotVideos, hotImages, hotGames, trendingTags } = await getInitialData(hideNsfw);
+
+  return (
+    <CompositeClient
+      initialVideos={serializeVideos(videos)}
+      initialImages={serializeImages(images)}
+      initialGames={serializeGames(games)}
+      hotVideos={serializeVideos(hotVideos)}
+      hotImages={serializeImages(hotImages)}
+      hotGames={serializeGames(hotGames)}
+      trendingTags={trendingTags.map((t) => ({ id: t.id, name: t.name, slug: t.slug, total: Number(t.total) }))}
+      hideNsfw={hideNsfw}
+    />
+  );
 }

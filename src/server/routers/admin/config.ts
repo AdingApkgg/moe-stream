@@ -23,6 +23,7 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "allowComment",
   "requireLoginToComment",
   "requireEmailVerify",
+  "sectionCompositeEnabled",
   "sectionVideoEnabled",
   "sectionImageEnabled",
   "sectionGameEnabled",
@@ -263,6 +264,7 @@ export const adminConfigRouter = router({
         requireEmailVerify: z.boolean().optional(),
 
         // 内容分区开关
+        sectionCompositeEnabled: z.boolean().optional(),
         sectionVideoEnabled: z.boolean().optional(),
         sectionImageEnabled: z.boolean().optional(),
         sectionGameEnabled: z.boolean().optional(),

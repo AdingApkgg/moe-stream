@@ -12,6 +12,7 @@ import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
+import { useShortcut } from "@/contexts/shortcut-registry";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,21 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
 
   const totalVotes = (post._count.likes || 0) + (post._count.dislikes || 0);
   const likeRatio = totalVotes > 0 ? Math.round((post._count.likes / totalVotes) * 100) : 100;
+
+  useShortcut(
+    () => {
+      if (!session) return toast.error("请先登录");
+      toggleReaction.mutate({ imagePostId: post.id, type: "like" });
+    },
+    { combo: "l", description: "点赞", group: "互动", sound: null },
+  );
+  useShortcut(
+    () => {
+      if (!session) return toast.error("请先登录");
+      toggleFavorite.mutate({ imagePostId: post.id });
+    },
+    { combo: "c", description: "收藏", group: "互动", sound: null },
+  );
 
   const openViewer = (index: number) => {
     setViewerIndex(index);

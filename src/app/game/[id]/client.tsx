@@ -49,6 +49,7 @@ import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { GameCommentSection } from "@/components/comment/game-comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
 import { useSession } from "@/lib/auth-client";
+import { useShortcut } from "@/contexts/shortcut-registry";
 import { useFingerprint } from "@/hooks/use-fingerprint";
 import { useSound } from "@/hooks/use-sound";
 import { useImageProxyUrl } from "@/hooks/use-cover-url";
@@ -205,6 +206,21 @@ export function GamePageClient({
       setTimeout(() => setCopiedUrl(null), 2000);
     },
     [play],
+  );
+
+  useShortcut(
+    () => {
+      if (!session) return;
+      toggleReaction.mutate({ gameId: id, type: "like" });
+    },
+    { combo: "l", description: "点赞", group: "互动", sound: null },
+  );
+  useShortcut(
+    () => {
+      if (!session) return;
+      toggleFavorite.mutate({ gameId: id });
+    },
+    { combo: "c", description: "收藏", group: "互动", sound: null },
   );
 
   const trackDownload = trpc.game.trackDownload.useMutation();

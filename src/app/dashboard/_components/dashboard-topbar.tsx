@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Search,
   Menu,
   PanelLeft,
   Crown,
@@ -113,14 +112,12 @@ export function DashboardTopbar({
   pathname,
   onOpenMobileMenu,
   onToggleSidebar,
-  onOpenCommand,
   sidebarCollapsed,
 }: {
   permissions: Permissions | undefined;
   pathname: string;
   onOpenMobileMenu: () => void;
   onToggleSidebar: () => void;
-  onOpenCommand: () => void;
   sidebarCollapsed: boolean;
 }) {
   const { data: meData } = trpc.user.me.useQuery(undefined, { staleTime: 60_000 });
@@ -175,23 +172,6 @@ export function DashboardTopbar({
         <div className="hidden lg:flex flex-1 min-w-0">
           <Crumbs pathname={pathname} />
         </div>
-
-        {/* 搜索按钮 */}
-        <button
-          type="button"
-          onClick={onOpenCommand}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-md border border-border/60 bg-background hover:bg-accent/50 active:bg-accent transition-colors text-muted-foreground",
-            "h-9 w-9 justify-center lg:h-8 lg:w-auto lg:justify-start lg:px-2 lg:pr-1.5 text-[13px]",
-          )}
-          aria-label="搜索 (⌘K)"
-        >
-          <Search className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
-          <span className="hidden lg:inline">搜索...</span>
-          <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono text-muted-foreground/80">
-            <span className="text-[11px]">⌘</span>K
-          </kbd>
-        </button>
 
         {/* 积分 */}
         {meData?.points !== undefined && (

@@ -14,7 +14,11 @@ import { HoverFavoriteButton } from "@/components/shared/hover-favorite-button";
 import { MediaCoverSkeleton } from "@/components/shared/media-cover-skeleton";
 import { useThumb } from "@/hooks/use-thumb";
 import { useInViewOnce } from "@/hooks/use-in-view-once";
+import { getCachedAspect, setCachedAspect } from "@/hooks/use-image-aspect-cache";
 import { trpc } from "@/lib/trpc";
+
+// 瀑布流默认占位比例：3:4 偏竖图，多数插画/海报为竖向，平均偏差最小
+const DEFAULT_ASPECT_RATIO = 3 / 4;
 
 interface ImagePostCardProps {
   post: {
@@ -39,6 +43,17 @@ interface ImagePostCardProps {
   rank?: number;
   /** 当前用户是否已收藏 */
   isFavorited?: boolean;
+  /**
+   * 显式控制首屏优先加载。不传则按 `index < 4` 兜底。
+   * 多 section 场景（如 /image 首页）应只让真正的首屏首行传 true，
+   * 避免多个 section 各自前 4 张都抢 fetchpriority=high 导致网络拥塞。
+   */
+  priority?: boolean;
+  /**
+   * `square`：固定方形封面 + 多图堆叠副图（默认，user/favorites/search/history/tag 等场景沿用）
+   * `masonry`：保留图片原始宽高比，适合 `/image` 瀑布流首页
+   */
+  variant?: "square" | "masonry";
 }
 
 function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; priority: boolean }) {
@@ -54,19 +69,28 @@ function ImagePostMainThumb({ src, alt, priority }: { src: string; alt: string; 
         priority={priority}
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         unoptimized
-        className="z-[2] object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform group-hover:scale-105"
+        className="z-[2] object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
         onLoad={() => setLoaded(true)}
       />
     </>
   );
 }
 
-function ImagePostCardComponent({ post, index, highlightQuery, rank, isFavorited }: ImagePostCardProps) {
+function ImagePostCardComponent({
+  post,
+  index,
+  highlightQuery,
+  rank,
+  isFavorited,
+  priority: priorityProp,
+  variant = "square",
+}: ImagePostCardProps) {
   const thumbPrimary = useThumb("gridPrimary");
   const thumbSecondary = useThumb("gridSecondary");
   const { play } = useSound();
-  // 只有前 4 张首屏封面走高优先级，其余全部懒加载，避免首屏同时下载过多图片
-  const priority = index !== undefined && index < 4;
+  // 优先用调用方显式传入的 priority；否则按 `index < 4` 兜底，保持老调用方语义。
+  // 多 section 场景应由父组件控制（参见 image-feed-sections.tsx）。
+  const priority = priorityProp ?? (index !== undefined && index < 4);
   const { ref: viewportRef, inView } = useInViewOnce<HTMLDivElement>({ disabled: priority });
 
   const imageUrls = (post.images ?? []) as string[];
@@ -74,92 +98,124 @@ function ImagePostCardComponent({ post, index, highlightQuery, rank, isFavorited
   const hasMultiple = imageCount > 1;
   const showMain = inView || priority;
   // 堆叠背景图始终等 inView，不受 priority 影响，减少首屏并发请求
-  const showSecondary = inView && hasMultiple;
+  const showSecondary = inView && hasMultiple && variant === "square";
   const mainSrcKey = `${post.id}:${imageUrls[0] ?? ""}`;
+  const isMasonry = variant === "masonry";
+
+  const overlays = (
+    <>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+      {/* 排行榜徽章 / NEW 徽章（左上角，二选一）*/}
+      {rank !== undefined ? <RankBadge rank={rank} /> : <NewBadge createdAt={post.createdAt} />}
+
+      {post.isNsfw && (
+        <div className="absolute top-1.5 right-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
+          NSFW
+        </div>
+      )}
+
+      {imageCount > 1 && (
+        <div
+          className={cn(
+            "absolute right-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1",
+            post.isNsfw ? "top-9" : "top-1.5",
+          )}
+        >
+          <Images className="h-3 w-3" />
+          {imageCount}
+        </div>
+      )}
+
+      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1.5 text-[10px] sm:text-xs text-white/80">
+        <Eye className="h-3 w-3" />
+        {formatViews(post.views)}
+      </div>
+
+      {/* 浮动快捷收藏（hover 浮出，desktop only） */}
+      <ImagePostFavoriteFab postId={post.id} isFavorited={isFavorited ?? false} />
+    </>
+  );
 
   return (
     <div ref={viewportRef} className="group" onMouseEnter={() => play("hover")}>
       <Link href={`/image/${post.id}`} className="block">
-        <div className={cn("relative aspect-square", hasMultiple && "pr-2.5 pb-1")}>
-          {showSecondary && (
-            <>
-              {imageUrls[2] && (
-                <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
+        {isMasonry ? (
+          <div className="relative overflow-hidden rounded-2xl bg-muted shadow-sm group-hover:shadow-xl transition-shadow duration-300 ease-out border border-transparent group-hover:border-border/20">
+            {imageUrls.length > 0 ? (
+              showMain ? (
+                <ImagePostMasonryThumb
+                  key={mainSrcKey}
+                  // h=0 → sharp 端按 w 等比缩放，保留原图比例供瀑布流使用
+                  src={thumbPrimary(imageUrls[0], { h: 0 })}
+                  alt={post.title}
+                  priority={priority}
+                />
+              ) : (
+                // 未进入视口：用「该图缓存比例」或 3:4 默认占位
+                <MasonryPlaceholder src={thumbPrimary(imageUrls[0], { h: 0 })} />
+              )
+            ) : (
+              <div className="w-full flex items-center justify-center" style={{ aspectRatio: DEFAULT_ASPECT_RATIO }}>
+                <Images className="w-12 h-12 text-muted-foreground/30" />
+              </div>
+            )}
+
+            {overlays}
+          </div>
+        ) : (
+          <div className={cn("relative aspect-square", hasMultiple && "pr-2.5 pb-1")}>
+            {showSecondary && (
+              <>
+                {imageUrls[2] && (
+                  <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/40 shadow-md origin-bottom-left rotate-[5deg] translate-x-3 translate-y-[-2px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[7deg] group-hover:translate-x-3.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={thumbSecondary(imageUrls[2])}
+                      alt=""
+                      className="w-full h-full object-cover brightness-[0.85]"
+                      loading="lazy"
+                      decoding="async"
+                      fetchPriority="low"
+                    />
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={thumbSecondary(imageUrls[2])}
+                    src={thumbSecondary(imageUrls[1])}
                     alt=""
-                    className="w-full h-full object-cover brightness-[0.85]"
+                    className="w-full h-full object-cover brightness-90"
                     loading="lazy"
                     decoding="async"
                     fetchPriority="low"
                   />
                 </div>
-              )}
-              <div className="absolute inset-0 rounded-2xl overflow-hidden border border-border/50 shadow-md origin-bottom-left rotate-[2.5deg] translate-x-1.5 translate-y-[-1px] transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-[4deg] group-hover:translate-x-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={thumbSecondary(imageUrls[1])}
-                  alt=""
-                  className="w-full h-full object-cover brightness-90"
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                />
-              </div>
-            </>
-          )}
+              </>
+            )}
 
-          <div className="relative overflow-hidden rounded-2xl bg-muted shadow-sm group-hover:shadow-xl transition-[shadow,transform] duration-300 ease-out h-full border border-transparent group-hover:border-border/20">
-            {imageUrls.length > 0 ? (
-              showMain ? (
-                <ImagePostMainThumb
-                  key={mainSrcKey}
-                  src={thumbPrimary(imageUrls[0])}
-                  alt={post.title}
-                  priority={priority}
-                />
+            <div className="relative overflow-hidden rounded-2xl bg-muted shadow-sm group-hover:shadow-xl transition-[shadow,transform] duration-300 ease-out h-full border border-transparent group-hover:border-border/20">
+              {imageUrls.length > 0 ? (
+                showMain ? (
+                  <ImagePostMainThumb
+                    key={mainSrcKey}
+                    src={thumbPrimary(imageUrls[0])}
+                    alt={post.title}
+                    priority={priority}
+                  />
+                ) : (
+                  <MediaCoverSkeleton className="relative z-[1] h-full w-full min-h-0" />
+                )
               ) : (
-                <MediaCoverSkeleton className="relative z-[1] h-full w-full min-h-0" />
-              )
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Images className="w-12 h-12 text-muted-foreground/30" />
-              </div>
-            )}
+                <div className="w-full h-full flex items-center justify-center">
+                  <Images className="w-12 h-12 text-muted-foreground/30" />
+                </div>
+              )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-            {/* 排行榜徽章 / NEW 徽章（左上角，二选一）*/}
-            {rank !== undefined ? <RankBadge rank={rank} /> : <NewBadge createdAt={post.createdAt} />}
-
-            {post.isNsfw && (
-              <div className="absolute top-1.5 right-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-bold">
-                NSFW
-              </div>
-            )}
-
-            {imageCount > 1 && (
-              <div
-                className={cn(
-                  "absolute right-1.5 bg-black/75 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1",
-                  post.isNsfw ? "top-9" : "top-1.5",
-                )}
-              >
-                <Images className="h-3 w-3" />
-                {imageCount}
-              </div>
-            )}
-
-            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1.5 text-[10px] sm:text-xs text-white/80">
-              <Eye className="h-3 w-3" />
-              {formatViews(post.views)}
+              {overlays}
             </div>
-
-            {/* 浮动快捷收藏（hover 浮出，desktop only） */}
-            <ImagePostFavoriteFab postId={post.id} isFavorited={isFavorited ?? false} />
           </div>
-        </div>
+        )}
 
         <div className="mt-2 px-0.5 space-y-0.5">
           <h3 className="font-medium line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors duration-200 ease-out">
@@ -173,6 +229,60 @@ function ImagePostCardComponent({ post, index, highlightQuery, rank, isFavorited
           <CardMeta author={post.uploader.nickname || post.uploader.username} createdAt={post.createdAt} />
         </div>
       </Link>
+    </div>
+  );
+}
+
+/**
+ * 瀑布流封面：用「缓存比例 / 默认 3:4」给容器锁定高度，img 绝对填充 + 淡入。
+ * 二次进入同图时由 localStorage 提供真实比例，跳过 3:4→真实 的高度抖动。
+ */
+function ImagePostMasonryThumb({ src, alt, priority }: { src: string; alt: string; priority: boolean }) {
+  // useState 懒初始化里直接读缓存：SSR 拿不到 window 自动 fallback 到默认值，
+  // 客户端首帧若命中缓存则用真实比例，跳过 3:4→真实 的高度抖动。
+  // 由此带来的 SSR/CSR 比例差异通过 suppressHydrationWarning 静默。
+  const [aspectRatio, setAspectRatio] = useState<number>(() => getCachedAspect(src) ?? DEFAULT_ASPECT_RATIO);
+  const [loaded, setLoaded] = useState(false);
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const ratio = img.naturalWidth / img.naturalHeight;
+      setAspectRatio(ratio);
+      setCachedAspect(src, ratio);
+    }
+    setLoaded(true);
+  };
+
+  return (
+    <div className="relative w-full" style={{ aspectRatio }} suppressHydrationWarning>
+      {!loaded && <MediaCoverSkeleton />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "low"}
+        decoding="async"
+        onLoad={handleLoad}
+        className={cn(
+          "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105",
+          loaded ? "opacity-100" : "opacity-0",
+        )}
+      />
+    </div>
+  );
+}
+
+/**
+ * 瀑布流「未进入视口」占位：以 url 命中的缓存比例锁定高度，避免懒挂载时
+ * 用统一 3:4 占位 → 真实比例 的二段跳。
+ */
+function MasonryPlaceholder({ src }: { src: string }) {
+  const aspectRatio = useState<number>(() => getCachedAspect(src) ?? DEFAULT_ASPECT_RATIO)[0];
+  return (
+    <div className="relative w-full" style={{ aspectRatio }} suppressHydrationWarning>
+      <MediaCoverSkeleton />
     </div>
   );
 }
@@ -200,6 +310,8 @@ export const ImagePostCard = memo(ImagePostCardComponent, (prev, next) => {
     prev.index === next.index &&
     prev.highlightQuery === next.highlightQuery &&
     prev.rank === next.rank &&
-    prev.isFavorited === next.isFavorited
+    prev.isFavorited === next.isFavorited &&
+    prev.priority === next.priority &&
+    prev.variant === next.variant
   );
 });

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/lib/toast-with-sound";
+import { formatBytes } from "@/lib/format";
 import { FolderCog, Plus, Edit2, Trash2, Loader2, Wifi, Star, Database } from "lucide-react";
 
 const PROVIDERS = [
@@ -75,13 +76,6 @@ const emptyForm: PolicyForm = {
   enabled: true,
   sortOrder: 0,
 };
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
 
 export default function StoragePoliciesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);

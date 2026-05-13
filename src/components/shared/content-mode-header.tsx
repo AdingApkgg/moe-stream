@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Play, Images, Gamepad2, type LucideIcon } from "lucide-react";
+import { Play, Images, Gamepad2, LayoutGrid, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useUIStore, type ContentMode } from "@/stores/app";
@@ -14,6 +14,7 @@ interface ModeOption {
 }
 
 const ALL_MODES: ModeOption[] = [
+  { id: "composite", label: "综合", icon: LayoutGrid, href: "/" },
   { id: "video", label: "视频", icon: Play, href: "/video" },
   { id: "image", label: "图片", icon: Images, href: "/image" },
   { id: "game", label: "游戏", icon: Gamepad2, href: "/game" },
@@ -39,6 +40,7 @@ export function ContentModeHeader({ current, className }: ContentModeHeaderProps
   const chooseContentMode = useUIStore((s) => s.chooseContentMode);
 
   const enabledModes = ALL_MODES.filter((m) => {
+    if (m.id === "composite") return config?.sectionCompositeEnabled !== false;
     if (m.id === "video") return config?.sectionVideoEnabled !== false;
     if (m.id === "image") return config?.sectionImageEnabled !== false;
     if (m.id === "game") return config?.sectionGameEnabled !== false;
@@ -62,7 +64,13 @@ export function ContentModeHeader({ current, className }: ContentModeHeaderProps
     <h1
       role="tablist"
       aria-label="内容分区"
-      className={cn("mb-6 flex items-end gap-5 sm:gap-7 text-2xl sm:text-3xl font-bold tracking-tight", className)}
+      // 4 个 tab 在窄屏会被挤兑（中文被切成竖排），加 overflow-x-auto 让其溢出滚动；
+      // 行内 nowrap + shrink-0 双重保险，防止任何一个 tab 单独被压缩到 1 字宽。
+      className={cn(
+        "mb-6 flex items-end gap-4 sm:gap-7 text-xl sm:text-3xl font-bold tracking-tight",
+        "-mx-4 px-4 md:-mx-0 md:px-0 overflow-x-auto scrollbar-hide",
+        className,
+      )}
     >
       {enabledModes.map((m) => {
         const Icon = m.icon;
@@ -75,13 +83,13 @@ export function ContentModeHeader({ current, className }: ContentModeHeaderProps
             role="tab"
             aria-selected={active}
             className={cn(
-              "group relative inline-flex items-center gap-2 pb-1.5 transition-colors duration-200",
+              "group relative inline-flex shrink-0 items-center gap-1.5 sm:gap-2 pb-1.5 whitespace-nowrap transition-colors duration-200",
               active ? "text-primary" : "text-muted-foreground/70 hover:text-foreground",
             )}
           >
             <Icon
               className={cn(
-                "h-6 w-6 sm:h-7 sm:w-7 transition-transform",
+                "h-5 w-5 sm:h-7 sm:w-7 transition-transform",
                 active ? "stroke-[2.5px]" : "stroke-[2px] group-hover:scale-105",
               )}
             />

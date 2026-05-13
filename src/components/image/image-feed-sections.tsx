@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, Flame, Trophy } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "./image-post-card";
+import { ImageMasonry } from "./image-masonry";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -63,14 +64,24 @@ interface ImageFeedSectionsProps {
 export function ImageFeedSections({ className, perSection = 8 }: ImageFeedSectionsProps) {
   return (
     <div className={cn("space-y-10", className)}>
-      {SECTIONS.map((section) => (
-        <FeedSection key={section.id} section={section} limit={perSection} />
+      {SECTIONS.map((section, idx) => (
+        // 仅第一个 section 的前 4 张走高优先级，避免 3 个 section 同时各抢 4 张
+        // priority（共 12 张并发抢 fetchpriority=high）导致网络拥塞、下半屏图等更久。
+        <FeedSection key={section.id} section={section} limit={perSection} eagerFirstRow={idx === 0} />
       ))}
     </div>
   );
 }
 
-function FeedSection({ section, limit }: { section: SectionDef; limit: number }) {
+function FeedSection({
+  section,
+  limit,
+  eagerFirstRow,
+}: {
+  section: SectionDef;
+  limit: number;
+  eagerFirstRow: boolean;
+}) {
   const { data, isLoading } = trpc.image.list.useQuery(
     { limit, page: 1, sortBy: section.sortBy, timeRange: section.timeRange ?? "all" },
     { staleTime: 60_000 },
@@ -102,23 +113,28 @@ function FeedSection({ section, limit }: { section: SectionDef; limit: number })
       </header>
 
       {isLoading && posts.length === 0 ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {Array.from({ length: limit }).map((_, i) => (
-            <SectionCardSkeleton key={i} />
-          ))}
-        </div>
+        <ImageMasonry
+          items={Array.from({ length: limit }).map((_, i) => ({
+            key: `skel-${i}`,
+            node: <SectionCardSkeleton index={i} />,
+          }))}
+        />
       ) : posts.length > 0 ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {posts.map((p, i) => (
-            <ImagePostCard
-              key={p.id}
-              post={p}
-              index={i}
-              rank={section.showRank ? i + 1 : undefined}
-              isFavorited={favoritedSet.has(p.id)}
-            />
-          ))}
-        </div>
+        <ImageMasonry
+          items={posts.map((p, i) => ({
+            key: p.id,
+            node: (
+              <ImagePostCard
+                post={p}
+                index={i}
+                priority={eagerFirstRow && i < 4}
+                rank={section.showRank ? i + 1 : undefined}
+                isFavorited={favoritedSet.has(p.id)}
+                variant="masonry"
+              />
+            ),
+          }))}
+        />
       ) : (
         <div className="text-sm text-muted-foreground py-8 text-center">暂无内容</div>
       )}
@@ -126,10 +142,14 @@ function FeedSection({ section, limit }: { section: SectionDef; limit: number })
   );
 }
 
-function SectionCardSkeleton() {
+// 骨架屏在瀑布流里走伪随机高度（基于 index 稳定），避免每次渲染都跳动
+const SKELETON_RATIOS = ["3 / 4", "4 / 5", "1 / 1", "2 / 3", "5 / 7", "4 / 3"];
+
+function SectionCardSkeleton({ index }: { index: number }) {
+  const ratio = SKELETON_RATIOS[index % SKELETON_RATIOS.length];
   return (
     <div className="space-y-2">
-      <Skeleton className="aspect-square w-full rounded-2xl" />
+      <Skeleton className="w-full rounded-2xl" style={{ aspectRatio: ratio }} />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-3 w-2/3" />
     </div>

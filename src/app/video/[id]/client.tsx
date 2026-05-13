@@ -55,6 +55,7 @@ import { formatViews, formatRelativeTime, formatDuration } from "@/lib/format";
 import { VideoCover } from "@/components/video/video-cover";
 import { toast, showPointsToast } from "@/lib/toast-with-sound";
 import { useSound } from "@/hooks/use-sound";
+import { useShortcut } from "@/contexts/shortcut-registry";
 import Link from "next/link";
 import { CommentSection } from "@/components/comment/comment-section";
 import { FileAttachmentPanel } from "@/components/files/file-attachment-panel";
@@ -518,6 +519,74 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
       toast.error("复制失败，请手动复制链接");
     }
   };
+
+  // 视频播放控制
+  useShortcut(() => playerRef.current?.togglePlay(), {
+    combo: "Space",
+    description: "播放 / 暂停",
+    group: "视频",
+    sound: null,
+  });
+  useShortcut(() => playerRef.current?.seekRelative(-5), {
+    combo: "ArrowLeft",
+    description: "后退 5 秒",
+    group: "视频",
+    sound: null,
+  });
+  useShortcut(() => playerRef.current?.seekRelative(5), {
+    combo: "ArrowRight",
+    description: "前进 5 秒",
+    group: "视频",
+    sound: null,
+  });
+  useShortcut(() => playerRef.current?.setVolumeDelta(0.1), {
+    combo: "ArrowUp",
+    description: "音量 +",
+    group: "视频",
+    sound: null,
+  });
+  useShortcut(() => playerRef.current?.setVolumeDelta(-0.1), {
+    combo: "ArrowDown",
+    description: "音量 -",
+    group: "视频",
+    sound: null,
+  });
+  useShortcut(() => playerRef.current?.toggleFullscreen(), {
+    combo: "f",
+    description: "全屏切换",
+    group: "视频",
+  });
+  useShortcut(() => playerRef.current?.toggleMute(), {
+    combo: "m",
+    description: "静音切换",
+    group: "视频",
+    sound: "toggle",
+  });
+  useShortcut(() => playerRef.current?.setRate(0.25), {
+    combo: ">",
+    description: "加快播放速度",
+    group: "视频",
+    sound: "toggle",
+  });
+  useShortcut(() => playerRef.current?.setRate(-0.25), {
+    combo: "<",
+    description: "减慢播放速度",
+    group: "视频",
+    sound: "toggle",
+  });
+  // 互动
+  useShortcut(() => handleLike(), {
+    combo: "l",
+    description: "点赞",
+    group: "互动",
+    sound: null,
+  });
+  useShortcut(() => handleFavorite(), {
+    combo: "c",
+    description: "收藏",
+    group: "互动",
+    sound: null,
+  });
 
   // 由于有 initialVideo，不需要 loading 状态
   if (!displayVideo) {

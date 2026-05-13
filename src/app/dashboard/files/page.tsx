@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast-with-sound";
+import { formatBytes } from "@/lib/format";
 import {
   HardDrive,
   Loader2,
@@ -45,13 +46,6 @@ import {
   VideoIcon,
   FileArchive,
 } from "lucide-react";
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 function renderFileIcon(mimeType: string, className: string) {
   if (mimeType.startsWith("image/")) return <ImageIcon className={className} />;

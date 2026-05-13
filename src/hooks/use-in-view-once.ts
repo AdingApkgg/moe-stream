@@ -9,6 +9,32 @@ export interface UseInViewOnceOptions {
   rootMargin?: string;
 }
 
+// 共享 IntersectionObserver 池：相同 rootMargin 复用同一个 observer，
+// 避免列表场景下每张卡片各起一个 observer 实例（24+ 个实例的滚动开销很可观）。
+const observerPool = new Map<string, IntersectionObserver>();
+const elementCallbacks = new WeakMap<Element, () => void>();
+
+function getSharedObserver(rootMargin: string): IntersectionObserver {
+  const cached = observerPool.get(rootMargin);
+  if (cached) return cached;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const cb = elementCallbacks.get(entry.target);
+        if (!cb) continue;
+        cb();
+        observer.unobserve(entry.target);
+        elementCallbacks.delete(entry.target);
+      }
+    },
+    { root: null, rootMargin, threshold: 0 },
+  );
+  observerPool.set(rootMargin, observer);
+  return observer;
+}
+
 /**
  * 元素进入视口（含 rootMargin）一次后 inView 为 true，用于懒挂载媒体资源。
  */
@@ -24,21 +50,14 @@ export function useInViewOnce<T extends Element>(options: UseInViewOnceOptions =
     const el = ref.current;
     if (!el) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setEntered(true);
-            observer.disconnect();
-            return;
-          }
-        }
-      },
-      { root: null, rootMargin, threshold: 0 },
-    );
-
+    const observer = getSharedObserver(rootMargin);
+    elementCallbacks.set(el, () => setEntered(true));
     observer.observe(el);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.unobserve(el);
+      elementCallbacks.delete(el);
+    };
   }, [disabled, rootMargin]);
 
   return { ref, inView };

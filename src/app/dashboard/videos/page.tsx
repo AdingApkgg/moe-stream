@@ -118,14 +118,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "替换视频 CDN 域名",
-    description: "将旧 CDN 域名替换为新域名（请修改域名）",
-    field: "videoUrl",
-    pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.example.com",
-    flags: "g",
-  },
-  {
     name: "更换视频扩展名 mp4→webm",
     description: "将 .mp4 扩展名替换为 .webm",
     field: "videoUrl",
@@ -147,14 +139,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     field: "videoUrl",
     pattern: "\\/(\\d+)\\.",
     replacement: "/",
-    flags: "g",
-  },
-  {
-    name: "替换路径中指定目录名",
-    description: "替换路径中的某个目录名（请修改目录名）",
-    field: "videoUrl",
-    pattern: "\\/old-folder\\/",
-    replacement: "/new-folder/",
     flags: "g",
   },
   // 封面
@@ -199,14 +183,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     pattern: "^http://",
     replacement: "https://",
     flags: "",
-  },
-  {
-    name: "替换下载链接域名",
-    description: "替换下载链接中的域名（请修改域名）",
-    field: "extraInfo.downloads.url",
-    pattern: "https://old\\.example\\.com",
-    replacement: "https://new.example.com",
-    flags: "g",
   },
   {
     name: "去除下载链接查询参数",

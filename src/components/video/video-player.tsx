@@ -14,8 +14,14 @@ interface VideoPlayerProps {
 
 export interface VideoPlayerRef {
   seekTo: (seconds: number) => void;
+  seekRelative: (deltaSeconds: number) => void;
   getCurrentTime: () => number;
   getDuration: () => number;
+  togglePlay: () => boolean;
+  toggleMute: () => boolean;
+  setVolumeDelta: (delta: number) => number;
+  toggleFullscreen: () => void;
+  setRate: (delta: number) => number;
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(function VideoPlayer(
@@ -38,8 +44,55 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(function
           video.currentTime = seconds;
         }
       },
+      seekRelative: (deltaSeconds: number) => {
+        const video = getVideoElement();
+        if (!video) return;
+        const next = Math.max(0, Math.min(video.duration || 0, video.currentTime + deltaSeconds));
+        video.currentTime = next;
+      },
       getCurrentTime: () => playedSeconds,
       getDuration: () => duration,
+      togglePlay: () => {
+        const video = getVideoElement();
+        if (!video) return false;
+        if (video.paused) {
+          video.play().catch(() => {});
+          return true;
+        }
+        video.pause();
+        return false;
+      },
+      toggleMute: () => {
+        const video = getVideoElement();
+        if (!video) return false;
+        video.muted = !video.muted;
+        return video.muted;
+      },
+      setVolumeDelta: (delta: number) => {
+        const video = getVideoElement();
+        if (!video) return 0;
+        const next = Math.max(0, Math.min(1, video.volume + delta));
+        video.volume = next;
+        if (next > 0 && video.muted) video.muted = false;
+        return next;
+      },
+      toggleFullscreen: () => {
+        const video = getVideoElement();
+        if (!video) return;
+        const wrapper = video.parentElement;
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else if (wrapper?.requestFullscreen) {
+          wrapper.requestFullscreen().catch(() => {});
+        }
+      },
+      setRate: (delta: number) => {
+        const video = getVideoElement();
+        if (!video) return 1;
+        const next = Math.max(0.25, Math.min(3, video.playbackRate + delta));
+        video.playbackRate = next;
+        return next;
+      },
     }),
     [playedSeconds, duration, getVideoElement],
   );

@@ -119,7 +119,11 @@ export interface ThumbOverride {
 
 function appendThumbQuery(base: string, w: number, h: number, q: number): string {
   const sep = base.includes("?") ? "&" : "?";
-  return `${base}${sep}w=${w}&h=${h}&q=${q}`;
+  // h<=0 视为「保持宽高比」（瀑布流场景使用），URL 只带 w，sharp 端会按 w 等比缩放
+  const parts = [`w=${w}`];
+  if (h > 0) parts.push(`h=${h}`);
+  parts.push(`q=${q}`);
+  return `${base}${sep}${parts.join("&")}`;
 }
 
 function resolveThumb(preset: ThumbnailPreset, coverProxyThumbEnabled: boolean, override?: ThumbOverride) {

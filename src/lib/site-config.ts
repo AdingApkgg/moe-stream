@@ -73,6 +73,7 @@ export interface PublicSiteConfig {
   referralEnabled: boolean;
   videoSelectorMode: string;
   videoSelectorMaxCount: number;
+  sectionCompositeEnabled: boolean;
   sectionVideoEnabled: boolean;
   sectionImageEnabled: boolean;
   sectionGameEnabled: boolean;
@@ -225,6 +226,7 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     referralEnabled: (c.referralEnabled as boolean) ?? false,
     videoSelectorMode: (c.videoSelectorMode as string) ?? "series",
     videoSelectorMaxCount: (c.videoSelectorMaxCount as number) ?? 100,
+    sectionCompositeEnabled: (c.sectionCompositeEnabled as boolean) ?? true,
     sectionVideoEnabled: (c.sectionVideoEnabled as boolean) ?? true,
     sectionImageEnabled: (c.sectionImageEnabled as boolean) ?? true,
     sectionGameEnabled: (c.sectionGameEnabled as boolean) ?? true,

@@ -152,15 +152,7 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     replacement: "",
     flags: "",
   },
-  // 游戏类型 & 版本
-  {
-    name: "统一游戏类型为大写",
-    description: "将小写类型名（如 slg）替换为大写（请修改具体类型）",
-    field: "gameType",
-    pattern: "^slg$",
-    replacement: "SLG",
-    flags: "i",
-  },
+  // 版本
   {
     name: "规范版本号前缀",
     description: "为缺少 Ver/v 前缀的纯数字版本号添加 v 前缀",
@@ -196,14 +188,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "替换下载链接域名",
-    description: "替换下载链接中的域名（请修改域名）",
-    field: "extraInfo.downloads.url",
-    pattern: "https://old\\.example\\.com",
-    replacement: "https://new.example.com",
-    flags: "g",
-  },
-  {
     name: "去除下载链接查询参数",
     description: "移除下载链接中 ? 后的所有查询参数",
     field: "extraInfo.downloads.url",
@@ -221,14 +205,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     flags: "",
   },
   {
-    name: "替换截图 CDN 域名",
-    description: "替换截图链接中的 CDN 域名（请修改域名）",
-    field: "extraInfo.screenshots",
-    pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.example.com",
-    flags: "g",
-  },
-  {
     name: "去除截图链接查询参数",
     description: "移除截图链接中 ? 后的查询参数",
     field: "extraInfo.screenshots",
@@ -244,14 +220,6 @@ const REGEX_TEMPLATES: RegexTemplate[] = [
     pattern: "^http://",
     replacement: "https://",
     flags: "",
-  },
-  {
-    name: "替换视频 CDN 域名",
-    description: "替换视频链接中的 CDN 域名（请修改域名）",
-    field: "extraInfo.videos",
-    pattern: "https://old-cdn\\.example\\.com",
-    replacement: "https://cdn.example.com",
-    flags: "g",
   },
   // 作者链接
   {

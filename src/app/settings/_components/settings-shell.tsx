@@ -3,10 +3,11 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { User, Shield, Smartphone, KeyRound, AlertTriangle } from "lucide-react";
+import { User, Shield, Smartphone, KeyRound, AlertTriangle, SlidersHorizontal } from "lucide-react";
 
 const settingsNav = [
   { title: "个人资料", href: "/settings", icon: User },
+  { title: "偏好设置", href: "/settings/preferences", icon: SlidersHorizontal },
   { title: "账号安全", href: "/settings/account", icon: Shield },
   { title: "登录管理", href: "/settings/sessions", icon: Smartphone },
   { title: "开发者", href: "/settings/developer", icon: KeyRound },

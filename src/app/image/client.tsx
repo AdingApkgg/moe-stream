@@ -3,6 +3,7 @@
 import { trpc } from "@/lib/trpc";
 import { ImagePostCard } from "@/components/image/image-post-card";
 import { ImageFeedSections } from "@/components/image/image-feed-sections";
+import { ImageMasonry } from "@/components/image/image-masonry";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { Button } from "@/components/ui/button";
 import { Fragment, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
@@ -22,7 +23,10 @@ import { HeaderBannerCarousel } from "@/components/ads/header-banner";
 import { useInlineAds } from "@/hooks/use-inline-ads";
 import { useUIStore } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
-import { DEFAULT_HOME_LAYOUT, isSectionModuleEnabled, sectionGridClass, type SectionModuleId } from "@/lib/home-layout";
+import { DEFAULT_HOME_LAYOUT, isSectionModuleEnabled, type SectionModuleId } from "@/lib/home-layout";
+
+// 骨架屏伪随机高度（基于 index 稳定），让瀑布流更接近真实图片节奏
+const SKELETON_RATIOS = ["3 / 4", "4 / 5", "1 / 1", "2 / 3", "5 / 7", "4 / 3"];
 
 type SortBy = "latest" | "views" | "likes" | "titleAsc" | "titleDesc";
 
@@ -138,7 +142,6 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
   const adSeed = `image-${page}-${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}`;
   const layout = siteConfigCtx?.homeLayout ?? DEFAULT_HOME_LAYOUT;
   const adDensity = layout.section.adDensity;
-  const gridClass = sectionGridClass(layout.section.gridColumns);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { gridItems, pickedAds, hasAds } = useInlineAds<any>({
     items: posts,
@@ -210,36 +213,56 @@ export function ImageListClient({ initialTags, initialPosts }: ImageListClientPr
         ) : (
           <div key={`${sortBy}-${selectedSlugs.join(",")}-${excludedSlugs.join(",")}-${page}`}>
             {showSkeleton ? (
-              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="aspect-square w-full rounded-lg" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                ))}
-              </div>
+              <ImageMasonry
+                items={Array.from({ length: 12 }).map((_, i) => ({
+                  key: `skel-${i}`,
+                  node: (
+                    <div className="space-y-2">
+                      <Skeleton
+                        className="w-full rounded-2xl"
+                        style={{ aspectRatio: SKELETON_RATIOS[i % SKELETON_RATIOS.length] }}
+                      />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ),
+                }))}
+              />
             ) : hasAds ? (
-              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-                {gridItems.map((item, index) =>
-                  item.type === "ad" ? (
-                    <AdCard key={`ad-${item.adIndex}`} ad={pickedAds[item.adIndex]} slotId="in-feed" />
-                  ) : (
+              <ImageMasonry
+                items={gridItems.map((item, index) =>
+                  item.type === "ad"
+                    ? {
+                        key: `ad-${item.adIndex}`,
+                        node: <AdCard ad={pickedAds[item.adIndex]} slotId="in-feed" />,
+                      }
+                    : {
+                        key: item.data.id,
+                        node: (
+                          <ImagePostCard
+                            post={item.data}
+                            index={index}
+                            isFavorited={favoritedSet.has(item.data.id)}
+                            variant="masonry"
+                          />
+                        ),
+                      },
+                )}
+              />
+            ) : (
+              <ImageMasonry
+                items={posts.map((post, index) => ({
+                  key: post.id,
+                  node: (
                     <ImagePostCard
-                      key={item.data.id}
-                      post={item.data}
+                      post={post}
                       index={index}
-                      isFavorited={favoritedSet.has(item.data.id)}
+                      isFavorited={favoritedSet.has(post.id)}
+                      variant="masonry"
                     />
                   ),
-                )}
-              </div>
-            ) : (
-              <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", gridClass)}>
-                {posts.map((post, index) => (
-                  <ImagePostCard key={post.id} post={post} index={index} isFavorited={favoritedSet.has(post.id)} />
-                ))}
-              </div>
+                }))}
+              />
             )}
 
             {!isLoading && !isFetching && posts.length === 0 && (

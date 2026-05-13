@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { DashboardTopbar } from "./dashboard-topbar";
-import { DashboardCommandPalette } from "./dashboard-command-palette";
 import { useSidebarCollapsed } from "../_lib/use-dashboard-ui";
 
 type Permissions = {
@@ -20,7 +19,6 @@ type Permissions = {
 export function DashboardShell({ permissions, children }: { permissions: Permissions; children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
   const { collapsed, toggle: toggleCollapsed } = useSidebarCollapsed();
 
   // 路由变化时关闭移动端菜单
@@ -38,7 +36,6 @@ export function DashboardShell({ permissions, children }: { permissions: Permiss
           pathname={pathname}
           onOpenMobileMenu={() => setMobileOpen(true)}
           onToggleSidebar={toggleCollapsed}
-          onOpenCommand={() => setCommandOpen(true)}
           sidebarCollapsed={collapsed}
         />
 
@@ -82,9 +79,6 @@ export function DashboardShell({ permissions, children }: { permissions: Permiss
           </main>
         </div>
       </div>
-
-      {/* Command palette */}
-      <DashboardCommandPalette open={commandOpen} onOpenChange={setCommandOpen} permissions={permissions} />
     </div>
   );
 }

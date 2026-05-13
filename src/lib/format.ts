@@ -34,3 +34,12 @@ export function formatRelativeTime(date: Date | string): string {
 export function formatDate(date: Date | string, format: string = "YYYY-MM-DD"): string {
   return dayjs(date).format(format);
 }
+
+/** 字节数格式化：自动选择 B/KB/MB/GB 单位 */
+export function formatBytes(bytes: string | number): string {
+  const n = typeof bytes === "string" ? parseInt(bytes, 10) : bytes;
+  if (!n || n <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), units.length - 1);
+  return `${(n / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
