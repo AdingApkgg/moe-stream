@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore, Suspense } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -20,6 +20,10 @@ import { useSiteConfig } from "@/contexts/site-config";
 import { getFingerprint } from "@/hooks/use-fingerprint";
 import { useIsTMA } from "@/hooks/use-tma";
 
+const subscribeNoop = () => () => {};
+const getSupportsPasskey = () => typeof PublicKeyCredential !== "undefined";
+const getFalse = () => false;
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,6 +33,9 @@ function LoginForm() {
   const isNewAccount = searchParams.get("new") === "1";
   const [isLoading, setIsLoading] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+  // 部分 WebView（Tauri Android、旧版 Android System WebView 等）没有 PublicKeyCredential，
+  // 直接引用会抛 ReferenceError 把登录页打挂。客户端 mount 后探测，决定是否展示 Passkey 入口。
+  const supportsPasskey = useSyncExternalStore(subscribeNoop, getSupportsPasskey, getFalse);
   // TMA (Telegram Mini App) WebView 不支持 WebAuthn/Passkey，需要隐藏相关入口
   const isTMA = useIsTMA();
 
@@ -106,7 +113,9 @@ function LoginForm() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isTMA) return; // TMA 不支持 Passkey，跳过 autoFill 探测
-    if (!PublicKeyCredential?.isConditionalMediationAvailable) return;
+    // 用 typeof 探测，避免 PublicKeyCredential 未声明时 ReferenceError 把整页打挂
+    if (typeof PublicKeyCredential === "undefined") return;
+    if (!PublicKeyCredential.isConditionalMediationAvailable) return;
     if (autoFillStartedRef.current) return;
     autoFillStartedRef.current = true;
     Promise.resolve(PublicKeyCredential.isConditionalMediationAvailable())
@@ -316,7 +325,7 @@ function LoginForm() {
               </form>
             </Form>
 
-            {!isTMA && (
+            {!isTMA && supportsPasskey && (
               <>
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
