@@ -4,9 +4,11 @@ import { useState, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { videoFormSchema, type VideoFormData, type TagItem } from "@/lib/schemas/content";
+import { useFormDraft } from "@/hooks/use-form-draft";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PostEditor } from "@/components/editor/post-editor";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -112,6 +114,39 @@ export function VideoForm({
 
   const coverUrl = useWatch({ control: form.control, name: "coverUrl" });
   const videoUrl = useWatch({ control: form.control, name: "videoUrl" });
+  const watched = useWatch({ control: form.control });
+
+  const draftSnapshot = useMemo(
+    () => ({ form: watched, selectedTags, newTags, isNsfw, extraInfo }),
+    [watched, selectedTags, newTags, isNsfw, extraInfo],
+  );
+  const { clearDraft } = useFormDraft({
+    key: "moe.draft.video.create",
+    value: draftSnapshot,
+    enabled: mode === "create",
+    isEmpty: (s) =>
+      !s.form?.title &&
+      !s.form?.videoUrl &&
+      !s.form?.description &&
+      !s.form?.coverUrl &&
+      (s.selectedTags?.length ?? 0) === 0 &&
+      (s.newTags?.length ?? 0) === 0,
+    onRestore: (s) => {
+      form.reset({
+        title: s.form?.title || "",
+        description: s.form?.description || "",
+        coverUrl: s.form?.coverUrl || "",
+        videoUrl: s.form?.videoUrl || "",
+      });
+      if (s.selectedTags) setSelectedTags(s.selectedTags);
+      if (s.newTags) setNewTags(s.newTags);
+      if (typeof s.isNsfw === "boolean") setIsNsfw(s.isNsfw);
+      if (s.extraInfo) {
+        setExtraInfo(s.extraInfo);
+        setExtraOpen(true);
+      }
+    },
+  });
 
   // 仅在初次加载到 initialData 时回填表单与本地状态，
   // 避免后续 tRPC refetch（如窗口聚焦）覆盖用户正在编辑的内容
@@ -182,6 +217,7 @@ export function VideoForm({
     };
     const seriesData: SeriesData | undefined = mode === "edit" ? { seriesId: selectedSeriesId, episodeNum } : undefined;
     await onSubmit(submitData, seriesData);
+    if (mode === "create") clearDraft();
   };
 
   const handleCreateSeries = async () => {
@@ -282,7 +318,12 @@ export function VideoForm({
                     <FormItem>
                       <FormLabel>简介</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="视频简介（可选）" className="min-h-[80px] resize-y" {...field} />
+                        <PostEditor
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="视频简介（支持 Markdown，可选）"
+                          minHeight="120px"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

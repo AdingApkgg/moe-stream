@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useCallback, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { imageFormSchema, type ImageFormData, type TagItem } from "@/lib/schemas/content";
+import { useFormDraft } from "@/hooks/use-form-draft";
 import { useSiteConfig } from "@/contexts/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PostEditor } from "@/components/editor/post-editor";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -79,6 +81,33 @@ export function ImageForm({ mode, initialData, contentId, onSubmit, isSubmitting
     setImageUrls(initialData.imageUrls.length > 0 ? initialData.imageUrls : [""]);
   }
 
+  const watched = useWatch({ control: form.control });
+  const draftSnapshot = useMemo(
+    () => ({ form: watched, selectedTags, newTags, isNsfw, imageUrls }),
+    [watched, selectedTags, newTags, isNsfw, imageUrls],
+  );
+  const { clearDraft } = useFormDraft({
+    key: "moe.draft.image.create",
+    value: draftSnapshot,
+    enabled: mode === "create",
+    isEmpty: (s) =>
+      !s.form?.title &&
+      !s.form?.description &&
+      (s.selectedTags?.length ?? 0) === 0 &&
+      (s.newTags?.length ?? 0) === 0 &&
+      !(s.imageUrls ?? []).some((u) => u.trim()),
+    onRestore: (s) => {
+      form.reset({
+        title: s.form?.title || "",
+        description: s.form?.description || "",
+      });
+      if (s.selectedTags) setSelectedTags(s.selectedTags);
+      if (s.newTags) setNewTags(s.newTags);
+      if (typeof s.isNsfw === "boolean") setIsNsfw(s.isNsfw);
+      if (s.imageUrls?.length) setImageUrls(s.imageUrls);
+    },
+  });
+
   const toggleTag = (tag: TagItem) => {
     const exists = selectedTags.find((t) => t.id === tag.id);
     if (exists) setSelectedTags(selectedTags.filter((t) => t.id !== tag.id));
@@ -114,6 +143,7 @@ export function ImageForm({ mode, initialData, contentId, onSubmit, isSubmitting
       tagIds: selectedTags.map((t) => t.id),
       tagNames: newTags,
     });
+    if (mode === "create") clearDraft();
   };
 
   const submitButton = (
@@ -160,7 +190,12 @@ export function ImageForm({ mode, initialData, contentId, onSubmit, isSubmitting
                     <FormItem>
                       <FormLabel>描述</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="图片描述（可选）" className="min-h-[80px] resize-y" {...field} />
+                        <PostEditor
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="图片描述（支持 Markdown，可选）"
+                          minHeight="120px"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -4,7 +4,7 @@ import VideoListClient from "./client";
 import { WebsiteJsonLd, OrganizationJsonLd, VideoListJsonLd } from "@/components/seo/json-ld";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
-import { pickWeightedRandomAds, parseSponsorAds } from "@/lib/ads";
+import { pickWeightedRandomAds, parseSponsorAds, resolveSlotPosition } from "@/lib/ads";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -78,7 +78,7 @@ const getInitialData = cache(async () => {
 
   // 服务端预选 4 条广告（SSR 直出，无需客户端等待）
   const ads = parseSponsorAds(fullConfig.sponsorAds);
-  const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(ads, 4) : [];
+  const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(ads, 4, resolveSlotPosition("in-feed")) : [];
 
   return { tags, videos, siteConfig, initialAds };
 });

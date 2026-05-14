@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { GameListClient } from "./client";
 import { cache } from "react";
 import { getPublicSiteConfig } from "@/lib/site-config";
-import { pickWeightedRandomAds, type Ad } from "@/lib/ads";
+import { pickWeightedRandomAds, resolveSlotPosition, type Ad } from "@/lib/ads";
 import { GameListJsonLd } from "@/components/seo/json-ld";
 import type { Metadata } from "next";
 
@@ -84,7 +84,7 @@ const getInitialData = cache(async () => {
   const rawAds: Ad[] = Array.isArray(fullConfig.sponsorAds)
     ? (fullConfig.sponsorAds as Ad[]).filter((a) => a.enabled !== false)
     : [];
-  const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(rawAds, 4) : [];
+  const initialAds = fullConfig.adsEnabled ? pickWeightedRandomAds(rawAds, 4, resolveSlotPosition("in-feed")) : [];
 
   return {
     tags,

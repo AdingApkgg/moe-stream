@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSiteConfig } from "@/contexts/site-config";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { getRedirectUrl } from "@/lib/utils";
+import { RichContent } from "@/components/editor/rich-content";
 
 export function Footer() {
   const config = useSiteConfig();
@@ -96,12 +97,11 @@ export function Footer() {
             ))}
           </div>
         </div>
-        {/* 自定义页脚文本 */}
+        {/* 自定义页脚文本（Markdown，经 react-markdown 渲染，避免 XSS） */}
         {config?.footerText && (
-          <div
-            className="mt-2 text-xs text-muted-foreground text-center"
-            dangerouslySetInnerHTML={{ __html: config.footerText }}
-          />
+          <div className="mt-2 text-xs text-muted-foreground text-center">
+            <RichContent markdown={config.footerText} compact withStickers={false} />
+          </div>
         )}
       </div>
     </footer>

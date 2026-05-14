@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useRandomAds } from "@/hooks/use-ads";
-import type { Ad } from "@/lib/ads";
+import { resolveSlotPosition, type Ad } from "@/lib/ads";
 
 export type GridItem<T> = { type: "content"; data: T } | { type: "ad"; adIndex: number };
 
@@ -38,7 +38,7 @@ export function useInlineAds<T>({
   initialAds = [],
   useInitialAds = false,
 }: UseInlineAdsOptions<T>) {
-  const { ads: clientAds, showAds } = useRandomAds(count, seed);
+  const { ads: clientAds, showAds } = useRandomAds(count, seed, resolveSlotPosition("in-feed"));
   const pickedAds = useInitialAds && initialAds.length > 0 ? initialAds : clientAds;
 
   const adInsertPositions = useMemo(() => {

@@ -4,10 +4,11 @@ import { useState, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { gameFormSchema, type GameFormData, type TagItem } from "@/lib/schemas/content";
+import { useFormDraft } from "@/hooks/use-form-draft";
 import { useSiteConfig } from "@/contexts/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MdxEditor } from "@/components/ui/mdx-editor";
+import { PostEditor } from "@/components/editor/post-editor";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -157,6 +158,90 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
   });
 
   const gameCoverUrl = useWatch({ control: form.control, name: "coverUrl" });
+  const watched = useWatch({ control: form.control });
+
+  const draftSnapshot = useMemo(
+    () => ({
+      form: watched,
+      selectedTags,
+      newTags,
+      isNsfw,
+      originalName,
+      originalAuthor,
+      originalAuthorUrl,
+      fileSize,
+      platforms,
+      screenshots,
+      videos,
+      downloads,
+      versions,
+      customTabs,
+      aliases,
+    }),
+    [
+      watched,
+      selectedTags,
+      newTags,
+      isNsfw,
+      originalName,
+      originalAuthor,
+      originalAuthorUrl,
+      fileSize,
+      platforms,
+      screenshots,
+      videos,
+      downloads,
+      versions,
+      customTabs,
+      aliases,
+    ],
+  );
+  const { clearDraft } = useFormDraft({
+    key: "moe.draft.game.create",
+    value: draftSnapshot,
+    enabled: mode === "create",
+    isEmpty: (s) =>
+      !s.form?.title &&
+      !s.form?.description &&
+      !s.form?.coverUrl &&
+      !s.form?.gameType &&
+      !s.form?.version &&
+      (s.selectedTags?.length ?? 0) === 0 &&
+      (s.newTags?.length ?? 0) === 0 &&
+      !s.originalName &&
+      !s.originalAuthor &&
+      (s.aliases?.length ?? 0) === 0 &&
+      (s.versions?.length ?? 0) === 0 &&
+      (s.customTabs?.length ?? 0) === 0 &&
+      (s.downloads?.length ?? 0) === 0 &&
+      !(s.screenshots ?? []).some((x: string) => x.trim()) &&
+      !(s.videos ?? []).some((x: string) => x.trim()),
+    onRestore: (s) => {
+      form.reset({
+        title: s.form?.title || "",
+        description: s.form?.description || "",
+        coverUrl: s.form?.coverUrl || "",
+        gameType: s.form?.gameType || "",
+        version: s.form?.version || "",
+        isFree: s.form?.isFree ?? true,
+      });
+      if (s.selectedTags) setSelectedTags(s.selectedTags);
+      if (s.newTags) setNewTags(s.newTags);
+      if (typeof s.isNsfw === "boolean") setIsNsfw(s.isNsfw);
+      if (typeof s.originalName === "string") setOriginalName(s.originalName);
+      if (typeof s.originalAuthor === "string") setOriginalAuthor(s.originalAuthor);
+      if (typeof s.originalAuthorUrl === "string") setOriginalAuthorUrl(s.originalAuthorUrl);
+      if (typeof s.fileSize === "string") setFileSize(s.fileSize);
+      if (s.platforms) setPlatforms(s.platforms);
+      if (s.screenshots) setScreenshots(s.screenshots);
+      if (s.videos) setVideos(s.videos);
+      if (s.downloads) setDownloads(s.downloads);
+      if (s.versions) setVersions(s.versions);
+      if (s.customTabs) setCustomTabs(s.customTabs);
+      if (s.aliases) setAliases(s.aliases);
+      setExtraOpen(true);
+    },
+  });
 
   // 仅在初次加载到 initialData 时回填表单与本地状态，
   // 避免后续 tRPC refetch（如窗口聚焦）覆盖用户正在编辑的内容
@@ -265,6 +350,7 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
       versions: validVersions.length > 0 ? validVersions : undefined,
       customTabs: validCustomTabs.length > 0 ? validCustomTabs : undefined,
     });
+    if (mode === "create") clearDraft();
   };
 
   const commitAliasInput = () => {
@@ -613,7 +699,8 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
                     <FormItem>
                       <FormLabel>游戏介绍</FormLabel>
                       <FormControl>
-                        <MdxEditor
+                        <PostEditor
+                          variant="doc"
                           value={field.value || ""}
                           onChange={field.onChange}
                           placeholder="游戏介绍，支持 Markdown 语法..."
@@ -939,7 +1026,8 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                            <MdxEditor
+                            <PostEditor
+                              variant="doc"
                               value={ver.description}
                               onChange={(val) => {
                                 const u = [...versions];
@@ -1023,7 +1111,8 @@ export function GameForm({ mode, initialData, gameId, tagQueryType, onSubmit, is
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                            <MdxEditor
+                            <PostEditor
+                              variant="doc"
                               value={tab.content}
                               onChange={(val) => {
                                 const u = [...customTabs];

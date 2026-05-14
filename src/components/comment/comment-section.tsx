@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { CommentEditor, type CommentEditorRef } from "@/components/editor/comment-editor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,32 +52,15 @@ export function CommentSection({ videoId }: CommentSectionProps) {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [captchaValue, setCaptchaValue] = useState("");
   const [sliderValue, setSliderValue] = useState<number | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<CommentEditorRef>(null);
 
   const handleTurnstileExpire = useCallback(() => {
     setTurnstileToken("");
   }, []);
 
-  const insertAtCursor = useCallback(
-    (text: string) => {
-      const el = textareaRef.current;
-      if (!el) {
-        setNewComment((prev) => prev + text);
-        return;
-      }
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const before = newComment.slice(0, start);
-      const after = newComment.slice(end);
-      setNewComment(before + text + after);
-      requestAnimationFrame(() => {
-        el.focus();
-        const pos = start + text.length;
-        el.setSelectionRange(pos, pos);
-      });
-    },
-    [newComment],
-  );
+  const insertAtCursor = useCallback((text: string) => {
+    editorRef.current?.insertText(text);
+  }, []);
 
   // 访客信息
   const [guestName, setGuestName] = useState("");
@@ -329,13 +312,14 @@ export function CommentSection({ videoId }: CommentSectionProps) {
                 </div>
               </div>
             )}
-            <Textarea
-              ref={textareaRef}
-              placeholder="添加评论..."
+            <CommentEditor
+              ref={editorRef}
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px] resize-none"
+              onChange={setNewComment}
+              placeholder="添加评论..."
               maxLength={2000}
+              minHeight="80px"
+              disableMention={!session}
             />
             {captchaType !== "none" && (
               <UnifiedCaptcha

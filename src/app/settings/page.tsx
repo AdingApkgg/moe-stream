@@ -9,7 +9,7 @@ import { z } from "zod";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { CommentEditor } from "@/components/editor/comment-editor";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -412,9 +412,17 @@ export default function ProfileSettingsPage() {
               <FormItem>
                 <FormLabel>个人简介</FormLabel>
                 <FormControl>
-                  <Textarea {...field} placeholder="介绍一下自己..." className="max-w-lg min-h-[100px] resize-none" />
+                  <div className="max-w-lg">
+                    <CommentEditor
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      placeholder="介绍一下自己…支持 Markdown"
+                      maxLength={500}
+                      minHeight="100px"
+                    />
+                  </div>
                 </FormControl>
-                <FormDescription>最多 500 个字符</FormDescription>
+                <FormDescription>最多 500 个字符，支持简单 Markdown 与 @提及</FormDescription>
                 <FormMessage />
               </FormItem>
             )}

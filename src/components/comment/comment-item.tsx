@@ -5,7 +5,7 @@ import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 import { isPrivileged } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { CommentEditor, type CommentEditorRef } from "@/components/editor/comment-editor";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -110,28 +110,11 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
   const [localDislikes, setLocalDislikes] = useState(comment.dislikes);
   const [localReaction, setLocalReaction] = useState<boolean | null>(comment.userReaction);
   const [replyToUser, setReplyToUser] = useState<CommentUser | null>(null);
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const replyEditorRef = useRef<CommentEditorRef>(null);
 
-  const insertAtReplyCursor = useCallback(
-    (text: string) => {
-      const el = replyTextareaRef.current;
-      if (!el) {
-        setReplyContent((prev) => prev + text);
-        return;
-      }
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const before = replyContent.slice(0, start);
-      const after = replyContent.slice(end);
-      setReplyContent(before + text + after);
-      requestAnimationFrame(() => {
-        el.focus();
-        const pos = start + text.length;
-        el.setSelectionRange(pos, pos);
-      });
-    },
-    [replyContent],
-  );
+  const insertAtReplyCursor = useCallback((text: string) => {
+    replyEditorRef.current?.insertText(text);
+  }, []);
 
   const utils = trpc.useUtils();
   const isOwner = comment.userId && session?.user?.id === comment.userId;
@@ -531,12 +514,7 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
         {/* 评论内容 */}
         {isEditing ? (
           <div className="mt-2 space-y-2">
-            <Textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="min-h-[80px] resize-none"
-              maxLength={2000}
-            />
+            <CommentEditor value={editContent} onChange={setEditContent} maxLength={2000} minHeight="80px" autoFocus />
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -554,14 +532,14 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
             </div>
           </div>
         ) : (
-          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+          <div className="mt-1 text-sm break-words">
             {comment.replyToUser && (
               <Link href={`/user/${comment.replyToUser.id}`} className="text-primary hover:underline mr-1">
                 @{comment.replyToUser.nickname || comment.replyToUser.username}
               </Link>
             )}
             <CommentContent content={comment.content} />
-          </p>
+          </div>
         )}
 
         {/* 操作按钮 */}
@@ -661,13 +639,13 @@ export function CommentItem({ comment, videoId, parentId, isReply = false, onRep
                   </Button>
                 </div>
               )}
-              <Textarea
-                ref={replyTextareaRef}
-                placeholder={`回复 @${replyToUser ? replyToUser.nickname || replyToUser.username : displayName}...`}
+              <CommentEditor
+                ref={replyEditorRef}
                 value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                className="min-h-[60px] resize-none"
+                onChange={setReplyContent}
+                placeholder={`回复 @${replyToUser ? replyToUser.nickname || replyToUser.username : displayName}...`}
                 maxLength={2000}
+                minHeight="60px"
                 autoFocus
               />
               <div className="flex items-center justify-between">

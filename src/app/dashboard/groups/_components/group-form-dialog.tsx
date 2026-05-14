@@ -15,7 +15,7 @@ import {
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { CommentEditor } from "@/components/editor/comment-editor";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -185,7 +185,14 @@ function FormBody({ group, isSubmitting, onCancel, onSubmit }: FormBodyProps) {
               <FormItem>
                 <FormLabel>描述</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="可选,用户组的简要说明" rows={2} maxLength={200} {...field} />
+                  <CommentEditor
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    placeholder="可选，用户组的简要说明"
+                    maxLength={200}
+                    minHeight="60px"
+                    disableMention
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

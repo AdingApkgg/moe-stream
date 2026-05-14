@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PostEditor } from "@/components/editor/post-editor";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -775,12 +776,12 @@ export function SeriesPanel() {
 
               <div className="space-y-2">
                 <Label htmlFor="edit-description">合集描述</Label>
-                <Textarea
-                  id="edit-description"
+                <PostEditor
                   value={editData.description}
-                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  placeholder="输入合集描述..."
-                  rows={3}
+                  onChange={(val) => setEditData({ ...editData, description: val })}
+                  placeholder="输入合集描述，支持 Markdown..."
+                  minHeight="120px"
+                  disableMention
                 />
               </div>
 
