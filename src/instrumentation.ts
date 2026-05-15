@@ -31,6 +31,10 @@ export async function register() {
   await startBackupScheduler();
   console.log(`[${ts()}][Instrumentation] 数据备份调度器已启动`);
 
+  const { startRankingScheduler } = await import("@/lib/ranking/scheduler");
+  await startRankingScheduler();
+  console.log(`[${ts()}][Instrumentation] 榜单调度器已启动`);
+
   const { startTronMonitor } = await import("@/lib/tron-monitor");
   startTronMonitor();
   console.log(`[${ts()}][Instrumentation] USDT 支付监听已启动`);

@@ -1356,6 +1356,12 @@ model SiteConfig {
   appDownloadPopupCooldownHours  Int     @default(24)               /// 关闭后冷却时长（小时），同一内容不再弹出
   appDownloadPopupDelayMs        Int     @default(1500)             /// 进站后展示延迟（毫秒）
 
+  // 榜单系统
+  rankingEnabled       Boolean @default(true)  /// 榜单总开关
+  rankingTopN          Int     @default(100)   /// 每个榜单存储的 Top N 条数
+  rankingWeights       Json?                   /// 加权公式 { views, likes, favorites, comments }，null 使用默认 0.1/1/3/2
+  rankingCombinedQuota Json?                   /// 综合榜配额 { video, image, game }，null 使用默认 40/30/30
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1971,6 +1977,18 @@ model ApiKey {
 
   @@index([keyHash])
   @@index([userId])
+}
+
+/// 榜单快照（每次 cron 重算后写入，用于历史趋势和管理审计）
+model RankingSnapshot {
+  id          String   @id @default(cuid())
+  category    String   /// score | surge | fav_period | fav_total | tag_hot | tag_surge
+  contentType String   /// video | image | game | combined | tag
+  period      String   /// 1d | 7d | 30d | all
+  items       Json     /// [{ id, score, rank }, ...]，长度 ≤ rankingTopN
+  createdAt   DateTime @default(now())
+
+  @@index([category, contentType, period, createdAt(sort: Desc)])
 }
 
 /// 广告展示/点击指标（按天聚合，每个广告每天一行）

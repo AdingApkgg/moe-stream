@@ -130,6 +130,13 @@ export interface PublicSiteConfig {
     cooldownHours: number;
     delayMs: number;
   };
+  /** 榜单系统 */
+  rankingEnabled: boolean;
+  rankingTopN: number;
+  /** 加权公式 { views, likes, favorites, comments }，未配置时使用默认 0.1/1/3/2 */
+  rankingWeights: { views: number; likes: number; favorites: number; comments: number } | null;
+  /** 综合榜配额 { video, image, game }，未配置时使用默认 40/30/30 */
+  rankingCombinedQuota: { video: number; image: number; game: number } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +310,20 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
       cooldownHours: (c.appDownloadPopupCooldownHours as number) ?? 24,
       delayMs: (c.appDownloadPopupDelayMs as number) ?? 1500,
     },
+    rankingEnabled: typeof c.rankingEnabled === "boolean" ? c.rankingEnabled : true,
+    rankingTopN: typeof c.rankingTopN === "number" && c.rankingTopN > 0 ? c.rankingTopN : 100,
+    rankingWeights:
+      c.rankingWeights &&
+      typeof c.rankingWeights === "object" &&
+      typeof (c.rankingWeights as Record<string, unknown>).views === "number"
+        ? (c.rankingWeights as { views: number; likes: number; favorites: number; comments: number })
+        : null,
+    rankingCombinedQuota:
+      c.rankingCombinedQuota &&
+      typeof c.rankingCombinedQuota === "object" &&
+      typeof (c.rankingCombinedQuota as Record<string, unknown>).video === "number"
+        ? (c.rankingCombinedQuota as { video: number; image: number; game: number })
+        : null,
   };
 }
 

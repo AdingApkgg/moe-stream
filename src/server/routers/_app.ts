@@ -27,6 +27,7 @@ import { openApiRouter } from "./open-api";
 import { searchRouter } from "./search";
 import { playlistRouter } from "./playlist";
 import { adRouter } from "./ad";
+import { rankingRouter } from "./ranking";
 
 export const appRouter = router({
   user: userRouter,
@@ -57,6 +58,7 @@ export const appRouter = router({
   search: searchRouter,
   playlist: playlistRouter,
   ad: adRouter,
+  ranking: rankingRouter,
 });
 
 export type AppRouter = typeof appRouter;
