@@ -11,6 +11,7 @@ import { TmaLayoutBridge } from "./tma-layout-bridge";
 import { NavigationProgress } from "./navigation-progress";
 import { AdGate } from "@/components/ads/ad-gate";
 import { FloatingAd } from "@/components/ads/floating-ad";
+import { AppDownloadPopup } from "@/components/dialogs/app-download-popup";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { ShortcutRegistryProvider } from "@/contexts/shortcut-registry";
@@ -159,6 +160,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* 快捷键帮助对话框 */}
         <KeyboardShortcutsDialog open={showHelp} onOpenChange={setShowHelp} />
+
+        {/* APP 下载推荐弹窗（TMA、后台、登录注册页不展示） */}
+        {!isTMA && !isNoSidebarPage && !pathname.startsWith("/dashboard") && <AppDownloadPopup />}
       </div>
     </ShortcutRegistryProvider>
   );

@@ -300,7 +300,7 @@ function createAuthInstance(
           },
         },
         role: { type: "string", required: false, defaultValue: "USER", input: false },
-        canUpload: { type: "boolean", required: false, defaultValue: false, input: false },
+        canUpload: { type: "boolean", required: false, defaultValue: true, input: false },
         adsEnabled: { type: "boolean", required: false, defaultValue: true, input: false },
         twoFactorEnabled: { type: "boolean", required: false, defaultValue: false, input: false },
       },
