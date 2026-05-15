@@ -28,9 +28,14 @@ import { useVideoCoverThumb } from "@/hooks/use-thumb";
 import { Pagination } from "@/components/ui/pagination";
 import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { ImagePostCard } from "@/components/image/image-post-card";
+import { InlineAdGrid } from "@/components/ads/inline-ad-grid";
+import { InlineAdList } from "@/components/ads/inline-ad-list";
 import { cn } from "@/lib/utils";
 import { MotionPage } from "@/components/motion";
 import { useSound } from "@/hooks/use-sound";
+
+const HISTORY_GRID_COLS = "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+const HISTORY_GRID_GAP = "gap-4";
 
 type ContentTab = "video" | "game" | "image";
 
@@ -341,8 +346,10 @@ export default function HistoryClient({ page }: { page: number }) {
                     <h2 className="text-sm font-medium text-muted-foreground mb-3 sticky top-16 bg-background py-2 z-10">
                       {group.label}
                     </h2>
-                    <div className="space-y-3">
-                      {group.items.map((video) => (
+                    <InlineAdList
+                      items={group.items}
+                      adSeed={`history-video-${page}-${group.date}`}
+                      renderItem={(video) => (
                         <div
                           key={video.id}
                           className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors group"
@@ -406,8 +413,8 @@ export default function HistoryClient({ page }: { page: number }) {
                             </Button>
                           )}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    />
                   </div>
                 ))}
 
@@ -438,13 +445,13 @@ export default function HistoryClient({ page }: { page: number }) {
               />
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {(gameData?.games ?? [])
-                    .filter((g): g is NonNullable<typeof g> => g?.id != null)
-                    .map((game, index) => (
-                      <GameCard key={game.id} game={game as GameCardData} index={index} />
-                    ))}
-                </div>
+                <InlineAdGrid
+                  items={(gameData?.games ?? []).filter((g): g is NonNullable<typeof g> => g?.id != null)}
+                  adSeed={`history-game-${gamePage}`}
+                  columnsClass={HISTORY_GRID_COLS}
+                  gapClass={HISTORY_GRID_GAP}
+                  renderItem={(game, index) => <GameCard key={game.id} game={game as GameCardData} index={index} />}
+                />
                 <Pagination
                   currentPage={gamePage}
                   totalPages={gameData?.totalPages ?? 1}
@@ -477,17 +484,19 @@ export default function HistoryClient({ page }: { page: number }) {
               />
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {(imageData?.posts ?? [])
-                    .filter((p): p is NonNullable<typeof p> => p?.id != null)
-                    .map((post, index) => (
-                      <ImagePostCard
-                        key={post.id}
-                        post={post as Parameters<typeof ImagePostCard>[0]["post"]}
-                        index={index}
-                      />
-                    ))}
-                </div>
+                <InlineAdGrid
+                  items={(imageData?.posts ?? []).filter((p): p is NonNullable<typeof p> => p?.id != null)}
+                  adSeed={`history-image-${imagePage}`}
+                  columnsClass={HISTORY_GRID_COLS}
+                  gapClass={HISTORY_GRID_GAP}
+                  renderItem={(post, index) => (
+                    <ImagePostCard
+                      key={post.id}
+                      post={post as Parameters<typeof ImagePostCard>[0]["post"]}
+                      index={index}
+                    />
+                  )}
+                />
                 <Pagination
                   currentPage={imagePage}
                   totalPages={imageData?.totalPages ?? 1}

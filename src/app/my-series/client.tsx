@@ -37,6 +37,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useThumb, useVideoCoverThumb } from "@/hooks/use-thumb";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Pagination } from "@/components/ui/pagination";
+import { InlineAdList } from "@/components/ads/inline-ad-list";
 
 interface EditingSeriesData {
   id: string;
@@ -220,8 +221,10 @@ export default function MySeriesClient({ page }: { page: number }) {
         />
       ) : (
         <>
-          <div className="space-y-3">
-            {allSeries.map((series) => (
+          <InlineAdList
+            items={allSeries}
+            adSeed={`my-series-${page}`}
+            renderItem={(series) => (
               <div
                 key={series.id}
                 className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -315,8 +318,8 @@ export default function MySeriesClient({ page }: { page: number }) {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
 
           <Pagination currentPage={page} totalPages={totalPages} basePath="/my-series" className="mt-8" />
         </>

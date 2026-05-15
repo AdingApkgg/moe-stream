@@ -2,12 +2,16 @@
 
 import { usePageParam } from "@/hooks/use-page-param";
 import { trpc } from "@/lib/trpc";
+import { VideoCard } from "@/components/video/video-card";
 import { VideoGrid } from "@/components/video/video-grid";
+import { InlineAdGrid } from "@/components/ads/inline-ad-grid";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileVideo, Tag } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import type { SerializedVideoTag } from "./page";
+
+const VIDEO_GRID_COLS = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 interface VideoTagPageClientProps {
   slug: string;
@@ -69,7 +73,16 @@ export function VideoTagPageClient({ slug, initialTag }: VideoTagPageClientProps
         </div>
       </div>
 
-      <VideoGrid videos={videos} isLoading={isLoading || (!initialTag && tagLoading)} />
+      {isLoading || (!initialTag && tagLoading) ? (
+        <VideoGrid videos={[]} isLoading columnsClass={VIDEO_GRID_COLS} />
+      ) : videos.length > 0 ? (
+        <InlineAdGrid
+          items={videos}
+          adSeed={`video-tag-${slug}-${page}`}
+          columnsClass={VIDEO_GRID_COLS}
+          renderItem={(video, index) => <VideoCard key={video.id} video={video} index={index} />}
+        />
+      ) : null}
 
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
 

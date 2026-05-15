@@ -7,6 +7,9 @@ import { MotionPage } from "@/components/motion";
 import { ContentModeHeader } from "@/components/shared/content-mode-header";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { HeaderBannerCarousel } from "@/components/ads/header-banner";
+import { AdCard } from "@/components/ads/ad-card";
+import { useRandomAds } from "@/hooks/use-ads";
+import { resolveSlotPosition } from "@/lib/ads";
 import { HorizontalScroller } from "@/components/shared/horizontal-scroller";
 import { useUIStore } from "@/stores/app";
 import { useSiteConfig } from "@/contexts/site-config";
@@ -147,6 +150,8 @@ export function CompositeClient({
             />
           </section>
 
+          <CompositeInlineAds seed="composite-mid" count={3} />
+
           {videoEnabled && initialVideos.length > 0 && (
             <section id="latest-video" className="scroll-mt-32">
               <SectionHeader title="最新视频" icon={Play} iconClass="text-rose-500" more="/video">
@@ -183,6 +188,8 @@ export function CompositeClient({
               </SectionHeader>
             </section>
           )}
+
+          <CompositeInlineAds seed="composite-end" count={2} />
 
           <section id="ranking" className="scroll-mt-32">
             <CompositeWeeklyRanking
@@ -222,6 +229,29 @@ function SectionHeader({ title, icon: Icon, iconClass, more, children }: Section
         </Link>
       </header>
       {children}
+    </section>
+  );
+}
+
+/** 综合页 sections 之间的信息流广告条：按 1×N 网格展示 in-feed 广告。 */
+function CompositeInlineAds({ seed, count }: { seed: string; count: number }) {
+  const { ads, showAds } = useRandomAds(count, seed, resolveSlotPosition("in-feed"));
+  if (!showAds || ads.length === 0) return null;
+
+  const colsClass =
+    ads.length === 1
+      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+      : ads.length === 2
+        ? "grid-cols-1 sm:grid-cols-2"
+        : "grid-cols-2 lg:grid-cols-3";
+
+  return (
+    <section aria-label="赞助内容">
+      <div className={cn("grid gap-3 sm:gap-4 lg:gap-5", colsClass)}>
+        {ads.map((ad) => (
+          <AdCard key={ad.id} ad={ad} slotId="in-feed" />
+        ))}
+      </div>
     </section>
   );
 }

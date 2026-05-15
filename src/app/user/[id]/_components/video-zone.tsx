@@ -56,6 +56,7 @@ export function VideoZone({
           isLoading={uploads.isLoading}
           items={(uploads.data?.videos ?? []).filter((v) => v?.id != null)}
           renderItem={renderVideo}
+          adSeed={`user-${userId}-video-uploads-${page}`}
           empty={{
             icon: Video,
             title: "暂无视频作品",
@@ -74,6 +75,7 @@ export function VideoZone({
           isLoading={history.isLoading}
           items={(history.data?.history ?? []).filter((v) => v?.id != null)}
           renderItem={renderVideo}
+          adSeed={`user-${userId}-video-history-${page}`}
           empty={{
             icon: Clock,
             title: "暂无观看记录",
@@ -93,6 +95,7 @@ export function VideoZone({
           isLoading={favorites.isLoading}
           items={(favorites.data?.favorites ?? []).filter((v) => v?.id != null)}
           renderItem={renderVideo}
+          adSeed={`user-${userId}-video-favorites-${page}`}
           empty={{
             icon: Star,
             title: "暂无收藏",
@@ -112,6 +115,7 @@ export function VideoZone({
           isLoading={liked.isLoading}
           items={(liked.data?.videos ?? []).filter((v) => v?.id != null)}
           renderItem={renderVideo}
+          adSeed={`user-${userId}-video-liked-${page}`}
           empty={{
             icon: ThumbsUp,
             title: "暂无喜欢",

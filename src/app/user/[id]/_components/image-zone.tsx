@@ -59,6 +59,7 @@ export function ImageZone({
           isLoading={posts.isLoading}
           items={(posts.data?.posts ?? []).filter((p) => p?.id != null)}
           renderItem={renderImagePost}
+          adSeed={`user-${userId}-image-posts-${page}`}
           empty={{
             icon: Images,
             title: "暂无作品",
@@ -78,6 +79,7 @@ export function ImageZone({
           isLoading={history.isLoading}
           items={(history.data?.posts ?? []).filter((p) => p?.id != null)}
           renderItem={renderImagePost}
+          adSeed={`user-${userId}-image-history-${page}`}
           empty={{
             icon: Clock,
             title: "暂无浏览记录",
@@ -98,6 +100,7 @@ export function ImageZone({
           isLoading={favorites.isLoading}
           items={(favorites.data?.posts ?? []).filter((p) => p?.id != null)}
           renderItem={renderImagePost}
+          adSeed={`user-${userId}-image-favorites-${page}`}
           empty={{
             icon: Star,
             title: "暂无收藏",
@@ -118,6 +121,7 @@ export function ImageZone({
           isLoading={liked.isLoading}
           items={(liked.data?.posts ?? []).filter((p) => p?.id != null)}
           renderItem={renderImagePost}
+          adSeed={`user-${userId}-image-liked-${page}`}
           empty={{
             icon: ThumbsUp,
             title: "暂无喜欢",

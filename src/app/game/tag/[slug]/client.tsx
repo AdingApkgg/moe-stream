@@ -2,12 +2,16 @@
 
 import { usePageParam } from "@/hooks/use-page-param";
 import { trpc } from "@/lib/trpc";
+import { GameCard, type GameCardData } from "@/components/game/game-card";
 import { GameGrid } from "@/components/game/game-grid";
+import { InlineAdGrid } from "@/components/ads/inline-ad-grid";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Gamepad2, Tag } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import type { SerializedGameTag } from "./page";
+
+const GAME_GRID_COLS = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 interface GameTagPageClientProps {
   slug: string;
@@ -69,7 +73,16 @@ export function GameTagPageClient({ slug, initialTag }: GameTagPageClientProps) 
         </div>
       </div>
 
-      <GameGrid games={games} isLoading={isLoading || (!initialTag && tagLoading)} />
+      {isLoading || (!initialTag && tagLoading) ? (
+        <GameGrid games={[]} isLoading columnsClass={GAME_GRID_COLS} />
+      ) : games.length > 0 ? (
+        <InlineAdGrid
+          items={games as GameCardData[]}
+          adSeed={`game-tag-${slug}-${page}`}
+          columnsClass={GAME_GRID_COLS}
+          renderItem={(game, index) => <GameCard key={game.id} game={game} index={index} />}
+        />
+      ) : null}
 
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} className="mt-8" />
 

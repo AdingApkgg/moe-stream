@@ -52,6 +52,7 @@ export function GameZone({
           isLoading={uploads.isLoading}
           items={((uploads.data?.games ?? []) as GameCardData[]).filter((g) => g?.id != null)}
           renderItem={renderGame}
+          adSeed={`user-${userId}-game-uploads-${page}`}
           empty={{
             icon: Gamepad2,
             title: "暂无游戏作品",
@@ -70,6 +71,7 @@ export function GameZone({
           isLoading={history.isLoading}
           items={((history.data?.games ?? []) as GameCardData[]).filter((g) => g?.id != null)}
           renderItem={renderGame}
+          adSeed={`user-${userId}-game-history-${page}`}
           empty={{
             icon: Clock,
             title: "暂无浏览记录",
@@ -89,6 +91,7 @@ export function GameZone({
           isLoading={favorites.isLoading}
           items={((favorites.data?.games ?? []) as GameCardData[]).filter((g) => g?.id != null)}
           renderItem={renderGame}
+          adSeed={`user-${userId}-game-favorites-${page}`}
           empty={{
             icon: Star,
             title: "暂无收藏",
@@ -108,6 +111,7 @@ export function GameZone({
           isLoading={liked.isLoading}
           items={((liked.data?.games ?? []) as GameCardData[]).filter((g) => g?.id != null)}
           renderItem={renderGame}
+          adSeed={`user-${userId}-game-liked-${page}`}
           empty={{
             icon: ThumbsUp,
             title: "暂无喜欢",

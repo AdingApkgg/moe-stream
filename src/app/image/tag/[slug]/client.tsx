@@ -3,12 +3,14 @@
 import { useCallback } from "react";
 import { usePageParam } from "@/hooks/use-page-param";
 import { trpc } from "@/lib/trpc";
-import { ImagePostCard } from "@/components/image/image-post-card";
+import { ImageGrid } from "@/components/image/image-grid";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Images, Tag } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import type { SerializedImageTag } from "./page";
+
+const IMAGE_GRID_COLS = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 interface ImageTagPageClientProps {
   slug: string;
@@ -80,18 +82,10 @@ export function ImageTagPageClient({ slug, initialTag }: ImageTagPageClientProps
       </div>
 
       {showSkeleton ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {posts.map((post, index) => (
-            <ImagePostCard key={post.id} post={post} index={index} />
-          ))}
-        </div>
-      )}
+        <ImageGrid posts={[]} isLoading columnsClass={IMAGE_GRID_COLS} />
+      ) : posts.length > 0 ? (
+        <ImageGrid posts={posts} columnsClass={IMAGE_GRID_COLS} adSeed={`image-tag-${slug}-${page}`} />
+      ) : null}
 
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} className="mt-8" />
 

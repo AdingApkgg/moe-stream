@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { formatRelativeTime } from "@/lib/format";
 import { Pagination } from "@/components/ui/pagination";
+import { InlineAdList } from "@/components/ads/inline-ad-list";
 import { useSiteConfig } from "@/contexts/site-config";
 import { parseDeviceInfo, getHighEntropyDeviceInfo, mergeDeviceInfo, type DeviceInfo } from "@/lib/device-info";
 import { useFingerprint } from "@/hooks/use-fingerprint";
@@ -53,15 +54,20 @@ function VideoCommentsTab({ page, onPageChange }: { page: number; onPageChange: 
         <EmptyState icon={Play} message="暂无视频评论" sub="去视频下方发表第一条评论吧" />
       ) : (
         <>
-          {comments.map((comment) => (
-            <CommentCard
-              key={comment.id}
-              comment={comment}
-              type="video"
-              targetTitle={comment.video.title}
-              targetHref={`/video/${comment.video.id}`}
-            />
-          ))}
+          <InlineAdList
+            items={comments}
+            adSeed={`comments-video-${page}`}
+            spaceClass="space-y-2"
+            renderItem={(comment) => (
+              <CommentCard
+                key={comment.id}
+                comment={comment}
+                type="video"
+                targetTitle={comment.video.title}
+                targetHref={`/video/${comment.video.id}`}
+              />
+            )}
+          />
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
@@ -84,15 +90,20 @@ function GameCommentsTab({ page, onPageChange }: { page: number; onPageChange: (
         <EmptyState icon={Gamepad2} message="暂无游戏评论" sub="去游戏页面发表评论吧" />
       ) : (
         <>
-          {comments.map((comment) => (
-            <CommentCard
-              key={comment.id}
-              comment={comment}
-              type="game"
-              targetTitle={comment.game.title}
-              targetHref={`/game/${comment.game.id}`}
-            />
-          ))}
+          <InlineAdList
+            items={comments}
+            adSeed={`comments-game-${page}`}
+            spaceClass="space-y-2"
+            renderItem={(comment) => (
+              <CommentCard
+                key={comment.id}
+                comment={comment}
+                type="game"
+                targetTitle={comment.game.title}
+                targetHref={`/game/${comment.game.id}`}
+              />
+            )}
+          />
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
@@ -115,15 +126,20 @@ function ImageCommentsTab({ page, onPageChange }: { page: number; onPageChange: 
         <EmptyState icon={ImageIcon} message="暂无图片评论" sub="去图片页面发表评论吧" />
       ) : (
         <>
-          {comments.map((comment) => (
-            <CommentCard
-              key={comment.id}
-              comment={comment}
-              type="image"
-              targetTitle={comment.imagePost.title}
-              targetHref={`/image/${comment.imagePost.id}`}
-            />
-          ))}
+          <InlineAdList
+            items={comments}
+            adSeed={`comments-image-${page}`}
+            spaceClass="space-y-2"
+            renderItem={(comment) => (
+              <CommentCard
+                key={comment.id}
+                comment={comment}
+                type="image"
+                targetTitle={comment.imagePost.title}
+                targetHref={`/image/${comment.imagePost.id}`}
+              />
+            )}
+          />
           <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} className="mt-4" />
         </>
       )}
