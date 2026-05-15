@@ -1340,7 +1340,22 @@ model SiteConfig {
   backupRetentionDays   Int     @default(30)     // 备份保留天数
   backupIncludeUploads  Boolean @default(true)   // 是否包含 uploads 目录
   backupIncludeConfig   Boolean @default(true)   // 是否包含配置文件
-  
+
+  // APP 下载推荐弹窗
+  appDownloadPopupEnabled        Boolean @default(false)            /// 是否启用 APP 下载推荐弹窗
+  appDownloadPopupTitle          String?                            /// 弹窗标题（默认「下载客户端 APP」）
+  appDownloadPopupDescription    String? @db.Text                   /// 弹窗描述/介绍
+  appDownloadPopupImage          String?                            /// 弹窗图片/图标 URL（可选）
+  appDownloadPopupButtonText     String?                            /// 下载按钮文案（默认「立即下载」）
+  appDownloadPopupPlatforms      String? @default("ios,android")    /// 展示平台白名单（CSV: ios,android,windows,macos）
+  appDownloadPopupUrlIos         String?                            /// iOS 下载链接
+  appDownloadPopupUrlAndroid     String?                            /// Android 下载链接
+  appDownloadPopupUrlWindows     String?                            /// Windows 下载链接
+  appDownloadPopupUrlMacos       String?                            /// macOS 下载链接
+  appDownloadPopupUrlFallback    String?                            /// 兜底下载链接（未匹配平台时使用）
+  appDownloadPopupCooldownHours  Int     @default(24)               /// 关闭后冷却时长（小时），同一内容不再弹出
+  appDownloadPopupDelayMs        Int     @default(1500)             /// 进站后展示延迟（毫秒）
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -111,6 +111,25 @@ export interface PublicSiteConfig {
   thumbnailPresets: ThumbnailPresets;
   /** 首页与分区页布局（落地页卡片、分区模块顺序、列数、广告密度） */
   homeLayout: HomeLayoutConfig;
+  /** APP 下载推荐弹窗 */
+  appDownloadPopup: {
+    enabled: boolean;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    buttonText: string | null;
+    /** 展示平台白名单：ios / android / windows / macos */
+    platforms: string[];
+    urls: {
+      ios: string | null;
+      android: string | null;
+      windows: string | null;
+      macos: string | null;
+      fallback: string | null;
+    };
+    cooldownHours: number;
+    delayMs: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +280,29 @@ function toPublic(c: Record<string, unknown>): PublicSiteConfig {
     coverProxyThumbEnabled: typeof c.coverProxyThumbEnabled === "boolean" ? c.coverProxyThumbEnabled : true,
     thumbnailPresets: mergeThumbnailPresets(c.thumbnailPresets),
     homeLayout: mergeHomeLayout(c.homeLayout),
+    appDownloadPopup: {
+      enabled: (c.appDownloadPopupEnabled as boolean) ?? false,
+      title: (c.appDownloadPopupTitle as string) ?? null,
+      description: (c.appDownloadPopupDescription as string) ?? null,
+      image: (c.appDownloadPopupImage as string) ?? null,
+      buttonText: (c.appDownloadPopupButtonText as string) ?? null,
+      platforms:
+        typeof c.appDownloadPopupPlatforms === "string" && c.appDownloadPopupPlatforms
+          ? (c.appDownloadPopupPlatforms as string)
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+      urls: {
+        ios: (c.appDownloadPopupUrlIos as string) ?? null,
+        android: (c.appDownloadPopupUrlAndroid as string) ?? null,
+        windows: (c.appDownloadPopupUrlWindows as string) ?? null,
+        macos: (c.appDownloadPopupUrlMacos as string) ?? null,
+        fallback: (c.appDownloadPopupUrlFallback as string) ?? null,
+      },
+      cooldownHours: (c.appDownloadPopupCooldownHours as number) ?? 24,
+      delayMs: (c.appDownloadPopupDelayMs as number) ?? 1500,
+    },
   };
 }
 

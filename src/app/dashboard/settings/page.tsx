@@ -48,6 +48,7 @@ import {
   ExternalLink,
   ImageIcon,
   Layout,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
 
@@ -69,6 +70,9 @@ const TabPrivacy = lazy(() => import("./_components/tab-privacy").then((m) => ({
 const TabAnalytics = lazy(() => import("./_components/tab-analytics").then((m) => ({ default: m.TabAnalytics })));
 const TabRedirect = lazy(() => import("./_components/tab-redirect").then((m) => ({ default: m.TabRedirect })));
 const TabMedia = lazy(() => import("./_components/tab-media").then((m) => ({ default: m.TabMedia })));
+const TabAppDownload = lazy(() =>
+  import("./_components/tab-app-download").then((m) => ({ default: m.TabAppDownload })),
+);
 
 function TabLoading() {
   return (
@@ -252,6 +256,9 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="messaging" className="justify-start gap-2 px-3 h-8 text-[13px]">
               <MessageSquare className="h-3.5 w-3.5" /> 通讯
             </TabsTrigger>
+            <TabsTrigger value="app-download" className="justify-start gap-2 px-3 h-8 text-[13px]">
+              <Smartphone className="h-3.5 w-3.5" /> 下载弹窗
+            </TabsTrigger>
 
             <span className="text-xs font-medium text-muted-foreground/70 px-3 py-1.5 mt-3 select-none">外观</span>
             <TabsTrigger value="theme" className="justify-start gap-2 px-3 h-8 text-[13px]">
@@ -318,6 +325,7 @@ export default function AdminSettingsPage() {
                 <SelectItem value="content">内容设置</SelectItem>
                 <SelectItem value="media">媒体处理</SelectItem>
                 <SelectItem value="messaging">通讯</SelectItem>
+                <SelectItem value="app-download">下载弹窗</SelectItem>
               </SelectGroup>
               <SelectSeparator />
               <SelectGroup>
@@ -372,6 +380,10 @@ export default function AdminSettingsPage() {
 
             <TabsContent value="messaging">
               <TabMessaging config={config} />
+            </TabsContent>
+
+            <TabsContent value="app-download">
+              <TabAppDownload config={config} />
             </TabsContent>
 
             <TabsContent value="theme">

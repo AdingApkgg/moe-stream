@@ -331,6 +331,25 @@ export const redirectTabSchema = z.object({
   redirectDisclaimer: z.string().max(500).optional().nullable().or(z.literal("")),
 });
 
+export const APP_DOWNLOAD_PLATFORM_IDS = ["ios", "android", "windows", "macos"] as const;
+export type AppDownloadPlatformId = (typeof APP_DOWNLOAD_PLATFORM_IDS)[number];
+
+export const appDownloadTabSchema = z.object({
+  appDownloadPopupEnabled: z.boolean(),
+  appDownloadPopupTitle: z.string().max(100).optional().nullable().or(z.literal("")),
+  appDownloadPopupDescription: z.string().max(2000).optional().nullable(),
+  appDownloadPopupImage: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupButtonText: z.string().max(50).optional().nullable().or(z.literal("")),
+  appDownloadPopupPlatforms: z.string().max(100).optional().nullable().or(z.literal("")),
+  appDownloadPopupUrlIos: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupUrlAndroid: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupUrlWindows: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupUrlMacos: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupUrlFallback: z.string().url("请输入有效的 URL").optional().nullable().or(z.literal("")),
+  appDownloadPopupCooldownHours: z.number().int().min(0).max(8760),
+  appDownloadPopupDelayMs: z.number().int().min(0).max(60000),
+});
+
 // ---------------------------------------------------------------------------
 // 类型导出
 // ---------------------------------------------------------------------------
@@ -353,6 +372,7 @@ export type MessagingTabValues = z.infer<typeof messagingTabSchema>;
 export type PrivacyTabValues = z.infer<typeof privacyTabSchema>;
 export type AnalyticsTabValues = z.infer<typeof analyticsTabSchema>;
 export type RedirectTabValues = z.infer<typeof redirectTabSchema>;
+export type AppDownloadTabValues = z.infer<typeof appDownloadTabSchema>;
 
 // ---------------------------------------------------------------------------
 // SiteConfig → 表单值 pick 函数
@@ -613,5 +633,24 @@ export function pickRedirectValues(cfg: SiteConfig): RedirectTabValues {
     redirectTitle: s(cfg.redirectTitle),
     redirectDescription: s(cfg.redirectDescription),
     redirectDisclaimer: s(cfg.redirectDisclaimer),
+  };
+}
+
+export function pickAppDownloadValues(cfg: SiteConfig): AppDownloadTabValues {
+  const cfgAny = cfg as unknown as Record<string, unknown>;
+  return {
+    appDownloadPopupEnabled: b(cfgAny.appDownloadPopupEnabled, false),
+    appDownloadPopupTitle: s(cfgAny.appDownloadPopupTitle),
+    appDownloadPopupDescription: s(cfgAny.appDownloadPopupDescription),
+    appDownloadPopupImage: s(cfgAny.appDownloadPopupImage),
+    appDownloadPopupButtonText: s(cfgAny.appDownloadPopupButtonText),
+    appDownloadPopupPlatforms: s(cfgAny.appDownloadPopupPlatforms, "ios,android"),
+    appDownloadPopupUrlIos: s(cfgAny.appDownloadPopupUrlIos),
+    appDownloadPopupUrlAndroid: s(cfgAny.appDownloadPopupUrlAndroid),
+    appDownloadPopupUrlWindows: s(cfgAny.appDownloadPopupUrlWindows),
+    appDownloadPopupUrlMacos: s(cfgAny.appDownloadPopupUrlMacos),
+    appDownloadPopupUrlFallback: s(cfgAny.appDownloadPopupUrlFallback),
+    appDownloadPopupCooldownHours: n(cfgAny.appDownloadPopupCooldownHours, 24),
+    appDownloadPopupDelayMs: n(cfgAny.appDownloadPopupDelayMs, 1500),
   };
 }
