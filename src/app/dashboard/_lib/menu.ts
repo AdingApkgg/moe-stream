@@ -16,6 +16,7 @@ import {
   FolderCog,
   BarChart3,
   UsersRound,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,6 +51,13 @@ export const dashboardMenuGroups: DashboardMenuGroup[] = [
       { href: "/dashboard/videos", label: "视频", icon: Video, scope: "video:moderate", keywords: ["video"] },
       { href: "/dashboard/games", label: "游戏", icon: Gamepad2, scope: "video:moderate", keywords: ["game"] },
       { href: "/dashboard/images", label: "图片", icon: Images, scope: "video:moderate", keywords: ["image", "photo"] },
+      {
+        href: "/dashboard/rankings",
+        label: "排行榜",
+        icon: Trophy,
+        scope: "settings:manage",
+        keywords: ["ranking", "leaderboard", "榜单"],
+      },
     ],
   },
   {
