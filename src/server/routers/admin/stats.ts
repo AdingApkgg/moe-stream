@@ -860,4 +860,271 @@ export const adminStatsRouter = router({
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, data]) => ({ date, ...data }));
   }),
+
+  // 收入与新用户双轴趋势（每日 PAID 金额 + 笔数 + 新用户）
+  getRevenueTrend: publicProcedure.input(dateRangeInput).query(async ({ ctx, input }) => {
+    const since = new Date(input.from);
+    const until = new Date(input.to);
+
+    const [paidOrders, newUsers] = await Promise.all([
+      ctx.prisma.paymentOrder.findMany({
+        where: { status: "PAID", paidAt: { gte: since, lte: until } },
+        select: { paidAt: true, amount: true },
+      }),
+      ctx.prisma.user.findMany({
+        where: { createdAt: { gte: since, lte: until } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    type DayData = { revenue: number; orders: number; users: number };
+    const trend: Record<string, DayData> = {};
+    const dayCount = computeDayCount(since, until);
+    const toKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    for (let i = 0; i < dayCount; i++) {
+      const date = new Date(since);
+      date.setDate(date.getDate() + i);
+      trend[toKey(date)] = { revenue: 0, orders: 0, users: 0 };
+    }
+
+    for (const o of paidOrders) {
+      if (!o.paidAt) continue;
+      const k = toKey(new Date(o.paidAt));
+      if (trend[k]) {
+        trend[k].revenue += o.amount;
+        trend[k].orders += 1;
+      }
+    }
+    for (const u of newUsers) {
+      const k = toKey(new Date(u.createdAt));
+      if (trend[k]) trend[k].users += 1;
+    }
+
+    return Object.entries(trend)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({ date, ...data, revenue: Math.round(data.revenue * 100) / 100 }));
+  }),
+
+  // 转化漏斗：注册用户 → 有内容 → 有互动 → 有付费
+  getConversionFunnel: publicProcedure.input(dateRangeInput.optional()).query(async ({ ctx, input }) => {
+    const where = input ? { createdAt: { gte: new Date(input.from), lte: new Date(input.to) } } : {};
+
+    const [totalUsers, contentUsers, engagedUsers, paidUsers] = await Promise.all([
+      ctx.prisma.user.count({ where }),
+      ctx.prisma.user.count({
+        where: {
+          ...where,
+          OR: [
+            { videos: { some: { status: "PUBLISHED" } } },
+            { games: { some: { status: "PUBLISHED" } } },
+            { imagePosts: { some: { status: "PUBLISHED" } } },
+          ],
+        },
+      }),
+      ctx.prisma.user.count({
+        where: {
+          ...where,
+          OR: [{ likes: { some: {} } }, { favorites: { some: {} } }, { comments: { some: {} } }],
+        },
+      }),
+      ctx.prisma.user.count({
+        where: { ...where, paymentOrders: { some: { status: "PAID" } } },
+      }),
+    ]);
+
+    return [
+      { stage: "注册用户", value: totalUsers, fill: "var(--color-stage-1)" },
+      { stage: "有互动", value: engagedUsers, fill: "var(--color-stage-2)" },
+      { stage: "有内容", value: contentUsers, fill: "var(--color-stage-3)" },
+      { stage: "已付费", value: paidUsers, fill: "var(--color-stage-4)" },
+    ];
+  }),
+
+  // 24×7 活跃度热力图（按小时 × 星期）
+  getActivityHeatmap: publicProcedure.input(dateRangeInput).query(async ({ ctx, input }) => {
+    const since = new Date(input.from);
+    const until = new Date(input.to);
+    const dateRange = { gte: since, lte: until };
+
+    const [watch, gameView, imgView, like, gameLike, imgLike, fav, gameFav, imgFav, cmt, gameCmt, imgCmt] =
+      await Promise.all([
+        ctx.prisma.watchHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostViewHistory.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.like.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostLike.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.favorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.gameFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.imagePostFavorite.findMany({ where: { createdAt: dateRange }, select: { createdAt: true } }),
+        ctx.prisma.comment.findMany({
+          where: { createdAt: dateRange, isDeleted: false },
+          select: { createdAt: true },
+        }),
+        ctx.prisma.gameComment.findMany({
+          where: { createdAt: dateRange, isDeleted: false },
+          select: { createdAt: true },
+        }),
+        ctx.prisma.imagePostComment.findMany({
+          where: { createdAt: dateRange, isDeleted: false },
+          select: { createdAt: true },
+        }),
+      ]);
+
+    // 0..6 (周日=0) × 0..23
+    const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+    const all = [
+      ...watch,
+      ...gameView,
+      ...imgView,
+      ...like,
+      ...gameLike,
+      ...imgLike,
+      ...fav,
+      ...gameFav,
+      ...imgFav,
+      ...cmt,
+      ...gameCmt,
+      ...imgCmt,
+    ];
+
+    for (const r of all) {
+      const d = new Date(r.createdAt);
+      grid[d.getDay()][d.getHours()] += 1;
+    }
+
+    // 扁平化为 { day, hour, value } 数组
+    const cells: { day: number; hour: number; value: number }[] = [];
+    let max = 0;
+    for (let day = 0; day < 7; day++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const value = grid[day][hour];
+        if (value > max) max = value;
+        cells.push({ day, hour, value });
+      }
+    }
+    return { cells, max, total: all.length };
+  }),
+
+  // 热门标签 Treemap（按内容关联数）
+  getTopTags: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(5).max(80).default(40),
+        kind: z.enum(["all", "video", "game", "image"]).default("all"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const tags = await ctx.prisma.tag.findMany({
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          videoCount: true,
+          gameCount: true,
+          imagePostCount: true,
+          category: { select: { name: true, color: true } },
+        },
+      });
+
+      const items = tags
+        .map((t) => {
+          const v = t.videoCount;
+          const g = t.gameCount;
+          const i = t.imagePostCount;
+          const value = input.kind === "all" ? v + g + i : input.kind === "video" ? v : input.kind === "game" ? g : i;
+          return {
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            color: t.category?.color ?? null,
+            category: t.category?.name ?? null,
+            value,
+            video: v,
+            game: g,
+            image: i,
+          };
+        })
+        .filter((t) => t.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, input.limit);
+
+      return items;
+    }),
+
+  // 分区健康度（互动率：点赞/浏览、收藏/浏览、评论/浏览、踩比）
+  getZoneHealth: publicProcedure.query(async ({ ctx }) => {
+    const [v, g, i, vViews, gViews, iViews] = await Promise.all([
+      ctx.prisma.video.aggregate({
+        where: { status: "PUBLISHED" },
+        _sum: { views: true },
+        _count: true,
+      }),
+      ctx.prisma.game.aggregate({ where: { status: "PUBLISHED" }, _sum: { views: true }, _count: true }),
+      ctx.prisma.imagePost.aggregate({
+        where: { status: "PUBLISHED" },
+        _sum: { views: true },
+        _count: true,
+      }),
+      Promise.all([
+        ctx.prisma.like.count(),
+        ctx.prisma.dislike.count(),
+        ctx.prisma.favorite.count(),
+        ctx.prisma.comment.count({ where: { isDeleted: false } }),
+      ]),
+      Promise.all([
+        ctx.prisma.gameLike.count(),
+        ctx.prisma.gameDislike.count(),
+        ctx.prisma.gameFavorite.count(),
+        ctx.prisma.gameComment.count({ where: { isDeleted: false } }),
+      ]),
+      Promise.all([
+        ctx.prisma.imagePostLike.count(),
+        ctx.prisma.imagePostDislike.count(),
+        ctx.prisma.imagePostFavorite.count(),
+        ctx.prisma.imagePostComment.count({ where: { isDeleted: false } }),
+      ]),
+    ]);
+
+    const [vLikes, vDislikes, vFavs, vCmts] = vViews;
+    const [gLikes, gDislikes, gFavs, gCmts] = gViews;
+    const [iLikes, iDislikes, iFavs, iCmts] = iViews;
+
+    const ratio = (num: number, denom: number) => (denom > 0 ? Math.round((num / denom) * 10000) / 100 : 0);
+    const score = (likes: number, favs: number, cmts: number, dislikes: number, views: number) => {
+      // 综合健康分：互动密度 - 负反馈，归一到 0-100
+      const engagement = ratio(likes + favs * 2 + cmts * 3, views);
+      const negative = ratio(dislikes, likes + dislikes || 1);
+      return Math.max(0, Math.min(100, Math.round(engagement - negative * 0.5)));
+    };
+
+    return [
+      {
+        zone: "视频",
+        likeRate: ratio(vLikes, v._sum.views || 0),
+        favRate: ratio(vFavs, v._sum.views || 0),
+        commentRate: ratio(vCmts, v._sum.views || 0),
+        dislikeRate: ratio(vDislikes, vLikes + vDislikes || 1),
+        score: score(vLikes, vFavs, vCmts, vDislikes, v._sum.views || 0),
+      },
+      {
+        zone: "图片",
+        likeRate: ratio(iLikes, i._sum.views || 0),
+        favRate: ratio(iFavs, i._sum.views || 0),
+        commentRate: ratio(iCmts, i._sum.views || 0),
+        dislikeRate: ratio(iDislikes, iLikes + iDislikes || 1),
+        score: score(iLikes, iFavs, iCmts, iDislikes, i._sum.views || 0),
+      },
+      {
+        zone: "游戏",
+        likeRate: ratio(gLikes, g._sum.views || 0),
+        favRate: ratio(gFavs, g._sum.views || 0),
+        commentRate: ratio(gCmts, g._sum.views || 0),
+        dislikeRate: ratio(gDislikes, gLikes + gDislikes || 1),
+        score: score(gLikes, gFavs, gCmts, gDislikes, g._sum.views || 0),
+      },
+    ];
+  }),
 });

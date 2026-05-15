@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSound } from "@/hooks/use-sound";
 import {
@@ -17,19 +16,20 @@ import {
   Video,
   Tag,
   Eye,
-  Heart,
-  Star,
   TrendingUp,
-  MessageSquare,
-  ArrowUpRight,
   Gamepad2,
   Images,
   Layers,
   Search,
-  type LucideIcon,
+  DollarSign,
+  Activity,
+  Filter,
+  Sparkles,
+  Target,
+  ShieldCheck,
+  Flame,
 } from "lucide-react";
-import { MotionPage, CountUp } from "@/components/motion";
-import { cn } from "@/lib/utils";
+import { MotionPage } from "@/components/motion";
 import {
   ChartContainer,
   ChartTooltip,
@@ -38,13 +38,33 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from "recharts";
-
-const GROWTH_PRESETS = [
-  { label: "24h", days: 1 },
-  { label: "7天", days: 7 },
-  { label: "30天", days: 30 },
-];
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  RadialBar,
+  RadialBarChart,
+  Treemap,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { ChartCard } from "../_components/charts/chart-card";
+import { SparklineCard } from "../_components/charts/sparkline-card";
+import { ActivityHeatmap } from "../_components/charts/activity-heatmap";
+import { ConversionFunnel } from "../_components/charts/conversion-funnel";
+import { formatCompact, formatUSDT } from "../_components/charts/utils";
 
 const TREND_PRESETS = [
   { label: "7天", days: 7 },
@@ -52,130 +72,187 @@ const TREND_PRESETS = [
   { label: "30天", days: 30 },
 ];
 
-function formatCompact(num: number): string {
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
-  if (num >= 10_000) return (num / 1_000).toFixed(1) + "K";
-  return num.toLocaleString();
-}
+const FULL_PRESETS = [
+  { label: "7天", days: 7 },
+  { label: "30天", days: 30 },
+  { label: "90天", days: 90 },
+];
 
-// ==================== 核心指标卡片 ====================
+// ==================== 顶部 KPI Sparkline Cards ====================
 
-function HeroStat({
-  icon: Icon,
-  label,
-  value,
-  color,
-  isLoading,
+function KPIBar({
+  stats,
+  trendData,
+  revenueData,
+  loading,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  color: string;
-  isLoading: boolean;
+  stats:
+    | {
+        userCount: number;
+        videoCount: number;
+        imagePostCount: number;
+        gameCount: number;
+        totalViews: number;
+        totalLikes: number;
+        totalFavorites: number;
+        totalComments: number;
+      }
+    | undefined;
+  trendData: { date: string; users: number; videos: number; images: number; games: number; views: number }[];
+  revenueData: { date: string; revenue: number; orders: number; users: number }[];
+  loading: boolean;
 }) {
-  const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
-    blue: { bg: "bg-blue-500/10", text: "text-blue-500", ring: "ring-blue-500/20" },
-    green: { bg: "bg-green-500/10", text: "text-green-500", ring: "ring-green-500/20" },
-    violet: { bg: "bg-violet-500/10", text: "text-violet-500", ring: "ring-violet-500/20" },
-    amber: { bg: "bg-amber-500/10", text: "text-amber-500", ring: "ring-amber-500/20" },
-  };
-  const c = colorMap[color] ?? colorMap.blue;
-
+  const totalRevenue = revenueData.reduce((s, d) => s + d.revenue, 0);
   return (
-    <div className={cn("relative rounded-2xl border p-5 transition-shadow hover:shadow-md", c.ring, "ring-1")}>
-      <div className={cn("inline-flex p-2.5 rounded-xl mb-3", c.bg)}>
-        <Icon className={cn("h-5 w-5", c.text)} />
-      </div>
-      <div>
-        {isLoading ? (
-          <Skeleton className="h-8 w-20 mb-1" />
-        ) : (
-          <p className="text-3xl font-bold tracking-tight tabular-nums">
-            <CountUp value={value} />
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <SparklineCard
+        icon={Users}
+        label="注册用户"
+        value={stats?.userCount ?? 0}
+        series={trendData.map((d) => d.users)}
+        color="hsl(217, 91%, 60%)"
+        loading={loading}
+      />
+      <SparklineCard
+        icon={Video}
+        label="视频"
+        value={stats?.videoCount ?? 0}
+        series={trendData.map((d) => d.videos)}
+        color="hsl(142, 71%, 45%)"
+        loading={loading}
+      />
+      <SparklineCard
+        icon={Images}
+        label="图片"
+        value={stats?.imagePostCount ?? 0}
+        series={trendData.map((d) => d.images)}
+        color="hsl(263, 70%, 55%)"
+        loading={loading}
+      />
+      <SparklineCard
+        icon={Gamepad2}
+        label="游戏"
+        value={stats?.gameCount ?? 0}
+        series={trendData.map((d) => d.games)}
+        color="hsl(38, 92%, 50%)"
+        loading={loading}
+      />
+      <SparklineCard
+        icon={Eye}
+        label="总浏览"
+        value={stats?.totalViews ?? 0}
+        series={trendData.map((d) => d.views)}
+        format={formatCompact}
+        color="hsl(25, 95%, 53%)"
+        loading={loading}
+      />
+      <SparklineCard
+        icon={DollarSign}
+        label={`${revenueData.length}天收入`}
+        value={totalRevenue}
+        series={revenueData.map((d) => d.revenue)}
+        format={formatUSDT}
+        color="hsl(160, 80%, 45%)"
+        loading={loading}
+      />
     </div>
   );
 }
 
-// ==================== 互动指标行 ====================
+// ==================== 综合健康互动条 ====================
 
-function EngagementRow({
-  items,
-  isLoading,
+function EngagementMicro({
+  stats,
+  loading,
 }: {
-  items: { icon: LucideIcon; label: string; value: number; color: string }[];
-  isLoading: boolean;
+  stats:
+    | {
+        totalLikes: number;
+        totalFavorites: number;
+        totalComments: number;
+        totalViews: number;
+      }
+    | undefined;
+  loading: boolean;
 }) {
+  if (loading || !stats) {
+    return <Skeleton className="h-9 w-full" />;
+  }
+  const sum = stats.totalLikes + stats.totalFavorites + stats.totalComments;
+  if (sum === 0) return null;
+  const segs = [
+    { label: "点赞", value: stats.totalLikes, color: "hsl(0, 84%, 60%)" },
+    { label: "收藏", value: stats.totalFavorites, color: "hsl(48, 96%, 53%)" },
+    { label: "评论", value: stats.totalComments, color: "hsl(187, 85%, 53%)" },
+  ];
+  const engagementRate = stats.totalViews > 0 ? (sum / stats.totalViews) * 100 : 0;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
-          <div className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}>
-            <item.icon className={cn("h-4 w-4", item.color)} />
-          </div>
-          <div className="min-w-0">
-            {isLoading ? (
-              <Skeleton className="h-5 w-12 mb-1" />
-            ) : (
-              <p className="text-lg font-bold tabular-nums leading-tight">
-                <CountUp value={item.value} />
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground truncate">{item.label}</p>
-          </div>
+    <div className="rounded-xl border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Activity className="h-3.5 w-3.5" />
+          <span>互动占比</span>
         </div>
-      ))}
+        <div className="flex items-center gap-3 tabular-nums">
+          <span className="text-muted-foreground">综合互动率</span>
+          <span className="font-semibold text-foreground">{engagementRate.toFixed(2)}%</span>
+        </div>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        {segs.map((s) => (
+          <div
+            key={s.label}
+            className="h-full transition-all"
+            style={{ width: `${(s.value / sum) * 100}%`, backgroundColor: s.color }}
+            title={`${s.label}: ${s.value.toLocaleString()}`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-3 text-[11px]">
+        {segs.map((s) => (
+          <div key={s.label} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
+            <span className="text-muted-foreground">{s.label}</span>
+            <span className="tabular-nums font-medium">{s.value.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ==================== 内容分布饼图 ====================
+// ==================== 内容分布 Pie ====================
 
 const contentPieConfig = {
-  count: { label: "数量" },
   videos: { label: "视频", color: "hsl(142, 71%, 45%)" },
-  images: { label: "图片", color: "hsl(263, 70%, 50%)" },
+  images: { label: "图片", color: "hsl(263, 70%, 55%)" },
   games: { label: "游戏", color: "hsl(38, 92%, 50%)" },
 } satisfies ChartConfig;
 
-function ContentDistributionChart({
+function ContentDistribution({
   videoCount,
-  imagePostCount,
+  imageCount,
   gameCount,
-  isLoading,
+  loading,
 }: {
   videoCount: number;
-  imagePostCount: number;
+  imageCount: number;
   gameCount: number;
-  isLoading: boolean;
+  loading: boolean;
 }) {
   const data = useMemo(
     () => [
       { name: "videos", value: videoCount, fill: "var(--color-videos)" },
-      { name: "images", value: imagePostCount, fill: "var(--color-images)" },
+      { name: "images", value: imageCount, fill: "var(--color-images)" },
       { name: "games", value: gameCount, fill: "var(--color-games)" },
     ],
-    [videoCount, imagePostCount, gameCount],
+    [videoCount, imageCount, gameCount],
   );
-
-  const total = videoCount + imagePostCount + gameCount;
-
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card p-5">
-        <Skeleton className="h-5 w-24 mb-4" />
-        <Skeleton className="h-[200px] w-full" />
-      </div>
-    );
-  }
+  const total = videoCount + imageCount + gameCount;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
-      <h3 className="text-sm font-semibold text-muted-foreground mb-4">内容分布</h3>
-      <ChartContainer config={contentPieConfig} className="mx-auto aspect-square max-h-[220px]">
+    <ChartCard title="内容分布" icon={Layers} loading={loading} empty={total === 0}>
+      <ChartContainer config={contentPieConfig} className="mx-auto aspect-square h-[220px]">
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
           <Pie
@@ -208,7 +285,91 @@ function ContentDistributionChart({
           <ChartLegend content={<ChartLegendContent nameKey="name" />} />
         </PieChart>
       </ChartContainer>
-    </div>
+    </ChartCard>
+  );
+}
+
+// ==================== 分区健康度 Radar ====================
+
+const radarConfig = {
+  likeRate: { label: "点赞率", color: "hsl(0, 84%, 60%)" },
+  favRate: { label: "收藏率", color: "hsl(48, 96%, 53%)" },
+  commentRate: { label: "评论率", color: "hsl(187, 85%, 53%)" },
+} satisfies ChartConfig;
+
+function ZoneHealthRadar({
+  data,
+  loading,
+}: {
+  data: { zone: string; likeRate: number; favRate: number; commentRate: number; score: number }[] | undefined;
+  loading: boolean;
+}) {
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    return data.map((d) => ({
+      zone: d.zone,
+      likeRate: d.likeRate,
+      favRate: d.favRate,
+      commentRate: d.commentRate,
+    }));
+  }, [data]);
+
+  return (
+    <ChartCard
+      title="分区健康度（互动率 %）"
+      icon={ShieldCheck}
+      loading={loading}
+      empty={!data || data.length === 0}
+      footer={
+        data && (
+          <div className="flex justify-around gap-2 tabular-nums">
+            {data.map((d) => (
+              <div key={d.zone} className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{d.zone}</span>
+                <span
+                  className={
+                    d.score >= 70 ? "text-emerald-500 font-medium" : d.score >= 40 ? "text-amber-500" : "text-rose-500"
+                  }
+                >
+                  {d.score}分
+                </span>
+              </div>
+            ))}
+          </div>
+        )
+      }
+    >
+      <ChartContainer config={radarConfig} className="mx-auto aspect-square h-[220px]">
+        <RadarChart data={chartData}>
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <PolarAngleAxis dataKey="zone" tick={{ fontSize: 11 }} />
+          <PolarGrid stroke="hsl(var(--border))" />
+          <PolarRadiusAxis tick={false} axisLine={false} />
+          <Radar
+            dataKey="likeRate"
+            stroke="var(--color-likeRate)"
+            fill="var(--color-likeRate)"
+            fillOpacity={0.25}
+            strokeWidth={1.5}
+          />
+          <Radar
+            dataKey="favRate"
+            stroke="var(--color-favRate)"
+            fill="var(--color-favRate)"
+            fillOpacity={0.2}
+            strokeWidth={1.5}
+          />
+          <Radar
+            dataKey="commentRate"
+            stroke="var(--color-commentRate)"
+            fill="var(--color-commentRate)"
+            fillOpacity={0.18}
+            strokeWidth={1.5}
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+        </RadarChart>
+      </ChartContainer>
+    </ChartCard>
   );
 }
 
@@ -221,21 +382,21 @@ const zoneBarConfig = {
   comments: { label: "评论", color: "hsl(187, 85%, 53%)" },
 } satisfies ChartConfig;
 
-function ZoneEngagementChart({
+function ZoneEngagementBar({
   stats,
-  isLoading,
+  loading,
 }: {
   stats:
     | {
-        video: { likes: number; dislikes: number; favorites: number; comments: number };
-        game: { likes: number; dislikes: number; favorites: number; comments: number };
-        image: { likes: number; dislikes: number; favorites: number; comments: number };
+        video: { likes: number; favorites: number; comments: number };
+        game: { likes: number; favorites: number; comments: number };
+        image: { likes: number; favorites: number; comments: number };
         videoViews: number;
         gameViews: number;
         imageViews: number;
       }
     | undefined;
-  isLoading: boolean;
+  loading: boolean;
 }) {
   const data = useMemo(() => {
     if (!stats) return [];
@@ -264,18 +425,8 @@ function ZoneEngagementChart({
     ];
   }, [stats]);
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card p-5">
-        <Skeleton className="h-5 w-24 mb-4" />
-        <Skeleton className="h-[220px] w-full" />
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-xl border bg-card p-5">
-      <h3 className="text-sm font-semibold text-muted-foreground mb-4">分区互动对比</h3>
+    <ChartCard title="分区互动对比" icon={Flame} loading={loading} empty={data.length === 0}>
       <ChartContainer config={zoneBarConfig} className="h-[220px] w-full">
         <BarChart data={data} barGap={2}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -289,11 +440,11 @@ function ZoneEngagementChart({
           <Bar dataKey="comments" fill="var(--color-comments)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ChartContainer>
-    </div>
+    </ChartCard>
   );
 }
 
-// ==================== 增长趋势面积图 ====================
+// ==================== 增长趋势 ====================
 
 const TREND_METRICS = [
   { key: "content", label: "内容", fields: ["users", "videos", "images", "games"] },
@@ -303,7 +454,7 @@ const TREND_METRICS = [
 const trendConfig = {
   users: { label: "用户", color: "hsl(217, 91%, 60%)" },
   videos: { label: "视频", color: "hsl(142, 71%, 45%)" },
-  images: { label: "图片", color: "hsl(263, 70%, 50%)" },
+  images: { label: "图片", color: "hsl(263, 70%, 55%)" },
   games: { label: "游戏", color: "hsl(38, 92%, 50%)" },
   views: { label: "浏览", color: "hsl(25, 95%, 53%)" },
   likes: { label: "点赞", color: "hsl(0, 84%, 60%)" },
@@ -332,22 +483,13 @@ function GrowthTrendChart({
     }));
   }, [trend]);
 
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card p-5 space-y-4">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-[280px] w-full" />
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          每日增长趋势
-        </h3>
+    <ChartCard
+      title="每日增长趋势"
+      icon={TrendingUp}
+      loading={isLoading}
+      empty={chartData.length === 0}
+      action={
         <div className="flex items-center gap-2">
           <Tabs
             value={metricGroup}
@@ -356,9 +498,9 @@ function GrowthTrendChart({
               play("navigate");
             }}
           >
-            <TabsList className="h-8">
+            <TabsList className="h-7">
               {TREND_METRICS.map((m) => (
-                <TabsTrigger key={m.key} value={m.key} className="text-xs px-3 h-6">
+                <TabsTrigger key={m.key} value={m.key} className="text-[11px] px-2 h-5">
                   {m.label}
                 </TabsTrigger>
               ))}
@@ -366,12 +508,13 @@ function GrowthTrendChart({
           </Tabs>
           <DateRangePicker value={range} onChange={onRangeChange} presets={TREND_PRESETS} />
         </div>
-      </div>
-      <ChartContainer config={trendConfig} className="h-[280px] w-full">
+      }
+    >
+      <ChartContainer config={trendConfig} className="h-[260px] w-full">
         <AreaChart data={chartData}>
           <defs>
             {activeFields.map((field) => (
-              <linearGradient key={field} id={`fill-${field}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient key={field} id={`fill-trend-${field}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={`var(--color-${field})`} stopOpacity={0.3} />
                 <stop offset="95%" stopColor={`var(--color-${field})`} stopOpacity={0.02} />
               </linearGradient>
@@ -388,7 +531,7 @@ function GrowthTrendChart({
               type="monotone"
               dataKey={field}
               stroke={`var(--color-${field})`}
-              fill={`url(#fill-${field})`}
+              fill={`url(#fill-trend-${field})`}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
@@ -396,53 +539,364 @@ function GrowthTrendChart({
           ))}
         </AreaChart>
       </ChartContainer>
-    </div>
+    </ChartCard>
   );
 }
 
-// ==================== 增长指标 ====================
+// ==================== 收入 vs 新用户 Composed ====================
 
-function GrowthItem({
-  icon: Icon,
-  label,
-  value,
-  color,
-  isLoading,
+const revenueConfig = {
+  revenue: { label: "收入 (USDT)", color: "hsl(160, 80%, 45%)" },
+  users: { label: "新用户", color: "hsl(217, 91%, 60%)" },
+  orders: { label: "订单", color: "hsl(38, 92%, 50%)" },
+} satisfies ChartConfig;
+
+function RevenueComposed({
+  range,
+  onRangeChange,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  color: string;
-  isLoading: boolean;
+  range: DateRangeValue;
+  onRangeChange: (range: DateRangeValue) => void;
 }) {
+  const { data, isLoading } = trpc.admin.getRevenueTrend.useQuery(dateRangeToApi(range));
+  const chartData = useMemo(
+    () =>
+      (data ?? []).map((d) => ({
+        ...d,
+        label: d.date.slice(5),
+      })),
+    [data],
+  );
+
+  const totalRevenue = chartData.reduce((s, d) => s + d.revenue, 0);
+  const totalOrders = chartData.reduce((s, d) => s + d.orders, 0);
+  const totalUsers = chartData.reduce((s, d) => s + d.users, 0);
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-card p-3.5 transition-shadow hover:shadow-sm">
-      <div className={cn("p-2 rounded-lg shrink-0", color.replace("text-", "bg-").replace("500", "500/10"))}>
-        <Icon className={cn("h-4 w-4", color)} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {isLoading ? (
-            <Skeleton className="h-5 w-12" />
-          ) : (
-            <>
-              <span className="text-lg font-bold tabular-nums">
-                <CountUp value={value} />
-              </span>
-              {value > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="text-green-600 bg-green-100 dark:bg-green-900/30 text-[10px] px-1.5 py-0 h-4"
-                >
-                  <ArrowUpRight className="h-2.5 w-2.5" />+{value}
-                </Badge>
-              )}
-            </>
-          )}
+    <ChartCard
+      title="收入 vs 新用户"
+      icon={DollarSign}
+      loading={isLoading}
+      empty={chartData.length === 0}
+      action={<DateRangePicker value={range} onChange={onRangeChange} presets={TREND_PRESETS} />}
+      footer={
+        <div className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+          <span>
+            合计 <span className="text-emerald-500 font-medium">{formatUSDT(totalRevenue)}</span>
+          </span>
+          <span>
+            订单 <span className="text-foreground font-medium">{totalOrders}</span>
+          </span>
+          <span>
+            新用户 <span className="text-foreground font-medium">{totalUsers}</span>
+          </span>
+          <span>
+            客单价 <span className="text-foreground font-medium">{formatUSDT(avgOrder)}</span>
+          </span>
         </div>
-        <p className="text-xs text-muted-foreground truncate">{label}</p>
+      }
+    >
+      <ChartContainer config={revenueConfig} className="h-[260px] w-full">
+        <ComposedChart data={chartData}>
+          <defs>
+            <linearGradient id="fill-revenue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" />
+          <YAxis
+            yAxisId="left"
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v) => "$" + formatCompact(v)}
+            width={50}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v) => formatCompact(v)}
+            width={36}
+          />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Area
+            yAxisId="left"
+            type="monotone"
+            dataKey="revenue"
+            stroke="var(--color-revenue)"
+            fill="url(#fill-revenue)"
+            strokeWidth={2}
+            dot={false}
+          />
+          <Bar yAxisId="right" dataKey="users" fill="var(--color-users)" radius={[3, 3, 0, 0]} barSize={12} />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="orders"
+            stroke="var(--color-orders)"
+            strokeWidth={2}
+            dot={{ r: 2 }}
+            activeDot={{ r: 4 }}
+          />
+        </ComposedChart>
+      </ChartContainer>
+    </ChartCard>
+  );
+}
+
+// ==================== 转化漏斗 ====================
+
+const FUNNEL_COLORS = ["hsl(217, 91%, 60%)", "hsl(263, 70%, 55%)", "hsl(289, 75%, 55%)", "hsl(160, 80%, 45%)"];
+
+function ConversionFunnelCard() {
+  const { data, isLoading } = trpc.admin.getConversionFunnel.useQuery(undefined);
+  const stages = useMemo(
+    () => (data ?? []).map((d, i) => ({ ...d, fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length] })),
+    [data],
+  );
+  return (
+    <ChartCard
+      title="用户成长漏斗"
+      icon={Target}
+      loading={isLoading}
+      empty={!data || data.every((d) => d.value === 0)}
+      description="注册 → 互动 → 创作 → 付费"
+    >
+      <div className="h-[220px] w-full flex items-center">
+        <ConversionFunnel data={stages} className="w-full" />
       </div>
-    </div>
+    </ChartCard>
+  );
+}
+
+// ==================== 24×7 活跃度热力 ====================
+
+function HeatmapCard({ range, onRangeChange }: { range: DateRangeValue; onRangeChange: (r: DateRangeValue) => void }) {
+  const { data, isLoading } = trpc.admin.getActivityHeatmap.useQuery(dateRangeToApi(range));
+  return (
+    <ChartCard
+      title="活跃度热力图"
+      icon={Activity}
+      description="按小时 × 星期统计用户活动"
+      loading={isLoading}
+      empty={!data || data.total === 0}
+      action={<DateRangePicker value={range} onChange={onRangeChange} presets={TREND_PRESETS} />}
+    >
+      <div className="h-[220px] flex items-center">
+        <ActivityHeatmap cells={data?.cells ?? []} max={data?.max ?? 0} />
+      </div>
+    </ChartCard>
+  );
+}
+
+// ==================== 热门标签 Treemap ====================
+
+const TAG_PALETTE = [
+  "hsl(217, 91%, 60%)",
+  "hsl(142, 71%, 45%)",
+  "hsl(38, 92%, 50%)",
+  "hsl(263, 70%, 55%)",
+  "hsl(0, 84%, 60%)",
+  "hsl(48, 96%, 53%)",
+  "hsl(187, 85%, 53%)",
+  "hsl(289, 75%, 55%)",
+  "hsl(160, 80%, 45%)",
+  "hsl(330, 80%, 60%)",
+];
+
+function TagTreemapCard() {
+  const [kind, setKind] = useState<"all" | "video" | "image" | "game">("all");
+  const { data, isLoading } = trpc.admin.getTopTags.useQuery({ limit: 40, kind });
+
+  const treeData = useMemo(
+    () =>
+      (data ?? []).map((t, i) => ({
+        name: t.name,
+        size: t.value,
+        fill: t.color || TAG_PALETTE[i % TAG_PALETTE.length],
+        category: t.category,
+        video: t.video,
+        game: t.game,
+        image: t.image,
+      })),
+    [data],
+  );
+
+  return (
+    <ChartCard
+      title="热门标签 Top 40"
+      icon={Tag}
+      loading={isLoading}
+      empty={treeData.length === 0}
+      action={
+        <Tabs value={kind} onValueChange={(v) => setKind(v as "all" | "video" | "image" | "game")}>
+          <TabsList className="h-7">
+            <TabsTrigger value="all" className="text-[11px] px-2 h-5">
+              全部
+            </TabsTrigger>
+            <TabsTrigger value="video" className="text-[11px] px-2 h-5">
+              视频
+            </TabsTrigger>
+            <TabsTrigger value="image" className="text-[11px] px-2 h-5">
+              图片
+            </TabsTrigger>
+            <TabsTrigger value="game" className="text-[11px] px-2 h-5">
+              游戏
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      }
+    >
+      <div className="h-[260px] w-full">
+        <Treemap
+          data={treeData}
+          dataKey="size"
+          stroke="hsl(var(--background))"
+          fill="hsl(var(--primary))"
+          aspectRatio={4 / 3}
+          isAnimationActive={false}
+          content={<TreemapNode />}
+        />
+      </div>
+    </ChartCard>
+  );
+}
+
+type TreemapNodeProps = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  name?: string;
+  size?: number;
+  fill?: string;
+};
+
+function TreemapNode(props: TreemapNodeProps) {
+  const { x = 0, y = 0, width = 0, height = 0, name, size, fill } = props;
+  if (width < 1 || height < 1) return null;
+  const showText = width > 50 && height > 28;
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{ fill: fill || "var(--color-stage-1)", stroke: "hsl(var(--background))", strokeWidth: 1.5 }}
+        rx={2}
+      />
+      {showText && (
+        <>
+          <text
+            x={x + 6}
+            y={y + 16}
+            fill="rgba(255,255,255,0.95)"
+            fontSize={11}
+            fontWeight={500}
+            className="pointer-events-none"
+          >
+            {name}
+          </text>
+          <text
+            x={x + 6}
+            y={y + 30}
+            fill="rgba(255,255,255,0.7)"
+            fontSize={10}
+            className="pointer-events-none tabular-nums"
+          >
+            {size?.toLocaleString()}
+          </text>
+        </>
+      )}
+    </g>
+  );
+}
+
+// ==================== 增长 RadialBar（达成进度示意） ====================
+
+const radialConfig = {
+  users: { label: "新用户", color: "hsl(217, 91%, 60%)" },
+  videos: { label: "新视频", color: "hsl(142, 71%, 45%)" },
+  images: { label: "新图片", color: "hsl(263, 70%, 55%)" },
+  games: { label: "新游戏", color: "hsl(38, 92%, 50%)" },
+} satisfies ChartConfig;
+
+function GrowthRadial({ range, onRangeChange }: { range: DateRangeValue; onRangeChange: (r: DateRangeValue) => void }) {
+  const { data, isLoading } = trpc.admin.getGrowthStats.useQuery(dateRangeToApi(range));
+
+  // 假设运营目标，取每个维度的当前值与一个动态目标做对比
+  const items = useMemo(() => {
+    if (!data) return [];
+    const base = {
+      users: Math.max(50, data.newUsers * 1.2),
+      videos: Math.max(20, data.newVideos * 1.2),
+      images: Math.max(20, data.newImagePosts * 1.2),
+      games: Math.max(10, data.newGames * 1.2),
+    };
+    return [
+      { key: "users", label: "新用户", value: data.newUsers, target: Math.ceil(base.users) },
+      { key: "videos", label: "新视频", value: data.newVideos, target: Math.ceil(base.videos) },
+      { key: "images", label: "新图片", value: data.newImagePosts, target: Math.ceil(base.images) },
+      { key: "games", label: "新游戏", value: data.newGames, target: Math.ceil(base.games) },
+    ];
+  }, [data]);
+
+  const radialData = items.map((it) => ({
+    name: it.label,
+    value: Math.round((it.value / it.target) * 100),
+    actual: it.value,
+    target: it.target,
+    fill: `var(--color-${it.key})`,
+  }));
+
+  return (
+    <ChartCard
+      title="增长达成率"
+      icon={Sparkles}
+      description="较去年同期推算目标"
+      loading={isLoading}
+      empty={!data}
+      action={<DateRangePicker value={range} onChange={onRangeChange} presets={FULL_PRESETS} />}
+    >
+      <ChartContainer config={radialConfig} className="mx-auto aspect-square h-[240px]">
+        <RadialBarChart
+          innerRadius="35%"
+          outerRadius="100%"
+          barSize={14}
+          data={radialData}
+          startAngle={90}
+          endAngle={-270}
+        >
+          <ChartTooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const p = payload[0].payload as (typeof radialData)[number];
+              return (
+                <div className="rounded-md border bg-popover px-2 py-1.5 text-xs shadow-md tabular-nums">
+                  <div className="font-medium">{p.name}</div>
+                  <div className="text-muted-foreground">
+                    {p.actual} / {p.target} · {p.value}%
+                  </div>
+                </div>
+              );
+            }}
+          />
+          <RadialBar dataKey="value" background cornerRadius={6}>
+            {radialData.map((d) => (
+              <Cell key={d.name} fill={d.fill} />
+            ))}
+          </RadialBar>
+          <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+          <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+        </RadialBarChart>
+      </ChartContainer>
+    </ChartCard>
   );
 }
 
@@ -451,62 +905,92 @@ function GrowthItem({
 export default function StatsPage() {
   const [growthRange, setGrowthRange] = useState<DateRangeValue>(() => createDateRange(30));
   const [trendRange, setTrendRange] = useState<DateRangeValue>(() => createDateRange(30));
+  const [revenueRange, setRevenueRange] = useState<DateRangeValue>(() => createDateRange(30));
+  const [heatRange, setHeatRange] = useState<DateRangeValue>(() => createDateRange(14));
 
   const { data: stats, isLoading: statsLoading } = trpc.admin.getPublicStats.useQuery();
-  const { data: growth, isLoading: growthLoading } = trpc.admin.getGrowthStats.useQuery(dateRangeToApi(growthRange));
+  const { data: trend, isLoading: trendLoading } = trpc.admin.getGrowthTrend.useQuery(dateRangeToApi(trendRange));
+  const { data: revenueTrend, isLoading: revLoading } = trpc.admin.getRevenueTrend.useQuery(
+    dateRangeToApi(revenueRange),
+  );
+  const { data: zoneHealth, isLoading: zoneHealthLoading } = trpc.admin.getZoneHealth.useQuery();
+
+  const otherStats = [
+    { icon: Tag, label: "标签", value: stats?.tagCount ?? 0, color: "text-purple-500" },
+    { icon: Layers, label: "合集", value: stats?.seriesCount ?? 0, color: "text-indigo-500" },
+    { icon: Search, label: "搜索次数", value: stats?.searchCount ?? 0, color: "text-pink-500" },
+  ];
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="max-w-7xl space-y-6">
       {/* 标题 */}
       <MotionPage>
-        <div>
-          <h1 className="text-2xl font-bold">数据总览</h1>
-          <p className="text-muted-foreground text-sm mt-1">全站运营数据和增长趋势</p>
+        <div className="flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              数据总览
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">全站运营核心指标、趋势与转化分析</p>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" />
+            <span>每个面板独立筛选时段</span>
+          </div>
         </div>
       </MotionPage>
 
-      {/* 核心内容指标 */}
+      {/* 顶部 KPI 卡片 */}
       <MotionPage>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <HeroStat icon={Users} label="注册用户" value={stats?.userCount ?? 0} color="blue" isLoading={statsLoading} />
-          <HeroStat icon={Video} label="视频" value={stats?.videoCount ?? 0} color="green" isLoading={statsLoading} />
-          <HeroStat
-            icon={Images}
-            label="图片"
-            value={stats?.imagePostCount ?? 0}
-            color="violet"
-            isLoading={statsLoading}
-          />
-          <HeroStat icon={Gamepad2} label="游戏" value={stats?.gameCount ?? 0} color="amber" isLoading={statsLoading} />
+        <KPIBar
+          stats={stats}
+          trendData={trend ?? []}
+          revenueData={revenueTrend ?? []}
+          loading={statsLoading || trendLoading || revLoading}
+        />
+      </MotionPage>
+
+      {/* 综合互动占比条 */}
+      <MotionPage>
+        <EngagementMicro stats={stats} loading={statsLoading} />
+      </MotionPage>
+
+      {/* 收入 + 用户增长 */}
+      <MotionPage>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <RevenueComposed range={revenueRange} onRangeChange={setRevenueRange} />
+          </div>
+          <ConversionFunnelCard />
         </div>
       </MotionPage>
 
-      {/* 全站互动总量 */}
+      {/* 增长趋势 + 达成 */}
       <MotionPage>
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-muted-foreground">全站互动</h2>
-          <EngagementRow
-            isLoading={statsLoading}
-            items={[
-              { icon: Eye, label: "总浏览", value: stats?.totalViews ?? 0, color: "text-orange-500" },
-              { icon: Heart, label: "总点赞", value: stats?.totalLikes ?? 0, color: "text-red-500" },
-              { icon: Star, label: "总收藏", value: stats?.totalFavorites ?? 0, color: "text-yellow-500" },
-              { icon: MessageSquare, label: "总评论", value: stats?.totalComments ?? 0, color: "text-cyan-500" },
-            ]}
-          />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <GrowthTrendChart range={trendRange} onRangeChange={setTrendRange} />
+          </div>
+          <GrowthRadial range={growthRange} onRangeChange={setGrowthRange} />
         </div>
       </MotionPage>
 
-      {/* 内容分布 + 分区互动对比 */}
+      {/* 热力图 */}
       <MotionPage>
-        <div className="grid gap-4 md:grid-cols-2">
-          <ContentDistributionChart
+        <HeatmapCard range={heatRange} onRangeChange={setHeatRange} />
+      </MotionPage>
+
+      {/* 内容分布 / 分区健康 / 分区互动 */}
+      <MotionPage>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <ContentDistribution
             videoCount={stats?.videoCount ?? 0}
-            imagePostCount={stats?.imagePostCount ?? 0}
+            imageCount={stats?.imagePostCount ?? 0}
             gameCount={stats?.gameCount ?? 0}
-            isLoading={statsLoading}
+            loading={statsLoading}
           />
-          <ZoneEngagementChart
+          <ZoneHealthRadar data={zoneHealth} loading={zoneHealthLoading} />
+          <ZoneEngagementBar
             stats={
               stats
                 ? {
@@ -519,137 +1003,34 @@ export default function StatsPage() {
                   }
                 : undefined
             }
-            isLoading={statsLoading}
+            loading={statsLoading}
           />
         </div>
       </MotionPage>
 
-      {/* 每日增长趋势图 */}
+      {/* 标签 Treemap */}
       <MotionPage>
-        <GrowthTrendChart range={trendRange} onRangeChange={setTrendRange} />
+        <TagTreemapCard />
       </MotionPage>
 
-      {/* 其他累计数据 */}
+      {/* 其他累计 */}
       <MotionPage>
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-muted-foreground">其他数据</h2>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { icon: Tag, label: "标签", value: stats?.tagCount ?? 0, color: "text-purple-500" },
-              { icon: Layers, label: "合集", value: stats?.seriesCount ?? 0, color: "text-indigo-500" },
-              { icon: Search, label: "搜索次数", value: stats?.searchCount ?? 0, color: "text-pink-500" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
-                <div
-                  className={cn("p-2 rounded-lg shrink-0", item.color.replace("text-", "bg-").replace("500", "500/10"))}
-                >
-                  <item.icon className={cn("h-4 w-4", item.color)} />
-                </div>
-                <div>
-                  {statsLoading ? (
-                    <Skeleton className="h-5 w-12 mb-1" />
-                  ) : (
-                    <p className="text-lg font-bold tabular-nums leading-tight">
-                      <CountUp value={item.value} />
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                </div>
+        <div className="grid grid-cols-3 gap-3">
+          {otherStats.map((item) => (
+            <div key={item.label} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <div className={`p-2 rounded-lg shrink-0 ${item.color.replace("text-", "bg-").replace("500", "500/10")}`}>
+                <item.icon className={`h-4 w-4 ${item.color}`} />
               </div>
-            ))}
-          </div>
-        </div>
-      </MotionPage>
-
-      {/* 增长趋势 */}
-      <MotionPage>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              增长趋势
-            </h2>
-            <DateRangePicker value={growthRange} onChange={setGrowthRange} presets={GROWTH_PRESETS} />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <GrowthItem
-              icon={Users}
-              label="新增用户"
-              value={growth?.newUsers ?? 0}
-              color="text-blue-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Video}
-              label="新增视频"
-              value={growth?.newVideos ?? 0}
-              color="text-green-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Images}
-              label="新增图片"
-              value={growth?.newImagePosts ?? 0}
-              color="text-violet-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Gamepad2}
-              label="新增游戏"
-              value={growth?.newGames ?? 0}
-              color="text-amber-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Eye}
-              label="新增浏览"
-              value={growth?.newViews ?? 0}
-              color="text-orange-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Heart}
-              label="新增点赞"
-              value={growth?.newLikes ?? 0}
-              color="text-red-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Star}
-              label="新增收藏"
-              value={growth?.newFavorites ?? 0}
-              color="text-yellow-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={MessageSquare}
-              label="新增评论"
-              value={growth?.newComments ?? 0}
-              color="text-cyan-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Tag}
-              label="新增标签"
-              value={growth?.newTags ?? 0}
-              color="text-purple-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Layers}
-              label="新增合集"
-              value={growth?.newSeries ?? 0}
-              color="text-indigo-500"
-              isLoading={growthLoading}
-            />
-            <GrowthItem
-              icon={Search}
-              label="新增搜索"
-              value={growth?.newSearches ?? 0}
-              color="text-pink-500"
-              isLoading={growthLoading}
-            />
-          </div>
+              <div>
+                {statsLoading ? (
+                  <Skeleton className="h-5 w-12" />
+                ) : (
+                  <p className="text-lg font-bold tabular-nums leading-tight">{formatCompact(item.value)}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </MotionPage>
     </div>

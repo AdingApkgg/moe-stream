@@ -417,4 +417,134 @@ export const paymentRouter = router({
     await ctx.prisma.paymentPackage.delete({ where: { id: input.id } });
     return { deleted: true };
   }),
+
+  // ========== 管理端图表数据 ==========
+
+  // 每日收入趋势（金额 + 笔数双轴）
+  adminGetRevenueTrend: adminProcedure
+    .input(z.object({ days: z.number().min(7).max(180).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - input.days + 1);
+
+      const orders = await ctx.prisma.paymentOrder.findMany({
+        where: { status: "PAID", paidAt: { gte: start } },
+        select: { paidAt: true, amount: true },
+      });
+
+      const toKey = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const trend: Record<string, { revenue: number; orders: number }> = {};
+      for (let i = 0; i < input.days; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        trend[toKey(d)] = { revenue: 0, orders: 0 };
+      }
+      for (const o of orders) {
+        if (!o.paidAt) continue;
+        const k = toKey(new Date(o.paidAt));
+        if (trend[k]) {
+          trend[k].revenue += o.amount;
+          trend[k].orders += 1;
+        }
+      }
+      return Object.entries(trend)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, d]) => ({ date, revenue: Math.round(d.revenue * 100) / 100, orders: d.orders }));
+    }),
+
+  // 套餐销售分布（订单数 + 收入）
+  adminGetPackageDistribution: adminProcedure.query(async ({ ctx }) => {
+    const packages = await ctx.prisma.paymentPackage.findMany({
+      select: {
+        id: true,
+        name: true,
+        amount: true,
+        orders: {
+          where: { status: "PAID" },
+          select: { amount: true },
+        },
+      },
+    });
+
+    const rows = packages
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        unitPrice: p.amount,
+        orders: p.orders.length,
+        revenue: Math.round(p.orders.reduce((s, o) => s + o.amount, 0) * 100) / 100,
+      }))
+      .filter((r) => r.orders > 0)
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // 自定义套餐（无 packageId 的 PAID 订单）
+    const custom = await ctx.prisma.paymentOrder.aggregate({
+      where: { status: "PAID", packageId: null },
+      _count: true,
+      _sum: { amount: true },
+    });
+    if (custom._count > 0) {
+      rows.push({
+        id: "__custom__",
+        name: "自定义金额",
+        unitPrice: 0,
+        orders: custom._count,
+        revenue: Math.round((custom._sum.amount || 0) * 100) / 100,
+      });
+    }
+
+    return rows;
+  }),
+
+  // 订单状态分布（饼图）
+  adminGetStatusBreakdown: adminProcedure.query(async ({ ctx }) => {
+    const groups = await ctx.prisma.paymentOrder.groupBy({
+      by: ["status"],
+      _count: true,
+      _sum: { amount: true },
+    });
+    return groups.map((g) => ({
+      status: g.status,
+      count: g._count,
+      amount: Math.round((g._sum.amount || 0) * 100) / 100,
+    }));
+  }),
+
+  // 24 小时下单/付款热力（按本地小时聚合最近 N 天）
+  adminGetHourlyPattern: adminProcedure
+    .input(z.object({ days: z.number().min(7).max(180).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - input.days + 1);
+
+      const orders = await ctx.prisma.paymentOrder.findMany({
+        where: { createdAt: { gte: start } },
+        select: { createdAt: true, paidAt: true, amount: true, status: true },
+      });
+
+      const hours = Array.from({ length: 24 }, (_, h) => ({
+        hour: h,
+        orders: 0,
+        paid: 0,
+        revenue: 0,
+      }));
+
+      for (const o of orders) {
+        const h = new Date(o.createdAt).getHours();
+        hours[h].orders += 1;
+        if (o.status === "PAID") {
+          hours[h].paid += 1;
+          hours[h].revenue += o.amount;
+        }
+      }
+
+      return hours.map((h) => ({
+        ...h,
+        revenue: Math.round(h.revenue * 100) / 100,
+        rate: h.orders > 0 ? Math.round((h.paid / h.orders) * 10000) / 100 : 0,
+      }));
+    }),
 });

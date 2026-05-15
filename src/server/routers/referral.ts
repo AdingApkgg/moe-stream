@@ -958,4 +958,98 @@ export const referralRouter = router({
 
       return { success: true, newBalance };
     }),
+
+  // ========== 管理端图表数据 ==========
+
+  // 渠道贡献堆叠（按渠道汇总点击/注册/付费）
+  adminGetChannelBreakdown: adminProcedure
+    .input(z.object({ days: z.number().min(7).max(180).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const start = getDateOnly();
+      start.setDate(start.getDate() - input.days + 1);
+
+      const links = await ctx.prisma.referralLink.findMany({
+        select: {
+          id: true,
+          channel: true,
+          dailyStats: {
+            where: { date: { gte: start } },
+            select: { clicks: true, uniqueClicks: true, registers: true, paymentCount: true, paymentAmount: true },
+          },
+        },
+      });
+
+      type Row = {
+        channel: string;
+        clicks: number;
+        uniqueClicks: number;
+        registers: number;
+        paymentCount: number;
+        paymentAmount: number;
+      };
+      const map = new Map<string, Row>();
+      for (const link of links) {
+        const ch = link.channel || "other";
+        const cur = map.get(ch) || {
+          channel: ch,
+          clicks: 0,
+          uniqueClicks: 0,
+          registers: 0,
+          paymentCount: 0,
+          paymentAmount: 0,
+        };
+        for (const s of link.dailyStats) {
+          cur.clicks += s.clicks;
+          cur.uniqueClicks += s.uniqueClicks;
+          cur.registers += s.registers;
+          cur.paymentCount += s.paymentCount;
+          cur.paymentAmount += s.paymentAmount;
+        }
+        map.set(ch, cur);
+      }
+
+      return Array.from(map.values())
+        .filter((r) => r.clicks > 0 || r.registers > 0 || r.paymentCount > 0)
+        .map((r) => ({ ...r, paymentAmount: Math.round(r.paymentAmount * 100) / 100 }))
+        .sort((a, b) => b.uniqueClicks - a.uniqueClicks);
+    }),
+
+  // 推广转化漏斗（点击 → 独立访客 → 注册 → 付费）
+  adminGetFunnel: adminProcedure
+    .input(z.object({ days: z.number().min(7).max(180).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const start = getDateOnly();
+      start.setDate(start.getDate() - input.days + 1);
+
+      const agg = await ctx.prisma.referralDailyStat.aggregate({
+        where: { date: { gte: start } },
+        _sum: {
+          clicks: true,
+          uniqueClicks: true,
+          registers: true,
+          paymentCount: true,
+          paymentAmount: true,
+        },
+      });
+
+      const clicks = agg._sum.clicks || 0;
+      const uniqueClicks = agg._sum.uniqueClicks || 0;
+      const registers = agg._sum.registers || 0;
+      const paymentCount = agg._sum.paymentCount || 0;
+
+      return {
+        funnel: [
+          { stage: "总点击", value: clicks, fill: "var(--color-stage-1)" },
+          { stage: "独立访客", value: uniqueClicks, fill: "var(--color-stage-2)" },
+          { stage: "注册转化", value: registers, fill: "var(--color-stage-3)" },
+          { stage: "付费转化", value: paymentCount, fill: "var(--color-stage-4)" },
+        ],
+        rates: {
+          uniqueRate: clicks > 0 ? Math.round((uniqueClicks / clicks) * 10000) / 100 : 0,
+          registerRate: uniqueClicks > 0 ? Math.round((registers / uniqueClicks) * 10000) / 100 : 0,
+          paymentRate: registers > 0 ? Math.round((paymentCount / registers) * 10000) / 100 : 0,
+        },
+        paymentAmount: Math.round((agg._sum.paymentAmount || 0) * 100) / 100,
+      };
+    }),
 });

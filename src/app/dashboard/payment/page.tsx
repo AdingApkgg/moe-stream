@@ -41,7 +41,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
 } from "lucide-react";
+import { PaymentInsights } from "./_components/payment-insights";
 
 // ========== Schemas ==========
 
@@ -621,8 +623,12 @@ export default function PaymentAdminPage() {
 
       <StatsCards />
 
-      <Tabs defaultValue="orders">
+      <Tabs defaultValue="insights">
         <TabsList>
+          <TabsTrigger value="insights" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">数据洞察</span>
+          </TabsTrigger>
           <TabsTrigger value="orders" className="gap-1.5">
             <ListOrdered className="h-4 w-4" />
             <span className="hidden sm:inline">订单管理</span>
@@ -632,6 +638,10 @@ export default function PaymentAdminPage() {
             <span className="hidden sm:inline">充值套餐</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="insights">
+          <PaymentInsights />
+        </TabsContent>
 
         <TabsContent value="orders">
           <Card>

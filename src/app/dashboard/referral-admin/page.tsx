@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link2, Search, X, MousePointerClick, Users, StickyNote, ExternalLink, Copy } from "lucide-react";
 import { toast } from "@/lib/toast-with-sound";
+import { ReferralInsights } from "./_components/referral-insights";
 
 const CHANNEL_OPTIONS = [
   { value: "", label: "无渠道" },
@@ -87,6 +88,8 @@ export default function ReferralAdminPage() {
         </h1>
         <p className="text-muted-foreground mt-1">查看所有用户的推广链接及数据</p>
       </div>
+
+      <ReferralInsights />
 
       <Card>
         <CardHeader>
