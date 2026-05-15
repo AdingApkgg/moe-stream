@@ -28,7 +28,7 @@ model User {
   role          Role      @default(USER)
   groupId       String?
   group         UserGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  canUpload     Boolean   @default(false)  // 是否可以投稿（ADMIN/OWNER 默认可以）
+  canUpload     Boolean   @default(true)   // 是否可以投稿（默认开启，发布后进入待审；管理员可在后台关闭）
   adminScopes   Json?     // 管理员权限范围 ["video:moderate", "user:manage", ...]
   isBanned      Boolean   @default(false)  // 是否被封禁
   banReason     String?   // 封禁原因
