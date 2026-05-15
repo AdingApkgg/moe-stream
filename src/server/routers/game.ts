@@ -4,6 +4,7 @@ import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { memGetOrSet } from "@/lib/memory-cache";
 import { redisSetNX } from "@/lib/redis";
+import { checkViewDedup } from "@/lib/view-dedup";
 import { submitGameToIndexNow, submitGamesToIndexNow } from "@/lib/indexnow";
 import { awardPoints } from "@/lib/points";
 import {
@@ -1076,13 +1077,16 @@ export const gameRouter = router({
 
   /** 增加浏览量 */
   incrementViews: publicProcedure
-    .input(z.object({ id: z.string(), visitorId: z.string().optional() }))
+    .input(z.object({ id: z.string(), visitorId: z.string().min(8) }))
     .mutation(async ({ ctx, input }) => {
-      if (input.visitorId) {
-        const dedupKey = `view:game:${input.id}:${input.visitorId}`;
-        const isNew = await redisSetNX(dedupKey, "1", 3600);
-        if (!isNew) return { success: true, deduplicated: true };
-      }
+      const dedup = await checkViewDedup({
+        type: "game",
+        contentId: input.id,
+        visitorId: input.visitorId,
+        ipv4: ctx.ipv4Address,
+        ipv6: ctx.ipv6Address,
+      });
+      if (!dedup.allow) return { success: true, deduplicated: true, reason: dedup.reason };
       await ctx.prisma.game.update({
         where: { id: input.id },
         data: { views: { increment: 1 } },

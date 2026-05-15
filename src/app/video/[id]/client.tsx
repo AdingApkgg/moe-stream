@@ -411,8 +411,10 @@ export function VideoPageClient({ id: initialId, initialVideo }: VideoPageClient
 
   useEffect(() => {
     getVisitorId()
-      .then((vid) => incrementViews.mutate({ id: currentVideoId, visitorId: vid }))
-      .catch(() => incrementViews.mutate({ id: currentVideoId }));
+      .then((vid) => {
+        if (vid) incrementViews.mutate({ id: currentVideoId, visitorId: vid });
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentVideoId]);
 

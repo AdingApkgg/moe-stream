@@ -4,6 +4,7 @@ import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { awardPoints } from "@/lib/points";
 import { resolveRole } from "@/lib/group-permissions";
+import { checkViewDedup } from "@/lib/view-dedup";
 import {
   generateContentId,
   resolveAllTagIds,
@@ -664,14 +665,16 @@ export const imageRouter = router({
   }),
 
   incrementViews: publicProcedure
-    .input(z.object({ id: z.string(), visitorId: z.string().optional() }))
+    .input(z.object({ id: z.string(), visitorId: z.string().min(8) }))
     .mutation(async ({ ctx, input }) => {
-      if (input.visitorId) {
-        const { redisSetNX } = await import("@/lib/redis");
-        const dedupKey = `view:image:${input.id}:${input.visitorId}`;
-        const already = await redisSetNX(dedupKey, "1", 3600);
-        if (!already) return { success: true, deduplicated: true };
-      }
+      const dedup = await checkViewDedup({
+        type: "image",
+        contentId: input.id,
+        visitorId: input.visitorId,
+        ipv4: ctx.ipv4Address,
+        ipv6: ctx.ipv6Address,
+      });
+      if (!dedup.allow) return { success: true, deduplicated: true, reason: dedup.reason };
       await ctx.prisma.imagePost.update({
         where: { id: input.id },
         data: { views: { increment: 1 } },

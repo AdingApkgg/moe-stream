@@ -72,8 +72,10 @@ export function ImageDetailClient({ post }: ImageDetailClientProps) {
   });
   useEffect(() => {
     getVisitorId()
-      .then((vid) => incrementViews.mutate({ id: post.id, visitorId: vid }))
-      .catch(() => incrementViews.mutate({ id: post.id }));
+      .then((vid) => {
+        if (vid) incrementViews.mutate({ id: post.id, visitorId: vid });
+      })
+      .catch(() => {});
     recordView.mutate({ imagePostId: post.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);

@@ -192,8 +192,10 @@ export function GamePageClient({
   });
   useEffect(() => {
     getVisitorId()
-      .then((vid) => incrementViews.mutate({ id, visitorId: vid }))
-      .catch(() => incrementViews.mutate({ id }));
+      .then((vid) => {
+        if (vid) incrementViews.mutate({ id, visitorId: vid });
+      })
+      .catch(() => {});
     recordView.mutate({ gameId: id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
