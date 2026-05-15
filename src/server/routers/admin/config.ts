@@ -197,6 +197,19 @@ const ALLOWED_CONFIG_KEYS = new Set([
   "redirectTitle",
   "redirectDescription",
   "redirectDisclaimer",
+  "appDownloadPopupEnabled",
+  "appDownloadPopupTitle",
+  "appDownloadPopupDescription",
+  "appDownloadPopupImage",
+  "appDownloadPopupButtonText",
+  "appDownloadPopupPlatforms",
+  "appDownloadPopupUrlIos",
+  "appDownloadPopupUrlAndroid",
+  "appDownloadPopupUrlWindows",
+  "appDownloadPopupUrlMacos",
+  "appDownloadPopupUrlFallback",
+  "appDownloadPopupCooldownHours",
+  "appDownloadPopupDelayMs",
 ]);
 
 const NON_NULLABLE_KEYS = new Set([
@@ -384,7 +397,8 @@ export const adminConfigRouter = router({
               id: z.string().max(50).optional(),
               title: z.string().min(1).max(200),
               platform: z.string().max(100).optional().default(""),
-              url: z.string().url(),
+              // url 对图片广告必填，对 html 广告可空，故放宽校验
+              url: z.string().max(2000).optional().default(""),
               description: z.string().max(500).optional().default(""),
               imageUrl: z.string().max(2000).optional().default(""),
               images: z
@@ -398,19 +412,88 @@ export const adminConfigRouter = router({
               weight: z.number().int().min(1).max(100).optional().default(1),
               enabled: z.boolean().optional().default(true),
               positions: z
-                .array(z.enum(["all", "sidebar", "header", "header-carousel", "in-feed", "ad-gate"]))
+                .array(
+                  z.enum([
+                    "all",
+                    "sidebar",
+                    "header",
+                    "header-carousel",
+                    "in-feed",
+                    "ad-gate",
+                    "video-detail",
+                    "comment",
+                    "profile",
+                    "search",
+                    "category",
+                    "floating",
+                    "popup",
+                  ]),
+                )
                 .optional()
                 .default(["all"]),
               /** @deprecated 兼容旧数据，读取时由客户端 normalizePositions 处理 */
               position: z
-                .enum(["all", "sidebar", "header", "header-carousel", "in-feed", "ad-gate", "video-page"])
+                .enum([
+                  "all",
+                  "sidebar",
+                  "header",
+                  "header-carousel",
+                  "in-feed",
+                  "ad-gate",
+                  "video-page",
+                  "video-detail",
+                  "comment",
+                  "profile",
+                  "search",
+                  "category",
+                  "floating",
+                  "popup",
+                ])
                 .optional(),
               startDate: z.string().nullable().optional(),
               endDate: z.string().nullable().optional(),
               createdAt: z.string().optional(),
+              // 扩展字段
+              kind: z.enum(["image", "html"]).optional().default("image"),
+              html: z.string().max(20000).optional().nullable(),
+              notes: z.string().max(1000).optional().nullable(),
+              targeting: z
+                .object({
+                  devices: z
+                    .array(z.enum(["desktop", "mobile", "tablet", "tauri"]))
+                    .max(4)
+                    .optional(),
+                  loginStates: z
+                    .array(z.enum(["guest", "user"]))
+                    .max(2)
+                    .optional(),
+                  categories: z.array(z.string().max(64)).max(20).optional(),
+                  locales: z.array(z.string().max(20)).max(20).optional(),
+                })
+                .optional()
+                .nullable(),
+              schedule: z
+                .object({
+                  daysOfWeek: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+                  hourRanges: z
+                    .array(z.tuple([z.number().min(0).max(24), z.number().min(0).max(24)]))
+                    .max(8)
+                    .optional(),
+                })
+                .optional()
+                .nullable(),
+              caps: z
+                .object({
+                  dailyImpressions: z.number().int().min(0).nullable().optional(),
+                  dailyClicks: z.number().int().min(0).nullable().optional(),
+                  totalImpressions: z.number().int().min(0).nullable().optional(),
+                  totalClicks: z.number().int().min(0).nullable().optional(),
+                })
+                .optional()
+                .nullable(),
             }),
           )
-          .max(50)
+          .max(200)
           .optional()
           .nullable(),
 
@@ -602,6 +685,21 @@ export const adminConfigRouter = router({
         redirectTitle: z.string().max(100).optional().nullable().or(z.literal("")),
         redirectDescription: z.string().max(500).optional().nullable().or(z.literal("")),
         redirectDisclaimer: z.string().max(500).optional().nullable().or(z.literal("")),
+
+        // APP 下载推荐弹窗
+        appDownloadPopupEnabled: z.boolean().optional(),
+        appDownloadPopupTitle: z.string().max(100).optional().nullable().or(z.literal("")),
+        appDownloadPopupDescription: z.string().max(2000).optional().nullable(),
+        appDownloadPopupImage: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupButtonText: z.string().max(50).optional().nullable().or(z.literal("")),
+        appDownloadPopupPlatforms: z.string().max(100).optional().nullable().or(z.literal("")),
+        appDownloadPopupUrlIos: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupUrlAndroid: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupUrlWindows: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupUrlMacos: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupUrlFallback: z.string().url().optional().nullable().or(z.literal("")),
+        appDownloadPopupCooldownHours: z.number().int().min(0).max(8760).optional(),
+        appDownloadPopupDelayMs: z.number().int().min(0).max(60000).optional(),
 
         // 统计分析
         analyticsGoogleId: z.string().max(200).optional().nullable().or(z.literal("")),

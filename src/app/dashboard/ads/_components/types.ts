@@ -25,4 +25,10 @@ export const emptyForm: AdFormData = {
   positions: ["all"],
   startDate: null,
   endDate: null,
+  kind: "image",
+  html: "",
+  notes: "",
+  targeting: { devices: [], loginStates: [], categories: [], locales: [] },
+  schedule: { daysOfWeek: [], hourRanges: [] },
+  caps: { dailyImpressions: null, dailyClicks: null, totalImpressions: null, totalClicks: null },
 };

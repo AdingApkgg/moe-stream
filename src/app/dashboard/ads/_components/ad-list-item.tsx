@@ -27,9 +27,14 @@ import {
   Copy,
   Trash2,
   TrendingUp,
+  Code2,
+  Smartphone,
+  Clock,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAdStatus, formatDate, STATUS_TONE_CLASS } from "./utils";
+import { AD_DEVICES, AD_LOGIN_STATES } from "@/lib/ads";
 
 /** 广告指标（可选，由父级传入） */
 export interface AdItemMetric {
@@ -67,11 +72,43 @@ export function AdListItem({
   const status = getAdStatus(ad);
   const StatusIcon = status.icon;
   const posLabel = getPositionsLabel(ad.positions);
+  const isHtml = ad.kind === "html";
 
   const ctr = useMemo(() => {
     if (!metric || metric.impressions === 0) return null;
     return (metric.clicks / metric.impressions) * 100;
   }, [metric]);
+
+  const targetingSummary = useMemo(() => {
+    const t = ad.targeting;
+    if (!t) return null;
+    const parts: string[] = [];
+    if (t.devices?.length) {
+      const labels = t.devices.map((d) => AD_DEVICES.find((x) => x.value === d)?.label ?? d);
+      parts.push(labels.join("/"));
+    }
+    if (t.loginStates?.length) {
+      const labels = t.loginStates.map((s) => AD_LOGIN_STATES.find((x) => x.value === s)?.label ?? s);
+      parts.push(labels.join("/"));
+    }
+    if (t.categories?.length) parts.push(`分类:${t.categories.join(",")}`);
+    if (t.locales?.length) parts.push(`语言:${t.locales.join(",")}`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [ad.targeting]);
+
+  const scheduleSummary = useMemo(() => {
+    const s = ad.schedule;
+    if (!s) return null;
+    const parts: string[] = [];
+    if (s.daysOfWeek?.length) {
+      const map = ["日", "一", "二", "三", "四", "五", "六"];
+      parts.push(`周${s.daysOfWeek.map((d) => map[d]).join("")}`);
+    }
+    if (s.hourRanges?.length) {
+      parts.push(s.hourRanges.map(([a, b]) => `${a}-${b}时`).join(","));
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [ad.schedule]);
 
   return (
     <Card
@@ -89,7 +126,9 @@ export function AdListItem({
 
           {/* 图片缩略图 */}
           <div className="hidden sm:flex shrink-0 w-24 h-16 rounded-md overflow-hidden bg-muted items-center justify-center">
-            {ad.imageUrl ? (
+            {isHtml ? (
+              <Code2 className="h-6 w-6 text-muted-foreground/60" />
+            ) : ad.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
             ) : (
@@ -105,6 +144,15 @@ export function AdListItem({
                 <StatusIcon className="h-3 w-3" />
                 {status.label}
               </Badge>
+              {isHtml && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 text-[11px] border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-400"
+                >
+                  <Code2 className="h-3 w-3" />
+                  代码
+                </Badge>
+              )}
               {ad.platform && (
                 <Badge
                   variant="outline"
@@ -116,10 +164,12 @@ export function AdListItem({
               )}
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-1 truncate max-w-[200px]">
-                <ExternalLink className="h-3 w-3 shrink-0" />
-                {ad.url}
-              </span>
+              {ad.url && (
+                <span className="flex items-center gap-1 truncate max-w-[200px]">
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  {ad.url}
+                </span>
+              )}
               <span className="flex items-center gap-1">
                 <MonitorPlay className="h-3 w-3" />
                 {posLabel}
@@ -132,6 +182,26 @@ export function AdListItem({
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
                   {formatDate(ad.startDate)} ~ {formatDate(ad.endDate)}
+                </span>
+              )}
+              {scheduleSummary && (
+                <span className="flex items-center gap-1" title="精细排期">
+                  <Clock className="h-3 w-3" />
+                  {scheduleSummary}
+                </span>
+              )}
+              {targetingSummary && (
+                <span className="flex items-center gap-1" title="定向投放">
+                  <Target className="h-3 w-3" />
+                  {targetingSummary}
+                </span>
+              )}
+              {ad.caps && (ad.caps.dailyImpressions || ad.caps.dailyClicks) && (
+                <span className="flex items-center gap-1" title="每日上限">
+                  <Smartphone className="h-3 w-3" />
+                  {ad.caps.dailyImpressions ? `展示≤${ad.caps.dailyImpressions}` : ""}
+                  {ad.caps.dailyImpressions && ad.caps.dailyClicks ? " / " : ""}
+                  {ad.caps.dailyClicks ? `点击≤${ad.caps.dailyClicks}` : ""}
                 </span>
               )}
               {metric && (

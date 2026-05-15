@@ -2,6 +2,7 @@
 
 import type { Ad } from "@/lib/ads";
 import { AdCard } from "@/components/ads/ad-card";
+import { AdHtml } from "@/components/ads/ad-html";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AdPreviewDialogProps {
@@ -10,6 +11,7 @@ interface AdPreviewDialogProps {
 }
 
 export function AdPreviewDialog({ ad, onClose }: AdPreviewDialogProps) {
+  const isHtml = ad?.kind === "html";
   return (
     <Dialog open={!!ad} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -19,14 +21,29 @@ export function AdPreviewDialog({ ad, onClose }: AdPreviewDialogProps) {
         </DialogHeader>
         {ad && (
           <div className="space-y-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">卡片样式（信息流）</p>
-              <AdCard ad={ad} slotId="in-feed" />
-            </div>
-            <div className="border-t pt-4">
-              <p className="text-xs text-muted-foreground mb-2">紧凑样式（侧栏）</p>
-              <AdCard ad={ad} compact slotId="sidebar" />
-            </div>
+            {isHtml ? (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">代码注入预览</p>
+                {ad.html ? (
+                  <div className="rounded-lg border bg-card p-3">
+                    <AdHtml html={ad.html} adId={ad.id} />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-6">该广告未配置 HTML 代码</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">卡片样式（信息流）</p>
+                  <AdCard ad={ad} slotId="in-feed" />
+                </div>
+                <div className="border-t pt-4">
+                  <p className="text-xs text-muted-foreground mb-2">紧凑样式（侧栏）</p>
+                  <AdCard ad={ad} compact slotId="sidebar" />
+                </div>
+              </>
+            )}
           </div>
         )}
       </DialogContent>

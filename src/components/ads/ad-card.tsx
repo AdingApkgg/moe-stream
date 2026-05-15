@@ -7,6 +7,7 @@ import { getAdImage } from "@/lib/ads";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useAdTracking, useAdImpression } from "@/hooks/use-ad-tracking";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { AdHtml } from "./ad-html";
 
 interface AdCardProps {
   ad: Ad;
@@ -20,6 +21,7 @@ interface AdCardProps {
 /**
  * 单条广告卡片：展示图片、平台名、描述，点击跳转。
  * 进入视口超过 500ms 上报展示，点击时上报点击。
+ * kind=html 时分支到 AdHtml 注入自定义代码片段。
  */
 export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
   const redirectOpts = useRedirectOptions();
@@ -28,6 +30,10 @@ export function AdCard({ ad, compact, slotId, className }: AdCardProps) {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const { trackEvent } = useAdTracking();
   useAdImpression(ref, ad.id);
+
+  if (ad.kind === "html" && ad.html) {
+    return <AdHtml html={ad.html} adId={ad.id} className={className} />;
+  }
 
   return (
     <a

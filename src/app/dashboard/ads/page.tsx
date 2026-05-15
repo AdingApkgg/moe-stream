@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import type { Ad, AdPosition } from "@/lib/ads";
 import { parseSponsorAds, isAdInSchedule } from "@/lib/ads";
@@ -21,7 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/lib/toast-with-sound";
-import { Megaphone, Plus, ShieldAlert, X } from "lucide-react";
+import { BarChart3, Download, Megaphone, Plus, ShieldAlert, Upload, X } from "lucide-react";
 import { StatsCards } from "./_components/stats-cards";
 import { AdFilters } from "./_components/ad-filters";
 import { AdBatchToolbar } from "./_components/ad-batch-toolbar";
@@ -29,6 +29,7 @@ import { AdListItem } from "./_components/ad-list-item";
 import { AdFormDialog } from "./_components/ad-form-dialog";
 import { AdPreviewDialog } from "./_components/ad-preview-dialog";
 import { AdGateSettings } from "./_components/ad-gate-settings";
+import { AdsInsights } from "./_components/ads-insights";
 import { emptyForm, type AdFormData, type SortField, type SortDir } from "./_components/types";
 import { genId, getAdStatusOrder } from "./_components/utils";
 
@@ -40,6 +41,7 @@ export default function AdsManagementPage() {
   const [filterPosition, setFilterPosition] = useState<string>("all-filter");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPlatform, setFilterPlatform] = useState<string>("all");
+  const [filterKind, setFilterKind] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [previewAd, setPreviewAd] = useState<Ad | null>(null);
   const [saving, setSaving] = useState(false);
@@ -75,6 +77,19 @@ export default function AdsManagementPage() {
     return Array.from(set).sort();
   }, [allAds]);
 
+  const knownCategories = useMemo(() => {
+    const set = new Set<string>();
+    allAds.forEach((a) => {
+      a.targeting?.categories?.forEach((c) => set.add(c));
+    });
+    return Array.from(set).sort();
+  }, [allAds]);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importMode, setImportMode] = useState<"replace" | "merge">("merge");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<Ad[] | null>(null);
+
   const filteredAds = useMemo(() => {
     let result = allAds;
     if (filterPosition !== "all-filter") {
@@ -84,6 +99,9 @@ export default function AdsManagementPage() {
     }
     if (filterPlatform !== "all") {
       result = result.filter((ad) => ad.platform === filterPlatform);
+    }
+    if (filterKind !== "all") {
+      result = result.filter((ad) => (ad.kind ?? "image") === filterKind);
     }
     if (filterStatus === "active") {
       result = result.filter((ad) => ad.enabled && isAdInSchedule(ad));
@@ -126,7 +144,7 @@ export default function AdsManagementPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [allAds, filterPosition, filterPlatform, filterStatus, searchQuery, sortField, sortDir]);
+  }, [allAds, filterPosition, filterPlatform, filterKind, filterStatus, searchQuery, sortField, sortDir]);
 
   const stats = useMemo(() => {
     const total = allAds.length;
@@ -141,14 +159,16 @@ export default function AdsManagementPage() {
     if (filterPosition !== "all-filter") c++;
     if (filterStatus !== "all") c++;
     if (filterPlatform !== "all") c++;
+    if (filterKind !== "all") c++;
     if (searchQuery.trim()) c++;
     return c;
-  }, [filterPosition, filterStatus, filterPlatform, searchQuery]);
+  }, [filterPosition, filterStatus, filterPlatform, filterKind, searchQuery]);
 
   const clearAllFilters = useCallback(() => {
     setFilterPosition("all-filter");
     setFilterStatus("all");
     setFilterPlatform("all");
+    setFilterKind("all");
     setSearchQuery("");
   }, []);
 
@@ -191,28 +211,62 @@ export default function AdsManagementPage() {
       setSaving(true);
       try {
         await updateConfig.mutateAsync({
-          sponsorAds: newAds.map((a) => ({
-            id: a.id,
-            title: a.title,
-            platform: a.platform || "",
-            url: a.url,
-            description: a.description || "",
-            imageUrl: a.imageUrl || "",
-            images:
-              a.images && Object.values(a.images).some((v) => v)
-                ? {
-                    banner: a.images.banner || "",
-                    card: a.images.card || "",
-                    sidebar: a.images.sidebar || "",
-                  }
-                : null,
-            weight: a.weight,
-            enabled: a.enabled,
-            positions: a.positions.length > 0 ? a.positions : ["all"],
-            startDate: a.startDate || null,
-            endDate: a.endDate || null,
-            createdAt: a.createdAt,
-          })),
+          sponsorAds: newAds.map((a) => {
+            const targeting = a.targeting
+              ? {
+                  ...(a.targeting.devices && a.targeting.devices.length > 0 && { devices: a.targeting.devices }),
+                  ...(a.targeting.loginStates &&
+                    a.targeting.loginStates.length > 0 && { loginStates: a.targeting.loginStates }),
+                  ...(a.targeting.categories &&
+                    a.targeting.categories.length > 0 && { categories: a.targeting.categories }),
+                  ...(a.targeting.locales && a.targeting.locales.length > 0 && { locales: a.targeting.locales }),
+                }
+              : undefined;
+            const schedule = a.schedule
+              ? {
+                  ...(a.schedule.daysOfWeek &&
+                    a.schedule.daysOfWeek.length > 0 && { daysOfWeek: a.schedule.daysOfWeek }),
+                  ...(a.schedule.hourRanges &&
+                    a.schedule.hourRanges.length > 0 && { hourRanges: a.schedule.hourRanges }),
+                }
+              : undefined;
+            const caps = a.caps
+              ? {
+                  ...(a.caps.dailyImpressions != null && { dailyImpressions: a.caps.dailyImpressions }),
+                  ...(a.caps.dailyClicks != null && { dailyClicks: a.caps.dailyClicks }),
+                  ...(a.caps.totalImpressions != null && { totalImpressions: a.caps.totalImpressions }),
+                  ...(a.caps.totalClicks != null && { totalClicks: a.caps.totalClicks }),
+                }
+              : undefined;
+            return {
+              id: a.id,
+              title: a.title,
+              platform: a.platform || "",
+              url: a.url || "",
+              description: a.description || "",
+              imageUrl: a.imageUrl || "",
+              images:
+                a.images && Object.values(a.images).some((v) => v)
+                  ? {
+                      banner: a.images.banner || "",
+                      card: a.images.card || "",
+                      sidebar: a.images.sidebar || "",
+                    }
+                  : null,
+              weight: a.weight,
+              enabled: a.enabled,
+              positions: a.positions.length > 0 ? a.positions : ["all"],
+              startDate: a.startDate || null,
+              endDate: a.endDate || null,
+              createdAt: a.createdAt,
+              kind: a.kind ?? "image",
+              html: a.html || null,
+              notes: a.notes || null,
+              targeting: targeting && Object.keys(targeting).length > 0 ? targeting : null,
+              schedule: schedule && Object.keys(schedule).length > 0 ? schedule : null,
+              caps: caps && Object.keys(caps).length > 0 ? caps : null,
+            };
+          }),
         });
       } finally {
         setSaving(false);
@@ -220,6 +274,78 @@ export default function AdsManagementPage() {
     },
     [updateConfig],
   );
+
+  const handleExport = useCallback(() => {
+    const payload = {
+      _format: "moestream-ads",
+      _version: 1,
+      _exportedAt: new Date().toISOString(),
+      ads: allAds,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ads-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${allAds.length} 条广告`);
+  }, [allAds]);
+
+  const handlePickImport = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFilePicked = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const rawAds = Array.isArray(json) ? json : Array.isArray(json?.ads) ? json.ads : null;
+      if (!rawAds) {
+        toast.error("文件格式不正确：需要数组或 { ads: [...] }");
+        return;
+      }
+      const parsed = parseSponsorAds(rawAds);
+      if (parsed.length === 0) {
+        toast.error("导入文件中没有有效的广告数据");
+        return;
+      }
+      setPendingImport(parsed);
+      setImportDialogOpen(true);
+    } catch {
+      toast.error("无法解析 JSON 文件");
+    }
+  }, []);
+
+  const handleConfirmImport = useCallback(async () => {
+    if (!pendingImport) return;
+    const importedWithIds = pendingImport.map((a) => ({
+      ...a,
+      id: a.id && !a.id.startsWith("legacy-") ? a.id : genId(),
+      createdAt: a.createdAt || new Date().toISOString(),
+    }));
+    const merged =
+      importMode === "replace"
+        ? importedWithIds
+        : [...allAds, ...importedWithIds.filter((imp) => !allAds.some((a) => a.id === imp.id))];
+    try {
+      await saveAds(merged);
+      toast.success(
+        importMode === "replace"
+          ? `已替换为 ${importedWithIds.length} 条广告`
+          : `已合并导入 ${importedWithIds.length} 条广告`,
+      );
+      setImportDialogOpen(false);
+      setPendingImport(null);
+    } catch {
+      toast.error("导入失败，请重试");
+    }
+  }, [pendingImport, importMode, allAds, saveAds]);
 
   const handleBatchToggle = useCallback(
     async (enabled: boolean) => {
@@ -266,6 +392,25 @@ export default function AdsManagementPage() {
       positions: ad.positions,
       startDate: ad.startDate || null,
       endDate: ad.endDate || null,
+      kind: ad.kind ?? "image",
+      html: ad.html || "",
+      notes: ad.notes || "",
+      targeting: {
+        devices: ad.targeting?.devices ?? [],
+        loginStates: ad.targeting?.loginStates ?? [],
+        categories: ad.targeting?.categories ?? [],
+        locales: ad.targeting?.locales ?? [],
+      },
+      schedule: {
+        daysOfWeek: ad.schedule?.daysOfWeek ?? [],
+        hourRanges: ad.schedule?.hourRanges ?? [],
+      },
+      caps: {
+        dailyImpressions: ad.caps?.dailyImpressions ?? null,
+        dailyClicks: ad.caps?.dailyClicks ?? null,
+        totalImpressions: ad.caps?.totalImpressions ?? null,
+        totalClicks: ad.caps?.totalClicks ?? null,
+      },
     });
     setDialogOpen(true);
   };
@@ -377,7 +522,7 @@ export default function AdsManagementPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">管理全站广告投放，配置广告位和投放时间</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2 rounded-lg border px-3 py-2">
             <span className="text-sm text-muted-foreground">全站广告</span>
             <Switch
@@ -386,6 +531,21 @@ export default function AdsManagementPage() {
               disabled={updateConfig.isPending}
             />
           </div>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={saving || allAds.length === 0}>
+            <Download className="h-4 w-4 mr-1.5" />
+            导出
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePickImport} disabled={saving}>
+            <Upload className="h-4 w-4 mr-1.5" />
+            导入
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleFilePicked}
+          />
           <Button onClick={handleOpenCreate} disabled={saving}>
             <Plus className="h-4 w-4 mr-2" />
             新建广告
@@ -407,11 +567,19 @@ export default function AdsManagementPage() {
             <Megaphone className="h-3.5 w-3.5" />
             广告列表
           </TabsTrigger>
+          <TabsTrigger value="insights" className="gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            数据洞察
+          </TabsTrigger>
           <TabsTrigger value="gate" className="gap-1.5">
             <ShieldAlert className="h-3.5 w-3.5" />
             广告门
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="insights" className="space-y-4">
+          <AdsInsights ads={allAds} />
+        </TabsContent>
 
         <TabsContent value="list" className="space-y-4">
           <AdFilters
@@ -423,6 +591,8 @@ export default function AdsManagementPage() {
             onStatusChange={setFilterStatus}
             filterPlatform={filterPlatform}
             onPlatformChange={setFilterPlatform}
+            filterKind={filterKind}
+            onKindChange={setFilterKind}
             platforms={platforms}
             sortField={sortField}
             sortDir={sortDir}
@@ -516,6 +686,7 @@ export default function AdsManagementPage() {
         saving={saving}
         onSave={handleSave}
         platforms={platforms}
+        knownCategories={knownCategories}
       />
 
       <AdPreviewDialog ad={previewAd} onClose={() => setPreviewAd(null)} />
@@ -533,6 +704,57 @@ export default function AdsManagementPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={importDialogOpen}
+        onOpenChange={(o) => {
+          setImportDialogOpen(o);
+          if (!o) setPendingImport(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>导入 {pendingImport?.length ?? 0} 条广告</AlertDialogTitle>
+            <AlertDialogDescription>选择如何处理与现有广告的关系。导入后可以再次编辑或删除。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setImportMode("merge")}
+              className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                importMode === "merge"
+                  ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                  : "border-border bg-card hover:bg-muted"
+              }`}
+            >
+              <p className="font-medium">合并导入（推荐）</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                追加到现有广告之后；ID 已存在的广告会被跳过，避免重复
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportMode("replace")}
+              className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                importMode === "replace"
+                  ? "border-destructive bg-destructive/10 ring-1 ring-destructive/30"
+                  : "border-border bg-card hover:bg-muted"
+              }`}
+            >
+              <p className="font-medium text-destructive">完全替换</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                丢弃当前所有 {allAds.length} 条广告，使用导入文件的内容
+              </p>
+            </button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmImport}>
+              {importMode === "replace" ? "确认替换" : "确认合并"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

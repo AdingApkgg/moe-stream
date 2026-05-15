@@ -23,6 +23,8 @@ interface AdFiltersProps {
   onStatusChange: (v: string) => void;
   filterPlatform: string;
   onPlatformChange: (v: string) => void;
+  filterKind: string;
+  onKindChange: (v: string) => void;
   platforms: string[];
   sortField: SortField;
   sortDir: SortDir;
@@ -49,6 +51,8 @@ export function AdFilters({
   onStatusChange,
   filterPlatform,
   onPlatformChange,
+  filterKind,
+  onKindChange,
   platforms,
   sortField,
   sortDir,
@@ -119,6 +123,16 @@ export function AdFilters({
             </SelectContent>
           </Select>
         )}
+        <Select value={filterKind} onValueChange={onKindChange}>
+          <SelectTrigger className="w-[110px]">
+            <SelectValue placeholder="类型" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部类型</SelectItem>
+            <SelectItem value="image">图片广告</SelectItem>
+            <SelectItem value="html">代码广告</SelectItem>
+          </SelectContent>
+        </Select>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="shrink-0">
@@ -184,6 +198,16 @@ export function AdFilters({
                   onClick={() => onPlatformChange("all")}
                 >
                   {filterPlatform}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
+              {filterKind !== "all" && (
+                <Badge
+                  variant="secondary"
+                  className="gap-1 text-[11px] cursor-pointer"
+                  onClick={() => onKindChange("all")}
+                >
+                  {filterKind === "html" ? "代码广告" : "图片广告"}
                   <X className="h-3 w-3" />
                 </Badge>
               )}

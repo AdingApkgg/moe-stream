@@ -7,7 +7,9 @@ import { useSiteConfig } from "@/contexts/site-config";
 import { useRedirectOptions } from "@/hooks/use-redirect-options";
 import { useAdImpression, useAdTracking } from "@/hooks/use-ad-tracking";
 import { useIsMounted } from "@/hooks/use-is-mounted";
+import { useAdRuntimeContext } from "@/hooks/use-ads";
 import { cn, getRedirectUrl } from "@/lib/utils";
+import { AdHtml } from "./ad-html";
 import { getAdImage, parseSponsorAds, pickWeightedRandomAds } from "@/lib/ads";
 
 const DISMISS_KEY = "mikiacg-floating-ad-dismissed";
@@ -26,6 +28,7 @@ export function FloatingAd() {
   const redirectOpts = useRedirectOptions();
   const ref = useRef<HTMLAnchorElement | null>(null);
   const { trackEvent } = useAdTracking();
+  const runtimeCtx = useAdRuntimeContext();
 
   // 选取一条广告（页面级一次随机；切页不重选避免突兀）
   const adsEnabled = config?.adsEnabled;
@@ -35,7 +38,11 @@ export function FloatingAd() {
     return parseSponsorAds(sponsorAds);
   }, [adsEnabled, sponsorAds]);
 
-  const ad = useMemo(() => pickWeightedRandomAds(ads, 1)[0], [ads]);
+  const ad = useMemo(
+    () => pickWeightedRandomAds(ads, 1, "floating", runtimeCtx)[0],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ads, runtimeCtx.device, runtimeCtx.loginState, runtimeCtx.locale],
+  );
 
   // 挂载后读取 dismiss 时间戳；超过 TTL 视为已过期。
   // 这里需要在 effect 中同步 setState 以从 localStorage 读取持久化状态——属于
@@ -56,6 +63,21 @@ export function FloatingAd() {
   useAdImpression(ref, ad?.id ?? null);
 
   if (!mounted || dismissed || !ad) return null;
+
+  // 代码广告：直接注入 HTML/JS
+  if (ad.kind === "html" && ad.html) {
+    return (
+      <div
+        className={cn(
+          "fixed bottom-4 left-4 z-40 hidden md:block w-48",
+          "animate-in fade-in slide-in-from-bottom-2 duration-500",
+        )}
+      >
+        <AdHtml html={ad.html} adId={ad.id} className="rounded-2xl border border-border/60 bg-card shadow-lg" />
+      </div>
+    );
+  }
+
   const imageUrl = getAdImage(ad, "sidebar");
 
   const handleDismiss = (e: React.MouseEvent) => {

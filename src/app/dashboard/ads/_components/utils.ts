@@ -116,42 +116,56 @@ export function isValidUrl(v: string | null | undefined): boolean {
 }
 
 /** 表单 Tab 标识 */
-export type FormTab = "basic" | "images" | "schedule";
+export type FormTab = "basic" | "creative" | "schedule" | "targeting" | "advanced";
+
+export const FORM_TABS: { value: FormTab; label: string }[] = [
+  { value: "basic", label: "基本信息" },
+  { value: "creative", label: "素材" },
+  { value: "schedule", label: "投放规则" },
+  { value: "targeting", label: "定向投放" },
+  { value: "advanced", label: "上限/备注" },
+];
 
 /** 单个字段可能的错误消息（null 表示无错） */
 export interface FormErrors {
   title: string | null;
   url: string | null;
+  html: string | null;
   imageUrl: string | null;
   bannerImage: string | null;
   cardImage: string | null;
   sidebarImage: string | null;
   dateRange: string | null;
   positions: string | null;
+  hourRanges: string | null;
 }
 
 /** 每个错误字段所属的 Tab，用于点保存时跳转到第一个错误 Tab */
 const FIELD_TAB: Record<keyof FormErrors, FormTab> = {
   title: "basic",
   url: "basic",
-  imageUrl: "images",
-  bannerImage: "images",
-  cardImage: "images",
-  sidebarImage: "images",
+  html: "creative",
+  imageUrl: "creative",
+  bannerImage: "creative",
+  cardImage: "creative",
+  sidebarImage: "creative",
   dateRange: "schedule",
   positions: "schedule",
+  hourRanges: "schedule",
 };
 
 /** 每个字段对应的 DOM 锚点 id，便于滚动聚焦 */
 export const FIELD_ANCHOR: Record<keyof FormErrors, string> = {
   title: "ad-form-title",
   url: "ad-form-url",
+  html: "ad-form-html",
   imageUrl: "ad-form-image-url",
   bannerImage: "ad-form-image-banner",
   cardImage: "ad-form-image-card",
   sidebarImage: "ad-form-image-sidebar",
   dateRange: "ad-form-end-date",
   positions: "ad-form-positions",
+  hourRanges: "ad-form-hour-ranges",
 };
 
 interface MinimalForm {
@@ -162,6 +176,9 @@ interface MinimalForm {
   startDate?: string | null;
   endDate?: string | null;
   positions: string[];
+  kind?: "image" | "html";
+  html?: string;
+  schedule?: { daysOfWeek?: number[]; hourRanges?: [number, number][] };
 }
 
 /** 计算当前表单的所有校验错误 */
@@ -170,21 +187,43 @@ export function validateAdForm(form: MinimalForm): FormErrors {
     form.startDate && form.endDate && new Date(form.startDate) > new Date(form.endDate)
       ? "结束日期需晚于开始日期"
       : null;
+  const isHtml = form.kind === "html";
+  let urlErr: string | null = null;
+  if (!isHtml) {
+    if (!form.url.trim()) urlErr = "请填写跳转链接";
+    else if (!isValidUrl(form.url)) urlErr = "URL 格式不正确";
+  } else if (form.url.trim() && !isValidUrl(form.url)) {
+    urlErr = "URL 格式不正确";
+  }
+  const htmlErr = isHtml && !(form.html || "").trim() ? "请填写 HTML/JS 代码" : null;
+  const hr = form.schedule?.hourRanges;
+  const hourErr =
+    hr && hr.length > 0 && hr.some(([s, e]) => s >= e || s < 0 || e > 24)
+      ? "小时区间需满足 0 ≤ 开始 < 结束 ≤ 24"
+      : null;
   return {
     title: !form.title.trim() ? "请填写广告标题" : null,
-    url: !form.url.trim() ? "请填写跳转链接" : !isValidUrl(form.url) ? "URL 格式不正确" : null,
+    url: urlErr,
+    html: htmlErr,
     imageUrl: !isValidUrl(form.imageUrl) ? "URL 格式不正确" : null,
     bannerImage: !isValidUrl(form.images?.banner) ? "URL 格式不正确" : null,
     cardImage: !isValidUrl(form.images?.card) ? "URL 格式不正确" : null,
     sidebarImage: !isValidUrl(form.images?.sidebar) ? "URL 格式不正确" : null,
     dateRange: range,
     positions: form.positions.length === 0 ? "请至少选择一个展示位置" : null,
+    hourRanges: hourErr,
   };
 }
 
 /** 各 Tab 是否存在错误 */
 export function getTabErrors(errors: FormErrors): Record<FormTab, boolean> {
-  const result: Record<FormTab, boolean> = { basic: false, images: false, schedule: false };
+  const result: Record<FormTab, boolean> = {
+    basic: false,
+    creative: false,
+    schedule: false,
+    targeting: false,
+    advanced: false,
+  };
   for (const key of Object.keys(errors) as (keyof FormErrors)[]) {
     if (errors[key]) result[FIELD_TAB[key]] = true;
   }
@@ -196,11 +235,13 @@ export function firstErrorField(errors: FormErrors): { tab: FormTab; field: keyo
   const order: (keyof FormErrors)[] = [
     "title",
     "url",
+    "html",
     "imageUrl",
     "bannerImage",
     "cardImage",
     "sidebarImage",
     "positions",
+    "hourRanges",
     "dateRange",
   ];
   for (const field of order) {
